@@ -1,0 +1,2 @@
+{"timestamp": "2025-11-14T10:59:32.402730", "metric": "prompt_length", "value": 0, "hook": "session_start"}
+{"timestamp": "2025-11-14T10:59:32.406051", "metric": "neo4j_enabled", "value": false, "hook": "session_start"}
