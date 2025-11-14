@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Managing Entra ID Users and Groups",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Managing Entra ID Users and Groups...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

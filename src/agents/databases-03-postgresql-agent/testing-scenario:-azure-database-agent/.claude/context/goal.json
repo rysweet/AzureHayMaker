@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Azure Database for PostgreSQL",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Azure Database for PostgreSQL...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "medium"
+  }
+}

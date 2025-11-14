@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Azure Key Vault for Secrets Management",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Azure Key Vault for Secrets Management...' is achieved"
+  ],
+  "context": {
+    "priority": "high",
+    "scale": "large"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Managed Identities for Azure Resources",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Managed Identities for Azure Resources...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

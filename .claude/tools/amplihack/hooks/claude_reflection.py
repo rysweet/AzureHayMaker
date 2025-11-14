@@ -11,6 +11,7 @@ import asyncio
 import json
 import sys
 from pathlib import Path
+from typing import Dict, List, Optional
 
 # Try to import Claude SDK
 try:
@@ -28,7 +29,7 @@ TEMPLATE_DIR = Path(__file__).parent / "templates"
 REFLECTION_PROMPT_TEMPLATE = TEMPLATE_DIR / "reflection_prompt.txt"
 
 
-def load_session_conversation(session_dir: Path) -> list[dict] | None:
+def load_session_conversation(session_dir: Path) -> Optional[List[Dict]]:
     """Load conversation messages from session directory.
 
     Args:
@@ -104,7 +105,7 @@ def load_prompt_template() -> str:
     return REFLECTION_PROMPT_TEMPLATE.read_text()
 
 
-def format_reflection_prompt(template: str, variables: dict[str, str]) -> str:
+def format_reflection_prompt(template: str, variables: Dict[str, str]) -> str:
     """Format reflection prompt with variable substitution.
 
     Args:
@@ -192,8 +193,8 @@ def get_repository_context(project_root: Path) -> str:
 
 
 async def analyze_session_with_claude(
-    conversation: list[dict], template: str, project_root: Path
-) -> str | None:
+    conversation: List[Dict], template: str, project_root: Path
+) -> Optional[str]:
     """Use Claude SDK to analyze session and fill out template.
 
     Args:
@@ -278,7 +279,7 @@ The following preferences are REQUIRED and CANNOT be ignored:
         return None
 
 
-def _format_conversation_summary(conversation: list[dict], max_length: int = 5000) -> str:
+def _format_conversation_summary(conversation: List[Dict], max_length: int = 5000) -> str:
     """Format conversation summary for analysis.
 
     Args:
@@ -313,8 +314,8 @@ def _format_conversation_summary(conversation: list[dict], max_length: int = 500
 
 
 def run_claude_reflection(
-    session_dir: Path, project_root: Path, conversation: list[dict] | None = None
-) -> str | None:
+    session_dir: Path, project_root: Path, conversation: Optional[List[Dict]] = None
+) -> Optional[str]:
     """Run Claude SDK-based reflection on a session.
 
     Args:

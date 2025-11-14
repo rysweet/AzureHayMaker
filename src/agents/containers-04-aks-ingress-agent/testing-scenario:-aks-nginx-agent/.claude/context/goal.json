@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: AKS with NGINX Ingress Controller",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: AKS with NGINX Ingress Controller...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

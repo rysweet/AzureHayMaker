@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Azure SQL Managed Instance",
+  "domain": "automation",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Azure SQL Managed Instance...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

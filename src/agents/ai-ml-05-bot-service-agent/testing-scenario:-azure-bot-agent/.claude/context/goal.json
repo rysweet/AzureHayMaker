@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Azure Bot Service with Q&A",
+  "domain": "testing",
+  "complexity": "simple",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Azure Bot Service with Q&A...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "small"
+  }
+}

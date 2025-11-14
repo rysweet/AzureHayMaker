@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Computer Vision API for Image Analysis",
+  "domain": "testing",
+  "complexity": "simple",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Computer Vision API for Image Analysis...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "small"
+  }
+}

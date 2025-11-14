@@ -67,6 +67,7 @@ reportMissingTypeStubs = false
 reportUnknownMemberType = false
 reportUnknownArgumentType = false
 reportUnknownVariableType = false
+exclude = ["src/agents"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

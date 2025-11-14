@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Conditional Access Policies",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Simulated"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

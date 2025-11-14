@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Azure Arc for Hybrid Server Management",
+  "domain": "deployment",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Azure Arc for Hybrid Server Management...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

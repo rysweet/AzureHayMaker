@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Auto-Scaling VM Scale Set with Load Balancer",
+  "domain": "automation",
+  "complexity": "simple",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Auto-Scaling VM Scale Set with Load Bala...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Serverless HTTP Triggers with Azure Functions",
+  "domain": "automation",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Serverless HTTP Triggers with Azure Func...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

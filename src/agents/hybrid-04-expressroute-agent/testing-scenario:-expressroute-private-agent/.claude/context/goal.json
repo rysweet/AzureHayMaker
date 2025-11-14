@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: ExpressRoute Private Connectivity",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: ExpressRoute Private Connectivity...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

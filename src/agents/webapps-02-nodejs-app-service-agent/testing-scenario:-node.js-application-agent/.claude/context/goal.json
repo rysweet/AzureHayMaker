@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Node.js Application on Azure App Service",
+  "domain": "testing",
+  "complexity": "simple",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Node.js Application on Azure App Service...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

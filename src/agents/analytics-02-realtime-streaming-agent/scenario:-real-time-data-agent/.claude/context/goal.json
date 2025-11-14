@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Real-Time Data Streaming with Azure Stream Analytics",
+  "domain": "data-processing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Real-Time Data Streaming with Azure Stre...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

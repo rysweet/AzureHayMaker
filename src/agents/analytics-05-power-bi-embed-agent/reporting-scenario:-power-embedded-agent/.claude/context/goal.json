@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Power BI Embedded Reports",
+  "domain": "reporting",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Power BI Embedded Reports...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "medium"
+  }
+}

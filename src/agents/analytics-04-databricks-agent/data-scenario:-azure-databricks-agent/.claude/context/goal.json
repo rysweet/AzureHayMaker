@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Azure Databricks Cluster for Machine Learning",
+  "domain": "data-processing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Azure Databricks Cluster for Machine Lea...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

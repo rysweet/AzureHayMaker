@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Static Website with Azure Storage and CDN",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Static Website with Azure Storage and CD...' is achieved"
+  ],
+  "context": {
+    "priority": "high",
+    "scale": "small"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Azure Cache for Redis",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Azure Cache for Redis...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "medium"
+  }
+}

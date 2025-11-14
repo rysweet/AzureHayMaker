@@ -1,0 +1,81 @@
+{
+  "total_duration": "2 hours 36 minutes",
+  "required_skills": [
+    "documenter",
+    "generic-executor",
+    "security-analyzer"
+  ],
+  "parallel_opportunities": [],
+  "risk_factors": [
+    "High complexity may require extended execution time",
+    "Scan may identify critical vulnerabilities requiring immediate action"
+  ],
+  "phases": [
+    {
+      "name": "Reconnaissance",
+      "description": "Scan and identify targets",
+      "required_capabilities": [
+        "scanning",
+        "enumeration"
+      ],
+      "estimated_duration": "30 minutes",
+      "dependencies": [],
+      "parallel_safe": false,
+      "success_indicators": [
+        "Scanning completed successfully",
+        "Enumeration completed successfully"
+      ]
+    },
+    {
+      "name": "Vulnerability Detection",
+      "description": "Detect potential vulnerabilities",
+      "required_capabilities": [
+        "vulnerability-scanning",
+        "analysis"
+      ],
+      "estimated_duration": "30 minutes",
+      "dependencies": [
+        "Reconnaissance"
+      ],
+      "parallel_safe": true,
+      "success_indicators": [
+        "Vulnerability-Scanning completed successfully",
+        "Analysis completed successfully"
+      ]
+    },
+    {
+      "name": "Risk Assessment",
+      "description": "Assess and prioritize risks",
+      "required_capabilities": [
+        "risk-analysis",
+        "scoring"
+      ],
+      "estimated_duration": "30 minutes",
+      "dependencies": [
+        "Vulnerability Detection"
+      ],
+      "parallel_safe": true,
+      "success_indicators": [
+        "Risk-Analysis completed successfully",
+        "Scoring completed successfully"
+      ]
+    },
+    {
+      "name": "Reporting",
+      "description": "Generate security report",
+      "required_capabilities": [
+        "reporting",
+        "documentation"
+      ],
+      "estimated_duration": "30 minutes",
+      "dependencies": [
+        "Risk Assessment"
+      ],
+      "parallel_safe": false,
+      "success_indicators": [
+        "Reporting completed successfully",
+        "Documentation completed successfully"
+      ]
+    }
+  ]
+}

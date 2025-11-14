@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Scheduled Batch ETL Pipeline",
+  "domain": "data-processing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Scheduled Batch ETL Pipeline...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}
