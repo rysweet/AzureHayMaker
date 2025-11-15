@@ -103,6 +103,15 @@ class TestQueryManagedResources:
         mock_query_result.skip_token = None
         mock_resource_graph_client.resources.return_value = mock_query_result
 
+        # Capture the QueryRequest that was created
+        query_requests = []
+
+        def capture_query_request(query_request):
+            query_requests.append(query_request)
+            return mock_query_result
+
+        mock_resource_graph_client.resources.side_effect = capture_query_request
+
         with patch(
             "azure.mgmt.resourcegraph.ResourceGraphClient", return_value=mock_resource_graph_client
         ):
@@ -111,12 +120,11 @@ class TestQueryManagedResources:
         # Verify the resources method was called
         assert mock_resource_graph_client.resources.called
         # Verify the call was made with proper arguments
-        call_args = mock_resource_graph_client.resources.call_args
-        if call_args and call_args[0]:
-            query_request = call_args[0][0]
-            query_string = query_request.query
-            assert run_id in query_string
-            assert "AzureHayMaker-managed" in query_string
+        assert len(query_requests) > 0
+        query_request = query_requests[0]
+        query_string = query_request.query
+        assert run_id in query_string
+        assert "AzureHayMaker-managed" in query_string
 
     @pytest.mark.asyncio
     async def test_query_managed_resources_pagination(self):
@@ -347,7 +355,7 @@ class TestForceDeleteResources:
 
         with (
             patch(
-                "azure.mgmt.resource.ResourceManagementClient", return_value=mock_resource_client
+                "azure_haymaker.orchestrator.cleanup.ResourceManagementClient", return_value=mock_resource_client
             ),
             patch("azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"),
         ):
@@ -457,7 +465,7 @@ class TestForceDeleteResources:
 
         with (
             patch(
-                "azure.mgmt.resource.ResourceManagementClient", return_value=mock_resource_client
+                "azure_haymaker.orchestrator.cleanup.ResourceManagementClient", return_value=mock_resource_client
             ),
             patch("azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"),
         ):
@@ -489,7 +497,7 @@ class TestForceDeleteResources:
 
         with (
             patch(
-                "azure.mgmt.resource.ResourceManagementClient", return_value=mock_resource_client
+                "azure_haymaker.orchestrator.cleanup.ResourceManagementClient", return_value=mock_resource_client
             ),
             patch("azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"),
         ):
@@ -523,7 +531,7 @@ class TestForceDeleteResources:
 
         with (
             patch(
-                "azure.mgmt.resource.ResourceManagementClient", return_value=mock_resource_client
+                "azure_haymaker.orchestrator.cleanup.ResourceManagementClient", return_value=mock_resource_client
             ),
             patch("azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"),
         ):
@@ -566,9 +574,9 @@ class TestForceDeleteResources:
 
         with (
             patch(
-                "azure.mgmt.resource.ResourceManagementClient", return_value=mock_resource_client
+                "azure_haymaker.orchestrator.cleanup.ResourceManagementClient", return_value=mock_resource_client
             ),
-            patch("msgraph.GraphServiceClient", return_value=mock_graph_client),
+            patch("azure_haymaker.orchestrator.cleanup.GraphServiceClient", return_value=mock_graph_client),
             patch("azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"),
         ):
             result = await force_delete_resources(

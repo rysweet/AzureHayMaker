@@ -512,14 +512,22 @@ async def select_scenarios_activity(input_data: Any) -> dict[str, Any]:
     try:
         logger.info("Activity: select_scenarios - Starting")
         config = await load_config()
-        scenarios = await select_scenarios(config)
+        # Handle both dict and OrchestratorConfig object
+        sim_size_val = config.get("simulation_size") if isinstance(config, dict) else config.simulation_size
+        # Convert string to SimulationSize enum if needed
+        if isinstance(sim_size_val, str):
+            from azure_haymaker.models.config import SimulationSize
+            sim_size = SimulationSize(sim_size_val)
+        else:
+            sim_size = sim_size_val
+        scenarios = select_scenarios(sim_size)
         logger.info(f"Activity: select_scenarios - Selected {len(scenarios)} scenarios")
         return {
             "scenarios": [
                 {
-                    "scenario_name": s.scenario_name,
-                    "technology_area": s.technology_area,
-                    "scenario_doc_path": s.scenario_doc_path,
+                    "scenario_name": s.get("scenario_name") if isinstance(s, dict) else s.scenario_name,
+                    "technology_area": s.get("technology_area") if isinstance(s, dict) else s.technology_area,
+                    "scenario_doc_path": s.get("scenario_doc_path") if isinstance(s, dict) else s.scenario_doc_path,
                 }
                 for s in scenarios
             ]
@@ -566,9 +574,11 @@ async def create_service_principal_activity(params: dict[str, Any]) -> dict[str,
         logger.info(f"Activity: create_service_principal - scenario={scenario_name}")
 
         config = await load_config()
+        # Handle both dict and OrchestratorConfig object
+        sub_id = config.get("target_subscription_id") if isinstance(config, dict) else config.target_subscription_id
         sp_details = await create_service_principal(
             scenario_name=scenario_name,
-            subscription_id=config.target_subscription_id,
+            subscription_id=sub_id,
             run_id=run_id,
         )
 

@@ -11,6 +11,7 @@ from azure.core.exceptions import ResourceNotFoundError
 from azure.keyvault.secrets import SecretClient
 
 from azure_haymaker.orchestrator.sp_manager import (
+    CUSTOM_RBAC_ROLE_DEFINITION,
     ServicePrincipalDetails,
     ServicePrincipalError,
     create_service_principal,
@@ -18,6 +19,42 @@ from azure_haymaker.orchestrator.sp_manager import (
     list_haymaker_service_principals,
     verify_sp_deleted,
 )
+
+
+class TestCustomRBACRole:
+    """Test custom RBAC role definition."""
+
+    def test_custom_rbac_role_definition_exists(self):
+        """Test that custom RBAC role definition is properly defined."""
+        assert CUSTOM_RBAC_ROLE_DEFINITION is not None
+        assert "roleName" in CUSTOM_RBAC_ROLE_DEFINITION
+        assert "AzureHayMaker-Agent-Role" in CUSTOM_RBAC_ROLE_DEFINITION["roleName"]
+
+    def test_custom_rbac_role_has_minimal_permissions(self):
+        """Test that custom RBAC role has minimal required permissions."""
+        assert "permissions" in CUSTOM_RBAC_ROLE_DEFINITION
+        permissions = CUSTOM_RBAC_ROLE_DEFINITION["permissions"]
+        assert len(permissions) > 0
+
+        # Check that role has read permissions for resources
+        actions = permissions[0].get("actions", [])
+        assert any("read" in action.lower() for action in actions)
+
+        # Check that role has Key Vault secret access
+        data_actions = permissions[0].get("dataActions", [])
+        assert any("KeyVault" in action and "secrets" in action for action in data_actions)
+
+    def test_custom_rbac_role_excludes_user_access_admin(self):
+        """Test that custom RBAC role does NOT include User Access Administrator permissions."""
+        # This is the security fix - we replace User Access Administrator with minimal permissions
+        assert "User Access Administrator" not in str(CUSTOM_RBAC_ROLE_DEFINITION)
+
+        # Verify that the role doesn't grant permission management actions
+        permissions = CUSTOM_RBAC_ROLE_DEFINITION["permissions"]
+        actions = permissions[0].get("actions", [])
+
+        # Should NOT have role management permissions
+        assert not any("roleAssignments" in action or "roleDefinitions" in action for action in actions)
 
 
 class TestServicePrincipalDetails:

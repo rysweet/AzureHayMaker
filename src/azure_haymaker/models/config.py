@@ -116,9 +116,9 @@ class OrchestratorConfig(BaseModel):
         default=8, description="Scenario execution duration in hours", ge=1
     )
 
-    # VNet configuration for security
+    # VNet configuration for security (MANDATORY - default True per security review)
     vnet_integration_enabled: bool = Field(
-        default=False, description="Enable VNet integration for containers"
+        default=True, description="Enable VNet integration for containers (mandatory for security)"
     )
     vnet_resource_group: str | None = Field(default=None, description="VNet resource group name")
     vnet_name: str | None = Field(default=None, description="VNet name")

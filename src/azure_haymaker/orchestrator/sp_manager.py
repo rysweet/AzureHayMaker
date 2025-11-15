@@ -40,7 +40,37 @@ class ServicePrincipalDetails(BaseModel):
 ROLE_DEFINITIONS = {
     "Contributor": "b24988ac-6180-42a0-ab88-20f7382dd24c",
     "Reader": "acdd72a7-3385-48ef-bd42-f606fba81ae7",
-    "User Access Administrator": "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9",
+    "Custom RBAC Agent": "CUSTOM_RBAC_AGENT_ROLE_ID",  # Custom role - must be created in subscription
+}
+
+# Custom RBAC role definition for HayMaker scenario agents
+# This role provides minimal required permissions for scenario execution
+# and avoids the over-privileged User Access Administrator role
+CUSTOM_RBAC_ROLE_DEFINITION = {
+    "roleName": "AzureHayMaker-Agent-Role",
+    "description": "Custom role for Azure HayMaker scenario execution with minimal permissions",
+    "permissions": [
+        {
+            "actions": [
+                "Microsoft.Resources/subscriptions/resourceGroups/read",
+                "Microsoft.Compute/virtualMachines/read",
+                "Microsoft.Network/virtualNetworks/read",
+                "Microsoft.Network/networkInterfaces/read",
+                "Microsoft.Storage/storageAccounts/read",
+                "Microsoft.KeyVault/vaults/read",
+                "Microsoft.ContainerRegistry/registries/read",
+                "Microsoft.ServiceBus/namespaces/read",
+            ],
+            "notActions": [],
+            "dataActions": [
+                "Microsoft.KeyVault/vaults/secrets/getSecret/action",
+                "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read",
+                "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/write",
+            ],
+            "notDataActions": [],
+        }
+    ],
+    "assignableScopes": ["/subscriptions/{subscription_id}"],
 }
 
 # Role propagation wait time (seconds)
