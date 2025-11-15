@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Azure Static Web Apps",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Azure Static Web Apps...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "small"
+  }
+}

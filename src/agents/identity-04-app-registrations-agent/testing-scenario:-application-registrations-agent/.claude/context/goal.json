@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Application Registrations and Permissions",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Application Registrations and Permission...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

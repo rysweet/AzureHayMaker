@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Azure Security Center Policies and Recommendations",
+  "domain": "security-analysis",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Azure Security Center Policies and Recom...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

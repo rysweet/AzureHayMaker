@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Windows Server VM with IIS Web Server",
+  "domain": "testing",
+  "complexity": "simple",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Windows Server VM with IIS Web Server...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

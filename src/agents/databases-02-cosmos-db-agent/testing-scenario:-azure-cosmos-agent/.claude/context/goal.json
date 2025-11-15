@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Azure Cosmos DB with SQL API",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Azure Cosmos DB with SQL API...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

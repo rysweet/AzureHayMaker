@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Network Security Groups for Network Security",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Network Security Groups for Network Secu...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "small"
+  }
+}

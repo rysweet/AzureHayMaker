@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Basic Virtual Network with Subnets and Network Security",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Basic Virtual Network with Subnets and N...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "small"
+  }
+}

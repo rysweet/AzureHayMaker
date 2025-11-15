@@ -13,7 +13,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, Optional
 
 # Clean import structure
 sys.path.insert(0, str(Path(__file__).parent))
@@ -45,7 +45,7 @@ class StopHook(HookProcessor):
             self.project_root / ".claude" / "runtime" / "locks" / ".continuation_prompt"
         )
 
-    def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """Check lock flag and block stop if active.
         Run synchronous reflection analysis if enabled.
         Execute Neo4j cleanup if appropriate.
@@ -184,7 +184,8 @@ class StopHook(HookProcessor):
             # Note: Connection tracker will raise ValueError if password not set and
             # NEO4J_ALLOW_DEFAULT_PASSWORD != "true". This is intentional for production security.
             tracker = Neo4jConnectionTracker(
-                username=os.getenv("NEO4J_USERNAME"), password=os.getenv("NEO4J_PASSWORD")
+                username=os.getenv("NEO4J_USERNAME"),
+                password=os.getenv("NEO4J_PASSWORD")
             )
             manager = Neo4jContainerManager()
             coordinator = Neo4jShutdownCoordinator(
@@ -315,7 +316,7 @@ class StopHook(HookProcessor):
         # Generate timestamp-based ID
         return datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    def _run_reflection_sync(self, transcript_path: str | None = None) -> str | None:
+    def _run_reflection_sync(self, transcript_path: Optional[str] = None) -> Optional[str]:
         """Run Claude SDK-based reflection synchronously.
 
         Args:
@@ -444,7 +445,7 @@ class StopHook(HookProcessor):
 
         return f"reflection-{task_slug}-{timestamp}.md"
 
-    def _block_with_findings(self, filled_template: str, reflection_file_path: str) -> dict:
+    def _block_with_findings(self, filled_template: str, reflection_file_path: str) -> Dict:
         """Block stop with instructions to read and present reflection.
 
         Args:

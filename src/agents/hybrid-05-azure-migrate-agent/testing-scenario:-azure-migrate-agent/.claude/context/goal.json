@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Azure Migrate Assessment and Discovery",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Azure Migrate Assessment and Discovery...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Azure Synapse Analytics Workspace for Big Data",
+  "domain": "data-processing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Azure Synapse Analytics Workspace for Bi...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

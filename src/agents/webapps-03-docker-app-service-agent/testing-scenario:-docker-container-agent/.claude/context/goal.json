@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Docker Container on Azure App Service",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Docker Container on Azure App Service...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

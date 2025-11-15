@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Azure Machine Learning Workspace Setup",
+  "domain": "monitoring",
+  "complexity": "simple",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Azure Machine Learning Workspace Setup...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

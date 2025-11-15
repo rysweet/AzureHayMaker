@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Simple Linux VM Running Nginx Web Server",
+  "domain": "testing",
+  "complexity": "simple",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Simple Linux VM Running Nginx Web Server...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "small"
+  }
+}

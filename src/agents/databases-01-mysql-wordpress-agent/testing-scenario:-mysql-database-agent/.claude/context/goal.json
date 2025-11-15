@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: MySQL Database for WordPress Application",
+  "domain": "testing",
+  "complexity": "simple",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: MySQL Database for WordPress Application...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "small"
+  }
+}

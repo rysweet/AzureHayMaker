@@ -1,0 +1,80 @@
+{
+  "total_duration": "22 minutes",
+  "required_skills": [
+    "data-processor",
+    "generic-executor",
+    "monitor"
+  ],
+  "parallel_opportunities": [],
+  "risk_factors": [
+    "Standard execution risks apply"
+  ],
+  "phases": [
+    {
+      "name": "Setup Monitors",
+      "description": "Configure monitoring",
+      "required_capabilities": [
+        "configuration",
+        "instrumentation"
+      ],
+      "estimated_duration": "5 minutes",
+      "dependencies": [],
+      "parallel_safe": false,
+      "success_indicators": [
+        "Configuration completed successfully",
+        "Instrumentation completed successfully"
+      ]
+    },
+    {
+      "name": "Data Collection",
+      "description": "Collect metrics and logs",
+      "required_capabilities": [
+        "data-collection",
+        "aggregation"
+      ],
+      "estimated_duration": "5 minutes",
+      "dependencies": [
+        "Setup Monitors"
+      ],
+      "parallel_safe": true,
+      "success_indicators": [
+        "Data-Collection completed successfully",
+        "Aggregation completed successfully"
+      ]
+    },
+    {
+      "name": "Analysis",
+      "description": "Analyze monitoring data",
+      "required_capabilities": [
+        "analysis",
+        "anomaly-detection"
+      ],
+      "estimated_duration": "5 minutes",
+      "dependencies": [
+        "Data Collection"
+      ],
+      "parallel_safe": true,
+      "success_indicators": [
+        "Analysis completed successfully",
+        "Anomaly-Detection completed successfully"
+      ]
+    },
+    {
+      "name": "Alerting",
+      "description": "Set up alerts",
+      "required_capabilities": [
+        "alerting",
+        "notification"
+      ],
+      "estimated_duration": "5 minutes",
+      "dependencies": [
+        "Analysis"
+      ],
+      "parallel_safe": false,
+      "success_indicators": [
+        "Alerting completed successfully",
+        "Notification completed successfully"
+      ]
+    }
+  ]
+}

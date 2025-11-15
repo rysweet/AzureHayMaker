@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Azure Site Recovery for Disaster Recovery",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Azure Site Recovery for Disaster Recover...' is achieved"
+  ],
+  "context": {
+    "priority": "high",
+    "scale": "large"
+  }
+}

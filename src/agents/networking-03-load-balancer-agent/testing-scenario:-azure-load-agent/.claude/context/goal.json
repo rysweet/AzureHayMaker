@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Azure Load Balancer with Virtual Machines",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Azure Load Balancer with Virtual Machine...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Azure Kubernetes Service (AKS) Cluster",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Azure Kubernetes Service (AKS) Cluster...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

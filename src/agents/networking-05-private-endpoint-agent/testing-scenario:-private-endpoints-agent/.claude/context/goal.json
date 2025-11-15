@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Private Endpoints for Azure Services",
+  "domain": "testing",
+  "complexity": "simple",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Private Endpoints for Azure Services...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

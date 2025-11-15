@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Text Analytics for Sentiment Analysis",
+  "domain": "data-processing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Text Analytics for Sentiment Analysis...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "medium"
+  }
+}

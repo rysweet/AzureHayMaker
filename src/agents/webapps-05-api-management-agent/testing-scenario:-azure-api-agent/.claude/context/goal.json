@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Azure API Management Gateway",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Azure API Management Gateway...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

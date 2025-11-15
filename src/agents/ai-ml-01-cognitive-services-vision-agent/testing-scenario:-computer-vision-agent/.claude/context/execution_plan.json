@@ -1,0 +1,80 @@
+{
+  "total_duration": "22 minutes",
+  "required_skills": [
+    "documenter",
+    "generic-executor",
+    "tester"
+  ],
+  "parallel_opportunities": [],
+  "risk_factors": [
+    "Standard execution risks apply"
+  ],
+  "phases": [
+    {
+      "name": "Test Planning",
+      "description": "Plan test strategy",
+      "required_capabilities": [
+        "test-design",
+        "planning"
+      ],
+      "estimated_duration": "5 minutes",
+      "dependencies": [],
+      "parallel_safe": false,
+      "success_indicators": [
+        "Test-Design completed successfully",
+        "Planning completed successfully"
+      ]
+    },
+    {
+      "name": "Test Implementation",
+      "description": "Implement test cases",
+      "required_capabilities": [
+        "test-coding",
+        "framework-setup"
+      ],
+      "estimated_duration": "5 minutes",
+      "dependencies": [
+        "Test Planning"
+      ],
+      "parallel_safe": true,
+      "success_indicators": [
+        "Test-Coding completed successfully",
+        "Framework-Setup completed successfully"
+      ]
+    },
+    {
+      "name": "Test Execution",
+      "description": "Run test suite",
+      "required_capabilities": [
+        "test-execution",
+        "automation"
+      ],
+      "estimated_duration": "5 minutes",
+      "dependencies": [
+        "Test Implementation"
+      ],
+      "parallel_safe": true,
+      "success_indicators": [
+        "Test-Execution completed successfully",
+        "Automation completed successfully"
+      ]
+    },
+    {
+      "name": "Results Analysis",
+      "description": "Analyze test results",
+      "required_capabilities": [
+        "analysis",
+        "reporting"
+      ],
+      "estimated_duration": "5 minutes",
+      "dependencies": [
+        "Test Execution"
+      ],
+      "parallel_safe": false,
+      "success_indicators": [
+        "Analysis completed successfully",
+        "Reporting completed successfully"
+      ]
+    }
+  ]
+}

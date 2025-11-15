@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Python Web Application on Azure App Service",
+  "domain": "testing",
+  "complexity": "simple",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Python Web Application on Azure App Serv...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

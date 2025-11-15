@@ -1,0 +1,15 @@
+{
+  "goal": "Scenario: Entra ID Groups and Role Assignments",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [
+    "be manually managed"
+  ],
+  "success_criteria": [
+    "Goal 'Scenario: Entra ID Groups and Role Assignments...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

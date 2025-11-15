@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Site-to-Site VPN Gateway Connection",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Site-to-Site VPN Gateway Connection...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

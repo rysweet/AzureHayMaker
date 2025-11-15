@@ -26,7 +26,7 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
-        args: [src, tests]
+        args: [src/azure_haymaker, tests]
 
       - id: pytest
         name: pytest

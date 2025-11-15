@@ -213,9 +213,9 @@ def test_performance():
     print(f"  Max: {max_time:.1f}ms")
 
     # Relaxed performance target (Python startup is slow)
-    assert (
-        avg_time < 200
-    ), f"Hook too slow (avg {avg_time:.1f}ms > 200ms target including Python startup)"
+    assert avg_time < 200, (
+        f"Hook too slow (avg {avg_time:.1f}ms > 200ms target including Python startup)"
+    )
 
     print("✓ Performance acceptable")
 

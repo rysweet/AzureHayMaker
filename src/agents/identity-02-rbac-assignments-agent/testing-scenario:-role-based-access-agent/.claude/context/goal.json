@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Role-Based Access Control (RBAC) Assignments",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Role-Based Access Control (RBAC) Assignm...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

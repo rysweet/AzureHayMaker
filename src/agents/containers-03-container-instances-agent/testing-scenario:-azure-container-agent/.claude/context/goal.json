@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Azure Container Instances",
+  "domain": "testing",
+  "complexity": "simple",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Azure Container Instances...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

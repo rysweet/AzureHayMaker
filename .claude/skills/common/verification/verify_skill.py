@@ -17,9 +17,10 @@ Examples:
 import importlib
 import subprocess
 import sys
+from typing import List, Tuple
 
 
-def check_python_package(package: str) -> tuple[bool, str]:
+def check_python_package(package: str) -> Tuple[bool, str]:
     """Check if Python package is installed.
 
     Args:
@@ -36,7 +37,7 @@ def check_python_package(package: str) -> tuple[bool, str]:
         return False, "Not installed"
 
 
-def check_system_command(command: str) -> tuple[bool, str]:
+def check_system_command(command: str) -> Tuple[bool, str]:
     """Check if system command is available.
 
     Args:
@@ -54,9 +55,7 @@ def check_system_command(command: str) -> tuple[bool, str]:
         )
         # Try to extract version from output
         output = result.stdout.decode("utf-8", errors="ignore").split("\n")[0]
-        return True, f"Available ({output[:50]}...)" if len(
-            output
-        ) > 50 else f"Available ({output})"
+        return True, f"Available ({output[:50]}...)" if len(output) > 50 else f"Available ({output})"
     except subprocess.TimeoutExpired:
         return False, "Timeout (command hung)"
     except subprocess.CalledProcessError:
@@ -69,9 +68,9 @@ def check_system_command(command: str) -> tuple[bool, str]:
 
 def verify_skill(
     skill_name: str,
-    python_packages_required: list[str],
-    python_packages_optional: list[str],
-    system_commands_optional: list[str],
+    python_packages_required: List[str],
+    python_packages_optional: List[str],
+    system_commands_optional: List[str],
 ) -> bool:
     """Verify all dependencies for a skill.
 
@@ -127,10 +126,14 @@ def verify_skill(
             print(f"  pip install {' '.join(missing)}")
 
     # Optional features summary
-    optional_available = sum(1 for pkg in python_packages_optional if check_python_package(pkg)[0])
+    optional_available = sum(
+        1 for pkg in python_packages_optional if check_python_package(pkg)[0]
+    )
     optional_total = len(python_packages_optional)
 
-    system_available = sum(1 for cmd in system_commands_optional if check_system_command(cmd)[0])
+    system_available = sum(
+        1 for cmd in system_commands_optional if check_system_command(cmd)[0]
+    )
     system_total = len(system_commands_optional)
 
     if optional_total > 0 or system_total > 0:
@@ -175,7 +178,7 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: python verify_skill.py <skill|all>")
         print("\nAvailable skills:")
-        for skill in SKILLS:
+        for skill in SKILLS.keys():
             print(f"  - {skill}")
         print("\nOr use 'all' to verify all skills")
         sys.exit(1)
@@ -219,7 +222,7 @@ def main():
     else:
         print(f"Error: Unknown skill '{skill}'")
         print("\nAvailable skills:")
-        for skill_name in SKILLS:
+        for skill_name in SKILLS.keys():
             print(f"  - {skill_name}")
         sys.exit(1)
 

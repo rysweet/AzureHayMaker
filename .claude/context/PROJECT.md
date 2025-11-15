@@ -10,11 +10,11 @@ Replace the sections below with information about your project.
 
 ---
 
-## Project: AzureHayMaker
+## Project: feat-issue-1-azure-haymaker-implementation
 
 ## Overview
 
-[Brief description of what your project does]
+Generate benign service telemetry for Azure Tenant simulation. Azure HayMaker is an orchestration service that simulates realistic Azure tenant activity by deploying and managing 50+ distinct operational scenarios using autonomous goal-seeking agents. Each agent performs a full lifecycle: deployment, 8-hour operation period, and cleanup.
 
 ## Architecture
 
@@ -28,6 +28,8 @@ Replace the sections below with information about your project.
 
 - **Language**: Python
 - **Language**: JavaScript/TypeScript
+- **Language**: Rust
+- **Language**: Go
 - **Framework**: [Main framework if applicable]
 - **Database**: [Database system if applicable]
 

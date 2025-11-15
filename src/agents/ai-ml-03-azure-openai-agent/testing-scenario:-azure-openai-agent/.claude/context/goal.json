@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Azure OpenAI Service Deployment",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Azure OpenAI Service Deployment...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}

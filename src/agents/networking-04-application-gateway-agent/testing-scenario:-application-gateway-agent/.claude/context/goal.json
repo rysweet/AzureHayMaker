@@ -1,0 +1,13 @@
+{
+  "goal": "Scenario: Application Gateway with Web Application Firewall",
+  "domain": "testing",
+  "complexity": "complex",
+  "constraints": [],
+  "success_criteria": [
+    "Goal 'Scenario: Application Gateway with Web Application...' is achieved"
+  ],
+  "context": {
+    "priority": "normal",
+    "scale": "large"
+  }
+}
