@@ -65,6 +65,7 @@ logs/
 
 # Runtime
 .claude-trace/
+.claude/runtime/
 
 # OS
 .DS_Store
