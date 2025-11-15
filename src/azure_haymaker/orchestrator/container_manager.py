@@ -6,7 +6,6 @@ strict resource configuration requirements, and container image signing verifica
 """
 
 import asyncio
-import hashlib
 import logging
 from typing import Any
 
@@ -69,9 +68,7 @@ async def verify_image_signature(
     # In production, this would verify against ACR signatures and policies
     # For now, we enforce that the image reference must be in the approved registry
     if not image_ref.startswith("azurecr.io/") and not image_ref.startswith("registry"):
-        raise ImageSigningError(
-            f"Image {image_ref} is not from an approved container registry"
-        )
+        raise ImageSigningError(f"Image {image_ref} is not from an approved container registry")
 
     # MVP: Verify image digest format and tag policy
     # Future: Integrate with ACR content trust / image signatures for production
