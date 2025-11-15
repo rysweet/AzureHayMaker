@@ -118,3 +118,108 @@ class ExecutionRun(BaseModel):
 
         use_enum_values = False
         validate_assignment = True
+
+
+# ==============================================================================
+# ON-DEMAND EXECUTION MODELS
+# ==============================================================================
+
+
+class OnDemandExecutionStatus(str, Enum):
+    """Status of on-demand execution request."""
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class ExecutionRequest(BaseModel):
+    """Request to execute scenarios on-demand."""
+
+    scenarios: list[str] = Field(
+        ...,
+        description="List of scenario names to execute (1-5 scenarios)",
+        min_length=1,
+        max_length=5,
+    )
+    duration_hours: int = Field(
+        default=8,
+        description="Execution duration in hours",
+        ge=1,
+        le=24,
+    )
+    tags: dict[str, str] = Field(
+        default_factory=dict,
+        description="Optional tags for tracking",
+    )
+
+    class Config:
+        """Pydantic configuration."""
+
+        json_schema_extra = {
+            "example": {
+                "scenarios": ["compute-01-linux-vm-web-server", "networking-01-virtual-network"],
+                "duration_hours": 2,
+                "tags": {"requester": "user@example.com"},
+            }
+        }
+
+
+class ExecutionResponse(BaseModel):
+    """Response for execution request."""
+
+    execution_id: str = Field(..., description="Unique execution ID")
+    status: OnDemandExecutionStatus = Field(..., description="Current execution status")
+    scenarios: list[str] = Field(..., description="Scenarios queued for execution")
+    estimated_completion: datetime = Field(..., description="Estimated completion time")
+    created_at: datetime = Field(..., description="Request creation time")
+
+    class Config:
+        """Pydantic configuration."""
+
+        use_enum_values = True
+
+
+class ExecutionStatusResponse(BaseModel):
+    """Detailed execution status response."""
+
+    execution_id: str = Field(..., description="Unique execution ID")
+    status: OnDemandExecutionStatus = Field(..., description="Current execution status")
+    scenarios: list[str] = Field(..., description="Scenarios in execution")
+    created_at: datetime = Field(..., description="Request creation time")
+    started_at: datetime | None = Field(default=None, description="Execution start time")
+    completed_at: datetime | None = Field(default=None, description="Execution completion time")
+    progress: dict[str, int] | None = Field(
+        default=None,
+        description="Execution progress (completed, running, failed, total)",
+    )
+    resources_created: int = Field(default=0, description="Total resources created")
+    container_ids: list[str] = Field(default_factory=list, description="Container App IDs")
+    report_url: str | None = Field(default=None, description="Execution report URL")
+    error: str | None = Field(default=None, description="Error message if failed")
+
+    class Config:
+        """Pydantic configuration."""
+
+        use_enum_values = True
+
+
+class ExecutionRecord(BaseModel):
+    """Internal execution record stored in Table Storage."""
+
+    execution_id: str = Field(..., description="Unique execution ID (PartitionKey)")
+    timestamp: datetime = Field(..., description="Record timestamp (RowKey)")
+    status: OnDemandExecutionStatus = Field(..., description="Current status")
+    scenarios: list[str] = Field(..., description="Scenarios to execute")
+    duration_hours: int = Field(..., description="Execution duration")
+    tags: dict[str, str] = Field(default_factory=dict, description="User tags")
+    container_ids: list[str] = Field(default_factory=list, description="Container App IDs")
+    resources_created: int = Field(default=0, description="Total resources created")
+    error_message: str | None = Field(default=None, description="Error message if failed")
+    report_url: str | None = Field(default=None, description="Report URL when complete")
+
+    class Config:
+        """Pydantic configuration."""
+
+        use_enum_values = True

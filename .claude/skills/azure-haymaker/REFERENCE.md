@@ -529,6 +529,117 @@ az ad directory-role-member add \
 
 ---
 
-**Reference Version**: 1.0
-**Last Updated**: 2024
+## Microsoft Learn References
+
+### Azure CLI Documentation
+
+- [Azure CLI Overview](https://learn.microsoft.com/cli/azure/) - Complete Azure CLI reference
+- [Azure CLI Installation Guide](https://learn.microsoft.com/cli/azure/install-azure-cli) - Install on Windows, macOS, Linux
+- [Azure CLI Configuration](https://learn.microsoft.com/cli/azure/azure-cli-configuration) - Configuration options and settings
+- [Azure CLI Command Reference](https://learn.microsoft.com/cli/azure/reference-index) - Full command index
+- [Azure CLI Query with JMESPath](https://learn.microsoft.com/cli/azure/query-azure-cli) - Query and filter output
+- [Azure CLI Output Formats](https://learn.microsoft.com/cli/azure/format-output-azure-cli) - JSON, table, YAML outputs
+
+### Terraform Azure Provider Documentation
+
+- [Terraform Azure Provider](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs) - Official provider documentation
+- [Azure Provider Authentication](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/guides/azure_cli) - Service principal and managed identity auth
+- [Terraform Azure Resource Examples](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources) - Resource-specific examples
+- [Terraform on Azure Tutorial](https://learn.microsoft.com/azure/developer/terraform/) - Microsoft Learn Terraform guide
+- [Terraform State Management in Azure](https://learn.microsoft.com/azure/developer/terraform/store-state-in-azure-storage) - Remote state with Azure Storage
+
+### Azure Bicep Documentation
+
+- [Azure Bicep Overview](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview) - Introduction to Bicep
+- [Bicep Installation](https://learn.microsoft.com/azure/azure-resource-manager/bicep/install) - Install Bicep CLI
+- [Bicep Template Structure](https://learn.microsoft.com/azure/azure-resource-manager/bicep/file) - Syntax and file structure
+- [Bicep Modules](https://learn.microsoft.com/azure/azure-resource-manager/bicep/modules) - Reusable template modules
+- [Bicep Parameters and Variables](https://learn.microsoft.com/azure/azure-resource-manager/bicep/parameters) - Configuration management
+- [Bicep Deployment Commands](https://learn.microsoft.com/azure/azure-resource-manager/bicep/deploy-cli) - Deploy with Azure CLI
+- [Bicep Resource Reference](https://learn.microsoft.com/azure/templates/) - All Azure resource types
+
+### Azure Resource Management
+
+- [Azure Resource Manager Overview](https://learn.microsoft.com/azure/azure-resource-manager/management/overview) - ARM concepts and architecture
+- [Resource Groups](https://learn.microsoft.com/azure/azure-resource-manager/management/manage-resource-groups-cli) - Manage resource groups with CLI
+- [Resource Tagging](https://learn.microsoft.com/azure/azure-resource-manager/management/tag-resources) - Tag resources for organization
+- [Resource Locks](https://learn.microsoft.com/azure/azure-resource-manager/management/lock-resources) - Prevent accidental deletion
+- [Azure Resource Graph](https://learn.microsoft.com/azure/governance/resource-graph/) - Query resources at scale
+
+### Azure Identity and Access Management
+
+- [Azure Entra ID Overview](https://learn.microsoft.com/entra/fundamentals/whatis) - Identity platform overview
+- [Service Principals](https://learn.microsoft.com/entra/identity-platform/app-objects-and-service-principals) - Application and service principal objects
+- [Azure RBAC](https://learn.microsoft.com/azure/role-based-access-control/overview) - Role-based access control
+- [Built-in Roles](https://learn.microsoft.com/azure/role-based-access-control/built-in-roles) - Complete role reference
+- [Managed Identities](https://learn.microsoft.com/entra/identity/managed-identities-azure-resources/overview) - Passwordless authentication
+- [Azure AD CLI Commands](https://learn.microsoft.com/cli/azure/ad) - Entra ID CLI reference
+
+### Azure Key Vault
+
+- [Azure Key Vault Overview](https://learn.microsoft.com/azure/key-vault/general/overview) - Secrets management service
+- [Key Vault Best Practices](https://learn.microsoft.com/azure/key-vault/general/best-practices) - Security recommendations
+- [Manage Secrets with CLI](https://learn.microsoft.com/azure/key-vault/secrets/quick-create-cli) - Secret operations
+- [Key Vault Access Policies](https://learn.microsoft.com/azure/key-vault/general/assign-access-policy) - Configure permissions
+- [Key Vault References](https://learn.microsoft.com/azure/app-service/app-service-key-vault-references) - Use in App Service and Functions
+
+### Azure Networking
+
+- [Virtual Networks](https://learn.microsoft.com/azure/virtual-network/virtual-networks-overview) - VNet concepts and architecture
+- [Network Security Groups](https://learn.microsoft.com/azure/virtual-network/network-security-groups-overview) - Traffic filtering
+- [Virtual Network Peering](https://learn.microsoft.com/azure/virtual-network/virtual-network-peering-overview) - Connect VNets
+- [Private Endpoints](https://learn.microsoft.com/azure/private-link/private-endpoint-overview) - Private connectivity to PaaS
+- [Load Balancer](https://learn.microsoft.com/azure/load-balancer/load-balancer-overview) - Layer 4 load balancing
+- [Application Gateway](https://learn.microsoft.com/azure/application-gateway/overview) - Layer 7 load balancing
+
+### Azure Compute Services
+
+- [Virtual Machines Overview](https://learn.microsoft.com/azure/virtual-machines/) - VM documentation hub
+- [VM Sizes](https://learn.microsoft.com/azure/virtual-machines/sizes) - All VM size families
+- [Azure App Service](https://learn.microsoft.com/azure/app-service/) - Web app hosting
+- [Azure Functions](https://learn.microsoft.com/azure/azure-functions/) - Serverless compute
+- [Azure Container Apps](https://learn.microsoft.com/azure/container-apps/) - Serverless containers
+- [Azure Kubernetes Service](https://learn.microsoft.com/azure/aks/) - Managed Kubernetes
+
+### Azure Storage
+
+- [Azure Storage Overview](https://learn.microsoft.com/azure/storage/common/storage-introduction) - Storage services overview
+- [Blob Storage](https://learn.microsoft.com/azure/storage/blobs/) - Object storage
+- [Table Storage](https://learn.microsoft.com/azure/storage/tables/) - NoSQL key-value store
+- [Storage Account Management](https://learn.microsoft.com/azure/storage/common/storage-account-overview) - Account types and features
+
+### Azure Databases
+
+- [Azure SQL Database](https://learn.microsoft.com/azure/azure-sql/) - Managed SQL database
+- [Azure Database for MySQL](https://learn.microsoft.com/azure/mysql/) - Managed MySQL
+- [Azure Database for PostgreSQL](https://learn.microsoft.com/azure/postgresql/) - Managed PostgreSQL
+- [Azure Cosmos DB](https://learn.microsoft.com/azure/cosmos-db/) - Globally distributed NoSQL
+- [Azure Cache for Redis](https://learn.microsoft.com/azure/azure-cache-for-redis/) - In-memory cache
+
+### Azure Monitoring
+
+- [Azure Monitor Overview](https://learn.microsoft.com/azure/azure-monitor/overview) - Monitoring platform
+- [Log Analytics](https://learn.microsoft.com/azure/azure-monitor/logs/log-analytics-overview) - Log querying and analysis
+- [Application Insights](https://learn.microsoft.com/azure/azure-monitor/app/app-insights-overview) - Application performance monitoring
+- [Azure Alerts](https://learn.microsoft.com/azure/azure-monitor/alerts/alerts-overview) - Automated alerting
+
+### DevOps and CI/CD
+
+- [GitHub Actions for Azure](https://learn.microsoft.com/azure/developer/github/github-actions) - CI/CD with GitHub
+- [Azure DevOps](https://learn.microsoft.com/azure/devops/) - Complete DevOps platform
+- [Azure Pipelines](https://learn.microsoft.com/azure/devops/pipelines/) - CI/CD pipelines
+- [GitHub OIDC with Azure](https://learn.microsoft.com/azure/developer/github/connect-from-azure) - Passwordless authentication
+
+### Azure Security
+
+- [Azure Security Best Practices](https://learn.microsoft.com/azure/security/fundamentals/best-practices-and-patterns) - Security guidance
+- [Azure Defender](https://learn.microsoft.com/azure/defender-for-cloud/) - Cloud security posture management
+- [Azure Policy](https://learn.microsoft.com/azure/governance/policy/) - Governance and compliance
+- [Azure Security Baseline](https://learn.microsoft.com/security/benchmark/azure/overview) - Security recommendations
+
+---
+
+**Reference Version**: 2.0
+**Last Updated**: 2025-01-15
 **Coverage**: Azure CLI 2.50+, Terraform 1.5+, Bicep 0.20+
+**MS Learn Links**: 60+ official Microsoft documentation references

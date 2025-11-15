@@ -16,27 +16,61 @@ Azure HayMaker is an orchestration service that simulates realistic Azure tenant
 
 ## Quick Start
 
+### 1. Install Dependencies
+
 ```bash
-# Install dependencies
 uv sync --all-extras
+```
 
-# Configure environment
+### 2. Configure Environment
+
+**Option A: Using .env file (recommended for local development)**
+
+```bash
+# Copy the example file
+cp .env.example .env
+
+# Edit .env with your values
+# DO NOT commit .env to git!
+```
+
+**Option B: Using environment variables**
+
+```bash
 export AZURE_TENANT_ID="your-tenant-id"
+export AZURE_SUBSCRIPTION_ID="your-subscription-id"
 export AZURE_CLIENT_ID="your-client-id"
-export AZURE_CLIENT_SECRET="your-secret"
-export ANTHROPIC_API_KEY="your-api-key"
-export SIMULATION_SIZE="5"
+export KEY_VAULT_URL="https://your-keyvault.vault.azure.net"
+export SIMULATION_SIZE="small"
+# ... more variables (see .env.example)
+```
 
-# Run service (TBD - under development)
+**Configuration Priority Order:**
+1. Environment variables (explicit override) - highest priority
+2. Azure Key Vault (production secrets)
+3. .env file (local development only) - lowest priority
+
+### 3. Run Tests
+
+```bash
+pytest
+```
+
+### 4. Run Service
+
+```bash
+# TBD - under development
 # python -m azure_haymaker.orchestrator
 ```
+
+**Security Note:** The .env file should only be used for local development. Production deployments must use Azure Key Vault for secrets management.
 
 ## Documentation
 
 - **[Project Requirements](specs/requirements.md)** - Detailed specifications and success criteria
 - **[Initial Prompt](specs/initial-prompt.md)** - Original project conception
 - **[Scenarios](docs/scenarios/)** - 50 operational scenarios with full automation
-- **[Architecture Guide](.claude/skills/azure-haymaker/ARCHITECTURE_GUIDE.md)** - Azure patterns and best practices
+- **[Architecture Guide](.claude/skills/azure-haymaker/ARCHITECTURE_GUIDE.md)** - Azure HayMaker orchestration service architecture
 
 ## Development
 

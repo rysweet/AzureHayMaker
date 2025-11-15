@@ -5,6 +5,7 @@ Each service principal is created per scenario, assigned custom RBAC roles, and 
 """
 
 import asyncio
+import logging
 import uuid
 from datetime import UTC, datetime
 
@@ -18,6 +19,8 @@ from msgraph.generated.models.application import Application
 from msgraph.generated.models.password_credential import PasswordCredential
 from msgraph.generated.models.service_principal import ServicePrincipal
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
 
 
 class ServicePrincipalError(Exception):
@@ -234,11 +237,11 @@ async def delete_service_principal(
             )
         else:
             # SP not found, log but continue
-            print(f"Warning: Service principal {sp_name} not found for deletion")
+            logger.warning("Service principal %s not found for deletion", sp_name)
 
     except Exception as e:
         # Log error but continue to try deleting secret
-        print(f"Error deleting service principal {sp_name}: {e}")
+        logger.error("Error deleting service principal %s: %s", sp_name, e)
 
     # Delete secret from Key Vault
     try:
@@ -248,9 +251,9 @@ async def delete_service_principal(
         )
     except ResourceNotFoundError:
         # Secret not found, that's okay
-        print(f"Warning: Key Vault secret {secret_name} not found for deletion")
+        logger.warning("Key Vault secret %s not found for deletion", secret_name)
     except Exception as e:
-        print(f"Error deleting Key Vault secret {secret_name}: {e}")
+        logger.error("Error deleting Key Vault secret %s: %s", secret_name, e)
 
 
 async def verify_sp_deleted(sp_name: str) -> bool:

@@ -98,10 +98,9 @@ resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
 For detailed information, reference these files as needed:
 
 - **`REFERENCE.md`** - Complete Azure CLI command reference, Terraform resources, Bicep modules
-- **`ARCHITECTURE_GUIDE.md`** - Detailed architecture patterns for all 10 technology areas
+- **`ARCHITECTURE_GUIDE.md`** - Azure HayMaker orchestration service architecture
 - **`ENTRA_ID_GUIDE.md`** - EntraID administration, RBAC, identity patterns
 - **`TROUBLESHOOTING.md`** - Common issues and solutions
-- **`examples/`** - Complete working examples for each technology area
 
 ## Technology Area Quick Links
 
@@ -252,12 +251,21 @@ NAME="myresource-${UNIQUE}"
 
 ## Additional Resources
 
-- **Azure CLI Docs**: https://learn.microsoft.com/en-us/cli/azure/
-- **Terraform Azure Provider**: https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs
-- **Bicep Docs**: https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/
-- **Azure Architecture Center**: https://learn.microsoft.com/en-us/azure/architecture/
-- **EntraID Docs**: https://learn.microsoft.com/en-us/entra/identity/
+### Azure HayMaker Documentation
+- **[Azure HayMaker Project](https://github.com/rysweet/AzureHayMaker)** - Main repository
+- **[Architecture Guide](ARCHITECTURE_GUIDE.md)** - Orchestration service architecture
+- **[Scenario Repository](../../../../docs/scenarios/)** - 50+ operational scenarios
+
+### Microsoft Learn Resources
+- **[Azure CLI Documentation](https://learn.microsoft.com/cli/azure/)** - Complete CLI reference
+- **[Terraform on Azure](https://learn.microsoft.com/azure/developer/terraform/)** - Infrastructure as Code guide
+- **[Azure Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/)** - Native Azure IaC
+- **[Azure Architecture Center](https://learn.microsoft.com/azure/architecture/)** - Architecture patterns
+- **[Azure Entra ID](https://learn.microsoft.com/entra/identity/)** - Identity platform
+- **[Azure Well-Architected Framework](https://learn.microsoft.com/azure/well-architected/)** - Best practices
 
 ---
 
 **Note**: This skill uses progressive disclosure. Detailed references, architecture patterns, and advanced topics are loaded automatically when needed for specific tasks.
+
+**Version**: 2.0 | **Last Updated**: 2025-01-15

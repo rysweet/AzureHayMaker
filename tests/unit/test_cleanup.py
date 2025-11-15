@@ -355,7 +355,8 @@ class TestForceDeleteResources:
 
         with (
             patch(
-                "azure_haymaker.orchestrator.cleanup.ResourceManagementClient", return_value=mock_resource_client
+                "azure_haymaker.orchestrator.cleanup.ResourceManagementClient",
+                return_value=mock_resource_client,
             ),
             patch("azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"),
         ):
@@ -465,7 +466,8 @@ class TestForceDeleteResources:
 
         with (
             patch(
-                "azure_haymaker.orchestrator.cleanup.ResourceManagementClient", return_value=mock_resource_client
+                "azure_haymaker.orchestrator.cleanup.ResourceManagementClient",
+                return_value=mock_resource_client,
             ),
             patch("azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"),
         ):
@@ -497,7 +499,8 @@ class TestForceDeleteResources:
 
         with (
             patch(
-                "azure_haymaker.orchestrator.cleanup.ResourceManagementClient", return_value=mock_resource_client
+                "azure_haymaker.orchestrator.cleanup.ResourceManagementClient",
+                return_value=mock_resource_client,
             ),
             patch("azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"),
         ):
@@ -531,7 +534,8 @@ class TestForceDeleteResources:
 
         with (
             patch(
-                "azure_haymaker.orchestrator.cleanup.ResourceManagementClient", return_value=mock_resource_client
+                "azure_haymaker.orchestrator.cleanup.ResourceManagementClient",
+                return_value=mock_resource_client,
             ),
             patch("azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"),
         ):
@@ -574,9 +578,13 @@ class TestForceDeleteResources:
 
         with (
             patch(
-                "azure_haymaker.orchestrator.cleanup.ResourceManagementClient", return_value=mock_resource_client
+                "azure_haymaker.orchestrator.cleanup.ResourceManagementClient",
+                return_value=mock_resource_client,
             ),
-            patch("azure_haymaker.orchestrator.cleanup.GraphServiceClient", return_value=mock_graph_client),
+            patch(
+                "azure_haymaker.orchestrator.cleanup.GraphServiceClient",
+                return_value=mock_graph_client,
+            ),
             patch("azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"),
         ):
             result = await force_delete_resources(

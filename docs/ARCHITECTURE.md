@@ -551,6 +551,153 @@ flowchart LR
     AL --> User
 ```
 
+## On-Demand Execution
+
+In addition to the scheduled execution (4x daily), Azure HayMaker supports on-demand execution via HTTP API. This allows operators to trigger specific scenarios without waiting for the next scheduled run.
+
+### Architecture
+
+```mermaid
+graph TB
+    Client[CLI/API Client]
+    API[HTTP Trigger<br/>POST /execute]
+    RateLimiter[Rate Limiter<br/>Token Bucket]
+    Tracker[Execution Tracker<br/>Table Storage]
+    Queue[Service Bus<br/>execution-requests]
+    Processor[Queue Processor]
+    Orchestrator[On-Demand<br/>Orchestrator]
+
+    Client -->|1. Submit Request| API
+    API -->|2. Check Limits| RateLimiter
+    RateLimiter -->|3. Create Record| Tracker
+    API -->|4. Enqueue| Queue
+    API -->|5. Return execution_id| Client
+    Queue -->|6. Dequeue| Processor
+    Processor -->|7. Start Execution| Orchestrator
+    Orchestrator -->|8. Update Status| Tracker
+    Client -->|9. Poll Status| Tracker
+```
+
+### Execution Flow
+
+1. **Request Submission**: Client submits execution request via `POST /api/v1/execute` with:
+   - `scenarios`: List of scenario names (1-5 scenarios)
+   - `duration_hours`: Execution duration (default 8 hours)
+   - `tags`: Optional tags for tracking
+
+2. **Validation & Rate Limiting**: API validates:
+   - Request format (Pydantic validation)
+   - Scenario existence (checks docs/scenarios/)
+   - Rate limits (global, per-scenario, per-user)
+
+3. **Queuing**: Request is queued to Service Bus `execution-requests` queue
+
+4. **Processing**: Queue processor:
+   - Creates service principals for each scenario
+   - Deploys Container Apps
+   - Monitors execution for specified duration
+   - Verifies cleanup and forces deletion if needed
+   - Generates execution report
+
+5. **Status Tracking**: Client can query status via `GET /api/v1/executions/{execution_id}`
+
+### Rate Limiting
+
+Azure HayMaker implements token bucket rate limiting using Table Storage:
+
+- **Global**: 100 executions/hour across all users
+- **Per-Scenario**: 10 executions/hour per scenario
+- **Per-User**: 20 executions/hour per user (if authentication enabled)
+
+Rate limits reset on a sliding window basis. When exceeded, API returns `429 Too Many Requests` with `Retry-After` header.
+
+### API Endpoints
+
+#### POST /api/v1/execute
+
+Submit on-demand execution request.
+
+**Request**:
+```json
+{
+  "scenarios": ["compute-01-linux-vm-web-server", "networking-01-virtual-network"],
+  "duration_hours": 2,
+  "tags": {"requester": "admin@example.com"}
+}
+```
+
+**Response** (202 Accepted):
+```json
+{
+  "execution_id": "exec-20251115-abc123",
+  "status": "queued",
+  "scenarios": ["compute-01-linux-vm-web-server", "networking-01-virtual-network"],
+  "estimated_completion": "2025-11-15T10:00:00Z",
+  "created_at": "2025-11-15T08:00:00Z"
+}
+```
+
+**Error Responses**:
+- `400 Bad Request`: Invalid request format or parameters
+- `404 Not Found`: One or more scenarios don't exist
+- `429 Too Many Requests`: Rate limit exceeded
+- `500 Internal Server Error`: Server error
+
+#### GET /api/v1/executions/{execution_id}
+
+Query execution status.
+
+**Response** (200 OK):
+```json
+{
+  "execution_id": "exec-20251115-abc123",
+  "status": "running",
+  "scenarios": ["compute-01-linux-vm-web-server"],
+  "created_at": "2025-11-15T08:00:00Z",
+  "started_at": "2025-11-15T08:05:00Z",
+  "progress": {
+    "completed": 0,
+    "running": 1,
+    "failed": 0,
+    "total": 1
+  },
+  "resources_created": 5,
+  "container_ids": ["haymaker-compute-01-abc123"]
+}
+```
+
+**Status Values**:
+- `queued`: Request queued, waiting for processing
+- `running`: Execution in progress
+- `completed`: Execution finished successfully
+- `failed`: Execution failed with errors
+
+**Error Responses**:
+- `404 Not Found`: Execution ID doesn't exist
+- `500 Internal Server Error`: Server error
+
+### Security
+
+**Authentication**: On-demand execution API uses Azure Functions authentication:
+- **API Key** (default): Function-level key required in `x-functions-key` header
+- **Azure AD** (future): OAuth 2.0 bearer tokens for user-level authentication
+
+**Authorization**: Future enhancement will add role-based access control (RBAC) for execution permissions.
+
+### Implementation Details
+
+**Key Modules**:
+- `execute_api.py`: HTTP trigger functions for API endpoints
+- `execute_processor.py`: Service Bus queue processor
+- `execution_tracker.py`: Status tracking in Table Storage
+- `rate_limiter.py`: Token bucket rate limiter
+
+**Storage**:
+- **Table Storage (Executions)**: Execution status records with history
+- **Table Storage (RateLimits)**: Rate limit counters per type/identifier
+- **Service Bus (execution-requests)**: Queued execution requests
+- **Blob Storage (execution-reports)**: Generated execution reports
+
 ## Deployment Model
 
 ### Deployment Considerations
@@ -561,6 +708,248 @@ The Azure HayMaker architecture is designed to use:
 - Azure Key Vault for credential management
 - Azure Container Apps for isolated scenario execution
 - Tag-based resource tracking for cleanup verification
+
+---
+
+## API Endpoints
+
+Azure HayMaker provides HTTP API endpoints for querying status and triggering operations.
+
+### Status Endpoint
+
+**GET /api/v1/status**
+
+Get current orchestrator status.
+
+Response:
+```json
+{
+  "status": "running|idle|error",
+  "current_run_id": "run-123",
+  "phase": "monitoring",
+  "active_agents": 5,
+  "next_run": "2025-11-15T18:00:00Z"
+}
+```
+
+### Metrics Endpoint
+
+**GET /api/v1/metrics**
+
+Get execution metrics and statistics.
+
+Query Parameters:
+- `period`: Time period (7d, 30d, 90d) - default: 7d
+- `scenario`: Optional scenario filter
+
+Response:
+```json
+{
+  "total_executions": 150,
+  "active_agents": 5,
+  "total_resources": 234,
+  "last_execution": "2025-11-15T10:00:00Z",
+  "success_rate": 0.95,
+  "period": "7d",
+  "scenarios": [
+    {
+      "scenario_name": "compute-01",
+      "run_count": 50,
+      "success_count": 48,
+      "fail_count": 2,
+      "avg_duration_hours": 8.5
+    }
+  ]
+}
+```
+
+### Agents Endpoint
+
+**GET /api/v1/agents**
+
+List currently running and recent agents.
+
+Query Parameters:
+- `status`: Filter by status (running, completed, failed)
+- `limit`: Maximum results (default: 100)
+
+Response:
+```json
+{
+  "agents": [
+    {
+      "agent_id": "agent-123",
+      "scenario": "compute-01",
+      "status": "running",
+      "started_at": "2025-11-15T08:00:00Z",
+      "completed_at": null,
+      "progress": "Phase 2: Operations",
+      "error": null
+    }
+  ]
+}
+```
+
+### Agent Logs Endpoint
+
+**GET /api/v1/agents/{agent_id}/logs**
+
+Get logs for a specific agent.
+
+Query Parameters:
+- `tail`: Number of recent entries (default: 100)
+- `follow`: Stream logs (not implemented via HTTP)
+
+Response:
+```json
+{
+  "logs": [
+    {
+      "timestamp": "2025-11-15T08:00:00Z",
+      "level": "INFO",
+      "message": "Starting scenario execution",
+      "agent_id": "agent-123",
+      "scenario": "compute-01"
+    }
+  ]
+}
+```
+
+### Resources Endpoint
+
+**GET /api/v1/resources**
+
+List all tracked resources.
+
+Query Parameters:
+- `execution_id`: Filter by execution ID
+- `scenario`: Filter by scenario name
+- `status`: Filter by status (created, deleted)
+- `limit`: Maximum results (default: 100)
+
+Response:
+```json
+{
+  "resources": [
+    {
+      "id": "/subscriptions/.../resourceGroups/...",
+      "name": "azurehaymaker-compute-...",
+      "type": "Microsoft.Compute/virtualMachines",
+      "scenario": "compute-01",
+      "execution_id": "exec-123",
+      "created_at": "2025-11-15T08:30:00Z",
+      "deleted_at": null,
+      "status": "created",
+      "tags": {
+        "AzureHayMaker-managed": "true",
+        "execution_id": "exec-123"
+      }
+    }
+  ]
+}
+```
+
+### Execution Endpoint
+
+**POST /api/v1/execute**
+
+Execute a scenario on-demand.
+
+Request:
+```json
+{
+  "scenario_name": "compute-01-linux-vm-web-server",
+  "parameters": {}
+}
+```
+
+Response (202 Accepted):
+```json
+{
+  "execution_id": "exec-456",
+  "status": "queued",
+  "status_url": "/api/v1/executions/exec-456",
+  "created_at": "2025-11-15T10:00:00Z"
+}
+```
+
+### Execution Status Endpoint
+
+**GET /api/v1/executions/{execution_id}**
+
+Get status of an execution.
+
+Response:
+```json
+{
+  "execution_id": "exec-456",
+  "scenario_name": "compute-01",
+  "status": "running|completed|failed",
+  "created_at": "2025-11-15T10:00:00Z",
+  "started_at": "2025-11-15T10:05:00Z",
+  "completed_at": null,
+  "agent_id": "agent-789",
+  "report_url": null,
+  "error": null
+}
+```
+
+### Cleanup Endpoint
+
+**POST /api/v1/cleanup**
+
+Trigger cleanup of resources.
+
+Request:
+```json
+{
+  "execution_id": "exec-123",
+  "scenario": null,
+  "dry_run": false
+}
+```
+
+Response:
+```json
+{
+  "cleanup_id": "cleanup-789",
+  "status": "running",
+  "resources_found": 25,
+  "resources_deleted": 0,
+  "errors": []
+}
+```
+
+---
+
+## CLI Client
+
+Azure HayMaker provides a command-line interface for managing operations.
+
+### Installation
+
+```bash
+pip install haymaker-cli
+```
+
+### Configuration
+
+```bash
+haymaker config set endpoint https://haymaker.azurewebsites.net
+haymaker config set api-key your-api-key
+```
+
+### Commands
+
+- `haymaker status` - Show orchestrator status
+- `haymaker metrics` - Show execution metrics
+- `haymaker agents list` - List running agents
+- `haymaker logs --agent-id <id>` - View agent logs
+- `haymaker resources list` - List all resources
+- `haymaker deploy --scenario <name>` - Deploy scenario on-demand
+- `haymaker cleanup` - Trigger cleanup
+
+For complete CLI documentation, see [CLI_GUIDE.md](CLI_GUIDE.md).
 
 ---
 
