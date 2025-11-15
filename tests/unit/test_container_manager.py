@@ -559,9 +559,7 @@ class TestContainerDeploymentWithImageVerification:
                 new_callable=mock.AsyncMock,
                 return_value=True,
             ) as mock_verify,
-            mock.patch(
-                "azure_haymaker.orchestrator.container_manager.ContainerAppsAPIClient"
-            ),
+            mock.patch("azure_haymaker.orchestrator.container_manager.ContainerAppsAPIClient"),
         ):
             # This would call verify_image_signature (mocked to succeed)
             # The actual deploy call would fail due to other missing mocks
@@ -577,7 +575,9 @@ class TestContainerDeploymentWithImageVerification:
             assert "registry.azurecr.io" in call_args or "agent:latest" in call_args
 
     @pytest.mark.asyncio
-    async def test_deploy_fails_on_invalid_image_signature(self, mock_config, mock_scenario, mock_sp):
+    async def test_deploy_fails_on_invalid_image_signature(
+        self, mock_config, mock_scenario, mock_sp
+    ):
         """Test that deploy fails if image signature verification fails."""
         manager = ContainerManager(config=mock_config)
 

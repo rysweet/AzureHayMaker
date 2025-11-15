@@ -54,7 +54,9 @@ class TestCustomRBACRole:
         actions = permissions[0].get("actions", [])
 
         # Should NOT have role management permissions
-        assert not any("roleAssignments" in action or "roleDefinitions" in action for action in actions)
+        assert not any(
+            "roleAssignments" in action or "roleDefinitions" in action for action in actions
+        )
 
 
 class TestServicePrincipalDetails:

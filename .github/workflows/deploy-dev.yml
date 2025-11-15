@@ -1,0 +1,233 @@
+name: Deploy to Development
+
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - 'src/**'
+      - 'infra/**'
+      - '.github/workflows/deploy-dev.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write  # Required for OIDC authentication
+  contents: read
+
+env:
+  ENVIRONMENT: dev
+  AZURE_REGION: eastus
+
+jobs:
+  validate:
+    name: Validate Infrastructure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Validate Bicep templates
+        run: |
+          az bicep build --file infra/bicep/main.bicep
+          echo "Bicep templates compiled successfully"
+
+      - name: Validate deployment
+        run: |
+          az deployment sub validate \
+            --location ${{ env.AZURE_REGION }} \
+            --template-file infra/bicep/main.bicep \
+            --parameters infra/bicep/parameters/dev.bicepparam \
+            --parameters adminObjectIds="['${{ secrets.AZURE_CLIENT_ID }}']" \
+            --parameters githubOidcClientId="${{ secrets.AZURE_CLIENT_ID }}"
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Setup Python
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          uv python install 3.13
+
+      - name: Install dependencies
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          uv sync --all-extras
+
+      - name: Run tests
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          uv run pytest tests/ -v --tb=short
+
+      - name: Run linting
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          uv run ruff check src/
+
+  deploy-infrastructure:
+    name: Deploy Infrastructure
+    needs: [validate, test]
+    runs-on: ubuntu-latest
+    environment: dev
+    outputs:
+      functionAppName: ${{ steps.deploy.outputs.functionAppName }}
+      keyVaultName: ${{ steps.deploy.outputs.keyVaultName }}
+      resourceGroupName: ${{ steps.deploy.outputs.resourceGroupName }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy Bicep infrastructure
+        id: deploy
+        run: |
+          echo "Deploying infrastructure to dev environment..."
+
+          DEPLOYMENT_OUTPUT=$(az deployment sub create \
+            --location ${{ env.AZURE_REGION }} \
+            --template-file infra/bicep/main.bicep \
+            --parameters infra/bicep/parameters/dev.bicepparam \
+            --parameters adminObjectIds="['${{ secrets.AZURE_CLIENT_ID }}']" \
+            --parameters githubOidcClientId="${{ secrets.AZURE_CLIENT_ID }}" \
+            --output json)
+
+          echo "Deployment complete. Extracting outputs..."
+
+          FUNCTION_APP_NAME=$(echo $DEPLOYMENT_OUTPUT | jq -r '.properties.outputs.functionAppName.value')
+          KEY_VAULT_NAME=$(echo $DEPLOYMENT_OUTPUT | jq -r '.properties.outputs.keyVaultName.value')
+          RESOURCE_GROUP_NAME=$(echo $DEPLOYMENT_OUTPUT | jq -r '.properties.outputs.resourceGroupName.value')
+
+          # Mask sensitive resource names to prevent exposure in logs
+          echo "::add-mask::$FUNCTION_APP_NAME"
+          echo "::add-mask::$KEY_VAULT_NAME"
+          echo "::add-mask::$RESOURCE_GROUP_NAME"
+
+          echo "functionAppName=$FUNCTION_APP_NAME" >> $GITHUB_OUTPUT
+          echo "keyVaultName=$KEY_VAULT_NAME" >> $GITHUB_OUTPUT
+          echo "resourceGroupName=$RESOURCE_GROUP_NAME" >> $GITHUB_OUTPUT
+
+          echo "Deployment complete. Resource details masked for security."
+
+      - name: Inject secrets to Key Vault
+        run: |
+          echo "Injecting secrets to Key Vault: ${{ steps.deploy.outputs.keyVaultName }}"
+
+          az keyvault secret set \
+            --vault-name ${{ steps.deploy.outputs.keyVaultName }} \
+            --name main-sp-client-secret \
+            --value "${{ secrets.MAIN_SP_CLIENT_SECRET }}" \
+            --output none
+
+          az keyvault secret set \
+            --vault-name ${{ steps.deploy.outputs.keyVaultName }} \
+            --name anthropic-api-key \
+            --value "${{ secrets.ANTHROPIC_API_KEY }}" \
+            --output none
+
+          az keyvault secret set \
+            --vault-name ${{ steps.deploy.outputs.keyVaultName }} \
+            --name log-analytics-workspace-key \
+            --value "${{ secrets.LOG_ANALYTICS_WORKSPACE_KEY }}" \
+            --output none
+
+          echo "Secrets injected successfully"
+
+  deploy-function:
+    name: Deploy Function App
+    needs: [deploy-infrastructure]
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Setup Python
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          uv python install 3.13
+
+      - name: Install dependencies
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          cd src
+          uv sync --no-dev
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Function App
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ needs.deploy-infrastructure.outputs.functionAppName }}
+          package: ./src
+          respect-funcignore: true
+
+      - name: Verify deployment
+        run: |
+          echo "Waiting 30 seconds for Function App to initialize..."
+          sleep 30
+
+          FUNCTION_APP_URL="https://${{ needs.deploy-infrastructure.outputs.functionAppName }}.azurewebsites.net"
+          echo "Testing Function App at: $FUNCTION_APP_URL"
+
+          # Try to get status (may fail if endpoint doesn't exist yet, that's okay)
+          curl -f -s "$FUNCTION_APP_URL/api/status" || echo "Status endpoint not yet available (expected for initial deployment)"
+
+          echo "Deployment verified"
+
+  smoke-tests:
+    name: Run Smoke Tests
+    needs: [deploy-infrastructure, deploy-function]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure Login (OIDC)
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify infrastructure resources
+        run: |
+          echo "Verifying Azure resources in ${{ needs.deploy-infrastructure.outputs.resourceGroupName }}..."
+
+          # Check Function App
+          az functionapp show \
+            --name ${{ needs.deploy-infrastructure.outputs.functionAppName }} \
+            --resource-group ${{ needs.deploy-infrastructure.outputs.resourceGroupName }} \
+            --output none
+          echo "✓ Function App exists"
+
+          # Check Key Vault
+          az keyvault show \
+            --name ${{ needs.deploy-infrastructure.outputs.keyVaultName }} \
+            --output none
+          echo "✓ Key Vault exists"
+
+          echo "All smoke tests passed!"

@@ -2,8 +2,14 @@
 
 This module loads configuration from environment variables and Azure Key Vault,
 adhering to the Zero-BS Philosophy: no defaults for secrets, fail fast on missing config.
+
+Configuration Priority Order:
+1. Environment variables (explicit override) - highest priority
+2. Azure Key Vault (production secrets)
+3. .env file (local development only) - lowest priority
 """
 
+import logging
 import os
 
 from azure.identity import DefaultAzureCredential
@@ -18,6 +24,9 @@ from azure_haymaker.models.config import (
     StorageConfig,
     TableStorageConfig,
 )
+from azure_haymaker.orchestrator.config_env_loader import load_dotenv_with_warnings
+
+logger = logging.getLogger(__name__)
 
 
 class ConfigurationError(Exception):
@@ -26,15 +35,39 @@ class ConfigurationError(Exception):
     pass
 
 
-def _get_required_env(var_name: str) -> str:
-    """Get required environment variable or raise ConfigurationError."""
+def _get_required_env(var_name: str, dotenv_vars: dict[str, str] | None = None) -> str:
+    """Get required environment variable with .env fallback.
+
+    Priority order:
+    1. Environment variable (explicit override)
+    2. .env file value (if provided via dotenv_vars)
+    3. Raise ConfigurationError if not found
+
+    Args:
+        var_name: Name of the environment variable
+        dotenv_vars: Optional dict of variables loaded from .env file
+
+    Returns:
+        str: The environment variable value
+
+    Raises:
+        ConfigurationError: If the variable is not found in either source
+    """
+    # 1. Check environment variable first (highest priority)
     value = os.getenv(var_name)
-    if not value:
-        raise ConfigurationError(
-            f"Required environment variable {var_name} is not set. "
-            f"Please set this variable before starting the orchestrator."
-        )
-    return value
+    if value:
+        return value
+
+    # 2. Check .env file fallback
+    if dotenv_vars and var_name in dotenv_vars:
+        logger.info("Using %s from .env file (not set in environment)", var_name)
+        return dotenv_vars[var_name]
+
+    # 3. Not found - raise error
+    raise ConfigurationError(
+        f"Required environment variable {var_name} is not set. "
+        f"Please set this variable in your environment or .env file."
+    )
 
 
 def _get_optional_env(var_name: str, default: str) -> str:
@@ -47,6 +80,11 @@ async def load_config_from_env_and_keyvault() -> OrchestratorConfig:
 
     This function loads non-secret configuration from environment variables
     and retrieves secrets from Azure Key Vault using Managed Identity.
+
+    Configuration Priority Order:
+    1. Environment variables (explicit override) - highest priority
+    2. Azure Key Vault (production secrets)
+    3. .env file (local development only) - lowest priority
 
     Required Environment Variables:
         AZURE_TENANT_ID: Target Azure tenant ID
@@ -83,26 +121,29 @@ async def load_config_from_env_and_keyvault() -> OrchestratorConfig:
         ConfigurationError: If required configuration is missing or invalid
     """
     try:
-        # Load required environment variables
-        target_tenant_id = _get_required_env("AZURE_TENANT_ID")
-        target_subscription_id = _get_required_env("AZURE_SUBSCRIPTION_ID")
-        main_sp_client_id = _get_required_env("AZURE_CLIENT_ID")
-        key_vault_url = _get_required_env("KEY_VAULT_URL")
-        service_bus_namespace = _get_required_env("SERVICE_BUS_NAMESPACE")
-        container_registry = _get_required_env("CONTAINER_REGISTRY")
-        container_image = _get_required_env("CONTAINER_IMAGE")
-        simulation_size_str = _get_required_env("SIMULATION_SIZE")
+        # Load .env file first (lowest priority - will be overridden by env vars)
+        dotenv_vars = load_dotenv_with_warnings()
+
+        # Load required environment variables (with .env fallback)
+        target_tenant_id = _get_required_env("AZURE_TENANT_ID", dotenv_vars)
+        target_subscription_id = _get_required_env("AZURE_SUBSCRIPTION_ID", dotenv_vars)
+        main_sp_client_id = _get_required_env("AZURE_CLIENT_ID", dotenv_vars)
+        key_vault_url = _get_required_env("KEY_VAULT_URL", dotenv_vars)
+        service_bus_namespace = _get_required_env("SERVICE_BUS_NAMESPACE", dotenv_vars)
+        container_registry = _get_required_env("CONTAINER_REGISTRY", dotenv_vars)
+        container_image = _get_required_env("CONTAINER_IMAGE", dotenv_vars)
+        simulation_size_str = _get_required_env("SIMULATION_SIZE", dotenv_vars)
 
         # Storage configuration
-        storage_account_name = _get_required_env("STORAGE_ACCOUNT_NAME")
-        table_storage_account_name = _get_required_env("TABLE_STORAGE_ACCOUNT_NAME")
+        storage_account_name = _get_required_env("STORAGE_ACCOUNT_NAME", dotenv_vars)
+        table_storage_account_name = _get_required_env("TABLE_STORAGE_ACCOUNT_NAME", dotenv_vars)
 
         # Cosmos DB configuration
-        cosmosdb_endpoint = _get_required_env("COSMOSDB_ENDPOINT")
-        cosmosdb_database = _get_required_env("COSMOSDB_DATABASE")
+        cosmosdb_endpoint = _get_required_env("COSMOSDB_ENDPOINT", dotenv_vars)
+        cosmosdb_database = _get_required_env("COSMOSDB_DATABASE", dotenv_vars)
 
         # Log Analytics configuration
-        log_analytics_workspace_id = _get_required_env("LOG_ANALYTICS_WORKSPACE_ID")
+        log_analytics_workspace_id = _get_required_env("LOG_ANALYTICS_WORKSPACE_ID", dotenv_vars)
 
         # Optional environment variables
         resource_group_name = _get_optional_env("RESOURCE_GROUP_NAME", "azure-haymaker-rg")

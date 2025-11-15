@@ -480,7 +480,7 @@ az vm create --help
 ```
 
 ### Documentation Links
-- Azure CLI Docs: https://learn.microsoft.com/en-us/cli/azure/
+- Azure CLI Docs: https://learn.microsoft.com/cli/azure/
 - Azure Status: https://status.azure.com/
 - Azure Support: https://azure.microsoft.com/support/
 
@@ -492,6 +492,51 @@ az vm create --help
 
 ---
 
-**Guide Version**: 1.0
-**Last Updated**: 2024
+## Microsoft Learn References
+
+### Troubleshooting Guides
+
+- [Azure CLI Troubleshooting](https://learn.microsoft.com/cli/azure/troubleshooting) - Common Azure CLI issues and solutions
+- [Azure Resource Manager Troubleshooting](https://learn.microsoft.com/azure/azure-resource-manager/troubleshooting/overview) - Deployment and resource errors
+- [Azure Virtual Machines Troubleshooting](https://learn.microsoft.com/azure/virtual-machines/troubleshooting/) - VM connectivity and performance issues
+- [Azure Networking Troubleshooting](https://learn.microsoft.com/azure/virtual-network/troubleshoot-vm-connectivity) - Network connectivity problems
+- [Azure Storage Troubleshooting](https://learn.microsoft.com/azure/storage/common/storage-monitoring-diagnosing-troubleshooting) - Storage account errors
+- [Azure RBAC Troubleshooting](https://learn.microsoft.com/azure/role-based-access-control/troubleshooting) - Permission and access issues
+- [Azure Key Vault Troubleshooting](https://learn.microsoft.com/azure/key-vault/general/troubleshooting) - Key Vault access and configuration
+
+### Error Code References
+
+- [Azure Error Codes](https://learn.microsoft.com/rest/api/azure/#error-codes) - Common REST API error codes
+- [Resource Manager Error Codes](https://learn.microsoft.com/azure/azure-resource-manager/troubleshooting/common-deployment-errors) - Deployment error reference
+- [Virtual Machine Error Codes](https://learn.microsoft.com/azure/virtual-machines/error-codes) - VM-specific error codes
+- [Storage Error Codes](https://learn.microsoft.com/rest/api/storageservices/common-rest-api-error-codes) - Storage API errors
+
+### Service-Specific Troubleshooting
+
+- [Azure Functions Troubleshooting](https://learn.microsoft.com/azure/azure-functions/functions-diagnostics) - Function app errors
+- [Azure Container Apps Troubleshooting](https://learn.microsoft.com/azure/container-apps/troubleshooting) - Container deployment issues
+- [Azure Service Bus Troubleshooting](https://learn.microsoft.com/azure/service-bus-messaging/service-bus-troubleshooting-guide) - Messaging errors
+- [Azure SQL Database Troubleshooting](https://learn.microsoft.com/azure/azure-sql/database/troubleshoot-common-errors-issues) - Database connectivity
+- [Azure Cosmos DB Troubleshooting](https://learn.microsoft.com/azure/cosmos-db/troubleshoot-common-issues) - NoSQL database errors
+
+### Diagnostic Tools
+
+- [Azure Resource Graph](https://learn.microsoft.com/azure/governance/resource-graph/) - Query and discover resources
+- [Azure Monitor](https://learn.microsoft.com/azure/azure-monitor/overview) - Monitoring and diagnostics
+- [Azure Activity Log](https://learn.microsoft.com/azure/azure-monitor/essentials/activity-log) - Audit resource operations
+- [Azure Network Watcher](https://learn.microsoft.com/azure/network-watcher/network-watcher-monitoring-overview) - Network diagnostics
+- [Azure Advisor](https://learn.microsoft.com/azure/advisor/) - Best practice recommendations
+
+### Best Practices
+
+- [Azure Well-Architected Framework](https://learn.microsoft.com/azure/well-architected/) - Design best practices
+- [Azure Security Best Practices](https://learn.microsoft.com/azure/security/fundamentals/best-practices-and-patterns) - Security guidance
+- [Azure Operational Excellence](https://learn.microsoft.com/azure/well-architected/operational-excellence/) - Operations best practices
+- [Azure Cost Optimization](https://learn.microsoft.com/azure/cost-management-billing/costs/cost-optimization-best-practices) - Reduce Azure costs
+
+---
+
+**Guide Version**: 2.0
+**Last Updated**: 2025-01-15
 **Azure CLI Version**: 2.50+
+**MS Learn Links**: 25+ troubleshooting and diagnostic resources

@@ -417,8 +417,11 @@ async def _delete_service_principals(
 
     for sp in sp_details:
         try:
+            # Import sanitization utility from sp_manager
+            from azure_haymaker.orchestrator.sp_manager import sanitize_odata_value
+
             # Find SP by display name
-            filter_query = f"displayName eq '{sp.sp_name}'"
+            filter_query = f"displayName eq '{sanitize_odata_value(sp.sp_name)}'"
             sp_list = await asyncio.to_thread(
                 graph_client.service_principals.get,
                 filter=filter_query,

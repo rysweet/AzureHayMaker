@@ -141,6 +141,168 @@ class TestLoadConfigFromEnvAndKeyvault:
             assert "simulation" in str(exc_info.value).lower()
 
 
+class TestConfigPriorityOrder:
+    """Tests for configuration priority order with .env file support."""
+
+    @pytest.fixture
+    def mock_env(self) -> dict[str, str]:
+        """Mock environment variables."""
+        return {
+            "AZURE_TENANT_ID": "env-tenant-id",
+            "AZURE_SUBSCRIPTION_ID": "env-subscription-id",
+            "AZURE_CLIENT_ID": "env-client-id",
+            "KEY_VAULT_URL": "https://env-kv.vault.azure.net",
+            "SERVICE_BUS_NAMESPACE": "env-sb",
+            "CONTAINER_REGISTRY": "env.azurecr.io",
+            "CONTAINER_IMAGE": "env-agent:latest",
+            "SIMULATION_SIZE": "medium",
+            "STORAGE_ACCOUNT_NAME": "envstorage",
+            "TABLE_STORAGE_ACCOUNT_NAME": "envtables",
+            "COSMOSDB_ENDPOINT": "https://envdb.documents.azure.com:443/",
+            "COSMOSDB_DATABASE": "envdb",
+            "LOG_ANALYTICS_WORKSPACE_ID": "env-workspace-id",
+        }
+
+    @pytest.fixture
+    def mock_dotenv_vars(self) -> dict[str, str]:
+        """Mock .env file variables."""
+        return {
+            "AZURE_TENANT_ID": "dotenv-tenant-id",
+            "AZURE_SUBSCRIPTION_ID": "dotenv-subscription-id",
+            "AZURE_CLIENT_ID": "dotenv-client-id",
+            "KEY_VAULT_URL": "https://dotenv-kv.vault.azure.net",
+            "SERVICE_BUS_NAMESPACE": "dotenv-sb",
+            "CONTAINER_REGISTRY": "dotenv.azurecr.io",
+            "CONTAINER_IMAGE": "dotenv-agent:latest",
+            "SIMULATION_SIZE": "small",
+            "STORAGE_ACCOUNT_NAME": "dotenvstorage",
+            "TABLE_STORAGE_ACCOUNT_NAME": "dotenvtables",
+            "COSMOSDB_ENDPOINT": "https://dotenvdb.documents.azure.com:443/",
+            "COSMOSDB_DATABASE": "dotenvdb",
+            "LOG_ANALYTICS_WORKSPACE_ID": "dotenv-workspace-id",
+        }
+
+    @pytest.fixture
+    def mock_keyvault_client(self) -> MagicMock:
+        """Mock Key Vault client."""
+        client = MagicMock(spec=SecretClient)
+
+        def get_secret(name: str) -> MagicMock:
+            secret = MagicMock()
+            if name == "main-sp-client-secret":
+                secret.value = "test-secret"
+            elif name == "anthropic-api-key":
+                secret.value = "test-api-key"
+            elif name == "log-analytics-workspace-key":
+                secret.value = "test-workspace-key"
+            else:
+                raise ResourceNotFoundError(f"Secret {name} not found")
+            return secret
+
+        client.get_secret.side_effect = get_secret
+        return client
+
+    @pytest.mark.asyncio
+    async def test_env_vars_override_dotenv(
+        self,
+        mock_env: dict[str, str],
+        mock_dotenv_vars: dict[str, str],
+        mock_keyvault_client: MagicMock,
+    ) -> None:
+        """Test that environment variables take precedence over .env file."""
+        with (
+            patch.dict(os.environ, mock_env, clear=True),
+            patch(
+                "azure_haymaker.orchestrator.config.load_dotenv_with_warnings",
+                return_value=mock_dotenv_vars,
+            ),
+            patch(
+                "azure_haymaker.orchestrator.config.SecretClient",
+                return_value=mock_keyvault_client,
+            ),
+        ):
+            config = await load_config_from_env_and_keyvault()
+
+            # Verify environment variables were used (not .env)
+            assert config.target_tenant_id == "env-tenant-id"
+            assert config.simulation_size == SimulationSize.MEDIUM
+            assert config.storage.account_name == "envstorage"
+
+    @pytest.mark.asyncio
+    async def test_dotenv_used_when_env_vars_missing(
+        self, mock_dotenv_vars: dict[str, str], mock_keyvault_client: MagicMock
+    ) -> None:
+        """Test that .env file is used when environment variables not set."""
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch(
+                "azure_haymaker.orchestrator.config.load_dotenv_with_warnings",
+                return_value=mock_dotenv_vars,
+            ),
+            patch(
+                "azure_haymaker.orchestrator.config.SecretClient",
+                return_value=mock_keyvault_client,
+            ),
+        ):
+            config = await load_config_from_env_and_keyvault()
+
+            # Verify .env values were used
+            assert config.target_tenant_id == "dotenv-tenant-id"
+            assert config.simulation_size == SimulationSize.SMALL
+            assert config.storage.account_name == "dotenvstorage"
+
+    @pytest.mark.asyncio
+    async def test_partial_env_override(
+        self, mock_dotenv_vars: dict[str, str], mock_keyvault_client: MagicMock
+    ) -> None:
+        """Test that env vars can override specific .env values."""
+        partial_env = {
+            "AZURE_TENANT_ID": "override-tenant-id",
+            "SIMULATION_SIZE": "large",
+        }
+
+        with (
+            patch.dict(os.environ, partial_env, clear=True),
+            patch(
+                "azure_haymaker.orchestrator.config.load_dotenv_with_warnings",
+                return_value=mock_dotenv_vars,
+            ),
+            patch(
+                "azure_haymaker.orchestrator.config.SecretClient",
+                return_value=mock_keyvault_client,
+            ),
+        ):
+            config = await load_config_from_env_and_keyvault()
+
+            # Verify mixed sources
+            assert config.target_tenant_id == "override-tenant-id"  # From env
+            assert config.simulation_size == SimulationSize.LARGE  # From env
+            assert config.storage.account_name == "dotenvstorage"  # From .env
+
+    @pytest.mark.asyncio
+    async def test_backward_compatibility_without_dotenv(
+        self, mock_env: dict[str, str], mock_keyvault_client: MagicMock
+    ) -> None:
+        """Test that config loading still works without .env file (backward compatibility)."""
+        with (
+            patch.dict(os.environ, mock_env, clear=True),
+            patch(
+                "azure_haymaker.orchestrator.config.load_dotenv_with_warnings",
+                return_value={},  # Empty dict = no .env file
+            ),
+            patch(
+                "azure_haymaker.orchestrator.config.SecretClient",
+                return_value=mock_keyvault_client,
+            ),
+        ):
+            config = await load_config_from_env_and_keyvault()
+
+            # Verify config loads successfully from env vars only
+            assert config.target_tenant_id == "env-tenant-id"
+            assert config.simulation_size == SimulationSize.MEDIUM
+            assert isinstance(config.main_sp_client_secret, SecretStr)
+
+
 class TestLoadConfig:
     """Tests for the convenience load_config function."""
 
