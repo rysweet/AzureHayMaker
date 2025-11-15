@@ -6,6 +6,19 @@ from .event_bus import (
     publish_event,
     subscribe_to_agent_logs,
 )
+from .orchestrator import (
+    app,
+    haymaker_timer,
+    orchestrate_haymaker_run,
+    validate_environment_activity,
+    select_scenarios_activity,
+    create_service_principal_activity,
+    deploy_container_app_activity,
+    check_agent_status_activity,
+    verify_cleanup_activity,
+    force_cleanup_activity,
+    generate_report_activity,
+)
 from .scenario_selector import (
     list_available_scenarios,
     parse_scenario_metadata,
@@ -28,6 +41,17 @@ from .container_manager import (
 )
 
 __all__ = [
+    "app",
+    "haymaker_timer",
+    "orchestrate_haymaker_run",
+    "validate_environment_activity",
+    "select_scenarios_activity",
+    "create_service_principal_activity",
+    "deploy_container_app_activity",
+    "check_agent_status_activity",
+    "verify_cleanup_activity",
+    "force_cleanup_activity",
+    "generate_report_activity",
     "EventBusClient",
     "parse_resource_events",
     "publish_event",
