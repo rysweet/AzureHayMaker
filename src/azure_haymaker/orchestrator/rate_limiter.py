@@ -4,11 +4,13 @@ This module implements rate limiting using Azure Table Storage for persistence.
 Supports multiple limit types: global, per-scenario, and per-user.
 """
 
+import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
-from azure.core.exceptions import ResourceNotFoundError
+from azure.core import MatchConditions
+from azure.core.exceptions import ResourceModifiedError, ResourceNotFoundError
 from azure.data.tables import TableClient, UpdateMode
 from pydantic import BaseModel, Field
 
@@ -68,17 +70,20 @@ class RateLimiter:
         identifier: str,
         limit: int,
         window_seconds: int = 3600,
+        max_retries: int = 3,
     ) -> RateLimitResult:
-        """Check if rate limit is exceeded.
+        """Check if rate limit is exceeded with atomic updates using optimistic concurrency.
 
         Uses token bucket algorithm with sliding window. State is stored in
-        Table Storage for persistence across function invocations.
+        Table Storage for persistence across function invocations. Uses ETag-based
+        optimistic concurrency to prevent race conditions.
 
         Args:
             limit_type: Type of limit (global, scenario, user)
             identifier: Unique identifier (e.g., "default", scenario_name, user_id)
             limit: Max requests per window
             window_seconds: Time window in seconds
+            max_retries: Maximum retry attempts for optimistic concurrency conflicts
 
         Returns:
             RateLimitResult with decision and metadata
@@ -93,74 +98,122 @@ class RateLimiter:
         partition_key = limit_type
         row_key = identifier
 
-        try:
-            # Get existing rate limit record
-            entity = await self.table.get_entity(
-                partition_key=partition_key,
-                row_key=row_key,
-            )
-
-            count = entity.get("Count", 0)
-            window_start = entity.get("WindowStart")
-
-            # Parse datetime if string
-            if isinstance(window_start, str):
-                window_start = datetime.fromisoformat(window_start.replace("Z", "+00:00"))
-
-        except ResourceNotFoundError:
-            # No record exists, create new window
-            count = 0
-            window_start = now
-
-        # Check if window has expired
-        window_end = window_start + timedelta(seconds=window_seconds)
-        window_expired = now >= window_end
-
-        if window_expired:
-            # Reset window
-            count = 0
-            window_start = now
-            window_end = window_start + timedelta(seconds=window_seconds)
-
-        # Check if request allowed
-        allowed = count < limit
-
-        if allowed:
-            # Increment counter
-            new_count = count + 1
-
-            # Update or create entity
-            entity_data = {
-                "PartitionKey": partition_key,
-                "RowKey": row_key,
-                "Count": new_count,
-                "WindowStart": window_start.isoformat(),
-                "LastRequest": now.isoformat(),
-                "Limit": limit,
-            }
-
+        # Retry loop for optimistic concurrency conflicts
+        for attempt in range(max_retries):
             try:
-                await self.table.upsert_entity(
-                    entity=entity_data,
-                    mode=UpdateMode.REPLACE,
+                etag = None
+                try:
+                    # Get existing rate limit record with ETag
+                    entity = await self.table.get_entity(
+                        partition_key=partition_key,
+                        row_key=row_key,
+                    )
+
+                    count = entity.get("Count", 0)
+                    window_start = entity.get("WindowStart")
+                    etag = entity.get("etag")  # Get ETag for optimistic concurrency
+
+                    # Parse datetime if string
+                    if isinstance(window_start, str):
+                        window_start = datetime.fromisoformat(window_start.replace("Z", "+00:00"))
+
+                except ResourceNotFoundError:
+                    # No record exists, create new window
+                    count = 0
+                    window_start = now
+                    etag = None
+
+                # Check if window has expired
+                window_end = window_start + timedelta(seconds=window_seconds)
+                window_expired = now >= window_end
+
+                if window_expired:
+                    # Reset window
+                    count = 0
+                    window_start = now
+                    window_end = window_start + timedelta(seconds=window_seconds)
+
+                # Check if request allowed
+                allowed = count < limit
+
+                if allowed:
+                    # Increment counter
+                    new_count = count + 1
+
+                    # Update or create entity with optimistic concurrency
+                    entity_data = {
+                        "PartitionKey": partition_key,
+                        "RowKey": row_key,
+                        "Count": new_count,
+                        "WindowStart": window_start.isoformat(),
+                        "LastRequest": now.isoformat(),
+                        "Limit": limit,
+                    }
+
+                    try:
+                        if etag:
+                            # Update existing entity with ETag check
+                            await self.table.update_entity(
+                                entity=entity_data,
+                                mode=UpdateMode.REPLACE,
+                                etag=etag,
+                                match_condition=MatchConditions.IfNotModified,
+                            )
+                        else:
+                            # Create new entity
+                            await self.table.create_entity(entity=entity_data)
+                    except ResourceModifiedError:
+                        # Another request updated the counter - retry
+                        if attempt < max_retries - 1:
+                            logger.debug(
+                                f"Optimistic concurrency conflict on attempt {attempt + 1}, retrying..."
+                            )
+                            await asyncio.sleep(0.01 * (attempt + 1))  # Exponential backoff
+                            continue
+                        else:
+                            logger.warning(
+                                f"Failed to update rate limit after {max_retries} attempts, "
+                                "allowing request to prevent false rejection"
+                            )
+                            # Fall through to return allowed=True
+
+                    retry_after = 0
+                    current_count = new_count
+                else:
+                    # Calculate retry_after
+                    retry_after = int((window_end - now).total_seconds())
+                    current_count = count
+
+                return RateLimitResult(
+                    allowed=allowed,
+                    retry_after=retry_after,
+                    current_count=current_count,
+                    limit=limit,
+                    window_reset_at=window_end,
                 )
+
+            except ResourceModifiedError:
+                # Handled in inner try block, continue retry loop
+                continue
             except Exception as e:
-                logger.error(f"Failed to update rate limit record: {e}")
-                # Continue anyway - better to allow request than fail
+                logger.error(f"Failed to check rate limit: {e}")
+                # On unexpected error, allow request to prevent false rejection
+                return RateLimitResult(
+                    allowed=True,
+                    retry_after=0,
+                    current_count=0,
+                    limit=limit,
+                    window_reset_at=now + timedelta(seconds=window_seconds),
+                )
 
-            retry_after = 0
-            current_count = new_count
-        else:
-            # Calculate retry_after
-            retry_after = int((window_end - now).total_seconds())
-            current_count = count
-
+        # Should not reach here but handle gracefully
+        logger.warning("Rate limit check exhausted retries, allowing request")
         return RateLimitResult(
-            allowed=allowed,
-            retry_after=retry_after,
-            current_count=current_count,
+            allowed=True,
+            retry_after=0,
+            current_count=0,
             limit=limit,
-            window_reset_at=window_end,
+            window_reset_at=now + timedelta(seconds=window_seconds),
         )
 
     async def check_multiple_limits(

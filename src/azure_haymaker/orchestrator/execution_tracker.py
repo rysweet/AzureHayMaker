@@ -21,6 +21,25 @@ from azure_haymaker.models.execution import (
 logger = logging.getLogger(__name__)
 
 
+def sanitize_odata_value(value: str) -> str:
+    """Sanitize input for OData query filters to prevent injection attacks.
+
+    Args:
+        value: Input string to sanitize
+
+    Returns:
+        Sanitized string safe for use in OData filters
+
+    Note:
+        OData uses single quotes for string literals. This function escapes
+        single quotes by doubling them (standard OData escaping).
+    """
+    if not isinstance(value, str):
+        value = str(value)
+    # Escape single quotes by doubling them (OData standard)
+    return value.replace("'", "''")
+
+
 class ExecutionTracker:
     """Track on-demand execution requests in Table Storage.
 
@@ -209,7 +228,7 @@ class ExecutionTracker:
             >>> print(record["Status"])
         """
         # Query all records for this execution, sorted by RowKey (timestamp) descending
-        query = f"PartitionKey eq '{execution_id}'"
+        query = f"PartitionKey eq '{sanitize_odata_value(execution_id)}'"
 
         try:
             entities = []
@@ -252,9 +271,7 @@ class ExecutionTracker:
             # tags = json.loads(record.get("Tags", "{}"))  # Not currently used in response
 
             # Parse timestamps
-            created_at = datetime.fromisoformat(
-                record.get("CreatedAt", "").replace("Z", "+00:00")
-            )
+            created_at = datetime.fromisoformat(record.get("CreatedAt", "").replace("Z", "+00:00"))
             started_at = None
             if "StartedAt" in record:
                 started_at = datetime.fromisoformat(
@@ -323,7 +340,7 @@ class ExecutionTracker:
 
         try:
             # Query all entities, filter and deduplicate
-            query = f"Status eq '{status.value}'" if status else None
+            query = f"Status eq '{sanitize_odata_value(status.value)}'" if status else None
 
             async for entity in self.table.query_entities(query):
                 execution_id = entity.get("PartitionKey")
@@ -359,7 +376,7 @@ class ExecutionTracker:
         Example:
             >>> await tracker.delete_execution("exec-20251115-abc123")
         """
-        query = f"PartitionKey eq '{execution_id}'"
+        query = f"PartitionKey eq '{sanitize_odata_value(execution_id)}'"
 
         try:
             entities_to_delete = []

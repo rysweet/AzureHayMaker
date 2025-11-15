@@ -20,14 +20,15 @@ class ProfileConfig(BaseModel):
 class CliConfig(BaseModel):
     """CLI configuration."""
 
-    profiles: dict[str, ProfileConfig] = Field(
-        default_factory=dict, description="Named profiles"
-    )
+    profiles: dict[str, ProfileConfig] = Field(default_factory=dict, description="Named profiles")
     default_profile: str = Field(default="default", description="Default profile name")
 
 
 def get_config_path() -> Path:
     """Get path to CLI configuration file.
+
+    Creates config directory with secure permissions (0700) and ensures
+    config file has restrictive permissions (0600) for security.
 
     Returns:
         Path to ~/.haymaker/config.yaml
@@ -39,7 +40,15 @@ def get_config_path() -> Path:
     """
     config_dir = Path.home() / ".haymaker"
     config_dir.mkdir(parents=True, exist_ok=True)
-    return config_dir / "config.yaml"
+    # Set directory permissions to owner-only (drwx------)
+    config_dir.chmod(0o700)
+
+    config_path = config_dir / "config.yaml"
+    # If config file exists, ensure it has secure permissions
+    if config_path.exists():
+        config_path.chmod(0o600)  # -rw------- (owner read/write only)
+
+    return config_path
 
 
 def load_cli_config(profile: str | None = None) -> ProfileConfig:
@@ -72,6 +81,12 @@ def load_cli_config(profile: str | None = None) -> ProfileConfig:
     env_tenant_id = os.getenv("HAYMAKER_TENANT_ID")
 
     if env_endpoint:
+        # Validate HTTPS for security
+        if not env_endpoint.startswith("https://"):
+            raise ValueError(
+                f"Insecure endpoint: {env_endpoint}. " "HTTPS is required for API endpoints."
+            )
+
         # Build config from environment variables
         auth_config = AuthConfig()
         if env_api_key:
@@ -111,11 +126,19 @@ def load_cli_config(profile: str | None = None) -> ProfileConfig:
             "Create a new profile with: haymaker config set endpoint <url> --profile {profile_name}"
         )
 
-    return config.profiles[profile_name]
+    profile_config = config.profiles[profile_name]
+
+    # Validate HTTPS for security
+    if not profile_config.endpoint.startswith("https://"):
+        raise ValueError(
+            f"Insecure endpoint: {profile_config.endpoint}. " "HTTPS is required for API endpoints."
+        )
+
+    return profile_config
 
 
 def save_cli_config(config: CliConfig) -> None:
-    """Save CLI configuration to file.
+    """Save CLI configuration to file with secure permissions.
 
     Args:
         config: Configuration to save
@@ -128,6 +151,9 @@ def save_cli_config(config: CliConfig) -> None:
 
     with open(config_path, "w") as f:
         yaml.safe_dump(config.model_dump(), f, default_flow_style=False, sort_keys=False)
+
+    # Ensure secure file permissions after writing
+    config_path.chmod(0o600)  # -rw------- (owner read/write only)
 
 
 def set_config_value(key: str, value: str, profile: str = "default") -> None:
@@ -169,8 +195,7 @@ def set_config_value(key: str, value: str, profile: str = "default") -> None:
         profile_config.auth.tenant_id = value
     else:
         raise ValueError(
-            f"Unknown configuration key: {key}\n"
-            "Valid keys: endpoint, api-key, tenant-id"
+            f"Unknown configuration key: {key}\n" "Valid keys: endpoint, api-key, tenant-id"
         )
 
     # Save updated config

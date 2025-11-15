@@ -21,13 +21,22 @@ param adminObjectIds array = []
 @description('Enable soft delete')
 param enableSoftDelete bool = true
 
-@description('Soft delete retention days')
+@description('Soft delete retention days (minimum 30 days recommended for production)')
 @minValue(7)
 @maxValue(90)
-param softDeleteRetentionInDays int = 7
+param softDeleteRetentionInDays int = 30
 
 @description('Enable purge protection')
-param enablePurgeProtection bool = false
+param enablePurgeProtection bool = true
+
+@description('Allow public network access (set to false for production)')
+param publicNetworkAccess bool = false
+
+@description('Allowed IP addresses for Key Vault access')
+param allowedIpAddresses array = []
+
+@description('Allowed VNet subnet resource IDs')
+param allowedSubnetIds array = []
 
 // Key Vault
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
@@ -47,10 +56,17 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     softDeleteRetentionInDays: softDeleteRetentionInDays
     enablePurgeProtection: enablePurgeProtection ? true : null
     enableRbacAuthorization: true
-    publicNetworkAccess: 'Enabled'
+    publicNetworkAccess: publicNetworkAccess ? 'Enabled' : 'Disabled'
     networkAcls: {
       bypass: 'AzureServices'
-      defaultAction: 'Allow'
+      defaultAction: 'Deny'
+      ipRules: [for ip in allowedIpAddresses: {
+        value: ip
+      }]
+      virtualNetworkRules: [for subnetId in allowedSubnetIds: {
+        id: subnetId
+        ignoreMissingVnetServiceEndpoint: false
+      }]
     }
   }
 }

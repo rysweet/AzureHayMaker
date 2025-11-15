@@ -13,6 +13,21 @@ app = func.FunctionApp()
 logger = logging.getLogger(__name__)
 
 
+def sanitize_odata_value(value: str) -> str:
+    """Sanitize input for OData query filters to prevent injection attacks.
+
+    Args:
+        value: Input string to sanitize
+
+    Returns:
+        Sanitized string safe for use in OData filters
+    """
+    if not isinstance(value, str):
+        value = str(value)
+    # Escape single quotes by doubling them (OData standard)
+    return value.replace("'", "''")
+
+
 class AgentInfo(BaseModel):
     """Agent information."""
 
@@ -56,12 +71,20 @@ async def query_agents_from_table(
         # Build query filter
         query_filter = None
         if status_filter:
-            query_filter = f"status eq '{status_filter}'"
+            query_filter = f"status eq '{sanitize_odata_value(status_filter)}'"
 
         # Query table
         entities = table_client.query_entities(
             query_filter=query_filter,
-            select=["agent_id", "scenario", "status", "started_at", "completed_at", "progress", "error"],
+            select=[
+                "agent_id",
+                "scenario",
+                "status",
+                "started_at",
+                "completed_at",
+                "progress",
+                "error",
+            ],
         )
 
         # Convert to AgentInfo models
@@ -194,9 +217,7 @@ async def list_agents(req: func.HttpRequest) -> func.HttpResponse:
         )
 
         # Build response
-        response = {
-            "agents": [agent.model_dump(mode="json") for agent in agents]
-        }
+        response = {"agents": [agent.model_dump(mode="json") for agent in agents]}
 
         return func.HttpResponse(
             body=str(response),
@@ -205,15 +226,18 @@ async def list_agents(req: func.HttpRequest) -> func.HttpResponse:
         )
 
     except ValueError as e:
+        # Log detailed error internally
+        logger.warning(f"Invalid parameter in list_agents: {e}")
         return func.HttpResponse(
-            body=f'{{"error": "Invalid parameter: {str(e)}"}}',
+            body='{"error": {"code": "INVALID_PARAMETER", "message": "Invalid request parameter"}}',
             status_code=400,
             mimetype="application/json",
         )
-    except Exception as e:
+    except Exception:
+        # Log detailed error internally but return generic message
         logger.exception("Error listing agents")
         return func.HttpResponse(
-            body=f'{{"error": "{str(e)}"}}',
+            body='{"error": {"code": "INTERNAL_ERROR", "message": "Failed to list agents"}}',
             status_code=500,
             mimetype="application/json",
         )
@@ -262,14 +286,15 @@ async def get_agent_logs(req: func.HttpRequest) -> func.HttpResponse:
             )
 
         # Parse query parameters
-        tail = int(req.params.get("tail", "100"))
-        follow = req.params.get("follow", "false").lower() == "true"
+        # TODO: Implement log tailing and following once log storage is added
+        # tail = int(req.params.get("tail", "100"))
+        # follow = req.params.get("follow", "false").lower() == "true"
 
         # Get Service Bus configuration
         import os
 
         servicebus_namespace = os.getenv("SERVICE_BUS_NAMESPACE")
-        topic_name = os.getenv("SERVICE_BUS_TOPIC", "agent-logs")
+        # topic_name = os.getenv("SERVICE_BUS_TOPIC", "agent-logs")
 
         if not servicebus_namespace:
             logger.error("SERVICE_BUS_NAMESPACE not configured")
@@ -299,15 +324,18 @@ async def get_agent_logs(req: func.HttpRequest) -> func.HttpResponse:
         )
 
     except ValueError as e:
+        # Log detailed error internally
+        logger.warning(f"Invalid parameter in get_agent_logs: {e}")
         return func.HttpResponse(
-            body=f'{{"error": "Invalid parameter: {str(e)}"}}',
+            body='{"error": {"code": "INVALID_PARAMETER", "message": "Invalid request parameter"}}',
             status_code=400,
             mimetype="application/json",
         )
-    except Exception as e:
+    except Exception:
+        # Log detailed error internally but return generic message
         logger.exception("Error retrieving agent logs")
         return func.HttpResponse(
-            body=f'{{"error": "{str(e)}"}}',
+            body='{"error": {"code": "INTERNAL_ERROR", "message": "Failed to retrieve agent logs"}}',
             status_code=500,
             mimetype="application/json",
         )

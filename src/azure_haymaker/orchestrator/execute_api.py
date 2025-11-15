@@ -7,6 +7,7 @@ This module provides HTTP endpoints for:
 
 import json
 import logging
+import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -31,20 +32,61 @@ logger = logging.getLogger(__name__)
 app = func.FunctionApp()
 
 
-def get_scenario_path(scenario_name: str) -> Path | None:
-    """Get path to scenario document.
+def extract_user_from_request(req: func.HttpRequest) -> str:
+    """Extract user identifier from request for per-user rate limiting.
+
+    Priority order:
+    1. Azure AD principal ID from token (if using Azure AD auth)
+    2. API key identifier (hashed for anonymity)
+    3. IP address as fallback
 
     Args:
-        scenario_name: Scenario name to look up
+        req: HTTP request object
 
     Returns:
-        Path to scenario document or None if not found
+        User identifier string
+    """
+    # Try to get Azure AD principal ID from headers
+    # This would be set by Azure Functions when using Azure AD auth
+    principal_id = req.headers.get("x-ms-client-principal-id")
+    if principal_id:
+        return f"aad:{principal_id}"
+
+    # Try to get API key from header and hash it
+    api_key = req.headers.get("x-functions-key")
+    if api_key:
+        # Use first 8 chars of API key as identifier (not full key for security)
+        return f"key:{api_key[:8]}"
+
+    # Fallback to IP address
+    # Note: In production, consider using X-Forwarded-For for proxied requests
+    client_ip = req.headers.get("x-forwarded-for", "").split(",")[0].strip()
+    if not client_ip:
+        client_ip = req.headers.get("x-real-ip", "unknown")
+
+    return f"ip:{client_ip}"
+
+
+def get_scenario_path(scenario_name: str) -> Path | None:
+    """Get path to scenario document with path traversal protection.
+
+    Args:
+        scenario_name: Scenario name to look up (must be alphanumeric with hyphens only)
+
+    Returns:
+        Path to scenario document or None if not found or invalid
 
     Example:
         >>> path = get_scenario_path("compute-01-linux-vm-web-server")
         >>> if path and path.exists():
         ...     print("Scenario exists")
     """
+    # Validate scenario name format (alphanumeric and hyphens only)
+    # This prevents path traversal attacks like "../../../etc/passwd"
+    if not re.match(r"^[a-z0-9\-]+$", scenario_name):
+        logger.warning(f"Invalid scenario name format: {scenario_name}")
+        return None
+
     # Search in docs/scenarios directory
     project_root = Path(__file__).parent.parent.parent.parent
     scenarios_dir = project_root / "docs" / "scenarios"
@@ -53,12 +95,25 @@ def get_scenario_path(scenario_name: str) -> Path | None:
         logger.warning(f"Scenarios directory not found: {scenarios_dir}")
         return None
 
-    # Search for scenario file
-    for scenario_file in scenarios_dir.glob("**/*.md"):
-        if scenario_name in scenario_file.stem:
-            return scenario_file
+    # Construct expected scenario file path safely
+    scenario_file = scenarios_dir / f"{scenario_name}.md"
 
-    return None
+    # Resolve to absolute path and verify it's within scenarios directory
+    try:
+        resolved_path = scenario_file.resolve(strict=False)
+        scenarios_dir_resolved = scenarios_dir.resolve()
+
+        # Check if resolved path is within scenarios directory
+        if not str(resolved_path).startswith(str(scenarios_dir_resolved)):
+            logger.warning(f"Path traversal attempt detected: {scenario_name}")
+            return None
+
+        # Return path if it exists
+        return resolved_path if resolved_path.exists() else None
+
+    except Exception as e:
+        logger.error(f"Error resolving scenario path: {e}")
+        return None
 
 
 def validate_scenarios(scenarios: list[str]) -> tuple[bool, str | None]:
@@ -186,8 +241,14 @@ async def execute_scenario(req: func.HttpRequest) -> func.HttpResponse:
 
         limiter = RateLimiter(rate_limit_table)
 
-        # Check global and per-scenario limits
-        rate_limit_checks = [("global", "default")]
+        # Extract user identifier for per-user rate limiting
+        user_id = extract_user_from_request(req)
+
+        # Check global, per-user, and per-scenario limits
+        rate_limit_checks = [
+            ("global", "default"),
+            ("user", user_id),  # Per-user rate limiting
+        ]
         for scenario in execution_request.scenarios:
             rate_limit_checks.append(("scenario", scenario))
 
@@ -280,9 +341,7 @@ async def execute_scenario(req: func.HttpRequest) -> func.HttpResponse:
         )
 
 
-@app.route(
-    route="executions/{execution_id}", methods=["GET"], auth_level=func.AuthLevel.FUNCTION
-)
+@app.route(route="executions/{execution_id}", methods=["GET"], auth_level=func.AuthLevel.FUNCTION)
 async def get_execution_status(req: func.HttpRequest) -> func.HttpResponse:
     """Get execution status via HTTP GET.
 
@@ -355,13 +414,14 @@ async def get_execution_status(req: func.HttpRequest) -> func.HttpResponse:
             )
 
         except Exception:
+            # Log detailed error internally but return generic message
             logger.error(f"Execution not found: {execution_id}", exc_info=True)
             return func.HttpResponse(
                 body=json.dumps(
                     {
                         "error": {
                             "code": "EXECUTION_NOT_FOUND",
-                            "message": f"Execution not found: {execution_id}",
+                            "message": "Execution not found",
                         }
                     }
                 ),

@@ -23,6 +23,21 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 
+def sanitize_odata_value(value: str) -> str:
+    """Sanitize input for OData/Graph API query filters to prevent injection attacks.
+
+    Args:
+        value: Input string to sanitize
+
+    Returns:
+        Sanitized string safe for use in OData filters
+    """
+    if not isinstance(value, str):
+        value = str(value)
+    # Escape single quotes by doubling them (OData standard)
+    return value.replace("'", "''")
+
+
 class ServicePrincipalError(Exception):
     """Raised when service principal operations fail."""
 
@@ -221,7 +236,7 @@ async def delete_service_principal(
         graph_client = GraphServiceClient(credential)
 
         # Find service principal by display name
-        filter_query = f"displayName eq '{sp_name}'"
+        filter_query = f"displayName eq '{sanitize_odata_value(sp_name)}'"
         sp_list = await asyncio.to_thread(
             graph_client.service_principals.get,
             request_configuration=lambda config: setattr(
@@ -277,7 +292,7 @@ async def verify_sp_deleted(sp_name: str) -> bool:
         graph_client = GraphServiceClient(credential)
 
         # Query for service principal by display name
-        filter_query = f"displayName eq '{sp_name}'"
+        filter_query = f"displayName eq '{sanitize_odata_value(sp_name)}'"
         sp_list = await asyncio.to_thread(
             graph_client.service_principals.get,
             request_configuration=lambda config: setattr(

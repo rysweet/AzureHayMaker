@@ -116,14 +116,16 @@ jobs:
           KEY_VAULT_NAME=$(echo $DEPLOYMENT_OUTPUT | jq -r '.properties.outputs.keyVaultName.value')
           RESOURCE_GROUP_NAME=$(echo $DEPLOYMENT_OUTPUT | jq -r '.properties.outputs.resourceGroupName.value')
 
+          # Mask sensitive resource names to prevent exposure in logs
+          echo "::add-mask::$FUNCTION_APP_NAME"
+          echo "::add-mask::$KEY_VAULT_NAME"
+          echo "::add-mask::$RESOURCE_GROUP_NAME"
+
           echo "functionAppName=$FUNCTION_APP_NAME" >> $GITHUB_OUTPUT
           echo "keyVaultName=$KEY_VAULT_NAME" >> $GITHUB_OUTPUT
           echo "resourceGroupName=$RESOURCE_GROUP_NAME" >> $GITHUB_OUTPUT
 
-          echo "Deployed resources:"
-          echo "  Function App: $FUNCTION_APP_NAME"
-          echo "  Key Vault: $KEY_VAULT_NAME"
-          echo "  Resource Group: $RESOURCE_GROUP_NAME"
+          echo "Deployment complete. Resource details masked for security."
 
       - name: Inject secrets to Key Vault
         run: |
