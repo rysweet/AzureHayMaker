@@ -1,14 +1,12 @@
 """Unit tests for event bus and Azure Service Bus integration."""
 
-from datetime import datetime
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from azure.servicebus import ServiceBusMessage
-from azure.servicebus.aio import ServiceBusClient, ServiceBusReceiver, ServiceBusSender
 
-from azure_haymaker.models.resource import Resource, ResourceStatus
+from azure_haymaker.models.resource import ResourceStatus
 from azure_haymaker.orchestrator.event_bus import (
     EventBusClient,
     parse_resource_events,
@@ -261,7 +259,10 @@ class TestParseResourceEvents:
         resources = parse_resource_events(messages)
 
         assert len(resources) == 1
-        assert resources[0].resource_id == "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Compute/virtualMachines/vm1"
+        assert (
+            resources[0].resource_id
+            == "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Compute/virtualMachines/vm1"
+        )
         assert resources[0].resource_name == "vm1"
         assert resources[0].status == ResourceStatus.CREATED
 

@@ -117,11 +117,11 @@ async def load_config_from_env_and_keyvault() -> OrchestratorConfig:
         # Validate simulation size
         try:
             simulation_size = SimulationSize(simulation_size_str.lower())
-        except ValueError:
+        except ValueError as e:
             raise ConfigurationError(
                 f"Invalid simulation size: {simulation_size_str}. "
                 f"Must be one of: small, medium, large"
-            )
+            ) from e
 
         # Retrieve secrets from Key Vault
         try:
@@ -135,7 +135,7 @@ async def load_config_from_env_and_keyvault() -> OrchestratorConfig:
         except Exception as e:
             raise ConfigurationError(
                 f"Failed to retrieve secrets from Key Vault ({key_vault_url}): {e}"
-            )
+            ) from e
 
         # Build configuration object
         try:
@@ -183,14 +183,14 @@ async def load_config_from_env_and_keyvault() -> OrchestratorConfig:
             return config
 
         except ValidationError as e:
-            raise ConfigurationError(f"Configuration validation failed: {e}")
+            raise ConfigurationError(f"Configuration validation failed: {e}") from e
 
     except ConfigurationError:
         # Re-raise configuration errors as-is
         raise
     except Exception as e:
         # Wrap unexpected errors
-        raise ConfigurationError(f"Unexpected error loading configuration: {e}")
+        raise ConfigurationError(f"Unexpected error loading configuration: {e}") from e
 
 
 async def load_config() -> OrchestratorConfig:

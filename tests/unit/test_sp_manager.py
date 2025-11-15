@@ -4,9 +4,7 @@ This module tests the creation, role assignment, and deletion of ephemeral
 service principals for scenario execution.
 """
 
-import asyncio
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from azure.core.exceptions import ResourceNotFoundError
@@ -198,7 +196,7 @@ class TestCreateServicePrincipal:
             ),
             patch("azure_haymaker.orchestrator.sp_manager.asyncio.sleep", new_callable=AsyncMock),
         ):
-            result = await create_service_principal(
+            await create_service_principal(
                 scenario_name="test-scenario",
                 subscription_id="sub-12345",
                 roles=["Contributor", "Reader"],

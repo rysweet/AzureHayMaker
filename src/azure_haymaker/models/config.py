@@ -138,12 +138,13 @@ class OrchestratorConfig(BaseModel):
     def model_post_init(self, __context: Any) -> None:
         """Post-initialization validation."""
         # Validate VNet configuration if enabled
-        if self.vnet_integration_enabled:
-            if not all([self.vnet_resource_group, self.vnet_name, self.subnet_name]):
-                raise ValueError(
-                    "VNet integration enabled but vnet_resource_group, vnet_name, "
-                    "or subnet_name not provided"
-                )
+        if self.vnet_integration_enabled and not all(
+            [self.vnet_resource_group, self.vnet_name, self.subnet_name]
+        ):
+            raise ValueError(
+                "VNet integration enabled but vnet_resource_group, vnet_name, "
+                "or subnet_name not provided"
+            )
 
     class Config:
         """Pydantic configuration."""

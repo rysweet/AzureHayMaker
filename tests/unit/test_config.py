@@ -112,12 +112,14 @@ class TestLoadConfigFromEnvAndKeyvault:
         mock_client = MagicMock(spec=SecretClient)
         mock_client.get_secret.side_effect = ResourceNotFoundError("Secret not found")
 
-        with patch.dict(os.environ, mock_env, clear=True):
-            with patch("azure_haymaker.orchestrator.config.SecretClient", return_value=mock_client):
-                with pytest.raises(ConfigurationError) as exc_info:
-                    await load_config_from_env_and_keyvault()
+        with (
+            patch.dict(os.environ, mock_env, clear=True),
+            patch("azure_haymaker.orchestrator.config.SecretClient", return_value=mock_client),
+            pytest.raises(ConfigurationError) as exc_info,
+        ):
+            await load_config_from_env_and_keyvault()
 
-                assert "Key Vault" in str(exc_info.value) or "secret" in str(exc_info.value).lower()
+        assert "Key Vault" in str(exc_info.value) or "secret" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
     async def test_load_config_invalid_simulation_size(

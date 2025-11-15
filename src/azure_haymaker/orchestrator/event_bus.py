@@ -219,9 +219,7 @@ def parse_resource_events(messages: list[dict[str, Any]]) -> list[Resource]:
             )
 
             resources.append(resource)
-            logger.debug(
-                f"Parsed resource event: {resource.resource_name} ({event_type})"
-            )
+            logger.debug(f"Parsed resource event: {resource.resource_name} ({event_type})")
 
         except (KeyError, ValueError) as e:
             logger.error(f"Failed to parse resource event: {e}")

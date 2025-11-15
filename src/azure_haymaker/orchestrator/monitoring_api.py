@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 # CUSTOM EXCEPTIONS
 # ==============================================================================
 
+
 class APIError(Exception):
     """Base class for API errors."""
 
@@ -81,6 +82,7 @@ class InvalidParameterError(APIError):
 # VALIDATION UTILITIES
 # ==============================================================================
 
+
 def validate_run_id(run_id: str) -> None:
     """
     Validate that run_id is a valid UUID.
@@ -94,10 +96,7 @@ def validate_run_id(run_id: str) -> None:
     try:
         uuid.UUID(run_id)
     except ValueError as e:
-        raise InvalidParameterError(
-            "run_id",
-            f"Must be a valid UUID, got '{run_id}'"
-        ) from e
+        raise InvalidParameterError("run_id", f"Must be a valid UUID, got '{run_id}'") from e
 
 
 def validate_pagination_params(page: str, page_size: str) -> tuple[int, int]:
@@ -118,22 +117,13 @@ def validate_pagination_params(page: str, page_size: str) -> tuple[int, int]:
         page_int = int(page) if page else 1
         page_size_int = int(page_size) if page_size else 100
     except ValueError as e:
-        raise InvalidParameterError(
-            "pagination",
-            "page and page_size must be integers"
-        ) from e
+        raise InvalidParameterError("pagination", "page and page_size must be integers") from e
 
     if page_int < 1:
-        raise InvalidParameterError(
-            "page",
-            "page must be >= 1"
-        )
+        raise InvalidParameterError("page", "page must be >= 1")
 
     if page_size_int < 1 or page_size_int > 500:
-        raise InvalidParameterError(
-            "page_size",
-            "page_size must be between 1 and 500"
-        )
+        raise InvalidParameterError("page_size", "page_size must be between 1 and 500")
 
     return page_int, page_size_int
 
@@ -141,6 +131,7 @@ def validate_pagination_params(page: str, page_size: str) -> tuple[int, int]:
 # ==============================================================================
 # ERROR RESPONSE UTILITIES
 # ==============================================================================
+
 
 def create_error_response(error: APIError, trace_id: str | None = None) -> func.HttpResponse:
     """
@@ -182,13 +173,14 @@ def create_error_response(error: APIError, trace_id: str | None = None) -> func.
         headers={
             "Content-Type": "application/json",
             "X-Trace-ID": trace_id,
-        }
+        },
     )
 
 
 # ==============================================================================
 # STORAGE ACCESS UTILITIES
 # ==============================================================================
+
 
 async def read_blob_json(
     blob_client: BlobServiceClient, container: str, blob_name: str
@@ -213,12 +205,12 @@ async def read_blob_json(
         download_stream = blob.download_blob()
 
         # Handle both sync and async download
-        if hasattr(download_stream, 'readall'):
+        if hasattr(download_stream, "readall"):
             # Async case
             if callable(download_stream.readall):
                 data_result = download_stream.readall()
                 # Check if it's a coroutine
-                if hasattr(data_result, '__await__'):
+                if hasattr(data_result, "__await__"):
                     data = await data_result
                 else:
                     data = data_result
@@ -229,8 +221,8 @@ async def read_blob_json(
             data = download_stream.readall()
 
         if isinstance(data, str):
-            data = data.encode('utf-8')
-        return json.loads(data.decode('utf-8'))
+            data = data.encode("utf-8")
+        return json.loads(data.decode("utf-8"))
     except ResourceNotFoundError:
         raise
     except json.JSONDecodeError as e:
@@ -244,6 +236,7 @@ async def read_blob_json(
 # ==============================================================================
 # CORE ENDPOINT IMPLEMENTATIONS
 # ==============================================================================
+
 
 async def get_status(
     req: func.HttpRequest,
@@ -275,9 +268,7 @@ async def get_status(
         # Read current status from blob storage
         # Path: execution-state/current_status.json
         status_data = await read_blob_json(
-            blob_client,
-            container="execution-state",
-            blob_name="current_status.json"
+            blob_client, container="execution-state", blob_name="current_status.json"
         )
 
         # Build response with all required fields
@@ -305,7 +296,7 @@ async def get_status(
                 "Content-Type": "application/json",
                 "Cache-Control": "private, max-age=10",
                 "X-Trace-ID": trace_id,
-            }
+            },
         )
 
     except ResourceNotFoundError:
@@ -332,15 +323,13 @@ async def get_status(
             headers={
                 "Content-Type": "application/json",
                 "X-Trace-ID": trace_id,
-            }
+            },
         )
 
     except Exception as e:
         logger.error(f"Error getting status: {e}", exc_info=True)
         api_error = APIError(
-            "Failed to retrieve orchestrator status",
-            status_code=500,
-            code="STORAGE_ERROR"
+            "Failed to retrieve orchestrator status", status_code=500, code="STORAGE_ERROR"
         )
         return create_error_response(api_error, trace_id)
 
@@ -388,9 +377,7 @@ async def get_run_details(
         # Read run details from blob storage
         # Path: execution-reports/{run_id}/report.json
         run_data = await read_blob_json(
-            blob_client,
-            container="execution-reports",
-            blob_name=f"{run_id}/report.json"
+            blob_client, container="execution-reports", blob_name=f"{run_id}/report.json"
         )
 
         # Build response matching RunDetails schema
@@ -416,7 +403,7 @@ async def get_run_details(
                 "Content-Type": "application/json",
                 "Cache-Control": "private, max-age=30",
                 "X-Trace-ID": trace_id,
-            }
+            },
         )
 
     except InvalidParameterError as e:
@@ -430,18 +417,14 @@ async def get_run_details(
     except json.JSONDecodeError as e:
         logger.error(f"Corrupted run data for {run_id}: {e}")
         api_error = APIError(
-            "Corrupted data in storage for run",
-            status_code=500,
-            code="STORAGE_ERROR"
+            "Corrupted data in storage for run", status_code=500, code="STORAGE_ERROR"
         )
         return create_error_response(api_error, trace_id)
 
     except Exception as e:
         logger.error(f"Error getting run details for {run_id}: {e}", exc_info=True)
         api_error = APIError(
-            "Failed to retrieve run details",
-            status_code=500,
-            code="STORAGE_ERROR"
+            "Failed to retrieve run details", status_code=500, code="STORAGE_ERROR"
         )
         return create_error_response(api_error, trace_id)
 
@@ -503,9 +486,7 @@ async def get_run_resources(
         # Read resources list from blob storage
         # Path: execution-reports/{run_id}/resources.json
         resources_data = await read_blob_json(
-            blob_client,
-            container="execution-reports",
-            blob_name=f"{run_id}/resources.json"
+            blob_client, container="execution-reports", blob_name=f"{run_id}/resources.json"
         )
 
         # Get all resources
@@ -516,27 +497,21 @@ async def get_run_resources(
 
         if scenario_filter:
             filtered_resources = [
-                r for r in filtered_resources
-                if r.get("scenario_name") == scenario_filter
+                r for r in filtered_resources if r.get("scenario_name") == scenario_filter
             ]
 
         if resource_type_filter:
             filtered_resources = [
-                r for r in filtered_resources
-                if r.get("resource_type") == resource_type_filter
+                r for r in filtered_resources if r.get("resource_type") == resource_type_filter
             ]
 
         if status_filter:
             valid_statuses = ["created", "exists", "deleted", "deletion_failed"]
             if status_filter not in valid_statuses:
                 raise InvalidParameterError(
-                    "status",
-                    f"Must be one of: {', '.join(valid_statuses)}"
+                    "status", f"Must be one of: {', '.join(valid_statuses)}"
                 )
-            filtered_resources = [
-                r for r in filtered_resources
-                if r.get("status") == status_filter
-            ]
+            filtered_resources = [r for r in filtered_resources if r.get("status") == status_filter]
 
         # Calculate pagination
         total_items = len(filtered_resources)
@@ -544,10 +519,7 @@ async def get_run_resources(
 
         # Validate page number
         if page > total_pages and total_pages > 0:
-            raise InvalidParameterError(
-                "page",
-                f"Page {page} exceeds total pages {total_pages}"
-            )
+            raise InvalidParameterError("page", f"Page {page} exceeds total pages {total_pages}")
 
         # Get items for current page
         start_idx = (page - 1) * page_size
@@ -565,7 +537,7 @@ async def get_run_resources(
                 "total_pages": total_pages,
                 "has_next": page < total_pages,
                 "has_previous": page > 1,
-            }
+            },
         }
 
         return func.HttpResponse(
@@ -575,7 +547,7 @@ async def get_run_resources(
             headers={
                 "Content-Type": "application/json",
                 "X-Trace-ID": trace_id,
-            }
+            },
         )
 
     except InvalidParameterError as e:
@@ -589,19 +561,13 @@ async def get_run_resources(
     except json.JSONDecodeError as e:
         logger.error(f"Corrupted resources data for {run_id}: {e}")
         api_error = APIError(
-            "Corrupted data in storage for run",
-            status_code=500,
-            code="STORAGE_ERROR"
+            "Corrupted data in storage for run", status_code=500, code="STORAGE_ERROR"
         )
         return create_error_response(api_error, trace_id)
 
     except Exception as e:
         logger.error(f"Error getting resources for {run_id}: {e}", exc_info=True)
-        api_error = APIError(
-            "Failed to retrieve resources",
-            status_code=500,
-            code="STORAGE_ERROR"
-        )
+        api_error = APIError("Failed to retrieve resources", status_code=500, code="STORAGE_ERROR")
         return create_error_response(api_error, trace_id)
 
 

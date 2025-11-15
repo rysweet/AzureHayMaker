@@ -3,12 +3,11 @@
 import random
 import re
 from pathlib import Path
-from typing import List
 
 from azure_haymaker.models import ScenarioMetadata, SimulationSize
 
 
-def list_available_scenarios() -> List[Path]:
+def list_available_scenarios() -> list[Path]:
     """List all available scenario files from docs/scenarios directory.
 
     Excludes SCENARIO_TEMPLATE.md and SCALING_PLAN.md files.
@@ -75,11 +74,7 @@ def parse_scenario_metadata(file_path: Path) -> ScenarioMetadata:
     # Extract technology area from markdown
     # Look for "## Technology Area" section
     tech_area_match = re.search(r"##\s+Technology Area\s*\n\s*(.+?)(?:\n|$)", content)
-    if tech_area_match:
-        technology_area = tech_area_match.group(1).strip()
-    else:
-        # Fallback: try to extract from first heading or use default
-        technology_area = "General"
+    technology_area = tech_area_match.group(1).strip() if tech_area_match else "General"
 
     # Construct agent path based on actual agent directory structure
     # Agent structure: src/agents/{scenario-name}-agent/{bundle-name}/main.py
@@ -97,7 +92,7 @@ def parse_scenario_metadata(file_path: Path) -> ScenarioMetadata:
     return metadata
 
 
-def select_scenarios(size: SimulationSize) -> List[ScenarioMetadata]:
+def select_scenarios(size: SimulationSize) -> list[ScenarioMetadata]:
     """Select random scenarios based on simulation size.
 
     Selection is random and ensures no duplicates.

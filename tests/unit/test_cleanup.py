@@ -4,16 +4,14 @@ This module tests the cleanup verification, forced deletion of resources,
 and service principal deletion after scenario execution.
 """
 
-import asyncio
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from azure.core.exceptions import ResourceNotFoundError
 
-from azure_haymaker.models.resource import Resource, ResourceStatus
-from azure_haymaker.models.scenario import ScenarioMetadata, ScenarioStatus
+from azure_haymaker.models.resource import Resource
 from azure_haymaker.models.service_principal import ServicePrincipalDetails
 from azure_haymaker.orchestrator.cleanup import (
     CleanupReport,
@@ -62,7 +60,9 @@ class TestQueryManagedResources:
         mock_query_result.skip_token = None
         mock_resource_graph_client.resources.return_value = mock_query_result
 
-        with patch("azure.mgmt.resourcegraph.ResourceGraphClient", return_value=mock_resource_graph_client):
+        with patch(
+            "azure.mgmt.resourcegraph.ResourceGraphClient", return_value=mock_resource_graph_client
+        ):
             result = await query_managed_resources(subscription_id, run_id)
 
         assert len(result) == 2
@@ -84,7 +84,9 @@ class TestQueryManagedResources:
         mock_query_result.skip_token = None
         mock_resource_graph_client.resources.return_value = mock_query_result
 
-        with patch("azure.mgmt.resourcegraph.ResourceGraphClient", return_value=mock_resource_graph_client):
+        with patch(
+            "azure.mgmt.resourcegraph.ResourceGraphClient", return_value=mock_resource_graph_client
+        ):
             result = await query_managed_resources(subscription_id, run_id)
 
         assert result == []
@@ -101,7 +103,9 @@ class TestQueryManagedResources:
         mock_query_result.skip_token = None
         mock_resource_graph_client.resources.return_value = mock_query_result
 
-        with patch("azure.mgmt.resourcegraph.ResourceGraphClient", return_value=mock_resource_graph_client):
+        with patch(
+            "azure.mgmt.resourcegraph.ResourceGraphClient", return_value=mock_resource_graph_client
+        ):
             await query_managed_resources(subscription_id, run_id)
 
         # Verify the resources method was called
@@ -121,8 +125,24 @@ class TestQueryManagedResources:
         subscription_id = "sub-12345"
 
         # Create mock resources across multiple pages
-        page1_resources = [{"id": f"/subscriptions/sub/resource-{i}", "type": "type", "name": f"res-{i}", "tags": {}} for i in range(100)]
-        page2_resources = [{"id": f"/subscriptions/sub/resource-{i}", "type": "type", "name": f"res-{i}", "tags": {}} for i in range(100, 150)]
+        page1_resources = [
+            {
+                "id": f"/subscriptions/sub/resource-{i}",
+                "type": "type",
+                "name": f"res-{i}",
+                "tags": {},
+            }
+            for i in range(100)
+        ]
+        page2_resources = [
+            {
+                "id": f"/subscriptions/sub/resource-{i}",
+                "type": "type",
+                "name": f"res-{i}",
+                "tags": {},
+            }
+            for i in range(100, 150)
+        ]
 
         mock_resource_graph_client = MagicMock()
         mock_query_result1 = MagicMock()
@@ -138,7 +158,9 @@ class TestQueryManagedResources:
         # First call returns first page, then second page
         mock_resource_graph_client.resources.side_effect = [mock_query_result1, mock_query_result2]
 
-        with patch("azure.mgmt.resourcegraph.ResourceGraphClient", return_value=mock_resource_graph_client):
+        with patch(
+            "azure.mgmt.resourcegraph.ResourceGraphClient", return_value=mock_resource_graph_client
+        ):
             result = await query_managed_resources(subscription_id, run_id)
 
         # Should have collected resources from both pages
@@ -154,7 +176,10 @@ class TestQueryManagedResources:
         mock_resource_graph_client.resources.side_effect = Exception("API error")
 
         with (
-            patch("azure.mgmt.resourcegraph.ResourceGraphClient", return_value=mock_resource_graph_client),
+            patch(
+                "azure.mgmt.resourcegraph.ResourceGraphClient",
+                return_value=mock_resource_graph_client,
+            ),
             pytest.raises(Exception, match="API error"),
         ):
             await query_managed_resources(subscription_id, run_id)
@@ -174,7 +199,9 @@ class TestVerifyCleanupComplete:
         mock_query_result.total_records = 0
         mock_resource_graph_client.resources.return_value = mock_query_result
 
-        with patch("azure.mgmt.resourcegraph.ResourceGraphClient", return_value=mock_resource_graph_client):
+        with patch(
+            "azure.mgmt.resourcegraph.ResourceGraphClient", return_value=mock_resource_graph_client
+        ):
             report = await verify_cleanup_complete(run_id)
 
         assert report.status == CleanupStatus.VERIFIED
@@ -207,7 +234,9 @@ class TestVerifyCleanupComplete:
         mock_query_result.total_records = 2
         mock_resource_graph_client.resources.return_value = mock_query_result
 
-        with patch("azure.mgmt.resourcegraph.ResourceGraphClient", return_value=mock_resource_graph_client):
+        with patch(
+            "azure.mgmt.resourcegraph.ResourceGraphClient", return_value=mock_resource_graph_client
+        ):
             report = await verify_cleanup_complete(run_id)
 
         assert report.status == CleanupStatus.VERIFICATION_FAILED
@@ -235,7 +264,9 @@ class TestVerifyCleanupComplete:
         mock_query_result.total_records = 1
         mock_resource_graph_client.resources.return_value = mock_query_result
 
-        with patch("azure.mgmt.resourcegraph.ResourceGraphClient", return_value=mock_resource_graph_client):
+        with patch(
+            "azure.mgmt.resourcegraph.ResourceGraphClient", return_value=mock_resource_graph_client
+        ):
             report = await verify_cleanup_complete(run_id)
 
         assert report.status == CleanupStatus.VERIFICATION_FAILED
@@ -250,7 +281,10 @@ class TestVerifyCleanupComplete:
         mock_resource_graph_client.resources.side_effect = Exception("Query failed")
 
         with (
-            patch("azure.mgmt.resourcegraph.ResourceGraphClient", return_value=mock_resource_graph_client),
+            patch(
+                "azure.mgmt.resourcegraph.ResourceGraphClient",
+                return_value=mock_resource_graph_client,
+            ),
             pytest.raises(Exception, match="Query failed"),
         ):
             await verify_cleanup_complete(run_id)
@@ -265,7 +299,11 @@ class TestVerifyCleanupComplete:
                 "id": "/subscriptions/sub-123/resourceGroups/rg-1",
                 "type": "Microsoft.Resources/resourceGroups",
                 "name": "rg-1",
-                "tags": {"AzureHayMaker-managed": "true", "RunId": run_id, "Scenario": "scenario-1"},
+                "tags": {
+                    "AzureHayMaker-managed": "true",
+                    "RunId": run_id,
+                    "Scenario": "scenario-1",
+                },
             },
         ]
 
@@ -275,7 +313,9 @@ class TestVerifyCleanupComplete:
         mock_query_result.total_records = 1
         mock_resource_graph_client.resources.return_value = mock_query_result
 
-        with patch("azure.mgmt.resourcegraph.ResourceGraphClient", return_value=mock_resource_graph_client):
+        with patch(
+            "azure.mgmt.resourcegraph.ResourceGraphClient", return_value=mock_resource_graph_client
+        ):
             report = await verify_cleanup_complete(run_id)
 
         assert report.remaining_resources[0].resource_name == "rg-1"
@@ -295,7 +335,7 @@ class TestForceDeleteResources:
                 resource_name="rg-1",
                 scenario_name="scenario-1",
                 run_id="run-123",
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
                 tags={"AzureHayMaker-managed": "true"},
             ),
         ]
@@ -305,8 +345,11 @@ class TestForceDeleteResources:
         mock_poller.result.return_value = None
         mock_resource_client.resources.begin_delete_by_id.return_value = mock_poller
 
-        with patch("azure.mgmt.resource.ResourceManagementClient", return_value=mock_resource_client), patch(
-            "azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"
+        with (
+            patch(
+                "azure.mgmt.resource.ResourceManagementClient", return_value=mock_resource_client
+            ),
+            patch("azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"),
         ):
             result = await force_delete_resources(resources, subscription_id="sub-12345")
 
@@ -331,7 +374,7 @@ class TestForceDeleteResources:
                 resource_name="rg-1",
                 scenario_name="scenario-1",
                 run_id="run-123",
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
                 tags={"AzureHayMaker-managed": "true"},
             ),
         ]
@@ -345,7 +388,9 @@ class TestForceDeleteResources:
         mock_resource_client.resources.begin_delete_by_id.return_value = mock_poller
 
         with (
-            patch("azure.mgmt.resource.ResourceManagementClient", return_value=mock_resource_client),
+            patch(
+                "azure.mgmt.resource.ResourceManagementClient", return_value=mock_resource_client
+            ),
             patch("asyncio.sleep", new_callable=AsyncMock),
         ):
             result = await force_delete_resources(resources)
@@ -364,7 +409,7 @@ class TestForceDeleteResources:
                 resource_name="rg-1",
                 scenario_name="scenario-1",
                 run_id="run-123",
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
                 tags={"AzureHayMaker-managed": "true"},
             ),
         ]
@@ -378,7 +423,9 @@ class TestForceDeleteResources:
         mock_resource_client.resources.begin_delete_by_id.return_value = mock_poller
 
         with (
-            patch("azure.mgmt.resource.ResourceManagementClient", return_value=mock_resource_client),
+            patch(
+                "azure.mgmt.resource.ResourceManagementClient", return_value=mock_resource_client
+            ),
             patch("asyncio.sleep", new_callable=AsyncMock),
         ):
             result = await force_delete_resources(resources)
@@ -397,7 +444,7 @@ class TestForceDeleteResources:
                 resource_name=f"rg-{i}",
                 scenario_name="scenario-1",
                 run_id="run-123",
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
                 tags={"AzureHayMaker-managed": "true"},
             )
             for i in range(3)
@@ -408,8 +455,11 @@ class TestForceDeleteResources:
         mock_poller.result.return_value = None
         mock_resource_client.resources.begin_delete_by_id.return_value = mock_poller
 
-        with patch("azure.mgmt.resource.ResourceManagementClient", return_value=mock_resource_client), patch(
-            "azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"
+        with (
+            patch(
+                "azure.mgmt.resource.ResourceManagementClient", return_value=mock_resource_client
+            ),
+            patch("azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"),
         ):
             result = await force_delete_resources(resources, subscription_id="sub-12345")
 
@@ -426,7 +476,7 @@ class TestForceDeleteResources:
                 resource_name="rg-1",
                 scenario_name="scenario-1",
                 run_id="run-123",
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
                 tags={"AzureHayMaker-managed": "true"},
             ),
         ]
@@ -437,8 +487,11 @@ class TestForceDeleteResources:
         mock_poller.result.side_effect = ResourceNotFoundError("Resource not found")
         mock_resource_client.resources.begin_delete_by_id.return_value = mock_poller
 
-        with patch("azure.mgmt.resource.ResourceManagementClient", return_value=mock_resource_client), patch(
-            "azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"
+        with (
+            patch(
+                "azure.mgmt.resource.ResourceManagementClient", return_value=mock_resource_client
+            ),
+            patch("azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"),
         ):
             result = await force_delete_resources(resources, subscription_id="sub-12345")
 
@@ -449,7 +502,7 @@ class TestForceDeleteResources:
     @pytest.mark.asyncio
     async def test_force_delete_resources_deleted_at_updated(self):
         """Test that deleted_at timestamp is recorded."""
-        before_delete = datetime.now(timezone.utc)
+        before_delete = datetime.now(UTC)
 
         resources = [
             Resource(
@@ -458,7 +511,7 @@ class TestForceDeleteResources:
                 resource_name="rg-1",
                 scenario_name="scenario-1",
                 run_id="run-123",
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
                 tags={"AzureHayMaker-managed": "true"},
             ),
         ]
@@ -468,12 +521,15 @@ class TestForceDeleteResources:
         mock_poller.result.return_value = None
         mock_resource_client.resources.begin_delete_by_id.return_value = mock_poller
 
-        with patch("azure.mgmt.resource.ResourceManagementClient", return_value=mock_resource_client), patch(
-            "azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"
+        with (
+            patch(
+                "azure.mgmt.resource.ResourceManagementClient", return_value=mock_resource_client
+            ),
+            patch("azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"),
         ):
             result = await force_delete_resources(resources, subscription_id="sub-12345")
 
-        after_delete = datetime.now(timezone.utc)
+        after_delete = datetime.now(UTC)
 
         deletion = result.deletions[0]
         assert deletion.status == "deleted"
@@ -509,11 +565,15 @@ class TestForceDeleteResources:
         mock_kv_client = AsyncMock()
 
         with (
-            patch("azure.mgmt.resource.ResourceManagementClient", return_value=mock_resource_client),
+            patch(
+                "azure.mgmt.resource.ResourceManagementClient", return_value=mock_resource_client
+            ),
             patch("msgraph.GraphServiceClient", return_value=mock_graph_client),
             patch("azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"),
         ):
-            result = await force_delete_resources([], sp_details=sp_details, kv_client=mock_kv_client, subscription_id="sub-12345")
+            result = await force_delete_resources(
+                [], sp_details=sp_details, kv_client=mock_kv_client, subscription_id="sub-12345"
+            )
 
         # Verify result is empty (no resources to delete)
         assert len(result.deletions) == 0
@@ -531,7 +591,7 @@ class TestCleanupReport:
             resource_type="Microsoft.Resources/resourceGroups",
             status="deleted",
             attempts=1,
-            deleted_at=datetime.now(timezone.utc),
+            deleted_at=datetime.now(UTC),
         )
 
         report = CleanupReport(
@@ -554,7 +614,7 @@ class TestCleanupReport:
                 resource_type="Microsoft.Resources/resourceGroups",
                 status="deleted",
                 attempts=1,
-                deleted_at=datetime.now(timezone.utc),
+                deleted_at=datetime.now(UTC),
             ),
             ResourceDeletion(
                 resource_id="/subscriptions/sub/resourceGroups/rg-2",
@@ -583,7 +643,7 @@ class TestCleanupReport:
                 resource_type="Microsoft.Resources/resourceGroups",
                 status="deleted",
                 attempts=1,
-                deleted_at=datetime.now(timezone.utc),
+                deleted_at=datetime.now(UTC),
             ),
         ]
 

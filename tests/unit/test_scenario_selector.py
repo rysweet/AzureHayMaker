@@ -1,9 +1,6 @@
 """Unit tests for scenario_selector module."""
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
 
 from azure_haymaker.models import ScenarioMetadata, SimulationSize
 from azure_haymaker.orchestrator.scenario_selector import (

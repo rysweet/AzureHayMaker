@@ -5,28 +5,26 @@ resource configuration, and container status monitoring for Azure HayMaker scena
 """
 
 import asyncio
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, Mock, patch, ANY
+from datetime import UTC, datetime
 
 import pytest
-from azure.core.exceptions import ResourceNotFoundError, ResourceExistsError
 
 from azure_haymaker.models.config import (
+    CosmosDBConfig,
+    LogAnalyticsConfig,
     OrchestratorConfig,
     SimulationSize,
     StorageConfig,
     TableStorageConfig,
-    CosmosDBConfig,
-    LogAnalyticsConfig,
 )
 from azure_haymaker.models.scenario import ScenarioMetadata, ScenarioStatus
 from azure_haymaker.models.service_principal import ServicePrincipalDetails
 from azure_haymaker.orchestrator.container_manager import (
     ContainerAppError,
     ContainerManager,
+    delete_container_app,
     deploy_container_app,
     get_container_status,
-    delete_container_app,
 )
 
 
@@ -99,7 +97,7 @@ def mock_sp() -> ServicePrincipalDetails:
         client_id="sp-client-123",
         principal_id="sp-principal-456",
         secret_reference="scenario-sp-test-scenario-secret",
-        created_at=datetime.now(timezone.utc).isoformat(),
+        created_at=datetime.now(UTC).isoformat(),
         scenario_name="test-scenario",
     )
 
@@ -250,14 +248,19 @@ class TestContainerManagerValidation:
         )
 
         with pytest.raises(ValueError, match="scenario_name"):
-            asyncio.run(manager.deploy(invalid_scenario, ServicePrincipalDetails(
-                sp_name="test",
-                client_id="123",
-                principal_id="456",
-                secret_reference="secret",
-                created_at=datetime.now(timezone.utc).isoformat(),
-                scenario_name="test"
-            )))
+            asyncio.run(
+                manager.deploy(
+                    invalid_scenario,
+                    ServicePrincipalDetails(
+                        sp_name="test",
+                        client_id="123",
+                        principal_id="456",
+                        secret_reference="secret",
+                        created_at=datetime.now(UTC).isoformat(),
+                        scenario_name="test",
+                    ),
+                )
+            )
 
     def test_get_status_invalid_app_name(self, mock_config):
         """Test status check rejects empty app name."""

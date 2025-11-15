@@ -2221,4 +2221,3 @@ for sp_name in sps:
 - Add metrics/monitoring for SP lifecycle operations
 - Implement connection pooling for Graph SDK clients
 - Add support for certificate-based authentication (instead of secrets)
-

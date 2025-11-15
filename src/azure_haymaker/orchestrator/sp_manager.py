@@ -6,7 +6,7 @@ Each service principal is created per scenario, assigned custom RBAC roles, and 
 
 import asyncio
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
@@ -130,7 +130,9 @@ async def create_service_principal(
             # Create role assignment
             role_assignment_name = str(uuid.uuid4())
             scope = f"/subscriptions/{subscription_id}"
-            role_definition_id_full = f"{scope}/providers/Microsoft.Authorization/roleDefinitions/{role_definition_id}"
+            role_definition_id_full = (
+                f"{scope}/providers/Microsoft.Authorization/roleDefinitions/{role_definition_id}"
+            )
 
             await asyncio.to_thread(
                 auth_client.role_assignments.create,
@@ -154,7 +156,7 @@ async def create_service_principal(
             client_id=app.app_id,
             principal_id=sp.id,
             secret_reference=secret_name,
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
         )
 
     except APIError as e:
@@ -189,7 +191,9 @@ async def delete_service_principal(
         filter_query = f"displayName eq '{sp_name}'"
         sp_list = await asyncio.to_thread(
             graph_client.service_principals.get,
-            request_configuration=lambda config: setattr(config.query_parameters, "filter", filter_query)
+            request_configuration=lambda config: setattr(
+                config.query_parameters, "filter", filter_query
+            ),
         )
 
         if sp_list and sp_list.value and len(sp_list.value) > 0:
@@ -243,15 +247,13 @@ async def verify_sp_deleted(sp_name: str) -> bool:
         filter_query = f"displayName eq '{sp_name}'"
         sp_list = await asyncio.to_thread(
             graph_client.service_principals.get,
-            request_configuration=lambda config: setattr(config.query_parameters, "filter", filter_query)
+            request_configuration=lambda config: setattr(
+                config.query_parameters, "filter", filter_query
+            ),
         )
 
-        # If no results or empty list, SP is deleted
-        if not sp_list or not sp_list.value or len(sp_list.value) == 0:
-            return True
-
-        # SP still exists
-        return False
+        # If no results or empty list, SP is deleted; otherwise it still exists
+        return not sp_list or not sp_list.value or len(sp_list.value) == 0
 
     except Exception as e:
         raise ServicePrincipalError(f"Failed to verify service principal deletion: {e}") from e

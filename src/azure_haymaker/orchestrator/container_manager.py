@@ -7,7 +7,7 @@ and strict resource configuration requirements.
 
 import asyncio
 import logging
-from typing import Optional, Any, Dict, List
+from typing import Any
 
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
@@ -15,7 +15,6 @@ from azure.identity import DefaultAzureCredential
 from azure_haymaker.models.config import OrchestratorConfig
 from azure_haymaker.models.scenario import ScenarioMetadata
 from azure_haymaker.models.service_principal import ServicePrincipalDetails
-
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -57,12 +56,13 @@ class ContainerManager:
             )
 
         # Validate VNet configuration if enabled
-        if config.vnet_integration_enabled:
-            if not all([config.vnet_resource_group, config.vnet_name, config.subnet_name]):
-                raise ValueError(
-                    "VNet integration enabled but vnet_resource_group, vnet_name, "
-                    "or subnet_name not provided"
-                )
+        if config.vnet_integration_enabled and not all(
+            [config.vnet_resource_group, config.vnet_name, config.subnet_name]
+        ):
+            raise ValueError(
+                "VNet integration enabled but vnet_resource_group, vnet_name, "
+                "or subnet_name not provided"
+            )
 
     async def deploy(
         self,
@@ -254,10 +254,10 @@ class ContainerManager:
         # Remove invalid characters
         sanitized = "".join(c for c in sanitized if c.isalnum() or c == "-")
         # Limit length (max 63 chars for container app names)
-        app_name = f"{sanitized}-agent"[: 63]
+        app_name = f"{sanitized}-agent"[:63]
         return app_name
 
-    def _build_container(self, app_name: str, sp: ServicePrincipalDetails) -> Dict[str, Any]:
+    def _build_container(self, app_name: str, sp: ServicePrincipalDetails) -> dict[str, Any]:
         """Build container configuration with resource limits and env vars.
 
         Args:
@@ -310,7 +310,7 @@ class ContainerManager:
 
         return container
 
-    def _build_template(self, container: Dict[str, Any]) -> Dict[str, Any]:
+    def _build_template(self, container: dict[str, Any]) -> dict[str, Any]:
         """Build container app template with containers.
 
         Args:
@@ -325,7 +325,7 @@ class ContainerManager:
 
         return template
 
-    def _build_configuration(self, sp: ServicePrincipalDetails) -> Dict[str, Any]:
+    def _build_configuration(self, sp: ServicePrincipalDetails) -> dict[str, Any]:
         """Build container app configuration with VNet integration and secrets.
 
         Args:
@@ -355,15 +355,6 @@ class ContainerManager:
             "passwordSecretRef": "registry-password",
         }
 
-        # VNet integration configuration
-        vnet_config = None
-        if self.config.vnet_integration_enabled:
-            vnet_config = {
-                "vnetResourceGroup": self.config.vnet_resource_group,
-                "vnetName": self.config.vnet_name,
-                "subnetName": self.config.subnet_name,
-            }
-
         # Build configuration
         configuration = {
             "secrets": secrets,
@@ -383,6 +374,7 @@ class ContainerManager:
 
 
 # Standalone async functions for direct use
+
 
 async def deploy_container_app(
     scenario: ScenarioMetadata,

@@ -17,13 +17,14 @@ In production deployment, azure-durable-functions and azure-functions must be in
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
 try:
     import azure.durable_functions as df
     import azure.functions as func
+
     DURABLE_FUNCTIONS_AVAILABLE = True
 except ImportError:
     DURABLE_FUNCTIONS_AVAILABLE = False
@@ -31,31 +32,24 @@ except ImportError:
     func = None  # type: ignore
 
 from azure.identity import DefaultAzureCredential
-from azure.keyvault.secrets import SecretClient
 from azure.storage.blob import BlobServiceClient
 
-from azure_haymaker.models.config import OrchestratorConfig
 from azure_haymaker.models.scenario import ScenarioMetadata
 from azure_haymaker.models.service_principal import ServicePrincipalDetails
-from azure_haymaker.models.resource import Resource, ResourceStatus
-from azure_haymaker.orchestrator.config import load_config
-from azure_haymaker.orchestrator.validation import validate_environment
-from azure_haymaker.orchestrator.scenario_selector import select_scenarios
-from azure_haymaker.orchestrator.sp_manager import (
-    create_service_principal,
-    delete_service_principal,
+from azure_haymaker.orchestrator.cleanup import (
+    force_delete_resources,
+    query_managed_resources,
 )
+from azure_haymaker.orchestrator.config import load_config
 from azure_haymaker.orchestrator.container_manager import (
     ContainerManager,
     deploy_container_app,
-    delete_container_app,
 )
-from azure_haymaker.orchestrator.event_bus import subscribe_to_agent_logs
-from azure_haymaker.orchestrator.cleanup import (
-    query_managed_resources,
-    verify_cleanup_complete,
-    force_delete_resources,
+from azure_haymaker.orchestrator.scenario_selector import select_scenarios
+from azure_haymaker.orchestrator.sp_manager import (
+    create_service_principal,
 )
+from azure_haymaker.orchestrator.validation import validate_environment
 
 logger = logging.getLogger(__name__)
 
@@ -70,26 +64,34 @@ else:
 
         def timer_trigger(self, schedule: str, arg_name: str, run_on_startup: bool = False):
             """Decorator stub."""
+
             def decorator(fn: Any) -> Any:
                 return fn
+
             return decorator
 
         def durable_client_input(self, client_name: str):
             """Decorator stub."""
+
             def decorator(fn: Any) -> Any:
                 return fn
+
             return decorator
 
         def orchestration_trigger(self, context_name: str):
             """Decorator stub."""
+
             def decorator(fn: Any) -> Any:
                 return fn
+
             return decorator
 
         def activity_trigger(self, input_name: str):
             """Decorator stub."""
+
             def decorator(fn: Any) -> Any:
                 return fn
+
             return decorator
 
     app = DummyApp()
@@ -127,8 +129,7 @@ async def haymaker_timer(
     """
     if timer_request.past_due:
         logger.warning(
-            "Timer trigger is running late. "
-            "Past due time: %s",
+            "Timer trigger is running late. Past due time: %s",
             timer_request.past_due,
         )
 
@@ -140,7 +141,7 @@ async def haymaker_timer(
     instance_id = await durable_client.start_new(
         orchestration_function_name="orchestrate_haymaker_run",
         instance_id=run_id,
-        input_={"run_id": run_id, "started_at": datetime.now(timezone.utc).isoformat()},
+        input_={"run_id": run_id, "started_at": datetime.now(UTC).isoformat()},
     )
 
     logger.info("Orchestration started with instance_id=%s", instance_id)
@@ -244,7 +245,9 @@ def orchestrate_haymaker_run(context: Any) -> dict[str, Any]:
         # ========================================================================
         # PHASE 3: PROVISIONING (Parallel SP Creation + Container Deployment)
         # ========================================================================
-        logger.info(f"[{run_id}] Starting Phase 3: Provisioning ({len(selected_scenarios)} scenarios)")
+        logger.info(
+            f"[{run_id}] Starting Phase 3: Provisioning ({len(selected_scenarios)} scenarios)"
+        )
 
         # Create all service principals in parallel
         sp_tasks = [
@@ -262,14 +265,18 @@ def orchestrate_haymaker_run(context: Any) -> dict[str, Any]:
         # Check for SP creation failures
         failed_sps = [sp for sp in sp_results if sp.get("status") == "failed"]
         if failed_sps:
-            logger.warning(f"[{run_id}] {len(failed_sps)} SPs failed to create (will attempt cleanup)")
+            logger.warning(
+                f"[{run_id}] {len(failed_sps)} SPs failed to create (will attempt cleanup)"
+            )
 
         successful_sps = [sp for sp in sp_results if sp.get("status") == "success"]
-        logger.info(f"[{run_id}] Created {len(successful_sps)}/{len(selected_scenarios)} service principals")
+        logger.info(
+            f"[{run_id}] Created {len(successful_sps)}/{len(selected_scenarios)} service principals"
+        )
 
         # Deploy Container Apps in parallel (only for successful SPs)
         container_tasks = []
-        for scenario, sp_result in zip(selected_scenarios, sp_results):
+        for scenario, sp_result in zip(selected_scenarios, sp_results, strict=False):
             if sp_result.get("status") == "success":
                 container_tasks.append(
                     context.call_activity(
@@ -284,12 +291,8 @@ def orchestrate_haymaker_run(context: Any) -> dict[str, Any]:
 
         container_results = yield context.task_all(container_tasks) if container_tasks else []
 
-        failed_containers = [
-            c for c in container_results if c.get("status") == "failed"
-        ]
-        successful_containers = [
-            c for c in container_results if c.get("status") == "success"
-        ]
+        failed_containers = [c for c in container_results if c.get("status") == "failed"]
+        successful_containers = [c for c in container_results if c.get("status") == "success"]
         logger.info(
             f"[{run_id}] Deployed {len(successful_containers)}/{len(container_tasks)} container apps"
         )
@@ -325,23 +328,20 @@ def orchestrate_haymaker_run(context: Any) -> dict[str, Any]:
                 "check_agent_status_activity",
                 {
                     "run_id": run_id,
-                    "container_ids": [
-                        c.get("container_id")
-                        for c in successful_containers
-                    ],
+                    "container_ids": [c.get("container_id") for c in successful_containers],
                 },
             )
 
-            monitoring_status["status_checks"].append({
-                "timestamp": context.current_utc_datetime.isoformat(),
-                "running_count": check_result.get("running_count", 0),
-                "completed_count": check_result.get("completed_count", 0),
-            })
+            monitoring_status["status_checks"].append(
+                {
+                    "timestamp": context.current_utc_datetime.isoformat(),
+                    "running_count": check_result.get("running_count", 0),
+                    "completed_count": check_result.get("completed_count", 0),
+                }
+            )
 
             # Wait 15 minutes before next check
-            yield context.create_timer(
-                context.current_utc_datetime + timedelta(minutes=15)
-            )
+            yield context.create_timer(context.current_utc_datetime + timedelta(minutes=15))
 
         execution_report["phases"]["monitoring"] = monitoring_status
         logger.info(f"[{run_id}] Phase 4: Monitoring completed after 8 hours")
@@ -375,7 +375,9 @@ def orchestrate_haymaker_run(context: Any) -> dict[str, Any]:
                 {
                     "run_id": run_id,
                     "scenarios": [s["scenario_name"] for s in selected_scenarios],
-                    "sp_details": [sp.get("sp_details") for sp in successful_sps if sp.get("sp_details")],
+                    "sp_details": [
+                        sp.get("sp_details") for sp in successful_sps if sp.get("sp_details")
+                    ],
                 },
             )
 
@@ -645,9 +647,7 @@ async def deploy_container_app_activity(params: dict[str, Any]) -> dict[str, Any
             run_id=run_id,
         )
 
-        logger.info(
-            f"Activity: deploy_container_app - Deployed: {container_details.get('name')}"
-        )
+        logger.info(f"Activity: deploy_container_app - Deployed: {container_details.get('name')}")
         return {
             "status": "success",
             "container_id": container_details.get("name"),
@@ -687,7 +687,6 @@ async def check_agent_status_activity(params: dict[str, Any]) -> dict[str, Any]:
         }
     """
     try:
-        run_id = params.get("run_id")
         container_ids = params.get("container_ids", [])
 
         logger.info(f"Activity: check_agent_status - Checking {len(container_ids)} containers")
@@ -769,7 +768,9 @@ async def verify_cleanup_activity(params: dict[str, Any]) -> dict[str, Any]:
             run_id=run_id,
         )
 
-        logger.info(f"Activity: verify_cleanup - Found {len(remaining_resources)} remaining resources")
+        logger.info(
+            f"Activity: verify_cleanup - Found {len(remaining_resources)} remaining resources"
+        )
         return {
             "remaining_resources": [
                 {
@@ -833,7 +834,11 @@ async def force_cleanup_activity(params: dict[str, Any]) -> dict[str, Any]:
         sp_deleted_count = len(cleanup_report.service_principals_deleted)
 
         # Determine status based on results
-        status = cleanup_report.status.value if hasattr(cleanup_report.status, "value") else str(cleanup_report.status)
+        status = (
+            cleanup_report.status.value
+            if hasattr(cleanup_report.status, "value")
+            else str(cleanup_report.status)
+        )
 
         # Map cleanup status to activity result
         if status == "verified":
@@ -923,7 +928,7 @@ async def generate_report_activity(params: dict[str, Any]) -> dict[str, Any]:
         # Prepare report
         report = {
             "run_id": run_id,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "execution_report": execution_report,
             "summary": {
                 "selected_scenarios": selected_scenarios,

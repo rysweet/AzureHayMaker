@@ -71,9 +71,13 @@ ignore = [
 pythonVersion = "3.13"
 typeCheckingMode = "strict"
 reportMissingTypeStubs = false
+reportMissingImports = false
+reportUntypedFunctionDecorator = false
 reportUnknownMemberType = false
 reportUnknownArgumentType = false
 reportUnknownVariableType = false
+reportUnknownParameterType = false
+reportMissingParameterType = false
 exclude = ["src/agents"]
 
 [tool.pytest.ini_options]

@@ -154,6 +154,7 @@ class TestValidateAzureCredentials:
             result = await validate_azure_credentials(mock_config)
 
             assert not result.passed
+            assert result.error is not None
             assert "Auth failed" in result.error
 
 
@@ -184,6 +185,7 @@ class TestValidateAnthropicAPI:
             result = await validate_anthropic_api(mock_config)
 
             assert not result.passed
+            assert result.error is not None
             assert "API key invalid" in result.error
 
 

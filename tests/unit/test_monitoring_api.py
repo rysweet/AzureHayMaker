@@ -10,26 +10,26 @@ Tests prioritize contract verification over implementation details.
 """
 
 import json
-import pytest
-from unittest.mock import Mock, AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
-from azure.core.exceptions import ResourceNotFoundError
+from unittest.mock import Mock
+
 import azure.functions as func
+import pytest
+from azure.core.exceptions import ResourceNotFoundError
 
 # Import the module to test
 from azure_haymaker.orchestrator.monitoring_api import (
-    get_status,
+    APIError,
+    InvalidParameterError,
+    RunNotFoundError,
     get_run_details,
     get_run_resources,
-    APIError,
-    RunNotFoundError,
-    InvalidParameterError,
+    get_status,
 )
-
 
 # ==============================================================================
 # FIXTURES
 # ==============================================================================
+
 
 @pytest.fixture
 def mock_request():
@@ -150,8 +150,11 @@ def sample_resources_data():
 # TEST: get_status() - GET /status
 # ==============================================================================
 
+
 @pytest.mark.asyncio
-async def test_get_status_returns_200_with_status(mock_request, sample_status_data, mock_blob_service_client):
+async def test_get_status_returns_200_with_status(
+    mock_request, sample_status_data, mock_blob_service_client
+):
     """Test get_status returns 200 and status JSON."""
     blob_client = Mock()
     blob_client.download_blob = Mock(return_value=create_download_mock(sample_status_data))
@@ -196,7 +199,9 @@ async def test_get_status_handles_storage_error(mock_request, mock_blob_service_
 
 
 @pytest.mark.asyncio
-async def test_get_status_response_has_required_fields(mock_request, sample_status_data, mock_blob_service_client):
+async def test_get_status_response_has_required_fields(
+    mock_request, sample_status_data, mock_blob_service_client
+):
     """Test get_status response includes all required OpenAPI fields."""
     blob_client = Mock()
     blob_client.download_blob = Mock(return_value=create_download_mock(sample_status_data))
@@ -219,8 +224,11 @@ async def test_get_status_response_has_required_fields(mock_request, sample_stat
 # TEST: get_run_details() - GET /runs/{run_id}
 # ==============================================================================
 
+
 @pytest.mark.asyncio
-async def test_get_run_details_returns_200_with_run_data(mock_request, sample_run_data, mock_blob_service_client):
+async def test_get_run_details_returns_200_with_run_data(
+    mock_request, sample_run_data, mock_blob_service_client
+):
     """Test get_run_details returns 200 and run details JSON."""
     run_id = "550e8400-e29b-41d4-a716-446655440000"
     mock_request.params = {"run_id": run_id}
@@ -239,7 +247,9 @@ async def test_get_run_details_returns_200_with_run_data(mock_request, sample_ru
 
 
 @pytest.mark.asyncio
-async def test_get_run_details_returns_404_for_nonexistent_run(mock_request, mock_blob_service_client):
+async def test_get_run_details_returns_404_for_nonexistent_run(
+    mock_request, mock_blob_service_client
+):
     """Test get_run_details returns 404 when run doesn't exist."""
     run_id = "550e8400-e29b-41d4-a716-446655440000"
     mock_request.params = {"run_id": run_id}
@@ -269,7 +279,9 @@ async def test_get_run_details_validates_run_id_format(mock_request, mock_blob_s
 
 
 @pytest.mark.asyncio
-async def test_get_run_details_response_has_required_fields(mock_request, sample_run_data, mock_blob_service_client):
+async def test_get_run_details_response_has_required_fields(
+    mock_request, sample_run_data, mock_blob_service_client
+):
     """Test get_run_details response includes required OpenAPI fields."""
     run_id = "550e8400-e29b-41d4-a716-446655440000"
     mock_request.params = {"run_id": run_id}
@@ -307,8 +319,11 @@ async def test_get_run_details_handles_corrupted_data(mock_request, mock_blob_se
 # TEST: get_run_resources() - GET /runs/{run_id}/resources
 # ==============================================================================
 
+
 @pytest.mark.asyncio
-async def test_get_run_resources_returns_200_with_resources(mock_request, sample_resources_data, mock_blob_service_client):
+async def test_get_run_resources_returns_200_with_resources(
+    mock_request, sample_resources_data, mock_blob_service_client
+):
     """Test get_run_resources returns 200 and resources list."""
     run_id = "550e8400-e29b-41d4-a716-446655440000"
     mock_request.params = {"run_id": run_id, "page": "1", "page_size": "10"}
@@ -339,7 +354,9 @@ async def test_get_run_resources_returns_200_with_resources(mock_request, sample
 
 
 @pytest.mark.asyncio
-async def test_get_run_resources_returns_404_for_nonexistent_run(mock_request, mock_blob_service_client):
+async def test_get_run_resources_returns_404_for_nonexistent_run(
+    mock_request, mock_blob_service_client
+):
     """Test get_run_resources returns 404 when run doesn't exist."""
     run_id = "550e8400-e29b-41d4-a716-446655440000"
     mock_request.params = {"run_id": run_id, "page": "1", "page_size": "10"}
@@ -411,7 +428,9 @@ async def test_get_run_resources_supports_pagination(mock_request, mock_blob_ser
 
 
 @pytest.mark.asyncio
-async def test_get_run_resources_filters_by_scenario(mock_request, sample_resources_data, mock_blob_service_client):
+async def test_get_run_resources_filters_by_scenario(
+    mock_request, sample_resources_data, mock_blob_service_client
+):
     """Test get_run_resources filters by scenario_name."""
     run_id = "550e8400-e29b-41d4-a716-446655440000"
     scenario_name = "ai-ml-01-cognitive-services-vision"
@@ -447,7 +466,9 @@ async def test_get_run_resources_filters_by_scenario(mock_request, sample_resour
 
 
 @pytest.mark.asyncio
-async def test_get_run_resources_response_has_required_fields(mock_request, sample_resources_data, mock_blob_service_client):
+async def test_get_run_resources_response_has_required_fields(
+    mock_request, sample_resources_data, mock_blob_service_client
+):
     """Test get_run_resources response includes required OpenAPI fields."""
     run_id = "550e8400-e29b-41d4-a716-446655440000"
     mock_request.params = {"run_id": run_id, "page": "1", "page_size": "10"}
@@ -475,7 +496,14 @@ async def test_get_run_resources_response_has_required_fields(mock_request, samp
     for field in required_fields:
         assert field in response_data, f"Missing required field: {field}"
 
-    pagination_fields = ["page", "page_size", "total_items", "total_pages", "has_next", "has_previous"]
+    pagination_fields = [
+        "page",
+        "page_size",
+        "total_items",
+        "total_pages",
+        "has_next",
+        "has_previous",
+    ]
     for field in pagination_fields:
         assert field in response_data["pagination"], f"Missing pagination field: {field}"
 
@@ -483,6 +511,7 @@ async def test_get_run_resources_response_has_required_fields(mock_request, samp
 # ==============================================================================
 # TEST: Error Handling
 # ==============================================================================
+
 
 @pytest.mark.asyncio
 async def test_error_responses_have_standard_format(mock_request, mock_blob_service_client):
@@ -520,8 +549,11 @@ async def test_validation_errors_return_400(mock_request, mock_blob_service_clie
 # TEST: Content-Type and Headers
 # ==============================================================================
 
+
 @pytest.mark.asyncio
-async def test_response_content_type_is_json(mock_request, sample_status_data, mock_blob_service_client):
+async def test_response_content_type_is_json(
+    mock_request, sample_status_data, mock_blob_service_client
+):
     """Test all responses have application/json content type."""
     blob_client = Mock()
     blob_client.download_blob = Mock(return_value=create_download_mock(sample_status_data))
@@ -535,6 +567,7 @@ async def test_response_content_type_is_json(mock_request, sample_status_data, m
 # ==============================================================================
 # TEST: Exception Classes
 # ==============================================================================
+
 
 def test_api_error_exception():
     """Test APIError exception class."""

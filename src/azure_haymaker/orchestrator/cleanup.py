@@ -8,9 +8,9 @@ and performs forced deletion with retry logic for dependencies.
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
@@ -24,8 +24,7 @@ from azure_haymaker.models.service_principal import ServicePrincipalDetails
 
 # Lazy imports for optional dependencies used during actual Azure operations
 if TYPE_CHECKING:
-    from azure.mgmt.resourcegraph import ResourceGraphClient
-    from azure.mgmt.resourcegraph.models import QueryRequest
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +45,8 @@ class ResourceDeletion(BaseModel):
     resource_type: str = Field(..., description="Azure resource type")
     status: str = Field(..., description="Deletion status (deleted/failed)")
     attempts: int = Field(default=1, description="Number of deletion attempts", ge=1)
-    error: Optional[str] = Field(default=None, description="Error message if failed")
-    deleted_at: Optional[datetime] = Field(default=None, description="Deletion completion time")
+    error: str | None = Field(default=None, description="Error message if failed")
+    deleted_at: datetime | None = Field(default=None, description="Deletion completion time")
 
 
 class CleanupReport(BaseModel):
@@ -58,12 +57,18 @@ class CleanupReport(BaseModel):
     total_resources_expected: int = Field(default=0, description="Expected resource count")
     total_resources_deleted: int = Field(default=0, description="Successfully deleted count")
     deletions: list[ResourceDeletion] = Field(default_factory=list, description="Deletion records")
-    remaining_resources: list[Resource] = Field(default_factory=list, description="Resources not deleted")
-    service_principals_deleted: list[str] = Field(default_factory=list, description="Deleted SP names")
+    remaining_resources: list[Resource] = Field(
+        default_factory=list, description="Resources not deleted"
+    )
+    service_principals_deleted: list[str] = Field(
+        default_factory=list, description="Deleted SP names"
+    )
 
     def has_failures(self) -> bool:
         """Check if cleanup report contains any failures."""
-        return any(d.status == "failed" for d in self.deletions) or len(self.remaining_resources) > 0
+        return (
+            any(d.status == "failed" for d in self.deletions) or len(self.remaining_resources) > 0
+        )
 
 
 async def query_managed_resources(subscription_id: str, run_id: str) -> list[Resource]:
@@ -117,7 +122,7 @@ async def query_managed_resources(subscription_id: str, run_id: str) -> list[Res
                     resource_name=item.get("name"),
                     scenario_name=item.get("tags", {}).get("Scenario", "unknown"),
                     run_id=run_id,
-                    created_at=datetime.now(timezone.utc),
+                    created_at=datetime.now(UTC),
                     tags=item.get("tags", {}),
                     status=ResourceStatus.EXISTS,
                 )
@@ -185,7 +190,7 @@ async def verify_cleanup_complete(run_id: str) -> CleanupReport:
                 resource_name=item.get("name"),
                 scenario_name=item.get("tags", {}).get("Scenario", "unknown"),
                 run_id=run_id,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
                 tags=item.get("tags", {}),
                 status=ResourceStatus.EXISTS,
             )
@@ -216,9 +221,9 @@ async def verify_cleanup_complete(run_id: str) -> CleanupReport:
 
 async def force_delete_resources(
     resources: list[Resource],
-    sp_details: Optional[list[ServicePrincipalDetails]] = None,
-    kv_client: Optional[SecretClient] = None,
-    subscription_id: Optional[str] = None,
+    sp_details: list[ServicePrincipalDetails] | None = None,
+    kv_client: SecretClient | None = None,
+    subscription_id: str | None = None,
 ) -> CleanupReport:
     """Force delete remaining resources with retry logic for dependencies.
 
@@ -322,7 +327,9 @@ async def _delete_resource_with_retry(
     for attempt in range(max_retries):
         attempts = attempt + 1
         try:
-            logger.info(f"Attempting to delete resource {resource.resource_id} (attempt {attempts})")
+            logger.info(
+                f"Attempting to delete resource {resource.resource_id} (attempt {attempts})"
+            )
 
             # Start async deletion
             poller = resource_client.resources.begin_delete_by_id(
@@ -339,7 +346,7 @@ async def _delete_resource_with_retry(
                 resource_type=resource.resource_type,
                 status="deleted",
                 attempts=attempts,
-                deleted_at=datetime.now(timezone.utc),
+                deleted_at=datetime.now(UTC),
             )
 
         except ResourceNotFoundError:
@@ -350,7 +357,7 @@ async def _delete_resource_with_retry(
                 resource_type=resource.resource_type,
                 status="deleted",
                 attempts=attempts,
-                deleted_at=datetime.now(timezone.utc),
+                deleted_at=datetime.now(UTC),
             )
 
         except Exception as e:
@@ -369,7 +376,7 @@ async def _delete_resource_with_retry(
             ):
                 # Wait before retry with exponential backoff
                 if attempt < max_retries - 1:
-                    wait_seconds = min(2 ** attempt, 60)
+                    wait_seconds = min(2**attempt, 60)
                     logger.info(f"Waiting {wait_seconds}s before retry...")
                     await asyncio.sleep(wait_seconds)
             else:
