@@ -11,8 +11,7 @@ This module implements the main orchestration workflow that coordinates:
 Uses Azure Durable Functions for long-running workflow orchestration with checkpointing.
 Timer trigger: 4x daily (00:00, 06:00, 12:00, 18:00 UTC)
 
-Note: Durable Functions imports are optional to support test environments.
-In production deployment, azure-durable-functions and azure-functions must be installed.
+Requirements: azure-durable-functions and azure-functions must be installed for production deployment.
 """
 
 import json
@@ -21,17 +20,11 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
-try:
-    import azure.durable_functions as df
-    import azure.functions as func
-
-    DURABLE_FUNCTIONS_AVAILABLE = True
-except ImportError:
-    DURABLE_FUNCTIONS_AVAILABLE = False
-    df = None  # type: ignore
-    func = None  # type: ignore
+import azure.durable_functions as df
+import azure.functions as func
 
 from azure.identity import DefaultAzureCredential
+from azure.keyvault.secrets import SecretClient
 from azure.storage.blob import BlobServiceClient
 
 from azure_haymaker.models.scenario import ScenarioMetadata
@@ -53,48 +46,8 @@ from azure_haymaker.orchestrator.validation import validate_environment
 
 logger = logging.getLogger(__name__)
 
-# Azure Functions app instance
-# This will only be initialized if azure-functions is installed
-if DURABLE_FUNCTIONS_AVAILABLE and func is not None:
-    app = func.FunctionApp()
-else:
-    # Stub for test environments
-    class DummyApp:
-        """Stub app for environments without azure-functions."""
-
-        def timer_trigger(self, schedule: str, arg_name: str, run_on_startup: bool = False):
-            """Decorator stub."""
-
-            def decorator(fn: Any) -> Any:
-                return fn
-
-            return decorator
-
-        def durable_client_input(self, client_name: str):
-            """Decorator stub."""
-
-            def decorator(fn: Any) -> Any:
-                return fn
-
-            return decorator
-
-        def orchestration_trigger(self, context_name: str):
-            """Decorator stub."""
-
-            def decorator(fn: Any) -> Any:
-                return fn
-
-            return decorator
-
-        def activity_trigger(self, input_name: str):
-            """Decorator stub."""
-
-            def decorator(fn: Any) -> Any:
-                return fn
-
-            return decorator
-
-    app = DummyApp()
+# Azure Functions app instance (required dependency)
+app = func.FunctionApp()
 
 
 # ==============================================================================
@@ -576,10 +529,20 @@ async def create_service_principal_activity(params: dict[str, Any]) -> dict[str,
         config = await load_config()
         # Handle both dict and OrchestratorConfig object
         sub_id = config.get("target_subscription_id") if isinstance(config, dict) else config.target_subscription_id
+        key_vault_url = config.get("key_vault_url") if isinstance(config, dict) else config.key_vault_url
+
+        # Create Key Vault client for secret storage
+        credential = DefaultAzureCredential()
+        key_vault_client = SecretClient(vault_url=key_vault_url, credential=credential)
+
+        # Assign minimal required roles to service principal
+        roles = ["Contributor", "Reader"]
+
         sp_details = await create_service_principal(
             scenario_name=scenario_name,
             subscription_id=sub_id,
-            run_id=run_id,
+            roles=roles,
+            key_vault_client=key_vault_client,
         )
 
         logger.info(f"Activity: create_service_principal - Created SP: {sp_details.sp_name}")
@@ -641,12 +604,12 @@ async def deploy_container_app_activity(params: dict[str, Any]) -> dict[str, Any
 
         config = await load_config()
         container_details = await deploy_container_app(
-            scenario_metadata=ScenarioMetadata(
+            scenario=ScenarioMetadata(
                 scenario_name=scenario_name,
                 scenario_doc_path=scenario.get("scenario_doc_path"),
                 technology_area=scenario.get("technology_area"),
             ),
-            sp_details=ServicePrincipalDetails(
+            sp=ServicePrincipalDetails(
                 sp_name=sp_details.get("sp_name"),
                 client_id=sp_details.get("client_id"),
                 principal_id=sp_details.get("principal_id"),
@@ -654,7 +617,6 @@ async def deploy_container_app_activity(params: dict[str, Any]) -> dict[str, Any
                 created_at=sp_details.get("created_at"),
             ),
             config=config,
-            run_id=run_id,
         )
 
         logger.info(f"Activity: deploy_container_app - Deployed: {container_details.get('name')}")

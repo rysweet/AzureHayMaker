@@ -73,8 +73,8 @@ async def verify_image_signature(
             f"Image {image_ref} is not from an approved container registry"
         )
 
-    # Verify image is signed (in production, check ACR content trust / signatures)
-    # This is a placeholder for real signature verification logic
+    # MVP: Verify image digest format and tag policy
+    # Future: Integrate with ACR content trust / image signatures for production
     try:
         # Extract digest if present
         if "@" in image_ref:
