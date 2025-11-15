@@ -81,11 +81,10 @@ def parse_scenario_metadata(file_path: Path) -> ScenarioMetadata:
         # Fallback: try to extract from first heading or use default
         technology_area = "General"
 
-    # Construct agent path based on scenario name
-    # Convert scenario name to module path format
-    # e.g., "ai-ml-01-cognitive-services-vision" -> "agents/ai_ml_cognitive_services_vision.py"
-    agent_module_name = scenario_name.replace("-", "_")
-    agent_path = f"agents/{agent_module_name}.py"
+    # Construct agent path based on actual agent directory structure
+    # Agent structure: src/agents/{scenario-name}-agent/{bundle-name}/main.py
+    # We point to the parent directory; orchestrator will find the bundle within
+    agent_path = f"src/agents/{scenario_name}-agent"
 
     # Create metadata object
     metadata = ScenarioMetadata(
