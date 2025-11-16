@@ -65,7 +65,7 @@ resource resourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
 
 // Log Analytics Workspace
 module logAnalytics 'modules/log-analytics.bicep' = {
-  scope: resourceGroup
+  scope: resourceGroup(resourceGroupName)
   name: 'logAnalytics-${uniqueSuffix}'
   params: {
     workspaceName: logAnalyticsName
@@ -78,7 +78,7 @@ module logAnalytics 'modules/log-analytics.bicep' = {
 
 // Storage Account
 module storage 'modules/storage.bicep' = {
-  scope: resourceGroup
+  scope: resourceGroup(resourceGroupName)
   name: 'storage-${uniqueSuffix}'
   params: {
     storageAccountName: storageAccountName
@@ -92,7 +92,7 @@ module storage 'modules/storage.bicep' = {
 
 // Service Bus
 module serviceBus 'modules/servicebus.bicep' = {
-  scope: resourceGroup
+  scope: resourceGroup(resourceGroupName)
   name: 'serviceBus-${uniqueSuffix}'
   params: {
     namespaceName: serviceBusName
@@ -106,7 +106,7 @@ module serviceBus 'modules/servicebus.bicep' = {
 
 // Key Vault
 module keyVault 'modules/keyvault.bicep' = {
-  scope: resourceGroup
+  scope: resourceGroup(resourceGroupName)
   name: 'keyVault-${uniqueSuffix}'
   params: {
     keyVaultName: keyVaultName
@@ -124,7 +124,7 @@ module keyVault 'modules/keyvault.bicep' = {
 // Cosmos DB
 // Cosmos DB (Optional for dev - region capacity limitations)
 module cosmosDb 'modules/cosmosdb.bicep' = if (environment != 'dev') {
-  scope: resourceGroup
+  scope: resourceGroup(resourceGroupName)
   name: 'cosmosDb-${uniqueSuffix}'
   params: {
     accountName: cosmosDbName
@@ -139,7 +139,7 @@ module cosmosDb 'modules/cosmosdb.bicep' = if (environment != 'dev') {
 
 // Container Apps Environment
 module containerAppsEnv 'modules/container-apps-env.bicep' = {
-  scope: resourceGroup
+  scope: resourceGroup(resourceGroupName)
   name: 'containerAppsEnv-${uniqueSuffix}'
   params: {
     environmentName: containerAppsEnvName
@@ -152,7 +152,7 @@ module containerAppsEnv 'modules/container-apps-env.bicep' = {
 
 // Container Registry (Optional for dev - SKU limitations in some subscriptions)
 module containerRegistry 'modules/container-registry.bicep' = if (environment != 'dev') {
-  scope: resourceGroup
+  scope: resourceGroup(resourceGroupName)
   name: 'containerRegistry-${uniqueSuffix}'
   params: {
     registryName: containerRegistryName
@@ -165,7 +165,7 @@ module containerRegistry 'modules/container-registry.bicep' = if (environment !=
 
 // Function App (depends on most other resources)
 module functionApp 'modules/function-app.bicep' = {
-  scope: resourceGroup
+  scope: resourceGroup(resourceGroupName)
   name: 'functionApp-${uniqueSuffix}'
   params: {
     functionAppName: functionAppName
@@ -187,7 +187,7 @@ module functionApp 'modules/function-app.bicep' = {
 
 // Grant Function App access to Key Vault (via module to match scope)
 module functionAppKeyVaultRole 'modules/role-assignment.bicep' = {
-  scope: resourceGroup
+  scope: resourceGroup(resourceGroupName)
   name: 'functionAppKeyVaultRole-${uniqueSuffix}'
   params: {
     principalId: functionApp.outputs.principalId
@@ -198,7 +198,7 @@ module functionAppKeyVaultRole 'modules/role-assignment.bicep' = {
 
 // Grant Function App access to Storage (via module to match scope)
 module functionAppStorageRole 'modules/role-assignment.bicep' = {
-  scope: resourceGroup
+  scope: resourceGroup(resourceGroupName)
   name: 'functionAppStorageRole-${uniqueSuffix}'
   params: {
     principalId: functionApp.outputs.principalId
@@ -209,7 +209,7 @@ module functionAppStorageRole 'modules/role-assignment.bicep' = {
 
 // Grant Function App access to Cosmos DB (via module to match scope) - only if Cosmos DB is deployed
 module functionAppCosmosRole 'modules/role-assignment.bicep' = if (environment != 'dev') {
-  scope: resourceGroup
+  scope: resourceGroup(resourceGroupName)
   name: 'functionAppCosmosRole-${uniqueSuffix}'
   params: {
     principalId: functionApp.outputs.principalId
