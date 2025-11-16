@@ -1,8 +1,7 @@
 """Unit tests for metrics API."""
 
-import json
-from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime, timedelta
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -26,10 +25,10 @@ def test_parse_period_invalid():
     with pytest.raises(ValueError, match="Invalid period format"):
         parse_period("invalid")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Invalid period format"):
         parse_period("7w")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Invalid period format"):
         parse_period("30")
 
 
@@ -45,7 +44,7 @@ async def test_query_cosmos_metrics_empty():
     mock_client = MagicMock()
     mock_client.get_database_client.return_value = mock_database
 
-    start_time = datetime.now(timezone.utc) - timedelta(days=7)
+    start_time = datetime.now(UTC) - timedelta(days=7)
 
     result = await query_cosmos_metrics(
         mock_client,
@@ -64,7 +63,7 @@ async def test_query_cosmos_metrics_empty():
 @pytest.mark.asyncio
 async def test_query_cosmos_metrics_with_data():
     """Test querying metrics with sample data."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     start_time = now - timedelta(hours=2)
     end_time = now
 
@@ -129,7 +128,7 @@ async def test_query_cosmos_metrics_with_data():
 @pytest.mark.asyncio
 async def test_query_cosmos_metrics_with_scenario_filter():
     """Test querying metrics with scenario filter."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     start_time = now - timedelta(hours=1)
 
     mock_items = [

@@ -221,14 +221,12 @@ def get_config_value(key: str, profile: str = "default") -> str | None:
     except ValueError:
         return None
 
-    if key == "endpoint":
-        return profile_config.endpoint
-    elif key == "api-key":
-        return profile_config.auth.api_key
-    elif key == "tenant-id":
-        return profile_config.auth.tenant_id
-    else:
-        return None
+    key_map = {
+        "endpoint": profile_config.endpoint,
+        "api-key": profile_config.auth.api_key,
+        "tenant-id": profile_config.auth.tenant_id,
+    }
+    return key_map.get(key)
 
 
 def list_config(profile: str = "default") -> dict[str, Any]:

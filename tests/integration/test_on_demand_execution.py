@@ -9,11 +9,10 @@ These tests verify the full execution flow:
 """
 
 import json
-import pytest
-from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import azure.functions as func
+import pytest
 
 from azure_haymaker.models.execution import OnDemandExecutionStatus
 from azure_haymaker.orchestrator.execution_tracker import ExecutionTracker
@@ -56,7 +55,7 @@ async def test_full_execution_flow(mock_credential, mock_load_config, mock_confi
         raise ResourceNotFoundError("Not found")
 
     async def mock_query_entities(query):
-        for key, entity in mock_table_entities.items():
+        for _key, entity in mock_table_entities.items():
             if query and "PartitionKey" in query:
                 partition = query.split("'")[1]
                 if entity["PartitionKey"] == partition:
@@ -90,87 +89,91 @@ async def test_full_execution_flow(mock_credential, mock_load_config, mock_confi
     mock_sb_client.__aenter__ = AsyncMock(return_value=mock_sb_client)
     mock_sb_client.__aexit__ = AsyncMock()
 
-    with patch(
-        "azure_haymaker.orchestrator.execute_api.TableClient", return_value=mock_table_client
-    ):
-        with patch(
+    with (
+        patch(
+            "azure_haymaker.orchestrator.execute_api.TableClient", return_value=mock_table_client
+        ),
+        patch(
             "azure_haymaker.orchestrator.execute_api.ServiceBusClient",
             return_value=mock_sb_client,
+        ),
+        patch(
+            "azure_haymaker.orchestrator.execute_api.validate_scenarios",
+            return_value=(True, None),
+        ),
+    ):
+        # ========================================================================
+        # STEP 1: Submit execution request
+        # ========================================================================
+        from azure_haymaker.orchestrator.execute_api import execute_scenario
+
+        req = MagicMock(spec=func.HttpRequest)
+        req.get_json.return_value = {
+            "scenarios": ["compute-01"],
+            "duration_hours": 2,
+            "tags": {"requester": "test@example.com"},
+        }
+
+        response = await execute_scenario(req)
+
+        # Verify response
+        assert response.status_code == 202
+        body = json.loads(response.get_body())
+        execution_id = body["execution_id"]
+        assert execution_id.startswith("exec-")
+        assert body["status"] == "queued"
+
+        # ========================================================================
+        # STEP 2: Verify execution record created
+        # ========================================================================
+        tracker = ExecutionTracker(mock_table_client)
+
+        status = await tracker.get_execution_status(execution_id)
+        assert status.execution_id == execution_id
+        assert status.status == OnDemandExecutionStatus.QUEUED
+        assert status.scenarios == ["compute-01"]
+
+        # ========================================================================
+        # STEP 3: Verify message queued to Service Bus
+        # ========================================================================
+        assert len(mock_messages) == 1
+        # ServiceBusMessage.body is a generator that yields bytes
+        message_bytes = b"".join(mock_messages[0].body)
+        message_body = json.loads(message_bytes.decode())
+        assert message_body["execution_id"] == execution_id
+        assert message_body["scenarios"] == ["compute-01"]
+
+        # ========================================================================
+        # STEP 4: Simulate status update to RUNNING
+        # ========================================================================
+        await tracker.update_status(
+            execution_id=execution_id,
+            status=OnDemandExecutionStatus.RUNNING,
+            container_ids=["container-01"],
+        )
+
+        status = await tracker.get_execution_status(execution_id)
+        assert status.status == OnDemandExecutionStatus.RUNNING
+        assert status.container_ids == ["container-01"]
+
+        # ========================================================================
+        # STEP 5: Query status via API
+        # ========================================================================
+        from azure_haymaker.orchestrator.execute_api import get_execution_status
+
+        with patch(
+            "azure_haymaker.orchestrator.execute_api.TableClient",
+            return_value=mock_table_client,
         ):
-            with patch(
-                "azure_haymaker.orchestrator.execute_api.validate_scenarios",
-                return_value=(True, None),
-            ):
-                # ========================================================================
-                # STEP 1: Submit execution request
-                # ========================================================================
-                from azure_haymaker.orchestrator.execute_api import execute_scenario
+            status_req = MagicMock(spec=func.HttpRequest)
+            status_req.route_params = {"execution_id": execution_id}
 
-                req = MagicMock(spec=func.HttpRequest)
-                req.get_json.return_value = {
-                    "scenarios": ["compute-01"],
-                    "duration_hours": 2,
-                    "tags": {"requester": "test@example.com"},
-                }
+            status_response = await get_execution_status(status_req)
 
-                response = await execute_scenario(req)
-
-                # Verify response
-                assert response.status_code == 202
-                body = json.loads(response.get_body())
-                execution_id = body["execution_id"]
-                assert execution_id.startswith("exec-")
-                assert body["status"] == "queued"
-
-                # ========================================================================
-                # STEP 2: Verify execution record created
-                # ========================================================================
-                tracker = ExecutionTracker(mock_table_client)
-
-                status = await tracker.get_execution_status(execution_id)
-                assert status.execution_id == execution_id
-                assert status.status == OnDemandExecutionStatus.QUEUED
-                assert status.scenarios == ["compute-01"]
-
-                # ========================================================================
-                # STEP 3: Verify message queued to Service Bus
-                # ========================================================================
-                assert len(mock_messages) == 1
-                message_body = json.loads(mock_messages[0].message)
-                assert message_body["execution_id"] == execution_id
-                assert message_body["scenarios"] == ["compute-01"]
-
-                # ========================================================================
-                # STEP 4: Simulate status update to RUNNING
-                # ========================================================================
-                await tracker.update_status(
-                    execution_id=execution_id,
-                    status=OnDemandExecutionStatus.RUNNING,
-                    container_ids=["container-01"],
-                )
-
-                status = await tracker.get_execution_status(execution_id)
-                assert status.status == OnDemandExecutionStatus.RUNNING
-                assert status.container_ids == ["container-01"]
-
-                # ========================================================================
-                # STEP 5: Query status via API
-                # ========================================================================
-                from azure_haymaker.orchestrator.execute_api import get_execution_status
-
-                with patch(
-                    "azure_haymaker.orchestrator.execute_api.TableClient",
-                    return_value=mock_table_client,
-                ):
-                    status_req = MagicMock(spec=func.HttpRequest)
-                    status_req.route_params = {"execution_id": execution_id}
-
-                    status_response = await get_execution_status(status_req)
-
-                    assert status_response.status_code == 200
-                    status_body = json.loads(status_response.get_body())
-                    assert status_body["execution_id"] == execution_id
-                    assert status_body["status"] == "running"
+            assert status_response.status_code == 200
+            status_body = json.loads(status_response.get_body())
+            assert status_body["execution_id"] == execution_id
+            assert status_body["status"] == "running"
 
 
 @pytest.mark.asyncio
@@ -244,7 +247,7 @@ async def test_execution_tracker_integration():
         mock_table_entities[key] = entity
 
     async def mock_query_entities(query):
-        for key, entity in mock_table_entities.items():
+        for _key, entity in mock_table_entities.items():
             if query and "PartitionKey" in query:
                 partition = query.split("'")[1]
                 if entity["PartitionKey"] == partition:
@@ -331,13 +334,16 @@ async def test_multiple_executions_tracking():
         key = (entity["PartitionKey"], entity["RowKey"])
         mock_table_entities[key] = entity
 
-    async def mock_query_entities(query):
-        for key, entity in mock_table_entities.items():
+    async def mock_query_entities(*args, **kwargs):
+        # Accept query_filter kwarg (can be None, empty string, or filter expression)
+        # args may include 'self' when called as bound method
+        for _key, entity in mock_table_entities.items():
             yield entity
 
     mock_table_client = MagicMock()
-    mock_table_client.create_entity = mock_create_entity
-    mock_table_client.query_entities = mock_query_entities
+    mock_table_client.create_entity = AsyncMock(side_effect=mock_create_entity)
+    # query_entities needs to return the async generator when called
+    mock_table_client.query_entities = MagicMock(side_effect=mock_query_entities)
 
     tracker = ExecutionTracker(mock_table_client)
 

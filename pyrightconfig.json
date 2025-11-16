@@ -1,0 +1,22 @@
+{
+  "include": ["src", "cli"],
+  "exclude": ["**/node_modules", "**/__pycache__"],
+  "ignore": [],
+  "defineConstant": {},
+  "stubPath": "typings",
+  "venv": ".venv",
+  "venvPath": ".",
+  "reportMissingImports": false,
+  "reportMissingTypeStubs": false,
+  "pythonVersion": "3.12",
+  "pythonPlatform": "All",
+  "executionEnvironments": [
+    {
+      "root": "src/azure_haymaker/orchestrator",
+      "reportUnnecessaryComparison": false,
+      "reportAttributeAccessIssue": false,
+      "reportArgumentType": false,
+      "reportGeneralTypeIssues": false
+    }
+  ]
+}

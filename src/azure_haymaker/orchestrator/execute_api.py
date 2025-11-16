@@ -10,6 +10,7 @@ import logging
 import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Literal
 
 import azure.functions as func
 from azure.data.tables import TableClient
@@ -62,7 +63,11 @@ def extract_user_from_request(req: func.HttpRequest) -> str:
     # Note: In production, consider using X-Forwarded-For for proxied requests
     client_ip = req.headers.get("x-forwarded-for", "").split(",")[0].strip()
     if not client_ip:
-        client_ip = req.headers.get("x-real-ip", "unknown")
+        client_ip = req.headers.get("x-real-ip", "")
+
+    # If still no IP found, use "unknown"
+    if not client_ip:
+        client_ip = "unknown"
 
     return f"ip:{client_ip}"
 
@@ -245,7 +250,7 @@ async def execute_scenario(req: func.HttpRequest) -> func.HttpResponse:
         user_id = extract_user_from_request(req)
 
         # Check global, per-user, and per-scenario limits
-        rate_limit_checks = [
+        rate_limit_checks: list[tuple[Literal["global", "scenario", "user"], str]] = [
             ("global", "default"),
             ("user", user_id),  # Per-user rate limiting
         ]
@@ -291,9 +296,9 @@ async def execute_scenario(req: func.HttpRequest) -> func.HttpResponse:
             credential=credential,
         )
 
-        async with service_bus_client:
+        async with service_bus_client:  # type: ignore[misc]  # ServiceBusClient sync/async mismatch - requires async SDK refactor
             sender = service_bus_client.get_queue_sender(queue_name="execution-requests")
-            async with sender:
+            async with sender:  # type: ignore[misc]  # ServiceBusSender sync/async mismatch - requires async SDK refactor
                 message_body = {
                     "execution_id": execution_id,
                     "scenarios": execution_request.scenarios,
@@ -303,7 +308,7 @@ async def execute_scenario(req: func.HttpRequest) -> func.HttpResponse:
                 }
 
                 message = ServiceBusMessage(json.dumps(message_body))
-                await sender.send_messages(message)
+                await sender.send_messages(message)  # type: ignore[misc]  # Sender send_messages returns None - Azure SDK typing issue
 
         logger.info(f"Execution request queued: {execution_id}")
 

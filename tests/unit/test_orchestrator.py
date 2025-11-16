@@ -15,7 +15,17 @@ from unittest import mock
 from uuid import uuid4
 
 import pytest
+from pydantic import SecretStr
 
+from azure_haymaker.models import (
+    CosmosDBConfig,
+    LogAnalyticsConfig,
+    OrchestratorConfig,
+    ScenarioMetadata,
+    SimulationSize,
+    StorageConfig,
+    TableStorageConfig,
+)
 from azure_haymaker.orchestrator import (
     check_agent_status_activity,
     create_service_principal_activity,
@@ -26,6 +36,7 @@ from azure_haymaker.orchestrator import (
     validate_environment_activity,
     verify_cleanup_activity,
 )
+from azure_haymaker.orchestrator.validation import ValidationReport, ValidationResult
 
 # ==============================================================================
 # FIXTURES
@@ -35,30 +46,52 @@ from azure_haymaker.orchestrator import (
 @pytest.fixture
 def mock_config():
     """Fixture: Mock OrchestratorConfig."""
-    return {
-        "target_tenant_id": "test-tenant-id",
-        "target_subscription_id": "test-subscription-id",
-        "main_sp_client_id": "test-client-id",
-        "main_sp_client_secret": "test-client-secret",
-        "anthropic_api_key": "test-api-key",
-        "service_bus_namespace": "test-sb.servicebus.windows.net",
-        "container_registry": "test.azurecr.io",
-        "container_image": "haymaker-agent:latest",
-        "storage_account": "teststorage",
-        "key_vault_url": "https://test-kv.vault.azure.net",
-        "simulation_size": "small",
-        "resource_group_name": "test-rg",
-    }
+    return OrchestratorConfig(
+        target_tenant_id="12345678-1234-1234-1234-123456789012",
+        target_subscription_id="12345678-1234-1234-1234-123456789012",
+        main_sp_client_id="test-client-id",
+        main_sp_client_secret=SecretStr("test-client-secret"),
+        anthropic_api_key=SecretStr("test-api-key"),
+        service_bus_namespace="test-sb",
+        container_registry="test.azurecr.io",
+        container_image="haymaker-agent:latest",
+        key_vault_url="https://test-kv.vault.azure.net",
+        simulation_size=SimulationSize.SMALL,
+        vnet_integration_enabled=False,
+        storage=StorageConfig(
+            account_name="teststorage",
+            container_logs="execution-logs",
+            container_state="execution-state",
+            container_reports="execution-reports",
+            container_scenarios="scenarios",
+        ),
+        table_storage=TableStorageConfig(
+            account_name="testtables",
+            table_execution_runs="ExecutionRuns",
+            table_scenario_status="ScenarioStatus",
+            table_resource_inventory="ResourceInventory",
+        ),
+        cosmosdb=CosmosDBConfig(
+            endpoint="https://testdb.documents.azure.com:443/",
+            database_name="haymaker",
+            container_metrics="metrics",
+        ),
+        log_analytics=LogAnalyticsConfig(
+            workspace_id="test-workspace-id",
+            workspace_key=SecretStr("workspace-key"),
+        ),
+    )
 
 
 @pytest.fixture
 def mock_scenario():
     """Fixture: Mock scenario metadata."""
-    return {
-        "scenario_name": "test-scenario-01",
-        "technology_area": "AI & ML",
-        "scenario_doc_path": "docs/scenarios/test-scenario-01.md",
-    }
+    return ScenarioMetadata(
+        scenario_name="test-scenario-01",
+        technology_area="AI & ML",
+        scenario_doc_path="docs/scenarios/test-scenario-01.md",
+        agent_path="src/agents/test_agent.py",
+    )
 
 
 @pytest.fixture
@@ -143,13 +176,13 @@ class TestValidateEnvironmentActivity:
             ) as mock_validate,
         ):
             mock_load_config.return_value = mock_config
-            mock_validate.return_value = {
-                "overall_passed": True,
-                "results": [
-                    {"check": "azure_credentials", "passed": True},
-                    {"check": "anthropic_api", "passed": True},
+            mock_validate.return_value = ValidationReport(
+                overall_passed=True,
+                results=[
+                    ValidationResult(check_name="azure_credentials", passed=True),
+                    ValidationResult(check_name="anthropic_api", passed=True),
                 ],
-            }
+            )
 
             result = await validate_environment_activity(None)
 
@@ -232,7 +265,12 @@ class TestCreateServicePrincipalActivity:
 
             params = {
                 "run_id": run_id,
-                "scenario": mock_scenario,
+                "scenario": {
+                    "scenario_name": mock_scenario.scenario_name,
+                    "technology_area": mock_scenario.technology_area,
+                    "scenario_doc_path": mock_scenario.scenario_doc_path,
+                    "agent_path": mock_scenario.agent_path,
+                },
             }
 
             result = await create_service_principal_activity(params)
@@ -285,14 +323,17 @@ class TestDeployContainerAppActivity:
             ) as mock_deploy,
         ):
             mock_load_config.return_value = mock_config
-            mock_deploy.return_value = {
-                "name": f"container-{run_id}",
-                "resource_id": f"/subscriptions/test/resourceGroups/test-rg/providers/Microsoft.ContainerInstance/containerGroups/container-{run_id}",
-            }
+            # deploy_container_app returns resource_id string, not dict
+            mock_deploy.return_value = f"/subscriptions/test/resourceGroups/test-rg/providers/Microsoft.App/containerApps/container-{run_id}"
 
             params = {
                 "run_id": run_id,
-                "scenario": mock_scenario,
+                "scenario": {
+                    "scenario_name": mock_scenario.scenario_name,
+                    "technology_area": mock_scenario.technology_area,
+                    "scenario_doc_path": mock_scenario.scenario_doc_path,
+                    "agent_path": mock_scenario.agent_path,
+                },
                 "sp_details": mock_sp_details,
             }
 
@@ -353,7 +394,7 @@ class TestCheckAgentStatusActivity:
             async def mock_get_status(container_id):
                 return "Running"
 
-            mock_manager_instance.get_container_status = mock_get_status
+            mock_manager_instance.get_status = mock_get_status
 
             params = {
                 "run_id": run_id,
@@ -387,7 +428,7 @@ class TestCheckAgentStatusActivity:
                 idx = container_ids.index(container_id)
                 return statuses[idx]
 
-            mock_manager_instance.get_container_status = mock_get_status
+            mock_manager_instance.get_status = mock_get_status
 
             params = {
                 "run_id": run_id,
@@ -435,7 +476,9 @@ class TestVerifyCleanupActivity:
     @pytest.mark.asyncio
     async def test_verify_cleanup_activity_remaining(self, mock_config, run_id):
         """Test cleanup verification with remaining resources."""
-        from azure_haymaker.models.resource import Resource
+        from datetime import datetime
+
+        from azure_haymaker.models.resource import Resource, ResourceStatus
 
         scenarios = ["scenario-1", "scenario-2"]
         remaining = [
@@ -443,7 +486,10 @@ class TestVerifyCleanupActivity:
                 resource_id="/subscriptions/test/resourceGroups/test-rg",
                 resource_type="Microsoft.Resources/resourceGroups",
                 resource_name="test-rg",
-                status="NotDeleted",
+                scenario_name="scenario-1",
+                run_id=run_id,
+                created_at=datetime.now(),
+                status=ResourceStatus.EXISTS,
             )
         ]
 
@@ -485,10 +531,26 @@ class TestForceCleanupActivity:
         with (
             mock.patch("azure_haymaker.orchestrator.orchestrator.load_config") as mock_load_config,
             mock.patch(
+                "azure_haymaker.orchestrator.orchestrator.query_managed_resources"
+            ) as mock_query,
+            mock.patch(
                 "azure_haymaker.orchestrator.orchestrator.force_delete_resources"
             ) as mock_force_cleanup,
         ):
             mock_load_config.return_value = mock_config
+            # Mock query_managed_resources to return some resources
+            from azure_haymaker.models.resource import Resource
+
+            mock_query.return_value = [
+                Resource(
+                    resource_id="/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Compute/virtualMachines/vm1",
+                    resource_type="Microsoft.Compute/virtualMachines",
+                    resource_name="vm1",
+                    run_id=run_id,
+                    scenario_name="scenario-1",
+                    created_at="2024-01-01T00:00:00Z",
+                )
+            ]
             mock_report = CleanupReport(
                 run_id=run_id,
                 status=CleanupStatus.VERIFIED,
@@ -527,10 +589,26 @@ class TestForceCleanupActivity:
         with (
             mock.patch("azure_haymaker.orchestrator.orchestrator.load_config") as mock_load_config,
             mock.patch(
+                "azure_haymaker.orchestrator.orchestrator.query_managed_resources"
+            ) as mock_query,
+            mock.patch(
                 "azure_haymaker.orchestrator.orchestrator.force_delete_resources"
             ) as mock_force_cleanup,
         ):
             mock_load_config.return_value = mock_config
+            # Mock query_managed_resources to return some resources
+            from azure_haymaker.models.resource import Resource
+
+            mock_query.return_value = [
+                Resource(
+                    resource_id="/subscriptions/test/resourceGroups/test-rg",
+                    resource_type="Microsoft.Resources/resourceGroups",
+                    resource_name="test-rg",
+                    run_id=run_id,
+                    scenario_name="scenario-1",
+                    created_at="2024-01-01T00:00:00Z",
+                )
+            ]
             failed_deletion = ResourceDeletion(
                 resource_id="/subscriptions/test/resourceGroups/test-rg",
                 resource_type="Microsoft.Resources/resourceGroups",

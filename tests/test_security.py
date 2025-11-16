@@ -124,53 +124,60 @@ class TestCLIConfigPermissions:
 
     def test_config_file_permissions(self):
         """Test that config files are created with secure permissions."""
-        from cli.src.haymaker_cli.config import (
+        import sys
+
+        sys.path.insert(0, "cli/src")
+        from haymaker_cli.config import (
             CliConfig,
             ProfileConfig,
             get_config_path,
             save_cli_config,
         )
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Mock home directory
-            with patch("pathlib.Path.home", return_value=Path(tmpdir)):
-                # Create config
-                config_path = get_config_path()
-                config = CliConfig(
-                    profiles={"default": ProfileConfig(endpoint="https://api.example.com")}
-                )
-                save_cli_config(config)
+        with (
+            tempfile.TemporaryDirectory() as tmpdir,
+            patch("pathlib.Path.home", return_value=Path(tmpdir)),
+        ):
+            # Create config
+            config_path = get_config_path()
+            config = CliConfig(
+                profiles={"default": ProfileConfig(endpoint="https://api.example.com")}
+            )
+            save_cli_config(config)
 
-                # Check directory permissions (should be 0700)
-                config_dir = config_path.parent
-                dir_mode = config_dir.stat().st_mode & 0o777
-                assert dir_mode == 0o700, f"Config directory should be 0700, got {oct(dir_mode)}"
+            # Check directory permissions (should be 0700)
+            config_dir = config_path.parent
+            dir_mode = config_dir.stat().st_mode & 0o777
+            assert dir_mode == 0o700, f"Config directory should be 0700, got {oct(dir_mode)}"
 
-                # Check file permissions (should be 0600)
-                file_mode = config_path.stat().st_mode & 0o777
-                assert file_mode == 0o600, f"Config file should be 0600, got {oct(file_mode)}"
+            # Check file permissions (should be 0600)
+            file_mode = config_path.stat().st_mode & 0o777
+            assert file_mode == 0o600, f"Config file should be 0600, got {oct(file_mode)}"
 
     def test_config_file_permissions_on_existing(self):
         """Test that permissions are fixed on existing config files."""
-        from cli.src.haymaker_cli.config import get_config_path
+        import sys
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch("pathlib.Path.home", return_value=Path(tmpdir)):
-                # Create config with insecure permissions
-                config_dir = Path(tmpdir) / ".haymaker"
-                config_dir.mkdir()
-                config_path = config_dir / "config.yaml"
-                config_path.write_text("test: data")
-                config_path.chmod(0o644)  # World-readable
+        sys.path.insert(0, "cli/src")
+        from haymaker_cli.config import get_config_path
 
-                # Call get_config_path which should fix permissions
-                result = get_config_path()
+        with (
+            tempfile.TemporaryDirectory() as tmpdir,
+            patch("pathlib.Path.home", return_value=Path(tmpdir)),
+        ):
+            # Create config with insecure permissions
+            config_dir = Path(tmpdir) / ".haymaker"
+            config_dir.mkdir()
+            config_path = config_dir / "config.yaml"
+            config_path.write_text("test: data")
+            config_path.chmod(0o644)  # World-readable
 
-                # Check permissions were fixed
-                file_mode = result.stat().st_mode & 0o777
-                assert (
-                    file_mode == 0o600
-                ), f"Permissions should be fixed to 0600, got {oct(file_mode)}"
+            # Call get_config_path which should fix permissions
+            result = get_config_path()
+
+            # Check permissions were fixed
+            file_mode = result.stat().st_mode & 0o777
+            assert file_mode == 0o600, f"Permissions should be fixed to 0600, got {oct(file_mode)}"
 
 
 class TestUserExtraction:
@@ -330,16 +337,24 @@ class TestHTTPSEnforcement:
 
     def test_load_config_rejects_http(self):
         """Test that HTTP endpoints are rejected."""
-        from cli.src.haymaker_cli.config import load_cli_config
+        import sys
+
+        sys.path.insert(0, "cli/src")
+        from haymaker_cli.config import load_cli_config
 
         # Mock environment with HTTP endpoint
-        with patch.dict(os.environ, {"HAYMAKER_ENDPOINT": "http://insecure.example.com"}):
-            with pytest.raises(ValueError, match="HTTPS is required"):
-                load_cli_config()
+        with (
+            patch.dict(os.environ, {"HAYMAKER_ENDPOINT": "http://insecure.example.com"}),
+            pytest.raises(ValueError, match="HTTPS is required"),
+        ):
+            load_cli_config()
 
     def test_load_config_accepts_https(self):
         """Test that HTTPS endpoints are accepted."""
-        from cli.src.haymaker_cli.config import load_cli_config
+        import sys
+
+        sys.path.insert(0, "cli/src")
+        from haymaker_cli.config import load_cli_config
 
         # Mock environment with HTTPS endpoint
         with patch.dict(

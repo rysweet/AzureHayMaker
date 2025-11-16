@@ -63,7 +63,10 @@ class AzureADAuthProvider(AuthProvider):
 
         # Try to use Azure CLI credential first, fallback to default credential
         try:
-            self.credential = AzureCliCredential(tenant_id=tenant_id)
+            if tenant_id:
+                self.credential = AzureCliCredential(tenant_id=tenant_id)
+            else:
+                self.credential = AzureCliCredential()
         except Exception:
             self.credential = DefaultAzureCredential(
                 exclude_managed_identity_credential=True,
@@ -135,6 +138,5 @@ def create_auth_provider(config: AuthConfig | dict[str, Any] | None = None) -> A
 
     else:
         raise ValueError(
-            f"Unknown authentication type: {config.type}. "
-            "Must be 'api_key' or 'azure_ad'."
+            f"Unknown authentication type: {config.type}. " "Must be 'api_key' or 'azure_ad'."
         )

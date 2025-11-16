@@ -76,7 +76,7 @@ async def verify_image_signature(
         # Extract digest if present
         if "@" in image_ref:
             # Image reference includes digest: registry/image@sha256:digest
-            image_part, digest = image_ref.split("@")
+            _image_part, digest = image_ref.split("@")
             if not digest.startswith("sha256:"):
                 raise ImageSigningError(f"Invalid digest format: {digest}")
             logger.info(f"Image signature verified with digest: {digest[:16]}...")

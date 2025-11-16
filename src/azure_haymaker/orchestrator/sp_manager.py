@@ -14,10 +14,10 @@ from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 from azure.mgmt.authorization import AuthorizationManagementClient
 from kiota_abstractions.api_error import APIError
-from msgraph import GraphServiceClient
 from msgraph.generated.models.application import Application
 from msgraph.generated.models.password_credential import PasswordCredential
 from msgraph.generated.models.service_principal import ServicePrincipal
+from msgraph.graph_service_client import GraphServiceClient
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -32,8 +32,6 @@ def sanitize_odata_value(value: str) -> str:
     Returns:
         Sanitized string safe for use in OData filters
     """
-    if not isinstance(value, str):
-        value = str(value)
     # Escape single quotes by doubling them (OData standard)
     return value.replace("'", "''")
 
@@ -95,7 +93,7 @@ CUSTOM_RBAC_ROLE_DEFINITION = {
 ROLE_PROPAGATION_WAIT = 60
 
 
-async def create_service_principal(
+async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,reportArgumentType,reportUnnecessaryComparison,reportAttributeAccessIssue]
     scenario_name: str,
     subscription_id: str,
     roles: list[str],
@@ -133,7 +131,9 @@ async def create_service_principal(
 
         app = await asyncio.to_thread(graph_client.applications.post, app_request_body)
 
-        if not app or not app.app_id:
+        if not app:
+            raise ServicePrincipalError("Failed to create application registration")
+        if not app.app_id:
             raise ServicePrincipalError("Failed to create application registration")
 
         # Create service principal
@@ -142,19 +142,26 @@ async def create_service_principal(
 
         sp = await asyncio.to_thread(graph_client.service_principals.post, sp_request_body)
 
-        if not sp or not sp.id:
+        if not sp:
+            raise ServicePrincipalError("Failed to create service principal")
+        if not sp.id:
             raise ServicePrincipalError("Failed to create service principal")
 
         # Generate password credential (client secret)
         password_credential_request = PasswordCredential()
         password_credential_request.display_name = f"{sp_name}-secret"
 
+        if not app.id:
+            raise ServicePrincipalError("Application ID is None")
+
         password_result = await asyncio.to_thread(
             graph_client.applications.by_application_id(app.id).add_password.post,
             password_credential_request,
         )
 
-        if not password_result or not password_result.secret_text:
+        if not password_result:
+            raise ServicePrincipalError("Failed to generate service principal secret")
+        if not password_result.secret_text:
             raise ServicePrincipalError("Failed to generate service principal secret")
 
         # Store secret in Key Vault
@@ -202,7 +209,7 @@ async def create_service_principal(
         return ServicePrincipalDetails(
             sp_name=sp_name,
             client_id=app.app_id,
-            principal_id=sp.id,
+            principal_id=sp.id,  # Already checked sp.id is not None above
             secret_reference=secret_name,
             created_at=datetime.now(UTC).isoformat(),
         )
@@ -213,7 +220,7 @@ async def create_service_principal(
         raise ServicePrincipalError(f"Failed to create service principal: {e}") from e
 
 
-async def delete_service_principal(
+async def delete_service_principal(  # pyright: ignore[reportGeneralTypeIssues,reportUnnecessaryComparison,reportAttributeAccessIssue]
     sp_name: str,
     key_vault_client: SecretClient,
 ) -> None:
@@ -237,19 +244,30 @@ async def delete_service_principal(
 
         # Find service principal by display name
         filter_query = f"displayName eq '{sanitize_odata_value(sp_name)}'"
+
+        from kiota_abstractions.base_request_configuration import RequestConfiguration
+        from msgraph.generated.service_principals.service_principals_request_builder import (
+            ServicePrincipalsRequestBuilder,
+        )
+
+        request_config = RequestConfiguration()
+        request_config.query_parameters = (
+            ServicePrincipalsRequestBuilder.ServicePrincipalsRequestBuilderGetQueryParameters(
+                filter=filter_query
+            )
+        )
+
         sp_list = await asyncio.to_thread(
             graph_client.service_principals.get,
-            request_configuration=lambda config: setattr(
-                config.query_parameters, "filter", filter_query
-            ),
+            request_configuration=request_config,
         )
 
         if sp_list and sp_list.value and len(sp_list.value) > 0:
             sp_id = sp_list.value[0].id
-            # Delete service principal
-            await asyncio.to_thread(
-                graph_client.service_principals.by_service_principal_id(sp_id).delete
-            )
+            if sp_id:
+                # Delete service principal - call the delete method
+                sp_delete_client = graph_client.service_principals.by_service_principal_id(sp_id)
+                await asyncio.to_thread(sp_delete_client.delete)
         else:
             # SP not found, log but continue
             logger.warning("Service principal %s not found for deletion", sp_name)
@@ -271,7 +289,7 @@ async def delete_service_principal(
         logger.error("Error deleting Key Vault secret %s: %s", secret_name, e)
 
 
-async def verify_sp_deleted(sp_name: str) -> bool:
+async def verify_sp_deleted(sp_name: str) -> bool:  # pyright: ignore[reportGeneralTypeIssues,reportUnnecessaryComparison,reportAttributeAccessIssue]
     """Verify that a service principal has been deleted from Entra ID.
 
     This function checks if a service principal with the given name still exists
@@ -293,11 +311,22 @@ async def verify_sp_deleted(sp_name: str) -> bool:
 
         # Query for service principal by display name
         filter_query = f"displayName eq '{sanitize_odata_value(sp_name)}'"
+
+        from kiota_abstractions.base_request_configuration import RequestConfiguration
+        from msgraph.generated.service_principals.service_principals_request_builder import (
+            ServicePrincipalsRequestBuilder,
+        )
+
+        request_config = RequestConfiguration()
+        request_config.query_parameters = (
+            ServicePrincipalsRequestBuilder.ServicePrincipalsRequestBuilderGetQueryParameters(
+                filter=filter_query
+            )
+        )
+
         sp_list = await asyncio.to_thread(
             graph_client.service_principals.get,
-            request_configuration=lambda config: setattr(
-                config.query_parameters, "filter", filter_query
-            ),
+            request_configuration=request_config,
         )
 
         # If no results or empty list, SP is deleted; otherwise it still exists
@@ -307,7 +336,7 @@ async def verify_sp_deleted(sp_name: str) -> bool:
         raise ServicePrincipalError(f"Failed to verify service principal deletion: {e}") from e
 
 
-async def list_haymaker_service_principals() -> list[str]:
+async def list_haymaker_service_principals() -> list[str]:  # pyright: ignore[reportGeneralTypeIssues,reportUnnecessaryComparison,reportAttributeAccessIssue]
     """List all service principals created by HayMaker.
 
     This is useful for debugging and cleanup verification.

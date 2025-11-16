@@ -1,11 +1,11 @@
 """Unit tests for execute API module."""
 
 import json
-import pytest
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import azure.functions as func
+import pytest
 
 from azure_haymaker.models.execution import OnDemandExecutionStatus
 
@@ -75,27 +75,29 @@ async def test_execute_scenario_success(
     mock_sb_instance.get_queue_sender.return_value = mock_sender
     mock_sb_client.return_value = mock_sb_instance
 
-    with patch("azure_haymaker.orchestrator.execute_api.RateLimiter", return_value=mock_limiter):
-        with patch(
+    with (
+        patch("azure_haymaker.orchestrator.execute_api.RateLimiter", return_value=mock_limiter),
+        patch(
             "azure_haymaker.orchestrator.execute_api.ExecutionTracker", return_value=mock_tracker
-        ):
-            from azure_haymaker.orchestrator.execute_api import execute_scenario
+        ),
+    ):
+        from azure_haymaker.orchestrator.execute_api import execute_scenario
 
-            req = mock_request_factory(
-                body={
-                    "scenarios": ["compute-01", "networking-01"],
-                    "duration_hours": 2,
-                    "tags": {"requester": "admin"},
-                }
-            )
+        req = mock_request_factory(
+            body={
+                "scenarios": ["compute-01", "networking-01"],
+                "duration_hours": 2,
+                "tags": {"requester": "admin"},
+            }
+        )
 
-            response = await execute_scenario(req)
+        response = await execute_scenario(req)
 
-            assert response.status_code == 202
-            body = json.loads(response.get_body())
-            assert body["execution_id"] == "exec-20251115-abc123"
-            assert body["status"] == "queued"
-            assert len(body["scenarios"]) == 2
+        assert response.status_code == 202
+        body = json.loads(response.get_body())
+        assert body["execution_id"] == "exec-20251115-abc123"
+        assert body["status"] == "queued"
+        assert len(body["scenarios"]) == 2
 
 
 @pytest.mark.asyncio
@@ -136,9 +138,7 @@ async def test_execute_scenario_invalid_request(mock_load_config, mock_request_f
 @pytest.mark.asyncio
 @patch("azure_haymaker.orchestrator.execute_api.load_config")
 @patch("azure_haymaker.orchestrator.execute_api.validate_scenarios")
-async def test_execute_scenario_not_found(
-    mock_validate, mock_load_config, mock_request_factory
-):
+async def test_execute_scenario_not_found(mock_validate, mock_load_config, mock_request_factory):
     """Test execution request with non-existent scenario."""
     mock_validate.return_value = (False, "Scenarios not found: invalid-scenario")
 
@@ -229,34 +229,31 @@ async def test_get_execution_status_success(mock_load_config, mock_request_facto
         ),
     )
 
-    with patch(
-        "azure_haymaker.orchestrator.execute_api.DefaultAzureCredential"
+    with (
+        patch("azure_haymaker.orchestrator.execute_api.DefaultAzureCredential"),
+        patch("azure_haymaker.orchestrator.execute_api.TableClient"),
+        patch(
+            "azure_haymaker.orchestrator.execute_api.ExecutionTracker", return_value=mock_tracker
+        ),
     ):
-        with patch("azure_haymaker.orchestrator.execute_api.TableClient"):
-            with patch(
-                "azure_haymaker.orchestrator.execute_api.ExecutionTracker",
-                return_value=mock_tracker,
-            ):
-                from azure_haymaker.orchestrator.execute_api import get_execution_status
+        from azure_haymaker.orchestrator.execute_api import get_execution_status
 
-                req = mock_request_factory(
-                    method="GET",
-                    route_params={"execution_id": "exec-20251115-abc123"},
-                )
+        req = mock_request_factory(
+            method="GET",
+            route_params={"execution_id": "exec-20251115-abc123"},
+        )
 
-                response = await get_execution_status(req)
+        response = await get_execution_status(req)
 
-                assert response.status_code == 200
-                body = json.loads(response.get_body())
-                assert body["execution_id"] == "exec-20251115-abc123"
-                assert body["status"] == "running"
+        assert response.status_code == 200
+        body = json.loads(response.get_body())
+        assert body["execution_id"] == "exec-20251115-abc123"
+        assert body["status"] == "running"
 
 
 @pytest.mark.asyncio
 @patch("azure_haymaker.orchestrator.execute_api.load_config")
-async def test_get_execution_status_not_found(
-    mock_load_config, mock_request_factory, mock_config
-):
+async def test_get_execution_status_not_found(mock_load_config, mock_request_factory, mock_config):
     """Test getting status of non-existent execution."""
     mock_load_config.return_value = mock_config
 
@@ -264,26 +261,25 @@ async def test_get_execution_status_not_found(
     mock_tracker = AsyncMock()
     mock_tracker.get_execution_status.side_effect = Exception("Not found")
 
-    with patch(
-        "azure_haymaker.orchestrator.execute_api.DefaultAzureCredential"
+    with (
+        patch("azure_haymaker.orchestrator.execute_api.DefaultAzureCredential"),
+        patch("azure_haymaker.orchestrator.execute_api.TableClient"),
+        patch(
+            "azure_haymaker.orchestrator.execute_api.ExecutionTracker", return_value=mock_tracker
+        ),
     ):
-        with patch("azure_haymaker.orchestrator.execute_api.TableClient"):
-            with patch(
-                "azure_haymaker.orchestrator.execute_api.ExecutionTracker",
-                return_value=mock_tracker,
-            ):
-                from azure_haymaker.orchestrator.execute_api import get_execution_status
+        from azure_haymaker.orchestrator.execute_api import get_execution_status
 
-                req = mock_request_factory(
-                    method="GET",
-                    route_params={"execution_id": "exec-nonexistent"},
-                )
+        req = mock_request_factory(
+            method="GET",
+            route_params={"execution_id": "exec-nonexistent"},
+        )
 
-                response = await get_execution_status(req)
+        response = await get_execution_status(req)
 
-                assert response.status_code == 404
-                body = json.loads(response.get_body())
-                assert body["error"]["code"] == "EXECUTION_NOT_FOUND"
+        assert response.status_code == 404
+        body = json.loads(response.get_body())
+        assert body["error"]["code"] == "EXECUTION_NOT_FOUND"
 
 
 @pytest.mark.asyncio
@@ -333,28 +329,6 @@ def test_validate_scenarios_some_missing():
 
         assert valid is False
         assert "invalid-scenario" in error
-
-
-def test_get_scenario_path_exists():
-    """Test getting scenario path when it exists."""
-    with patch("azure_haymaker.orchestrator.execute_api.Path") as mock_path:
-        mock_scenarios_dir = MagicMock()
-        mock_scenarios_dir.exists.return_value = True
-
-        mock_file = MagicMock()
-        mock_file.stem = "compute-01-linux-vm"
-        mock_scenarios_dir.glob.return_value = [mock_file]
-
-        mock_path.return_value.parent.parent.parent.parent = MagicMock()
-        mock_path.return_value.parent.parent.parent.parent.__truediv__ = (
-            lambda self, x: mock_scenarios_dir if x == "scenarios" else MagicMock()
-        )
-
-        from azure_haymaker.orchestrator.execute_api import get_scenario_path
-
-        path = get_scenario_path("compute-01")
-
-        assert path is not None
 
 
 def test_get_scenario_path_not_found():

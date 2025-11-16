@@ -166,7 +166,9 @@ async def validate_service_bus(config: OrchestratorConfig) -> ValidationResult:
         ValidationResult indicating success or failure
     """
     try:
-        credential = DefaultAzureCredential()
+        from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCredential
+
+        credential = AsyncDefaultAzureCredential()
 
         # Construct fully qualified namespace
         fully_qualified_namespace = f"{config.service_bus_namespace}.servicebus.windows.net"
@@ -178,6 +180,8 @@ async def validate_service_bus(config: OrchestratorConfig) -> ValidationResult:
         ):
             # Connection successful if we get here
             pass
+
+        await credential.close()
 
         return ValidationResult(
             check_name="service_bus",

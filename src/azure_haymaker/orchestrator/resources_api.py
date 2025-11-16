@@ -189,9 +189,7 @@ async def list_resources(req: func.HttpRequest) -> func.HttpResponse:
         )
 
         # Build response
-        response = {
-            "resources": [resource.model_dump(mode="json") for resource in resources]
-        }
+        response = {"resources": [resource.model_dump(mode="json") for resource in resources]}
 
         return func.HttpResponse(
             body=str(response),
@@ -295,7 +293,7 @@ async def get_resource(req: func.HttpRequest) -> func.HttpResponse:
                 mimetype="application/json",
             )
 
-        except Exception as e:
+        except Exception:
             logger.warning(f"Resource not found: {resource_id}")
             return func.HttpResponse(
                 body='{"error": "Resource not found"}',

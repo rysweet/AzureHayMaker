@@ -22,10 +22,8 @@ def sanitize_odata_value(value: str) -> str:
     Returns:
         Sanitized string safe for use in OData filters
     """
-    if not isinstance(value, str):
-        value = str(value)
-    # Escape single quotes by doubling them (OData standard)
-    return value.replace("'", "''")
+    # Convert to string and escape single quotes by doubling them (OData standard)
+    return str(value).replace("'", "''")
 
 
 class AgentInfo(BaseModel):

@@ -112,19 +112,38 @@ class TestQueryManagedResources:
 
         mock_resource_graph_client.resources.side_effect = capture_query_request
 
-        with patch(
-            "azure.mgmt.resourcegraph.ResourceGraphClient", return_value=mock_resource_graph_client
-        ):
-            await query_managed_resources(subscription_id, run_id)
+        # Mock QueryRequest to capture initialization arguments
+        captured_kwargs = []
+        original_query_request = mock_resourcegraph.models.QueryRequest
 
-        # Verify the resources method was called
-        assert mock_resource_graph_client.resources.called
-        # Verify the call was made with proper arguments
-        assert len(query_requests) > 0
-        query_request = query_requests[0]
-        query_string = query_request.query
-        assert run_id in query_string
-        assert "AzureHayMaker-managed" in query_string
+        def mock_query_request_init(**kwargs):
+            captured_kwargs.append(kwargs)
+            mock_obj = MagicMock()
+            mock_obj.query = kwargs.get("query", "")
+            mock_obj.subscriptions = kwargs.get("subscriptions", [])
+            mock_obj.skip_token = kwargs.get("skip_token")
+            return mock_obj
+
+        mock_resourcegraph.models.QueryRequest = mock_query_request_init
+
+        try:
+            with patch(
+                "azure.mgmt.resourcegraph.ResourceGraphClient",
+                return_value=mock_resource_graph_client,
+            ):
+                await query_managed_resources(subscription_id, run_id)
+
+            # Verify the resources method was called
+            assert mock_resource_graph_client.resources.called
+            # Verify the call was made with proper arguments
+            assert len(captured_kwargs) > 0
+            query_kwargs = captured_kwargs[0]
+            query_string = query_kwargs["query"]
+            assert run_id in query_string
+            assert "AzureHayMaker-managed" in query_string
+        finally:
+            # Restore original mock
+            mock_resourcegraph.models.QueryRequest = original_query_request
 
     @pytest.mark.asyncio
     async def test_query_managed_resources_pagination(self):
@@ -558,6 +577,7 @@ class TestForceDeleteResources:
                 principal_id="principal-123",
                 secret_reference="secret-ref-1",
                 created_at="2025-11-14T12:00:00Z",
+                scenario_name="scenario-1",
             ),
         ]
 

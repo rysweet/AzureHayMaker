@@ -26,7 +26,6 @@ from azure.keyvault.secrets import SecretClient
 from azure.storage.blob import BlobServiceClient
 
 from azure_haymaker.models.scenario import ScenarioMetadata
-from azure_haymaker.models.service_principal import ServicePrincipalDetails
 from azure_haymaker.orchestrator.cleanup import (
     force_delete_resources,
     query_managed_resources,
@@ -114,7 +113,7 @@ async def haymaker_timer(
 
 
 @app.orchestration_trigger(context_name="context")
-def orchestrate_haymaker_run(context: Any) -> dict[str, Any]:
+def orchestrate_haymaker_run(context: Any) -> Any:
     """Main orchestration function for Azure HayMaker execution.
 
     Coordinates 5 phases:
@@ -157,17 +156,25 @@ def orchestrate_haymaker_run(context: Any) -> dict[str, Any]:
             None,
         )
 
-        if not validation_result.get("overall_passed", False):
+        overall_passed: bool = validation_result["overall_passed"]
+        if not overall_passed:
             logger.error(f"[{run_id}] Validation failed: {validation_result}")
             execution_report["status"] = "failed"
             execution_report["failure_reason"] = "environment_validation_failed"
-            execution_report["phases"]["validation"] = validation_result
+            if "phases" not in execution_report or not isinstance(execution_report["phases"], dict):
+                execution_report["phases"] = {}
+            phases: dict[str, Any] = execution_report["phases"]  # type: ignore[assignment]
+            phases["validation"] = validation_result
             return execution_report
 
-        execution_report["phases"]["validation"] = {
+        if "phases" not in execution_report or not isinstance(execution_report["phases"], dict):
+            execution_report["phases"] = {}
+        phases = execution_report["phases"]  # type: ignore[assignment]
+        phases["validation"] = {
             "status": "passed",
-            "checks": validation_result.get("results", []),
+            "checks": validation_result["results"],
         }
+        execution_report["phases"] = phases
         logger.info(f"[{run_id}] Phase 1: Validation passed")
 
         # ========================================================================
@@ -179,9 +186,12 @@ def orchestrate_haymaker_run(context: Any) -> dict[str, Any]:
             None,
         )
 
-        selected_scenarios = selection_result.get("scenarios", [])
+        selected_scenarios = selection_result["scenarios"]
         logger.info(f"[{run_id}] Selected {len(selected_scenarios)} scenarios")
-        execution_report["phases"]["selection"] = {
+        if "phases" not in execution_report:
+            execution_report["phases"] = {}
+        phases = execution_report["phases"]  # type: ignore[assignment]
+        phases["selection"] = {
             "status": "completed",
             "scenario_count": len(selected_scenarios),
             "scenarios": [s["scenario_name"] for s in selected_scenarios],
@@ -214,13 +224,13 @@ def orchestrate_haymaker_run(context: Any) -> dict[str, Any]:
         sp_results = yield context.task_all(sp_tasks)
 
         # Check for SP creation failures
-        failed_sps = [sp for sp in sp_results if sp.get("status") == "failed"]
+        failed_sps = [sp for sp in sp_results if sp["status"] == "failed"]
         if failed_sps:
             logger.warning(
                 f"[{run_id}] {len(failed_sps)} SPs failed to create (will attempt cleanup)"
             )
 
-        successful_sps = [sp for sp in sp_results if sp.get("status") == "success"]
+        successful_sps = [sp for sp in sp_results if sp["status"] == "success"]
         logger.info(
             f"[{run_id}] Created {len(successful_sps)}/{len(selected_scenarios)} service principals"
         )
@@ -228,27 +238,30 @@ def orchestrate_haymaker_run(context: Any) -> dict[str, Any]:
         # Deploy Container Apps in parallel (only for successful SPs)
         container_tasks = []
         for scenario, sp_result in zip(selected_scenarios, sp_results, strict=False):
-            if sp_result.get("status") == "success":
+            if sp_result["status"] == "success":
                 container_tasks.append(
                     context.call_activity(
                         "deploy_container_app_activity",
                         {
                             "run_id": run_id,
                             "scenario": scenario,
-                            "sp_details": sp_result.get("sp_details"),
+                            "sp_details": sp_result["sp_details"],
                         },
                     )
                 )
 
         container_results = yield context.task_all(container_tasks) if container_tasks else []
 
-        failed_containers = [c for c in container_results if c.get("status") == "failed"]
-        successful_containers = [c for c in container_results if c.get("status") == "success"]
+        failed_containers = [c for c in container_results if c["status"] == "failed"]
+        successful_containers = [c for c in container_results if c["status"] == "success"]
         logger.info(
             f"[{run_id}] Deployed {len(successful_containers)}/{len(container_tasks)} container apps"
         )
 
-        execution_report["phases"]["provisioning"] = {
+        if "phases" not in execution_report:
+            execution_report["phases"] = {}
+        phases = execution_report["phases"]  # type: ignore[assignment]
+        phases["provisioning"] = {
             "status": "completed",
             "service_principals": {
                 "requested": len(selected_scenarios),
@@ -279,22 +292,26 @@ def orchestrate_haymaker_run(context: Any) -> dict[str, Any]:
                 "check_agent_status_activity",
                 {
                     "run_id": run_id,
-                    "container_ids": [c.get("container_id") for c in successful_containers],
+                    "container_ids": [c["container_id"] for c in successful_containers],
                 },
             )
 
-            monitoring_status["status_checks"].append(
+            status_checks: list[dict[str, Any]] = monitoring_status["status_checks"]  # type: ignore[assignment]
+            status_checks.append(
                 {
                     "timestamp": context.current_utc_datetime.isoformat(),
-                    "running_count": check_result.get("running_count", 0),
-                    "completed_count": check_result.get("completed_count", 0),
+                    "running_count": check_result["running_count"],
+                    "completed_count": check_result["completed_count"],
                 }
             )
 
             # Wait 15 minutes before next check
             yield context.create_timer(context.current_utc_datetime + timedelta(minutes=15))
 
-        execution_report["phases"]["monitoring"] = monitoring_status
+        if "phases" not in execution_report:
+            execution_report["phases"] = {}
+        phases = execution_report["phases"]  # type: ignore[assignment]
+        phases["monitoring"] = monitoring_status
         logger.info(f"[{run_id}] Phase 4: Monitoring completed after 8 hours")
 
         # ========================================================================
@@ -309,7 +326,7 @@ def orchestrate_haymaker_run(context: Any) -> dict[str, Any]:
             },
         )
 
-        remaining_resources = cleanup_verification.get("remaining_resources", [])
+        remaining_resources = cleanup_verification["remaining_resources"]
         logger.info(
             f"[{run_id}] Cleanup verification: {len(remaining_resources)} resources remaining"
         )
@@ -326,17 +343,18 @@ def orchestrate_haymaker_run(context: Any) -> dict[str, Any]:
                 {
                     "run_id": run_id,
                     "scenarios": [s["scenario_name"] for s in selected_scenarios],
-                    "sp_details": [
-                        sp.get("sp_details") for sp in successful_sps if sp.get("sp_details")
-                    ],
+                    "sp_details": [sp["sp_details"] for sp in successful_sps if "sp_details" in sp],
                 },
             )
 
-            cleanup_status = cleanup_result.get("status", "unknown")
-            deleted_count = cleanup_result.get("deleted_count", 0)
-            failed_count = cleanup_result.get("failed_count", 0)
+            cleanup_status = cleanup_result["status"]
+            deleted_count = cleanup_result["deleted_count"]
+            failed_count = cleanup_result["failed_count"]
 
-            execution_report["phases"]["cleanup"] = {
+            if "phases" not in execution_report:
+                execution_report["phases"] = {}
+            phases = execution_report["phases"]  # type: ignore[assignment]
+            phases["cleanup"] = {
                 "status": cleanup_status,
                 "verification_found": len(remaining_resources),
                 "deleted": deleted_count,
@@ -347,7 +365,10 @@ def orchestrate_haymaker_run(context: Any) -> dict[str, Any]:
             )
         else:
             logger.info(f"[{run_id}] No remaining resources found. Cleanup verified.")
-            execution_report["phases"]["cleanup"] = {
+            if "phases" not in execution_report:
+                execution_report["phases"] = {}
+            phases = execution_report["phases"]  # type: ignore[assignment]
+            phases["cleanup"] = {
                 "status": "verified",
                 "verification_found": 0,
                 "deleted": 0,
@@ -371,7 +392,7 @@ def orchestrate_haymaker_run(context: Any) -> dict[str, Any]:
 
         execution_report["status"] = "completed"
         execution_report["ended_at"] = context.current_utc_datetime.isoformat()
-        execution_report["report_url"] = report.get("report_url")
+        execution_report["report_url"] = report["report_url"]
 
         logger.info(f"[{run_id}] Orchestration completed successfully")
         return execution_report
@@ -418,8 +439,8 @@ async def validate_environment_activity(input_data: Any) -> dict[str, Any]:
         result = await validate_environment(config)
         logger.info("Activity: validate_environment - Completed")
         return {
-            "overall_passed": result.get("overall_passed", False),
-            "results": result.get("results", []),
+            "overall_passed": result.overall_passed,
+            "results": [r.model_dump() for r in result.results],
         }
     except Exception as e:
         logger.error(f"Activity: validate_environment - Failed: {str(e)}", exc_info=True)
@@ -463,31 +484,17 @@ async def select_scenarios_activity(input_data: Any) -> dict[str, Any]:
     try:
         logger.info("Activity: select_scenarios - Starting")
         config = await load_config()
-        # Handle both dict and OrchestratorConfig object
-        sim_size_val = (
-            config.get("simulation_size") if isinstance(config, dict) else config.simulation_size
-        )
-        # Convert string to SimulationSize enum if needed
-        if isinstance(sim_size_val, str):
-            from azure_haymaker.models.config import SimulationSize
-
-            sim_size = SimulationSize(sim_size_val)
-        else:
-            sim_size = sim_size_val
+        # Get simulation size from config
+        sim_size = config.simulation_size
         scenarios = select_scenarios(sim_size)
         logger.info(f"Activity: select_scenarios - Selected {len(scenarios)} scenarios")
         return {
             "scenarios": [
                 {
-                    "scenario_name": s.get("scenario_name")
-                    if isinstance(s, dict)
-                    else s.scenario_name,
-                    "technology_area": s.get("technology_area")
-                    if isinstance(s, dict)
-                    else s.technology_area,
-                    "scenario_doc_path": s.get("scenario_doc_path")
-                    if isinstance(s, dict)
-                    else s.scenario_doc_path,
+                    "scenario_name": s.scenario_name,
+                    "technology_area": s.technology_area,
+                    "scenario_doc_path": s.scenario_doc_path,
+                    "agent_path": s.agent_path,
                 }
                 for s in scenarios
             ]
@@ -527,21 +534,16 @@ async def create_service_principal_activity(params: dict[str, Any]) -> dict[str,
         }
     """
     try:
-        scenario = params.get("scenario")
+        scenario = params.get("scenario", {})
+        if not isinstance(scenario, dict):
+            scenario = {}
         scenario_name = scenario.get("scenario_name")
 
         logger.info(f"Activity: create_service_principal - scenario={scenario_name}")
 
         config = await load_config()
-        # Handle both dict and OrchestratorConfig object
-        sub_id = (
-            config.get("target_subscription_id")
-            if isinstance(config, dict)
-            else config.target_subscription_id
-        )
-        key_vault_url = (
-            config.get("key_vault_url") if isinstance(config, dict) else config.key_vault_url
-        )
+        sub_id = config.target_subscription_id
+        key_vault_url = config.key_vault_url
 
         # Create Key Vault client for secret storage
         credential = DefaultAzureCredential()
@@ -549,6 +551,9 @@ async def create_service_principal_activity(params: dict[str, Any]) -> dict[str,
 
         # Assign minimal required roles to service principal
         roles = ["Contributor", "Reader"]
+
+        if not scenario_name:
+            raise ValueError("scenario_name is required")
 
         sp_details = await create_service_principal(
             scenario_name=scenario_name,
@@ -607,35 +612,62 @@ async def deploy_container_app_activity(params: dict[str, Any]) -> dict[str, Any
         }
     """
     try:
-        scenario = params.get("scenario")
-        sp_details = params.get("sp_details")
+        scenario = params.get("scenario", {})
+        sp_details = params.get("sp_details", {})
+        if not isinstance(scenario, dict):
+            scenario = {}
+        if not isinstance(sp_details, dict):
+            sp_details = {}
         scenario_name = scenario.get("scenario_name")
 
         logger.info(f"Activity: deploy_container_app - scenario={scenario_name}")
 
         config = await load_config()
-        container_details = await deploy_container_app(
+
+        # Convert created_at string to datetime
+        created_at_str = sp_details.get("created_at")
+        if created_at_str and isinstance(created_at_str, str):
+            created_at_dt = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+        else:
+            created_at_dt = datetime.now(UTC)
+
+        # Validate required fields
+        if not scenario_name:
+            raise ValueError("scenario_name is required")
+
+        # deploy_container_app returns resource ID string
+        from azure_haymaker.models.service_principal import (
+            ServicePrincipalDetails as SPDetailsModel,
+        )
+
+        container_resource_id = await deploy_container_app(
             scenario=ScenarioMetadata(
                 scenario_name=scenario_name,
-                scenario_doc_path=scenario.get("scenario_doc_path"),
-                technology_area=scenario.get("technology_area"),
+                scenario_doc_path=scenario.get("scenario_doc_path", ""),
+                agent_path=scenario.get("agent_path", ""),
+                technology_area=scenario.get("technology_area", ""),
             ),
-            sp=ServicePrincipalDetails(
-                sp_name=sp_details.get("sp_name"),
-                client_id=sp_details.get("client_id"),
-                principal_id=sp_details.get("principal_id"),
-                secret_reference=sp_details.get("secret_reference"),
-                created_at=sp_details.get("created_at"),
+            sp=SPDetailsModel(
+                sp_name=sp_details.get("sp_name", ""),
+                client_id=sp_details.get("client_id", ""),
+                principal_id=sp_details.get("principal_id", ""),
+                secret_reference=sp_details.get("secret_reference", ""),
+                created_at=created_at_dt,
+                scenario_name=scenario_name,
             ),
             config=config,
         )
 
-        logger.info(f"Activity: deploy_container_app - Deployed: {container_details.get('name')}")
+        # Extract container name from resource ID
+        # Format: /subscriptions/.../resourceGroups/.../providers/Microsoft.App/containerApps/{name}
+        container_name = container_resource_id.split("/")[-1]
+
+        logger.info(f"Activity: deploy_container_app - Deployed: {container_name}")
         return {
             "status": "success",
-            "container_id": container_details.get("name"),
-            "container_name": container_details.get("name"),
-            "resource_id": container_details.get("resource_id"),
+            "container_id": container_name,
+            "container_name": container_name,
+            "resource_id": container_resource_id,
         }
     except Exception as e:
         logger.error(
@@ -681,7 +713,7 @@ async def check_agent_status_activity(params: dict[str, Any]) -> dict[str, Any]:
         statuses = {"running": 0, "completed": 0, "failed": 0}
         for container_id in container_ids:
             try:
-                status = await container_manager.get_container_status(container_id)
+                status = await container_manager.get_status(container_id)
                 if status in ["Running", "Processing"]:
                     statuses["running"] += 1
                 elif status == "Terminated":
@@ -746,6 +778,10 @@ async def verify_cleanup_activity(params: dict[str, Any]) -> dict[str, Any]:
         logger.info(f"Activity: verify_cleanup - Checking {len(scenarios)} scenarios")
 
         config = await load_config()
+        # Ensure run_id is not None
+        if not run_id:
+            raise ValueError("run_id is required for cleanup verification")
+
         remaining_resources = await query_managed_resources(
             subscription_id=config.target_subscription_id,
             run_id=run_id,
@@ -806,10 +842,52 @@ async def force_cleanup_activity(params: dict[str, Any]) -> dict[str, Any]:
         )
 
         config = await load_config()
-        cleanup_report = await force_delete_resources(
+
+        # Ensure run_id is not None
+        if not run_id:
+            raise ValueError("run_id is required for forced cleanup")
+
+        # Query for resources to delete
+        remaining_resources = await query_managed_resources(
             subscription_id=config.target_subscription_id,
             run_id=run_id,
-            sp_details_list=[],  # SP deletion handled separately
+        )
+
+        # Create Key Vault client for SP secret deletion
+        credential = DefaultAzureCredential()
+        key_vault_client = SecretClient(vault_url=config.key_vault_url, credential=credential)
+
+        # Convert sp_details dicts to ServicePrincipalDetails objects
+        from azure_haymaker.models.service_principal import (
+            ServicePrincipalDetails as SPDetailsModel,
+        )
+
+        sp_details_objs = []
+        for sp in sp_details_list:
+            if not isinstance(sp, dict):
+                continue
+            created_at_str = sp.get("created_at")
+            if created_at_str and isinstance(created_at_str, str):
+                created_at_dt = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+            else:
+                created_at_dt = datetime.now(UTC)
+
+            sp_details_objs.append(
+                SPDetailsModel(
+                    sp_name=sp.get("sp_name", ""),
+                    client_id=sp.get("client_id", ""),
+                    principal_id=sp.get("principal_id", ""),
+                    secret_reference=sp.get("secret_reference", ""),
+                    created_at=created_at_dt,
+                    scenario_name=sp.get("scenario_name", "unknown"),
+                )
+            )
+
+        cleanup_report = await force_delete_resources(
+            resources=remaining_resources,
+            sp_details=sp_details_objs,
+            kv_client=key_vault_client,
+            subscription_id=config.target_subscription_id,
         )
 
         deleted_count = cleanup_report.total_resources_deleted
@@ -904,7 +982,7 @@ async def generate_report_activity(params: dict[str, Any]) -> dict[str, Any]:
 
         # Store report to blob storage
         blob_service_client = BlobServiceClient(
-            account_url=f"https://{config.storage_account}.blob.core.windows.net",
+            account_url=config.storage.account_url,
             credential=credential,
         )
 
@@ -924,7 +1002,7 @@ async def generate_report_activity(params: dict[str, Any]) -> dict[str, Any]:
         # Store to blob
         container_client = blob_service_client.get_container_client("execution-reports")
         blob_client = container_client.get_blob_client(f"{run_id}/report.json")
-        await blob_client.upload_blob(json.dumps(report, indent=2), overwrite=True)
+        await blob_client.upload_blob(json.dumps(report, indent=2), overwrite=True)  # type: ignore[misc]  # TableClient.upsert_entity is sync - requires async TableClient refactor
 
         report_url = blob_client.url
         logger.info(f"Activity: generate_report - Report stored at {report_url}")

@@ -7,6 +7,7 @@ Provides create, update, and query operations for execution records.
 import json
 import logging
 from datetime import UTC, datetime
+from typing import Any
 from uuid import uuid4
 
 from azure.core.exceptions import ResourceNotFoundError
@@ -21,11 +22,11 @@ from azure_haymaker.models.execution import (
 logger = logging.getLogger(__name__)
 
 
-def sanitize_odata_value(value: str) -> str:
+def sanitize_odata_value(value: Any) -> str:
     """Sanitize input for OData query filters to prevent injection attacks.
 
     Args:
-        value: Input string to sanitize
+        value: Input value to sanitize (will be converted to string)
 
     Returns:
         Sanitized string safe for use in OData filters
@@ -34,10 +35,10 @@ def sanitize_odata_value(value: str) -> str:
         OData uses single quotes for string literals. This function escapes
         single quotes by doubling them (standard OData escaping).
     """
-    if not isinstance(value, str):
-        value = str(value)
+    # Convert non-strings to strings first
+    str_value = str(value)
     # Escape single quotes by doubling them (OData standard)
-    return value.replace("'", "''")
+    return str_value.replace("'", "''")
 
 
 class ExecutionTracker:
@@ -106,7 +107,7 @@ class ExecutionTracker:
         entity = {
             "PartitionKey": execution_id,
             "RowKey": now.isoformat(),
-            "Status": record.status if isinstance(record.status, str) else record.status.value,
+            "Status": record.status,  # Already converted to string by use_enum_values=True
             "Scenarios": json.dumps(record.scenarios),
             "DurationHours": record.duration_hours,
             "Tags": json.dumps(record.tags),
@@ -116,7 +117,7 @@ class ExecutionTracker:
         }
 
         try:
-            await self.table.create_entity(entity=entity)
+            await self.table.create_entity(entity=entity)  # type: ignore[misc]  # TableClient.upsert_entity is sync - requires async TableClient refactor
             logger.info(f"Created execution record: {execution_id}")
             return execution_id
         except Exception as e:
@@ -157,6 +158,7 @@ class ExecutionTracker:
         now = datetime.now(UTC)
 
         # Get latest record to preserve fields
+        latest: dict[str, Any] | None = None
         try:
             latest = await self.get_latest_record(execution_id)
             scenarios = latest.get("Scenarios", "[]")
@@ -173,7 +175,7 @@ class ExecutionTracker:
         entity = {
             "PartitionKey": execution_id,
             "RowKey": now.isoformat(),
-            "Status": status if isinstance(status, str) else status.value,
+            "Status": status.value,
             "Scenarios": scenarios,
             "DurationHours": duration_hours,
             "Tags": tags,
@@ -184,12 +186,12 @@ class ExecutionTracker:
         # Add optional fields if provided
         if container_ids is not None:
             entity["ContainerIds"] = json.dumps(container_ids)
-        elif latest:
+        elif latest is not None:
             entity["ContainerIds"] = latest.get("ContainerIds", "[]")
 
         if resources_created is not None:
             entity["ResourcesCreated"] = resources_created
-        elif latest:
+        elif latest is not None:
             entity["ResourcesCreated"] = latest.get("ResourcesCreated", 0)
 
         if error_message:
@@ -205,13 +207,13 @@ class ExecutionTracker:
             entity["CompletedAt"] = now.isoformat()
 
         try:
-            await self.table.create_entity(entity=entity)
+            await self.table.create_entity(entity=entity)  # type: ignore[misc]  # TableClient.upsert_entity is sync - requires async TableClient refactor
             logger.info(f"Updated execution {execution_id} to status: {status.value}")
         except Exception as e:
             logger.error(f"Failed to update execution status: {e}")
             raise
 
-    async def get_latest_record(self, execution_id: str) -> dict:
+    async def get_latest_record(self, execution_id: str) -> dict[str, Any]:
         """Get latest record for execution.
 
         Args:
@@ -232,14 +234,17 @@ class ExecutionTracker:
 
         try:
             entities = []
-            async for entity in self.table.query_entities(query):
+            async for entity in self.table.query_entities(query):  # type: ignore[misc]  # ItemPaged is sync iterator - requires async Table SDK refactor
                 entities.append(entity)
 
             if not entities:
                 raise ResourceNotFoundError(f"Execution not found: {execution_id}")
 
             # Sort by RowKey (timestamp) descending and return latest
-            entities.sort(key=lambda e: e.get("RowKey", ""), reverse=True)
+            def get_row_key(e: dict[str, Any]) -> str:
+                return str(e.get("RowKey", ""))
+
+            entities.sort(key=get_row_key, reverse=True)
             return entities[0]
 
         except Exception as e:
@@ -340,9 +345,9 @@ class ExecutionTracker:
 
         try:
             # Query all entities, filter and deduplicate
-            query = f"Status eq '{sanitize_odata_value(status.value)}'" if status else None
+            query = f"Status eq '{sanitize_odata_value(status.value)}'" if status else ""
 
-            async for entity in self.table.query_entities(query):
+            async for entity in self.table.query_entities(query_filter=query if query else None):  # type: ignore[misc]  # ItemPaged is sync iterator - requires async Table SDK refactor
                 execution_id = entity.get("PartitionKey")
 
                 # Only include latest record per execution
@@ -360,7 +365,10 @@ class ExecutionTracker:
                         continue
 
             # Sort by created_at descending
-            results.sort(key=lambda x: x.created_at, reverse=True)
+            def get_created_at(x: ExecutionStatusResponse) -> datetime:
+                return x.created_at
+
+            results.sort(key=get_created_at, reverse=True)
             return results[:limit]
 
         except Exception as e:
@@ -380,11 +388,11 @@ class ExecutionTracker:
 
         try:
             entities_to_delete = []
-            async for entity in self.table.query_entities(query):
+            async for entity in self.table.query_entities(query):  # type: ignore[misc]  # ItemPaged is sync iterator - requires async Table SDK refactor
                 entities_to_delete.append(entity)
 
             for entity in entities_to_delete:
-                await self.table.delete_entity(
+                await self.table.delete_entity(  # type: ignore[misc]  # TableClient.delete_entity is sync - requires async TableClient refactor
                     partition_key=entity["PartitionKey"],
                     row_key=entity["RowKey"],
                 )

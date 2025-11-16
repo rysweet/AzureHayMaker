@@ -86,6 +86,7 @@ class TestOrchestratorConfig:
             target_tenant_id="12345678-1234-1234-1234-123456789012",
             target_subscription_id="87654321-4321-4321-4321-210987654321",
             main_sp_client_id="11111111-1111-1111-1111-111111111111",
+            vnet_integration_enabled=False,  # Disable VNet for unit test
             main_sp_client_secret="super-secret-value",
             anthropic_api_key="sk-ant-test-key",
             service_bus_namespace="haymaker-sb",
@@ -126,6 +127,7 @@ class TestOrchestratorConfig:
             target_tenant_id="12345678-1234-1234-1234-123456789012",
             target_subscription_id="87654321-4321-4321-4321-210987654321",
             main_sp_client_id="11111111-1111-1111-1111-111111111111",
+            vnet_integration_enabled=False,  # Disable VNet for unit test
             main_sp_client_secret="super-secret-value",
             anthropic_api_key="sk-ant-test-key",
             service_bus_namespace="haymaker-sb",
@@ -191,6 +193,7 @@ class TestOrchestratorConfig:
             target_tenant_id="12345678-1234-1234-1234-123456789012",
             target_subscription_id="87654321-4321-4321-4321-210987654321",
             main_sp_client_id="11111111-1111-1111-1111-111111111111",
+            vnet_integration_enabled=False,  # Disable VNet for unit test
             main_sp_client_secret="super-secret-value",
             anthropic_api_key="sk-ant-test-key",
             service_bus_namespace="haymaker-sb",

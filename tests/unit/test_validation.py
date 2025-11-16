@@ -96,6 +96,7 @@ def mock_config() -> OrchestratorConfig:
         container_image="haymaker-agent:latest",
         key_vault_url="https://haymaker-kv.vault.azure.net",
         simulation_size=SimulationSize.SMALL,
+        vnet_integration_enabled=False,
         storage=StorageConfig(
             account_name="haymakerstorage",
             container_logs="execution-logs",

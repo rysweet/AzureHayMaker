@@ -437,3 +437,128 @@ For issues during setup:
 - Enable audit logging in Azure AD
 - Review role assignments regularly
 - Use GitHub environment protection rules for production
+
+## Automated OIDC Setup
+
+For convenience, we've created an automation script that handles the complete OIDC setup process.
+
+### Quick Setup (Recommended)
+
+```bash
+# Set your environment variables
+export GITHUB_ORG="rysweet"
+export GITHUB_REPO="AzureHayMaker"
+export AZURE_SUBSCRIPTION_ID="your-subscription-id"
+
+# Run the setup script
+./scripts/setup-oidc.sh
+```
+
+This script will:
+1. Create service principal with required roles (Contributor + User Access Administrator)
+2. Configure federated identity credentials for:
+   - main branch
+   - develop branch
+   - dev environment
+   - staging environment
+   - prod environment
+3. Set GitHub Secrets (AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID, AZURE_CLIENT_ID, MAIN_SP_CLIENT_SECRET)
+4. Create .env file for local development
+
+### Federated Identity Credentials Required
+
+The service principal needs these federated credentials for OIDC authentication:
+
+| Name | Subject | Purpose |
+|------|---------|---------|
+| github-actions-main-branch | repo:ORG/REPO:ref:refs/heads/main | Main branch workflows |
+| github-actions-develop-branch | repo:ORG/REPO:ref:refs/heads/develop | Develop branch workflows |
+| github-actions-env-dev | repo:ORG/REPO:environment:dev | Dev environment deployments |
+| github-actions-env-staging | repo:ORG/REPO:environment:staging | Staging deployments |
+| github-actions-env-prod | repo:ORG/REPO:environment:prod | Production deployments |
+
+**Important**: The subject must EXACTLY match the GitHub repository, branch, or environment. Mismatches will cause authentication failures.
+
+### Troubleshooting OIDC Authentication
+
+**Error**: `AADSTS700213: No matching federated identity record found`
+
+**Solution**: Verify the federated credential subject matches exactly:
+```bash
+# List existing federated credentials
+APP_OBJECT_ID=$(az ad app show --id $AZURE_CLIENT_ID --query id --output tsv)
+az ad app federated-credential list --id $APP_OBJECT_ID --query "[].{name:name, subject:subject}"
+
+# Verify subject format: repo:ORG/REPO:ref:refs/heads/BRANCH
+# or: repo:ORG/REPO:environment:ENV_NAME
+```
+
+**Error**: `AADSTS70025: The client has no configured federated identity credentials`
+
+**Solution**: Run the setup-oidc.sh script or manually add credentials as shown above.
+
+---
+
+## Real-World Setup Example (2025-11-15)
+
+Here's a complete example of setting up Azure HayMaker for the first time:
+
+### Prerequisites Verified
+```bash
+# Azure CLI
+az --version
+# Output: azure-cli 2.x.x
+
+# GitHub CLI
+gh --version
+# Output: gh version 2.x.x
+
+# Azure login
+az login
+az account set --subscription "c190c55a-9ab2-4b1e-92c4-cc8b1a032285"
+```
+
+### Service Principal Created
+```bash
+# Created: AzureHayMaker-Main-20251115-125358
+# Client ID: e2c7f4c6-00d7-4f62-9bb1-84b877fb5d7e
+# Roles: Contributor + User Access Administrator
+```
+
+### Federated Credentials Added
+```bash
+# Branches: main, develop
+# Environments: dev, staging, prod
+# Total: 5 federated credentials
+```
+
+### GitHub Secrets Configured
+```bash
+gh secret list
+# Output:
+# ANTHROPIC_API_KEY
+# AZURE_CLIENT_ID
+# AZURE_LOCATION (westus2)
+# AZURE_SUBSCRIPTION_ID
+# AZURE_TENANT_ID
+# LOG_ANALYTICS_WORKSPACE_ID
+# LOG_ANALYTICS_WORKSPACE_KEY
+# MAIN_SP_CLIENT_SECRET
+# SIMULATION_SIZE (small)
+```
+
+### First Deployment Triggered
+```bash
+gh workflow run "Deploy to Development"
+gh run watch
+# Result: OIDC authentication successful!
+# Tests failed (expected - 31 test failures to fix)
+# Deployment skipped (correct - tests must pass first)
+```
+
+### Key Learnings
+1. **OIDC requires exact subject matching** - Branch or environment name must match federated credential
+2. **Azure AD propagation takes time** - Wait 30 seconds after SP creation
+3. **Tests must pass before deployment** - This is by design for safety
+4. **Federated credentials are per-branch AND per-environment** - Need both types
+5. **automation-oidc.sh script automates entire setup** - Use this for new tenants

@@ -22,6 +22,7 @@ dependencies = [
     "azure-cosmos>=4.7.0",
     "azure-storage-blob>=12.23.0",
     "azure-monitor-ingestion>=1.0.4",
+    "azure-mgmt-resourcegraph>=8.0.0",
     "msgraph-sdk>=1.0.0",
     "pydantic>=2.10.0",
     "pydantic-settings>=2.6.0",
@@ -43,6 +44,9 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build]
+packages = ["src/azure_haymaker"]
 
 [tool.ruff]
 line-length = 100
@@ -84,9 +88,14 @@ exclude = ["src/agents"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
 addopts = [
     "--strict-markers",
     "--strict-config",

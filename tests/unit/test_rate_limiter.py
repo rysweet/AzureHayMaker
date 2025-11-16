@@ -1,12 +1,12 @@
 """Unit tests for rate limiter module."""
 
-import pytest
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
+import pytest
 from azure.core.exceptions import ResourceNotFoundError
 
-from azure_haymaker.orchestrator.rate_limiter import RateLimiter, RateLimitResult
+from azure_haymaker.orchestrator.rate_limiter import RateLimiter
 
 
 @pytest.fixture
@@ -26,7 +26,7 @@ async def test_check_rate_limit_first_request(rate_limiter, mock_table_client):
     """Test first request within window (should be allowed)."""
     # Mock: no existing record
     mock_table_client.get_entity.side_effect = ResourceNotFoundError("Not found")
-    mock_table_client.upsert_entity = AsyncMock()
+    mock_table_client.create_entity = AsyncMock()
 
     result = await rate_limiter.check_rate_limit(
         limit_type="global",
@@ -41,7 +41,7 @@ async def test_check_rate_limit_first_request(rate_limiter, mock_table_client):
     assert result.limit == 10
 
     # Verify entity was created
-    mock_table_client.upsert_entity.assert_called_once()
+    mock_table_client.create_entity.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -268,9 +268,9 @@ async def test_check_rate_limit_storage_failure(rate_limiter, mock_table_client)
 @pytest.mark.asyncio
 async def test_different_limit_types(rate_limiter, mock_table_client):
     """Test different limit types have separate counters."""
-    now = datetime.now(UTC)
+    datetime.now(UTC)
     mock_table_client.get_entity.side_effect = ResourceNotFoundError("Not found")
-    mock_table_client.upsert_entity = AsyncMock()
+    mock_table_client.create_entity = AsyncMock()
 
     # Check global limit
     result1 = await rate_limiter.check_rate_limit(
@@ -293,6 +293,6 @@ async def test_different_limit_types(rate_limiter, mock_table_client):
     assert result2.allowed is True
 
     # Verify separate partition keys were used
-    calls = mock_table_client.upsert_entity.call_args_list
+    calls = mock_table_client.create_entity.call_args_list
     assert calls[0][1]["entity"]["PartitionKey"] == "global"
     assert calls[1][1]["entity"]["PartitionKey"] == "scenario"
