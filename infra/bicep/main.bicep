@@ -121,7 +121,8 @@ module keyVault 'modules/keyvault.bicep' = {
 }
 
 // Cosmos DB
-module cosmosDb 'modules/cosmosdb.bicep' = {
+// Cosmos DB (Optional for dev - region capacity limitations)
+module cosmosDb 'modules/cosmosdb.bicep' = if (environment != 'dev') {
   scope: resourceGroup
   name: 'cosmosDb-${uniqueSuffix}'
   params: {
@@ -131,7 +132,7 @@ module cosmosDb 'modules/cosmosdb.bicep' = {
     databaseName: 'haymaker'
     metricsContainerName: 'metrics'
     runsContainerName: 'runs'
-    throughput: environment == 'prod' ? 400 : 0 // Serverless for dev/staging
+    throughput: environment == 'prod' ? 400 : 0 // Serverless for staging
   }
 }
 
@@ -148,15 +149,15 @@ module containerAppsEnv 'modules/container-apps-env.bicep' = {
   }
 }
 
-// Container Registry
-module containerRegistry 'modules/container-registry.bicep' = {
+// Container Registry (Optional for dev - SKU limitations in some subscriptions)
+module containerRegistry 'modules/container-registry.bicep' = if (environment != 'dev') {
   scope: resourceGroup
   name: 'containerRegistry-${uniqueSuffix}'
   params: {
     registryName: containerRegistryName
     location: location
     tags: commonTags
-    sku: environment == 'prod' ? 'Premium' : 'Premium'  // Basic and Standard not supported in some subscriptions
+    sku: 'Premium'
     adminUserEnabled: true
   }
 }
