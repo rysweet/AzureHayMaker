@@ -33,8 +33,8 @@ param adminObjectIds array = []
 param githubOidcClientId string = ''
 
 // Variables
-var resourceGroupName = '${namingPrefix}-${environment}-rg'
-var uniqueSuffix = uniqueString(subscription().id, resourceGroupName)
+var uniqueSuffix = uniqueString(subscription().id, namingPrefix, environment)
+var resourceGroupName = '${namingPrefix}-${environment}-${take(uniqueSuffix, 6)}-rg'
 var commonTags = {
   Environment: environment
   ManagedBy: 'Bicep'
