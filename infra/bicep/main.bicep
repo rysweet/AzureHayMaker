@@ -33,7 +33,10 @@ param adminObjectIds array = []
 param githubOidcClientId string = ''
 
 // Variables
-var uniqueSuffix = uniqueString(subscription().id, namingPrefix, environment)
+@description('Deployment timestamp for unique resource names')
+param deploymentTimestamp string = utcNow('yyyyMMddHHmmss')
+
+var uniqueSuffix = uniqueString(subscription().id, namingPrefix, environment, deploymentTimestamp)
 var resourceGroupName = '${namingPrefix}-${environment}-${take(uniqueSuffix, 6)}-rg'
 var commonTags = {
   Environment: environment
