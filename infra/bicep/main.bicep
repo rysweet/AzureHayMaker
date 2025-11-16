@@ -156,7 +156,7 @@ module containerRegistry 'modules/container-registry.bicep' = {
     registryName: containerRegistryName
     location: location
     tags: commonTags
-    sku: 'Standard'  // Basic SKU not supported in some subscriptions
+    sku: environment == 'prod' ? 'Premium' : 'Premium'  // Basic and Standard not supported in some subscriptions
     adminUserEnabled: true
   }
 }
