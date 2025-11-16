@@ -48,14 +48,14 @@ param environment string
 param pythonVersion string = '3.13'
 
 // App Service Plan
-// Note: Using FlexConsumption (FC1) for dev to avoid VM quota issues
+// Note: Using Standard (S1) for dev - most subscriptions have this quota
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
   name: appServicePlanName
   location: location
   tags: tags
   sku: {
-    name: environment == 'prod' ? 'EP1' : 'FC1' // Elastic Premium for prod, FlexConsumption for dev (no VM quota)
-    tier: environment == 'prod' ? 'ElasticPremium' : 'FlexConsumption'
+    name: environment == 'prod' ? 'EP1' : 'S1' // Elastic Premium for prod, Standard for dev
+    tier: environment == 'prod' ? 'ElasticPremium' : 'Standard'
   }
   kind: 'linux'
   properties: {
