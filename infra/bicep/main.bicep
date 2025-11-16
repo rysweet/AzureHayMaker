@@ -45,7 +45,7 @@ var commonTags = {
 // Resource names with environment suffix
 var logAnalyticsName = '${namingPrefix}-${environment}-logs'
 var storageAccountName = toLower('${namingPrefix}${environment}${take(uniqueSuffix, 6)}')
-var serviceBusName = '${namingPrefix}-${environment}-sb'
+var serviceBusName = '${namingPrefix}-${environment}-bus'
 var keyVaultName = '${namingPrefix}-${environment}-kv'
 var cosmosDbName = '${namingPrefix}-${environment}-cosmos'
 var containerAppsEnvName = '${namingPrefix}-${environment}-cae'
