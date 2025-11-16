@@ -42,15 +42,15 @@ var commonTags = {
   DeployedBy: 'GitHubActions'
 }
 
-// Resource names with environment suffix
+// Resource names with environment suffix and unique identifiers for globally unique resources
 var logAnalyticsName = '${namingPrefix}-${environment}-logs'
 var storageAccountName = toLower('${namingPrefix}${environment}${take(uniqueSuffix, 6)}')
-var serviceBusName = '${namingPrefix}-${environment}-bus'
-var keyVaultName = '${namingPrefix}-${environment}-kv'
-var cosmosDbName = '${namingPrefix}-${environment}-cosmos'
+var serviceBusName = '${namingPrefix}-${environment}-${take(uniqueSuffix, 6)}-bus'
+var keyVaultName = '${namingPrefix}-${environment}-${take(uniqueSuffix, 6)}-kv'
+var cosmosDbName = '${namingPrefix}-${environment}-${take(uniqueSuffix, 6)}-cosmos'
 var containerAppsEnvName = '${namingPrefix}-${environment}-cae'
-var containerRegistryName = toLower('${namingPrefix}${environment}acr')
-var functionAppName = '${namingPrefix}-${environment}-func'
+var containerRegistryName = toLower('${namingPrefix}${environment}${take(uniqueSuffix, 6)}acr')
+var functionAppName = '${namingPrefix}-${environment}-${take(uniqueSuffix, 6)}-func'
 var appServicePlanName = '${namingPrefix}-${environment}-plan'
 
 // Resource Group
