@@ -102,7 +102,11 @@ jobs:
         run: |
           echo "Deploying infrastructure to dev environment..."
 
+          DEPLOYMENT_NAME="haymaker-dev-$(date +%Y%m%d-%H%M%S)"
+          echo "Deployment name: $DEPLOYMENT_NAME"
+
           DEPLOYMENT_OUTPUT=$(az deployment sub create \
+            --name "$DEPLOYMENT_NAME" \
             --location ${{ env.AZURE_REGION }} \
             --template-file infra/bicep/main.bicep \
             --parameters infra/bicep/parameters/dev.bicepparam \
