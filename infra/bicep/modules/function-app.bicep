@@ -53,8 +53,8 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
   location: location
   tags: tags
   sku: {
-    name: environment == 'prod' ? 'EP1' : 'Y1' // Elastic Premium for prod, Consumption for dev/staging
-    tier: environment == 'prod' ? 'ElasticPremium' : 'Dynamic'
+    name: environment == 'prod' ? 'EP1' : 'B1' // Elastic Premium for prod, Basic for dev/staging (avoids quota issues)
+    tier: environment == 'prod' ? 'ElasticPremium' : 'Basic'
   }
   kind: 'linux'
   properties: {
