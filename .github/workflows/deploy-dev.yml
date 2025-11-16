@@ -102,10 +102,20 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Create resource group
+        run: |
+          RG_NAME="haymaker-dev-rg"
+          echo "Creating resource group: $RG_NAME in ${{ env.AZURE_REGION }}"
+          az group create \
+            --name "$RG_NAME" \
+            --location ${{ env.AZURE_REGION }} \
+            --tags Environment=dev ManagedBy=GitHubActions Project=AzureHayMaker || echo "Resource group may already exist"
+
       - name: Deploy Bicep infrastructure
         id: deploy
         run: |
           echo "Deploying infrastructure to dev environment..."
+          RG_NAME="haymaker-dev-rg"
 
           # Get the Object ID for the service principal (required for RBAC)
           echo "Looking up Service Principal Object ID..."
@@ -115,9 +125,9 @@ jobs:
           DEPLOYMENT_NAME="haymaker-dev-$(date +%Y%m%d-%H%M%S)"
           echo "Deployment name: $DEPLOYMENT_NAME"
 
-          DEPLOYMENT_OUTPUT=$(az deployment sub create \
+          DEPLOYMENT_OUTPUT=$(az deployment group create \
             --name "$DEPLOYMENT_NAME" \
-            --location ${{ env.AZURE_REGION }} \
+            --resource-group "$RG_NAME" \
             --template-file infra/bicep/main.bicep \
             --parameters infra/bicep/parameters/dev.bicepparam \
             --parameters adminObjectIds="['$SP_OBJECT_ID']" \
