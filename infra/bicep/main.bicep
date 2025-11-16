@@ -66,7 +66,6 @@ resource resourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
 // Log Analytics Workspace
 module logAnalytics 'modules/log-analytics.bicep' = {
   scope: resourceGroup
-  dependsOn: [resourceGroup]
   name: 'logAnalytics-${uniqueSuffix}'
   params: {
     workspaceName: logAnalyticsName
@@ -176,7 +175,7 @@ module functionApp 'modules/function-app.bicep' = {
     appInsightsConnectionString: logAnalytics.outputs.workspaceId
     keyVaultUri: keyVault.outputs.keyVaultUri
     serviceBusConnectionString: serviceBus.outputs.connectionString
-    cosmosDbConnectionString: cosmosDb.outputs.connectionString
+    cosmosDbConnectionString: environment != 'dev' ? cosmosDb.outputs.connectionString : ''
     tenantId: tenantId
     subscriptionId: subscriptionId
     clientId: githubOidcClientId
@@ -207,8 +206,8 @@ module functionAppStorageRole 'modules/role-assignment.bicep' = {
   }
 }
 
-// Grant Function App access to Cosmos DB (via module to match scope)
-module functionAppCosmosRole 'modules/role-assignment.bicep' = {
+// Grant Function App access to Cosmos DB (via module to match scope) - only if Cosmos DB is deployed
+module functionAppCosmosRole 'modules/role-assignment.bicep' = if (environment != 'dev') {
   scope: resourceGroup
   name: 'functionAppCosmosRole-${uniqueSuffix}'
   params: {
@@ -230,11 +229,11 @@ output storageAccountName string = storage.outputs.storageAccountName
 output serviceBusNamespace string = serviceBus.outputs.namespaceName
 output keyVaultName string = keyVault.outputs.keyVaultName
 output keyVaultUri string = keyVault.outputs.keyVaultUri
-output cosmosDbEndpoint string = cosmosDb.outputs.endpoint
-output cosmosDbDatabaseName string = cosmosDb.outputs.databaseName
+output cosmosDbEndpoint string = environment != 'dev' ? cosmosDb.outputs.endpoint : ''
+output cosmosDbDatabaseName string = environment != 'dev' ? cosmosDb.outputs.databaseName : ''
 output containerAppsEnvironmentName string = containerAppsEnv.outputs.environmentName
-output containerRegistryName string = containerRegistry.outputs.registryName
-output containerRegistryLoginServer string = containerRegistry.outputs.loginServer
+output containerRegistryName string = environment != 'dev' ? containerRegistry.outputs.registryName : ''
+output containerRegistryLoginServer string = environment != 'dev' ? containerRegistry.outputs.loginServer : ''
 
 // Function App outputs
 output functionAppName string = functionApp.outputs.functionAppName

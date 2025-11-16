@@ -6,7 +6,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.35.1.17967",
-      "templateHash": "3943670479825520902"
+      "templateHash": "12596935279064241484"
     }
   },
   "parameters": {
@@ -64,11 +64,18 @@
       "metadata": {
         "description": "Client ID for GitHub OIDC authentication"
       }
+    },
+    "deploymentTimestamp": {
+      "type": "string",
+      "defaultValue": "[utcNow('yyyyMMddHHmmss')]",
+      "metadata": {
+        "description": "Deployment timestamp for unique resource names"
+      }
     }
   },
   "variables": {
-    "resourceGroupName": "[format('{0}-{1}-rg', parameters('namingPrefix'), parameters('environment'))]",
-    "uniqueSuffix": "[uniqueString(subscription().id, variables('resourceGroupName'))]",
+    "uniqueSuffix": "[uniqueString(subscription().id, parameters('namingPrefix'), parameters('environment'), parameters('deploymentTimestamp'))]",
+    "resourceGroupName": "[format('{0}-{1}-{2}-rg', parameters('namingPrefix'), parameters('environment'), take(variables('uniqueSuffix'), 6))]",
     "commonTags": {
       "Environment": "[parameters('environment')]",
       "ManagedBy": "Bicep",
@@ -77,12 +84,12 @@
     },
     "logAnalyticsName": "[format('{0}-{1}-logs', parameters('namingPrefix'), parameters('environment'))]",
     "storageAccountName": "[toLower(format('{0}{1}{2}', parameters('namingPrefix'), parameters('environment'), take(variables('uniqueSuffix'), 6)))]",
-    "serviceBusName": "[format('{0}-{1}-sb', parameters('namingPrefix'), parameters('environment'))]",
-    "keyVaultName": "[format('{0}-{1}-kv', parameters('namingPrefix'), parameters('environment'))]",
-    "cosmosDbName": "[format('{0}-{1}-cosmos', parameters('namingPrefix'), parameters('environment'))]",
+    "serviceBusName": "[format('{0}-{1}-{2}-bus', parameters('namingPrefix'), parameters('environment'), take(variables('uniqueSuffix'), 6))]",
+    "keyVaultName": "[format('{0}-{1}-{2}-kv', parameters('namingPrefix'), parameters('environment'), take(variables('uniqueSuffix'), 6))]",
+    "cosmosDbName": "[format('{0}-{1}-{2}-cosmos', parameters('namingPrefix'), parameters('environment'), take(variables('uniqueSuffix'), 6))]",
     "containerAppsEnvName": "[format('{0}-{1}-cae', parameters('namingPrefix'), parameters('environment'))]",
-    "containerRegistryName": "[toLower(format('{0}{1}acr', parameters('namingPrefix'), parameters('environment')))]",
-    "functionAppName": "[format('{0}-{1}-func', parameters('namingPrefix'), parameters('environment'))]",
+    "containerRegistryName": "[toLower(format('{0}{1}{2}acr', parameters('namingPrefix'), parameters('environment'), take(variables('uniqueSuffix'), 6)))]",
+    "functionAppName": "[format('{0}-{1}-{2}-func', parameters('namingPrefix'), parameters('environment'), take(variables('uniqueSuffix'), 6))]",
     "appServicePlanName": "[format('{0}-{1}-plan', parameters('namingPrefix'), parameters('environment'))]"
   },
   "resources": {
@@ -96,7 +103,7 @@
     "logAnalytics": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "logAnalytics-deployment",
+      "name": "[format('logAnalytics-{0}', variables('uniqueSuffix'))]",
       "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -221,7 +228,7 @@
     "storage": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "storage-deployment",
+      "name": "[format('storage-{0}', variables('uniqueSuffix'))]",
       "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -442,7 +449,7 @@
     "serviceBus": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "serviceBus-deployment",
+      "name": "[format('serviceBus-{0}', variables('uniqueSuffix'))]",
       "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -630,7 +637,7 @@
     "keyVault": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "keyVault-deployment",
+      "name": "[format('keyVault-{0}', variables('uniqueSuffix'))]",
       "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -670,7 +677,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.35.1.17967",
-              "templateHash": "16499709009931304941"
+              "templateHash": "824905415098631538"
             }
           },
           "parameters": {
@@ -718,18 +725,39 @@
             },
             "softDeleteRetentionInDays": {
               "type": "int",
-              "defaultValue": 7,
+              "defaultValue": 30,
               "minValue": 7,
               "maxValue": 90,
               "metadata": {
-                "description": "Soft delete retention days"
+                "description": "Soft delete retention days (minimum 30 days recommended for production)"
               }
             },
             "enablePurgeProtection": {
               "type": "bool",
-              "defaultValue": false,
+              "defaultValue": true,
               "metadata": {
                 "description": "Enable purge protection"
+              }
+            },
+            "publicNetworkAccess": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Allow public network access (set to false for production)"
+              }
+            },
+            "allowedIpAddresses": {
+              "type": "array",
+              "defaultValue": [],
+              "metadata": {
+                "description": "Allowed IP addresses for Key Vault access"
+              }
+            },
+            "allowedSubnetIds": {
+              "type": "array",
+              "defaultValue": [],
+              "metadata": {
+                "description": "Allowed VNet subnet resource IDs"
               }
             }
           },
@@ -753,10 +781,27 @@
                 "softDeleteRetentionInDays": "[parameters('softDeleteRetentionInDays')]",
                 "enablePurgeProtection": "[if(parameters('enablePurgeProtection'), true(), null())]",
                 "enableRbacAuthorization": true,
-                "publicNetworkAccess": "Enabled",
+                "publicNetworkAccess": "[if(parameters('publicNetworkAccess'), 'Enabled', 'Disabled')]",
                 "networkAcls": {
+                  "copy": [
+                    {
+                      "name": "ipRules",
+                      "count": "[length(parameters('allowedIpAddresses'))]",
+                      "input": {
+                        "value": "[parameters('allowedIpAddresses')[copyIndex('ipRules')]]"
+                      }
+                    },
+                    {
+                      "name": "virtualNetworkRules",
+                      "count": "[length(parameters('allowedSubnetIds'))]",
+                      "input": {
+                        "id": "[parameters('allowedSubnetIds')[copyIndex('virtualNetworkRules')]]",
+                        "ignoreMissingVnetServiceEndpoint": false
+                      }
+                    }
+                  ],
                   "bypass": "AzureServices",
-                  "defaultAction": "Allow"
+                  "defaultAction": "Deny"
                 }
               }
             },
@@ -800,9 +845,10 @@
       ]
     },
     "cosmosDb": {
+      "condition": "[not(equals(parameters('environment'), 'dev'))]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "cosmosDb-deployment",
+      "name": "[format('cosmosDb-{0}', variables('uniqueSuffix'))]",
       "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -1043,7 +1089,7 @@
     "containerAppsEnv": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "containerAppsEnv-deployment",
+      "name": "[format('containerAppsEnv-{0}', variables('uniqueSuffix'))]",
       "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -1162,9 +1208,10 @@
       ]
     },
     "containerRegistry": {
+      "condition": "[not(equals(parameters('environment'), 'dev'))]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "containerRegistry-deployment",
+      "name": "[format('containerRegistry-{0}', variables('uniqueSuffix'))]",
       "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -1181,7 +1228,9 @@
           "tags": {
             "value": "[variables('commonTags')]"
           },
-          "sku": "[if(equals(parameters('environment'), 'prod'), createObject('value', 'Standard'), createObject('value', 'Basic'))]",
+          "sku": {
+            "value": "Premium"
+          },
           "adminUserEnabled": {
             "value": true
           }
@@ -1194,7 +1243,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.35.1.17967",
-              "templateHash": "17758766289454037685"
+              "templateHash": "4745987538266462100"
             }
           },
           "parameters": {
@@ -1222,7 +1271,7 @@
             },
             "sku": {
               "type": "string",
-              "defaultValue": "Basic",
+              "defaultValue": "Premium",
               "allowedValues": [
                 "Basic",
                 "Standard",
@@ -1304,7 +1353,7 @@
     "functionApp": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "functionApp-deployment",
+      "name": "[format('functionApp-{0}', variables('uniqueSuffix'))]",
       "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -1336,9 +1385,7 @@
           "serviceBusConnectionString": {
             "value": "[reference('serviceBus').outputs.connectionString.value]"
           },
-          "cosmosDbConnectionString": {
-            "value": "[reference('cosmosDb').outputs.connectionString.value]"
-          },
+          "cosmosDbConnectionString": "[if(not(equals(parameters('environment'), 'dev')), createObject('value', reference('cosmosDb').outputs.connectionString.value), createObject('value', ''))]",
           "tenantId": {
             "value": "[parameters('tenantId')]"
           },
@@ -1619,7 +1666,7 @@
     "functionAppKeyVaultRole": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "functionAppKeyVaultRole-deployment",
+      "name": "[format('functionAppKeyVaultRole-{0}', variables('uniqueSuffix'))]",
       "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -1705,7 +1752,7 @@
     "functionAppStorageRole": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "functionAppStorageRole-deployment",
+      "name": "[format('functionAppStorageRole-{0}', variables('uniqueSuffix'))]",
       "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -1789,9 +1836,10 @@
       ]
     },
     "functionAppCosmosRole": {
+      "condition": "[not(equals(parameters('environment'), 'dev'))]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "functionAppCosmosRole-deployment",
+      "name": "[format('functionAppCosmosRole-{0}', variables('uniqueSuffix'))]",
       "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -1914,11 +1962,11 @@
     },
     "cosmosDbEndpoint": {
       "type": "string",
-      "value": "[reference('cosmosDb').outputs.endpoint.value]"
+      "value": "[if(not(equals(parameters('environment'), 'dev')), reference('cosmosDb').outputs.endpoint.value, '')]"
     },
     "cosmosDbDatabaseName": {
       "type": "string",
-      "value": "[reference('cosmosDb').outputs.databaseName.value]"
+      "value": "[if(not(equals(parameters('environment'), 'dev')), reference('cosmosDb').outputs.databaseName.value, '')]"
     },
     "containerAppsEnvironmentName": {
       "type": "string",
@@ -1926,11 +1974,11 @@
     },
     "containerRegistryName": {
       "type": "string",
-      "value": "[reference('containerRegistry').outputs.registryName.value]"
+      "value": "[if(not(equals(parameters('environment'), 'dev')), reference('containerRegistry').outputs.registryName.value, '')]"
     },
     "containerRegistryLoginServer": {
       "type": "string",
-      "value": "[reference('containerRegistry').outputs.loginServer.value]"
+      "value": "[if(not(equals(parameters('environment'), 'dev')), reference('containerRegistry').outputs.loginServer.value, '')]"
     },
     "functionAppName": {
       "type": "string",
