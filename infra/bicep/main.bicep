@@ -207,8 +207,8 @@ module functionAppCosmosRole 'modules/role-assignment.bicep' = if (environment !
 }
 
 // Outputs
-output resourceGroupName string = resourceGroup.name
-output location string = location
+output resourceGroupName string = resourceGroup().name
+output location string = resourceGroup().location
 output environment string = environment
 
 // Infrastructure outputs
