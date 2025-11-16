@@ -141,6 +141,30 @@ jobs:
 
           echo "Deployment complete. Resource details masked for security."
 
+      - name: Grant Key Vault Secrets Officer role
+        run: |
+          echo "Ensuring service principal has Key Vault Secrets Officer role..."
+
+          # Get the Object ID again
+          SP_OBJECT_ID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)
+
+          # Get Key Vault resource ID
+          KEY_VAULT_ID=$(az keyvault show \
+            --name ${{ steps.deploy.outputs.keyVaultName }} \
+            --query id -o tsv)
+
+          # Grant Key Vault Secrets Officer role (if not already assigned)
+          # Role: Key Vault Secrets Officer (b86a8fe4-44ce-4948-aee5-eccb2c155cd7)
+          echo "Assigning Key Vault Secrets Officer role to SP..."
+          az role assignment create \
+            --role "b86a8fe4-44ce-4948-aee5-eccb2c155cd7" \
+            --assignee-object-id "$SP_OBJECT_ID" \
+            --assignee-principal-type ServicePrincipal \
+            --scope "$KEY_VAULT_ID" \
+            --output none 2>/dev/null || echo "Role may already be assigned"
+
+          echo "Role assignment complete"
+
       - name: Inject secrets to Key Vault
         run: |
           echo "Injecting secrets to Key Vault: ${{ steps.deploy.outputs.keyVaultName }}"
