@@ -69,8 +69,9 @@ async def publish_event(
     """
     client: ServiceBusClient | None = None
     try:
-        client = ServiceBusClient.from_connection_string(connection_string)
-        sender = client.get_topic_sender(topic_name)
+        sb_client = ServiceBusClient.from_connection_string(connection_string)
+        client = sb_client
+        sender = sb_client.get_topic_sender(topic_name)
 
         # Serialize event to JSON
         event_json = json.dumps(event, default=str)
@@ -120,13 +121,14 @@ async def subscribe_to_agent_logs(
     """
     client: ServiceBusClient | None = None
     try:
-        client = ServiceBusClient.from_connection_string(connection_string)
-        receiver = client.get_subscription_receiver(topic_name, subscription_name)
+        sb_client = ServiceBusClient.from_connection_string(connection_string)
+        client = sb_client
+        receiver = sb_client.get_subscription_receiver(topic_name, subscription_name)
 
         # Receive messages
         messages = receiver.receive_messages(max_wait_time=max_wait_time)
 
-        for message in messages:
+        for message in messages:  # type: ignore[misc]  # Azure ServiceBus async iteration - requires refactor to async SDK
             try:
                 # Parse message body
                 message_data = json.loads(message.body.decode("utf-8"))

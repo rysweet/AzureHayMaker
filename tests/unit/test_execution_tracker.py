@@ -1,14 +1,35 @@
 """Unit tests for execution tracker module."""
 
 import json
-import pytest
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from azure.core.exceptions import ResourceNotFoundError
 
 from azure_haymaker.models.execution import OnDemandExecutionStatus
 from azure_haymaker.orchestrator.execution_tracker import ExecutionTracker
+
+
+def async_iterator(items):
+    """Helper to create an async iterator from a list."""
+
+    class AsyncIterator:
+        def __init__(self, items):
+            self.items = items
+            self.index = 0
+
+        def __aiter__(self):
+            return self
+
+        async def __anext__(self):
+            if self.index >= len(self.items):
+                raise StopAsyncIteration
+            item = self.items[self.index]
+            self.index += 1
+            return item
+
+    return AsyncIterator(items)
 
 
 @pytest.fixture
@@ -54,7 +75,7 @@ async def test_create_execution_defaults(execution_tracker, mock_table_client):
     """Test creating execution with default values."""
     mock_table_client.create_entity = AsyncMock()
 
-    execution_id = await execution_tracker.create_execution(
+    await execution_tracker.create_execution(
         scenarios=["compute-01"],
     )
 
@@ -72,18 +93,21 @@ async def test_update_status_to_running(execution_tracker, mock_table_client):
     now = datetime.now(UTC)
 
     # Mock get_latest_record
-    mock_table_client.query_entities = AsyncMock()
-    mock_table_client.query_entities.return_value = [
-        {
-            "PartitionKey": execution_id,
-            "RowKey": now.isoformat(),
-            "Status": "queued",
-            "Scenarios": json.dumps(["compute-01"]),
-            "DurationHours": 8,
-            "Tags": json.dumps({}),
-            "CreatedAt": now.isoformat(),
-        }
-    ]
+    mock_table_client.query_entities = MagicMock(
+        return_value=async_iterator(
+            [
+                {
+                    "PartitionKey": execution_id,
+                    "RowKey": now.isoformat(),
+                    "Status": "queued",
+                    "Scenarios": json.dumps(["compute-01"]),
+                    "DurationHours": 8,
+                    "Tags": json.dumps({}),
+                    "CreatedAt": now.isoformat(),
+                }
+            ]
+        )
+    )
     mock_table_client.create_entity = AsyncMock()
 
     await execution_tracker.update_status(
@@ -107,18 +131,21 @@ async def test_update_status_to_completed(execution_tracker, mock_table_client):
     execution_id = "exec-20251115-abc123"
     now = datetime.now(UTC)
 
-    mock_table_client.query_entities = AsyncMock()
-    mock_table_client.query_entities.return_value = [
-        {
-            "PartitionKey": execution_id,
-            "RowKey": now.isoformat(),
-            "Status": "running",
-            "Scenarios": json.dumps(["compute-01"]),
-            "DurationHours": 8,
-            "Tags": json.dumps({}),
-            "CreatedAt": now.isoformat(),
-        }
-    ]
+    mock_table_client.query_entities = MagicMock(
+        return_value=async_iterator(
+            [
+                {
+                    "PartitionKey": execution_id,
+                    "RowKey": now.isoformat(),
+                    "Status": "running",
+                    "Scenarios": json.dumps(["compute-01"]),
+                    "DurationHours": 8,
+                    "Tags": json.dumps({}),
+                    "CreatedAt": now.isoformat(),
+                }
+            ]
+        )
+    )
     mock_table_client.create_entity = AsyncMock()
 
     await execution_tracker.update_status(
@@ -143,18 +170,21 @@ async def test_update_status_to_failed(execution_tracker, mock_table_client):
     execution_id = "exec-20251115-abc123"
     now = datetime.now(UTC)
 
-    mock_table_client.query_entities = AsyncMock()
-    mock_table_client.query_entities.return_value = [
-        {
-            "PartitionKey": execution_id,
-            "RowKey": now.isoformat(),
-            "Status": "running",
-            "Scenarios": json.dumps(["compute-01"]),
-            "DurationHours": 8,
-            "Tags": json.dumps({}),
-            "CreatedAt": now.isoformat(),
-        }
-    ]
+    mock_table_client.query_entities = MagicMock(
+        return_value=async_iterator(
+            [
+                {
+                    "PartitionKey": execution_id,
+                    "RowKey": now.isoformat(),
+                    "Status": "running",
+                    "Scenarios": json.dumps(["compute-01"]),
+                    "DurationHours": 8,
+                    "Tags": json.dumps({}),
+                    "CreatedAt": now.isoformat(),
+                }
+            ]
+        )
+    )
     mock_table_client.create_entity = AsyncMock()
 
     await execution_tracker.update_status(
@@ -192,11 +222,7 @@ async def test_get_latest_record(execution_tracker, mock_table_client):
         },
     ]
 
-    async def mock_query_entities(query):
-        for entity in mock_entities:
-            yield entity
-
-    mock_table_client.query_entities.return_value = mock_query_entities(None)
+    mock_table_client.query_entities = MagicMock(return_value=async_iterator(mock_entities))
 
     record = await execution_tracker.get_latest_record(execution_id)
 
@@ -209,11 +235,7 @@ async def test_get_latest_record(execution_tracker, mock_table_client):
 async def test_get_latest_record_not_found(execution_tracker, mock_table_client):
     """Test getting record that doesn't exist."""
 
-    async def mock_query_entities(query):
-        return
-        yield  # Make it an async generator
-
-    mock_table_client.query_entities.return_value = mock_query_entities(None)
+    mock_table_client.query_entities = MagicMock(return_value=async_iterator([]))
 
     with pytest.raises(ResourceNotFoundError):
         await execution_tracker.get_latest_record("exec-nonexistent")
@@ -237,10 +259,7 @@ async def test_get_execution_status(execution_tracker, mock_table_client):
         "StartedAt": now.isoformat(),
     }
 
-    async def mock_query_entities(query):
-        yield mock_entity
-
-    mock_table_client.query_entities.return_value = mock_query_entities(None)
+    mock_table_client.query_entities = MagicMock(return_value=async_iterator([mock_entity]))
 
     status = await execution_tracker.get_execution_status(execution_id)
 
@@ -273,10 +292,7 @@ async def test_get_execution_status_completed(execution_tracker, mock_table_clie
         "ReportUrl": "https://storage/report.json",
     }
 
-    async def mock_query_entities(query):
-        yield mock_entity
-
-    mock_table_client.query_entities.return_value = mock_query_entities(None)
+    mock_table_client.query_entities = MagicMock(return_value=async_iterator([mock_entity]))
 
     status = await execution_tracker.get_execution_status(execution_id)
 
@@ -312,11 +328,7 @@ async def test_list_executions(execution_tracker, mock_table_client):
         },
     ]
 
-    async def mock_query_entities(query):
-        for entity in mock_entities:
-            yield entity
-
-    mock_table_client.query_entities.return_value = mock_query_entities(None)
+    mock_table_client.query_entities = MagicMock(return_value=async_iterator(mock_entities))
 
     # Mock get_execution_status to return simple responses
     async def mock_get_status(execution_id):
@@ -349,12 +361,12 @@ async def test_list_executions_filter_by_status(execution_tracker, mock_table_cl
         },
     ]
 
-    async def mock_query_entities(query):
+    def mock_query_entities(**kwargs):
+        query = kwargs.get("query_filter", "")
         assert "Status eq 'running'" in query
-        for entity in mock_entities:
-            yield entity
+        return async_iterator(mock_entities)
 
-    mock_table_client.query_entities.return_value = mock_query_entities(None)
+    mock_table_client.query_entities = MagicMock(side_effect=mock_query_entities)
 
     async def mock_get_status(execution_id):
         return MagicMock(execution_id=execution_id, created_at=now)
@@ -373,7 +385,7 @@ async def test_list_executions_filter_by_status(execution_tracker, mock_table_cl
 async def test_delete_execution(execution_tracker, mock_table_client):
     """Test deleting execution records."""
     execution_id = "exec-20251115-abc123"
-    now = datetime.now(UTC)
+    datetime.now(UTC)
 
     mock_entities = [
         {
@@ -386,11 +398,7 @@ async def test_delete_execution(execution_tracker, mock_table_client):
         },
     ]
 
-    async def mock_query_entities(query):
-        for entity in mock_entities:
-            yield entity
-
-    mock_table_client.query_entities.return_value = mock_query_entities(None)
+    mock_table_client.query_entities = MagicMock(return_value=async_iterator(mock_entities))
     mock_table_client.delete_entity = AsyncMock()
 
     await execution_tracker.delete_execution(execution_id)

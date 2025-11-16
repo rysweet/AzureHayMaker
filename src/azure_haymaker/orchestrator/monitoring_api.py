@@ -16,6 +16,7 @@ Architecture: specs/architecture.md
 import json
 import logging
 import uuid
+from typing import Any
 
 import azure.functions as func
 from azure.core.exceptions import ResourceNotFoundError
@@ -147,7 +148,7 @@ def create_error_response(error: APIError, trace_id: str | None = None) -> func.
     if trace_id is None:
         trace_id = str(uuid.uuid4())
 
-    error_body = {
+    error_body: dict[str, Any] = {
         "error": {
             "code": error.code,
             "message": error.message,
@@ -157,12 +158,12 @@ def create_error_response(error: APIError, trace_id: str | None = None) -> func.
 
     # Add parameter details if available
     if isinstance(error, InvalidParameterError):
-        error_body["error"]["details"] = {
+        error_body["error"]["details"] = {  # type: ignore[index]
             "parameter": error.parameter,
         }
 
     if isinstance(error, RunNotFoundError):
-        error_body["error"]["details"] = {
+        error_body["error"]["details"] = {  # type: ignore[index]
             "run_id": error.run_id,
         }
 
@@ -184,7 +185,7 @@ def create_error_response(error: APIError, trace_id: str | None = None) -> func.
 
 async def read_blob_json(
     blob_client: BlobServiceClient, container: str, blob_name: str
-) -> dict[str, object]:
+) -> dict[str, Any]:
     """
     Read and parse JSON from blob storage.
 
@@ -205,24 +206,26 @@ async def read_blob_json(
         download_stream = blob.download_blob()
 
         # Handle both sync and async download
-        if hasattr(download_stream, "readall"):
-            # Async case
-            if callable(download_stream.readall):
-                data_result = download_stream.readall()
-                # Check if it's a coroutine
-                if hasattr(data_result, "__await__"):
-                    data = await data_result
-                else:
-                    data = data_result
+        if hasattr(download_stream, "readall") and callable(download_stream.readall):
+            # Try async first
+            data_result = download_stream.readall()
+            # Check if it's a coroutine
+            import inspect
+
+            if inspect.iscoroutine(data_result):
+                data = await data_result  # type: ignore[misc]  # Azure Log Analytics SDK sync/async issue
             else:
-                data = await download_stream.readall()
+                data = data_result
         else:
             # Fallback for sync API
             data = download_stream.readall()
 
         if isinstance(data, str):
-            data = data.encode("utf-8")
-        return json.loads(data.decode("utf-8"))
+            return json.loads(data)
+        elif isinstance(data, bytes):
+            return json.loads(data.decode("utf-8"))
+        else:
+            raise TypeError(f"Unexpected data type: {type(data)}")
     except ResourceNotFoundError:
         raise
     except json.JSONDecodeError as e:
@@ -365,6 +368,7 @@ async def get_run_details(
         - Response 500: InternalServerError schema
     """
     trace_id = str(uuid.uuid4())
+    run_id: str | None = None
 
     try:
         # Extract and validate run_id from path
@@ -411,7 +415,7 @@ async def get_run_details(
 
     except ResourceNotFoundError:
         logger.info(f"Run not found: {run_id}")
-        run_error = RunNotFoundError(run_id)
+        run_error = RunNotFoundError(run_id or "unknown")
         return create_error_response(run_error, trace_id)
 
     except json.JSONDecodeError as e:
@@ -464,6 +468,7 @@ async def get_run_resources(
         - Response 500: InternalServerError schema
     """
     trace_id = str(uuid.uuid4())
+    run_id: str | None = None
 
     try:
         # Extract and validate run_id
@@ -555,7 +560,7 @@ async def get_run_resources(
 
     except ResourceNotFoundError:
         logger.info(f"Resources not found for run: {run_id}")
-        run_error = RunNotFoundError(run_id)
+        run_error = RunNotFoundError(run_id or "unknown")
         return create_error_response(run_error, trace_id)
 
     except json.JSONDecodeError as e:

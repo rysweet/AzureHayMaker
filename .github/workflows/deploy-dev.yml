@@ -16,7 +16,7 @@ permissions:
 
 env:
   ENVIRONMENT: dev
-  AZURE_REGION: eastus
+  AZURE_REGION: ${{ secrets.AZURE_LOCATION }}
 
 jobs:
   validate:
@@ -40,11 +40,20 @@ jobs:
 
       - name: Validate deployment
         run: |
-          az deployment sub validate \
-            --location ${{ env.AZURE_REGION }} \
+          RG_NAME="haymaker-dev-rg"
+          # Create RG if needed for validation
+          az group create --name "$RG_NAME" --location ${{ env.AZURE_REGION }} --tags Environment=dev ManagedBy=GitHubActions || true
+
+          # Get the Object ID for the service principal (required for RBAC)
+          SP_OBJECT_ID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)
+
+          VALIDATION_NAME="haymaker-dev-validation-$(date +%Y%m%d-%H%M%S)"
+          az deployment group validate \
+            --name "$VALIDATION_NAME" \
+            --resource-group "$RG_NAME" \
             --template-file infra/bicep/main.bicep \
             --parameters infra/bicep/parameters/dev.bicepparam \
-            --parameters adminObjectIds="['${{ secrets.AZURE_CLIENT_ID }}']" \
+            --parameters adminObjectIds="['$SP_OBJECT_ID']" \
             --parameters githubOidcClientId="${{ secrets.AZURE_CLIENT_ID }}"
 
   test:
@@ -97,16 +106,35 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Create resource group
+        run: |
+          RG_NAME="haymaker-dev-rg"
+          echo "Creating resource group: $RG_NAME in ${{ env.AZURE_REGION }}"
+          az group create \
+            --name "$RG_NAME" \
+            --location ${{ env.AZURE_REGION }} \
+            --tags Environment=dev ManagedBy=GitHubActions Project=AzureHayMaker || echo "Resource group may already exist"
+
       - name: Deploy Bicep infrastructure
         id: deploy
         run: |
           echo "Deploying infrastructure to dev environment..."
+          RG_NAME="haymaker-dev-rg"
 
-          DEPLOYMENT_OUTPUT=$(az deployment sub create \
-            --location ${{ env.AZURE_REGION }} \
+          # Get the Object ID for the service principal (required for RBAC)
+          echo "Looking up Service Principal Object ID..."
+          SP_OBJECT_ID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)
+          echo "Service Principal Object ID: $SP_OBJECT_ID"
+
+          DEPLOYMENT_NAME="haymaker-dev-$(date +%Y%m%d-%H%M%S)"
+          echo "Deployment name: $DEPLOYMENT_NAME"
+
+          DEPLOYMENT_OUTPUT=$(az deployment group create \
+            --name "$DEPLOYMENT_NAME" \
+            --resource-group "$RG_NAME" \
             --template-file infra/bicep/main.bicep \
             --parameters infra/bicep/parameters/dev.bicepparam \
-            --parameters adminObjectIds="['${{ secrets.AZURE_CLIENT_ID }}']" \
+            --parameters adminObjectIds="['$SP_OBJECT_ID']" \
             --parameters githubOidcClientId="${{ secrets.AZURE_CLIENT_ID }}" \
             --output json)
 
@@ -127,29 +155,78 @@ jobs:
 
           echo "Deployment complete. Resource details masked for security."
 
+      - name: Grant Key Vault Secrets Officer role
+        run: |
+          echo "Ensuring service principal has Key Vault Secrets Officer role..."
+
+          # Get the Object ID again
+          SP_OBJECT_ID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)
+
+          # Get Key Vault resource ID
+          KEY_VAULT_ID=$(az keyvault show \
+            --name ${{ steps.deploy.outputs.keyVaultName }} \
+            --query id -o tsv)
+
+          # Grant Key Vault Secrets Officer role (if not already assigned)
+          # Role: Key Vault Secrets Officer (b86a8fe4-44ce-4948-aee5-eccb2c155cd7)
+          echo "Assigning Key Vault Secrets Officer role to SP..."
+          az role assignment create \
+            --role "b86a8fe4-44ce-4948-aee5-eccb2c155cd7" \
+            --assignee-object-id "$SP_OBJECT_ID" \
+            --assignee-principal-type ServicePrincipal \
+            --scope "$KEY_VAULT_ID" \
+            --output none 2>/dev/null || echo "Role may already be assigned"
+
+          echo "Role assignment complete"
+
       - name: Inject secrets to Key Vault
         run: |
           echo "Injecting secrets to Key Vault: ${{ steps.deploy.outputs.keyVaultName }}"
+          echo "Waiting 60 seconds for RBAC role assignments to propagate..."
+          sleep 60
 
-          az keyvault secret set \
-            --vault-name ${{ steps.deploy.outputs.keyVaultName }} \
-            --name main-sp-client-secret \
-            --value "${{ secrets.MAIN_SP_CLIENT_SECRET }}" \
-            --output none
+          # Retry logic for secret injection (RBAC propagation can take time)
+          MAX_RETRIES=3
+          RETRY_DELAY=30
 
-          az keyvault secret set \
-            --vault-name ${{ steps.deploy.outputs.keyVaultName }} \
-            --name anthropic-api-key \
-            --value "${{ secrets.ANTHROPIC_API_KEY }}" \
-            --output none
+          for secret_name in "main-sp-client-secret" "anthropic-api-key" "log-analytics-workspace-key"; do
+            echo "Setting secret: $secret_name"
 
-          az keyvault secret set \
-            --vault-name ${{ steps.deploy.outputs.keyVaultName }} \
-            --name log-analytics-workspace-key \
-            --value "${{ secrets.LOG_ANALYTICS_WORKSPACE_KEY }}" \
-            --output none
+            case $secret_name in
+              "main-sp-client-secret")
+                SECRET_VALUE="${{ secrets.MAIN_SP_CLIENT_SECRET }}"
+                ;;
+              "anthropic-api-key")
+                SECRET_VALUE="${{ secrets.ANTHROPIC_API_KEY }}"
+                ;;
+              "log-analytics-workspace-key")
+                SECRET_VALUE="${{ secrets.LOG_ANALYTICS_WORKSPACE_KEY }}"
+                ;;
+            esac
 
-          echo "Secrets injected successfully"
+            RETRY_COUNT=0
+            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+              if az keyvault secret set \
+                --vault-name ${{ steps.deploy.outputs.keyVaultName }} \
+                --name $secret_name \
+                --value "$SECRET_VALUE" \
+                --output none 2>/dev/null; then
+                echo "✓ Successfully set $secret_name"
+                break
+              else
+                RETRY_COUNT=$((RETRY_COUNT + 1))
+                if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                  echo "Failed to set $secret_name (attempt $RETRY_COUNT/$MAX_RETRIES). Waiting ${RETRY_DELAY}s before retry..."
+                  sleep $RETRY_DELAY
+                else
+                  echo "ERROR: Failed to set $secret_name after $MAX_RETRIES attempts"
+                  exit 1
+                fi
+              fi
+            done
+          done
+
+          echo "All secrets injected successfully"
 
   deploy-function:
     name: Deploy Function App

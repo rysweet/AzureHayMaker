@@ -48,13 +48,14 @@ param environment string
 param pythonVersion string = '3.13'
 
 // App Service Plan
+// Note: Using Standard (S1) for dev - most subscriptions have this quota
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
   name: appServicePlanName
   location: location
   tags: tags
   sku: {
-    name: environment == 'prod' ? 'EP1' : 'Y1' // Elastic Premium for prod, Consumption for dev/staging
-    tier: environment == 'prod' ? 'ElasticPremium' : 'Dynamic'
+    name: environment == 'prod' ? 'EP1' : 'S1' // Elastic Premium for prod, Standard for dev
+    tier: environment == 'prod' ? 'ElasticPremium' : 'Standard'
   }
   kind: 'linux'
   properties: {

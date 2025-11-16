@@ -18,7 +18,7 @@ param tags object = {}
   'Standard'
   'Premium'
 ])
-param sku string = 'Basic'
+param sku string = 'Premium'
 
 @description('Enable admin user')
 param adminUserEnabled bool = true

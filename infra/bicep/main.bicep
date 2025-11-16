@@ -1,7 +1,10 @@
 // Azure HayMaker Infrastructure - Main Template
 // Purpose: Orchestrates deployment of all Azure resources for HayMaker orchestrator
+//
+// NOTE: Deploy to existing resource group. Create RG first:
+// az group create --name haymaker-<env>-rg --location <region>
 
-targetScope = 'subscription'
+targetScope = 'resourceGroup'
 
 // Parameters
 @description('Environment name (dev, staging, prod)')
@@ -33,8 +36,11 @@ param adminObjectIds array = []
 param githubOidcClientId string = ''
 
 // Variables
-var resourceGroupName = '${namingPrefix}-${environment}-rg'
-var uniqueSuffix = uniqueString(subscription().id, resourceGroupName)
+@description('Deployment timestamp for unique resource names')
+param deploymentTimestamp string = utcNow('yyyyMMddHHmmss')
+
+var uniqueSuffix = uniqueString(subscription().id, namingPrefix, environment, deploymentTimestamp)
+var resourceGroupName = '${namingPrefix}-${environment}-${take(uniqueSuffix, 6)}-rg'
 var commonTags = {
   Environment: environment
   ManagedBy: 'Bicep'
@@ -42,28 +48,23 @@ var commonTags = {
   DeployedBy: 'GitHubActions'
 }
 
-// Resource names with environment suffix
+// Resource names with environment suffix and unique identifiers for globally unique resources
 var logAnalyticsName = '${namingPrefix}-${environment}-logs'
 var storageAccountName = toLower('${namingPrefix}${environment}${take(uniqueSuffix, 6)}')
-var serviceBusName = '${namingPrefix}-${environment}-sb'
-var keyVaultName = '${namingPrefix}-${environment}-kv'
-var cosmosDbName = '${namingPrefix}-${environment}-cosmos'
+var serviceBusName = '${namingPrefix}-${environment}-${take(uniqueSuffix, 6)}-bus'
+var keyVaultName = '${namingPrefix}-${environment}-${take(uniqueSuffix, 6)}-kv'
+var cosmosDbName = '${namingPrefix}-${environment}-${take(uniqueSuffix, 6)}-cosmos'
 var containerAppsEnvName = '${namingPrefix}-${environment}-cae'
-var containerRegistryName = toLower('${namingPrefix}${environment}acr')
-var functionAppName = '${namingPrefix}-${environment}-func'
+var containerRegistryName = toLower('${namingPrefix}${environment}${take(uniqueSuffix, 6)}acr')
+var functionAppName = '${namingPrefix}-${environment}-${take(uniqueSuffix, 6)}-func'
 var appServicePlanName = '${namingPrefix}-${environment}-plan'
 
-// Resource Group
-resource resourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
-  name: resourceGroupName
-  location: location
-  tags: commonTags
-}
+// Resource Group should be created before deploying this template
+// Example: az group create --name haymaker-dev-rg --location westus2
 
 // Log Analytics Workspace
 module logAnalytics 'modules/log-analytics.bicep' = {
-  scope: resourceGroup
-  name: 'logAnalytics-deployment'
+  name: 'logAnalytics-${uniqueSuffix}'
   params: {
     workspaceName: logAnalyticsName
     location: location
@@ -75,8 +76,7 @@ module logAnalytics 'modules/log-analytics.bicep' = {
 
 // Storage Account
 module storage 'modules/storage.bicep' = {
-  scope: resourceGroup
-  name: 'storage-deployment'
+  name: 'storage-${uniqueSuffix}'
   params: {
     storageAccountName: storageAccountName
     location: location
@@ -89,8 +89,7 @@ module storage 'modules/storage.bicep' = {
 
 // Service Bus
 module serviceBus 'modules/servicebus.bicep' = {
-  scope: resourceGroup
-  name: 'serviceBus-deployment'
+  name: 'serviceBus-${uniqueSuffix}'
   params: {
     namespaceName: serviceBusName
     location: location
@@ -103,8 +102,7 @@ module serviceBus 'modules/servicebus.bicep' = {
 
 // Key Vault
 module keyVault 'modules/keyvault.bicep' = {
-  scope: resourceGroup
-  name: 'keyVault-deployment'
+  name: 'keyVault-${uniqueSuffix}'
   params: {
     keyVaultName: keyVaultName
     location: location
@@ -114,13 +112,14 @@ module keyVault 'modules/keyvault.bicep' = {
     enableSoftDelete: true
     softDeleteRetentionInDays: 7
     enablePurgeProtection: environment == 'prod'
+    publicNetworkAccess: environment != 'prod'  // Enable public access for dev/staging (GitHub Actions needs it)
   }
 }
 
 // Cosmos DB
-module cosmosDb 'modules/cosmosdb.bicep' = {
-  scope: resourceGroup
-  name: 'cosmosDb-deployment'
+// Cosmos DB (Optional for dev - region capacity limitations)
+module cosmosDb 'modules/cosmosdb.bicep' = if (environment != 'dev') {
+  name: 'cosmosDb-${uniqueSuffix}'
   params: {
     accountName: cosmosDbName
     location: location
@@ -128,14 +127,13 @@ module cosmosDb 'modules/cosmosdb.bicep' = {
     databaseName: 'haymaker'
     metricsContainerName: 'metrics'
     runsContainerName: 'runs'
-    throughput: environment == 'prod' ? 400 : 0 // Serverless for dev/staging
+    throughput: environment == 'prod' ? 400 : 0 // Serverless for staging
   }
 }
 
 // Container Apps Environment
 module containerAppsEnv 'modules/container-apps-env.bicep' = {
-  scope: resourceGroup
-  name: 'containerAppsEnv-deployment'
+  name: 'containerAppsEnv-${uniqueSuffix}'
   params: {
     environmentName: containerAppsEnvName
     location: location
@@ -145,23 +143,21 @@ module containerAppsEnv 'modules/container-apps-env.bicep' = {
   }
 }
 
-// Container Registry
-module containerRegistry 'modules/container-registry.bicep' = {
-  scope: resourceGroup
-  name: 'containerRegistry-deployment'
+// Container Registry (Optional for dev - SKU limitations in some subscriptions)
+module containerRegistry 'modules/container-registry.bicep' = if (environment != 'dev') {
+  name: 'containerRegistry-${uniqueSuffix}'
   params: {
     registryName: containerRegistryName
     location: location
     tags: commonTags
-    sku: environment == 'prod' ? 'Standard' : 'Basic'
+    sku: 'Premium'
     adminUserEnabled: true
   }
 }
 
 // Function App (depends on most other resources)
 module functionApp 'modules/function-app.bicep' = {
-  scope: resourceGroup
-  name: 'functionApp-deployment'
+  name: 'functionApp-${uniqueSuffix}'
   params: {
     functionAppName: functionAppName
     appServicePlanName: appServicePlanName
@@ -171,7 +167,7 @@ module functionApp 'modules/function-app.bicep' = {
     appInsightsConnectionString: logAnalytics.outputs.workspaceId
     keyVaultUri: keyVault.outputs.keyVaultUri
     serviceBusConnectionString: serviceBus.outputs.connectionString
-    cosmosDbConnectionString: cosmosDb.outputs.connectionString
+    cosmosDbConnectionString: environment != 'dev' ? cosmosDb.outputs.connectionString : ''
     tenantId: tenantId
     subscriptionId: subscriptionId
     clientId: githubOidcClientId
@@ -182,8 +178,7 @@ module functionApp 'modules/function-app.bicep' = {
 
 // Grant Function App access to Key Vault (via module to match scope)
 module functionAppKeyVaultRole 'modules/role-assignment.bicep' = {
-  scope: resourceGroup
-  name: 'functionAppKeyVaultRole-deployment'
+  name: 'functionAppKeyVaultRole-${uniqueSuffix}'
   params: {
     principalId: functionApp.outputs.principalId
     roleDefinitionId: '4633458b-17de-408a-b874-0445c86b69e6' // Key Vault Secrets User
@@ -193,8 +188,7 @@ module functionAppKeyVaultRole 'modules/role-assignment.bicep' = {
 
 // Grant Function App access to Storage (via module to match scope)
 module functionAppStorageRole 'modules/role-assignment.bicep' = {
-  scope: resourceGroup
-  name: 'functionAppStorageRole-deployment'
+  name: 'functionAppStorageRole-${uniqueSuffix}'
   params: {
     principalId: functionApp.outputs.principalId
     roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' // Storage Blob Data Contributor
@@ -202,10 +196,9 @@ module functionAppStorageRole 'modules/role-assignment.bicep' = {
   }
 }
 
-// Grant Function App access to Cosmos DB (via module to match scope)
-module functionAppCosmosRole 'modules/role-assignment.bicep' = {
-  scope: resourceGroup
-  name: 'functionAppCosmosRole-deployment'
+// Grant Function App access to Cosmos DB (via module to match scope) - only if Cosmos DB is deployed
+module functionAppCosmosRole 'modules/role-assignment.bicep' = if (environment != 'dev') {
+  name: 'functionAppCosmosRole-${uniqueSuffix}'
   params: {
     principalId: functionApp.outputs.principalId
     roleDefinitionId: '00000000-0000-0000-0000-000000000002' // Cosmos DB Built-in Data Contributor
@@ -214,8 +207,8 @@ module functionAppCosmosRole 'modules/role-assignment.bicep' = {
 }
 
 // Outputs
-output resourceGroupName string = resourceGroup.name
-output location string = location
+output resourceGroupName string = resourceGroup().name
+output location string = resourceGroup().location
 output environment string = environment
 
 // Infrastructure outputs
@@ -225,11 +218,11 @@ output storageAccountName string = storage.outputs.storageAccountName
 output serviceBusNamespace string = serviceBus.outputs.namespaceName
 output keyVaultName string = keyVault.outputs.keyVaultName
 output keyVaultUri string = keyVault.outputs.keyVaultUri
-output cosmosDbEndpoint string = cosmosDb.outputs.endpoint
-output cosmosDbDatabaseName string = cosmosDb.outputs.databaseName
+output cosmosDbEndpoint string = environment != 'dev' ? cosmosDb.outputs.endpoint : ''
+output cosmosDbDatabaseName string = environment != 'dev' ? cosmosDb.outputs.databaseName : ''
 output containerAppsEnvironmentName string = containerAppsEnv.outputs.environmentName
-output containerRegistryName string = containerRegistry.outputs.registryName
-output containerRegistryLoginServer string = containerRegistry.outputs.loginServer
+output containerRegistryName string = environment != 'dev' ? containerRegistry.outputs.registryName : ''
+output containerRegistryLoginServer string = environment != 'dev' ? containerRegistry.outputs.loginServer : ''
 
 // Function App outputs
 output functionAppName string = functionApp.outputs.functionAppName

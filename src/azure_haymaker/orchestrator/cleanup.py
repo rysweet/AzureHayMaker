@@ -16,7 +16,7 @@ from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 from azure.mgmt.resource import ResourceManagementClient
-from msgraph import GraphServiceClient
+from msgraph.graph_service_client import GraphServiceClient
 from pydantic import BaseModel, Field
 
 from azure_haymaker.models.resource import Resource, ResourceStatus
@@ -115,18 +115,19 @@ async def query_managed_resources(subscription_id: str, run_id: str) -> list[Res
             result = resource_graph_client.resources(query_request)
 
             # Convert to Resource objects
-            for item in result.data:
-                resource = Resource(
-                    resource_id=item.get("id"),
-                    resource_type=item.get("type"),
-                    resource_name=item.get("name"),
-                    scenario_name=item.get("tags", {}).get("Scenario", "unknown"),
-                    run_id=run_id,
-                    created_at=datetime.now(UTC),
-                    tags=item.get("tags", {}),
-                    status=ResourceStatus.EXISTS,
-                )
-                resources.append(resource)
+            if result.data and hasattr(result.data, "__iter__"):
+                for item in result.data:  # pyright: ignore[reportGeneralTypeIssues]
+                    resource = Resource(
+                        resource_id=item.get("id"),
+                        resource_type=item.get("type"),
+                        resource_name=item.get("name"),
+                        scenario_name=item.get("tags", {}).get("Scenario", "unknown"),
+                        run_id=run_id,
+                        created_at=datetime.now(UTC),
+                        tags=item.get("tags", {}),
+                        status=ResourceStatus.EXISTS,
+                    )
+                    resources.append(resource)
 
             # Check if there are more results
             if result.skip_token:
@@ -183,18 +184,19 @@ async def verify_cleanup_complete(run_id: str) -> CleanupReport:
         result = resource_graph_client.resources(query_request)
 
         remaining_resources = []
-        for item in result.data:
-            resource = Resource(
-                resource_id=item.get("id"),
-                resource_type=item.get("type"),
-                resource_name=item.get("name"),
-                scenario_name=item.get("tags", {}).get("Scenario", "unknown"),
-                run_id=run_id,
-                created_at=datetime.now(UTC),
-                tags=item.get("tags", {}),
-                status=ResourceStatus.EXISTS,
-            )
-            remaining_resources.append(resource)
+        if result.data and hasattr(result.data, "__iter__"):
+            for item in result.data:  # pyright: ignore[reportGeneralTypeIssues]
+                resource = Resource(
+                    resource_id=item.get("id"),
+                    resource_type=item.get("type"),
+                    resource_name=item.get("name"),
+                    scenario_name=item.get("tags", {}).get("Scenario", "unknown"),
+                    run_id=run_id,
+                    created_at=datetime.now(UTC),
+                    tags=item.get("tags", {}),
+                    status=ResourceStatus.EXISTS,
+                )
+                remaining_resources.append(resource)
 
         if not remaining_resources:
             status = CleanupStatus.VERIFIED
@@ -243,12 +245,19 @@ async def force_delete_resources(
     Raises:
         Exception: If resource management fails
     """
+    # Delete service principals first if provided (independent of resources)
+    deleted_sps = []
+    if sp_details and kv_client:
+        deleted_sps = await _delete_service_principals(sp_details, kv_client)
+
+    # Early return if no resources to delete
     if not resources:
         return CleanupReport(
             run_id="",
             status=CleanupStatus.VERIFIED,
             total_resources_expected=0,
             total_resources_deleted=0,
+            service_principals_deleted=deleted_sps,
         )
 
     # Extract subscription ID from first resource if not provided
@@ -269,11 +278,6 @@ async def force_delete_resources(
     for resource in resources:
         deletion_record = await _delete_resource_with_retry(resource, resource_client)
         deletions.append(deletion_record)
-
-    # Delete service principals if provided
-    deleted_sps = []
-    if sp_details and kv_client:
-        deleted_sps = await _delete_service_principals(sp_details, kv_client)
 
     # Count successful deletions
     successful_deletions = sum(1 for d in deletions if d.status == "deleted")
@@ -331,11 +335,19 @@ async def _delete_resource_with_retry(
                 f"Attempting to delete resource {resource.resource_id} (attempt {attempts})"
             )
 
-            # Start async deletion
-            poller = resource_client.resources.begin_delete_by_id(
-                resource_id=resource.resource_id,
-                api_version="2021-04-01",
-            )
+            # Use generic resource deletion API
+            # Note: begin_delete_by_id exists but has typing issues in Azure SDK
+            try:
+                poller = resource_client.resources.begin_delete_by_id(  # type: ignore[attr-defined]  # Method exists but typing is incomplete
+                    resource_id=resource.resource_id,
+                    api_version="2023-07-01",
+                )
+            except (AttributeError, TypeError) as e:
+                # Fallback: If begin_delete_by_id doesn't exist or has issues
+                logger.error(f"Cannot delete resource {resource.resource_id}: {e}")
+                raise ValueError(
+                    f"Resource deletion not supported for {resource.resource_id}"
+                ) from e
 
             # Wait for deletion to complete
             poller.result(timeout=300)
@@ -397,7 +409,7 @@ async def _delete_resource_with_retry(
     )
 
 
-async def _delete_service_principals(
+async def _delete_service_principals(  # pyright: ignore[reportGeneralTypeIssues,reportUnnecessaryComparison,reportAttributeAccessIssue]
     sp_details: list[ServicePrincipalDetails],
     kv_client: SecretClient,
 ) -> list[str]:
@@ -422,19 +434,36 @@ async def _delete_service_principals(
 
             # Find SP by display name
             filter_query = f"displayName eq '{sanitize_odata_value(sp.sp_name)}'"
-            sp_list = await asyncio.to_thread(
-                graph_client.service_principals.get,
-                filter=filter_query,
+
+            # Use request configuration for filter
+            from kiota_abstractions.base_request_configuration import RequestConfiguration
+            from msgraph.generated.service_principals.service_principals_request_builder import (
+                ServicePrincipalsRequestBuilder,
             )
 
-            if sp_list and sp_list.value:
-                sp_obj = sp_list.value[0]
-                # Delete the SP
-                await asyncio.to_thread(
-                    graph_client.service_principals.by_service_principal_id(sp_obj.id).delete
+            request_config = RequestConfiguration()
+            request_config.query_parameters = (
+                ServicePrincipalsRequestBuilder.ServicePrincipalsRequestBuilderGetQueryParameters(
+                    filter=filter_query
                 )
-                logger.info(f"Deleted service principal {sp.sp_name}")
-                deleted_sps.append(sp.sp_name)
+            )
+
+            sp_list = await asyncio.to_thread(
+                graph_client.service_principals.get,
+                request_configuration=request_config,
+            )
+
+            # Check if result is valid
+            if sp_list and hasattr(sp_list, "value") and sp_list.value:
+                sp_obj = sp_list.value[0]
+                if sp_obj.id:
+                    # Delete the SP - call the delete method
+                    sp_delete_client = graph_client.service_principals.by_service_principal_id(
+                        sp_obj.id
+                    )
+                    await asyncio.to_thread(sp_delete_client.delete)
+                    logger.info(f"Deleted service principal {sp.sp_name}")
+                    deleted_sps.append(sp.sp_name)
 
             # Delete Key Vault secret
             try:

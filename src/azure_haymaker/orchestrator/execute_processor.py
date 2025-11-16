@@ -63,9 +63,13 @@ def load_scenario_metadata(scenario_name: str) -> ScenarioMetadata | None:
             # Extract technology area from directory structure
             technology_area = scenario_file.parent.name
 
+            # Default agent path - assumes agent code is in scenarios directory
+            agent_path = str(scenario_file.parent / "agent.py")
+
             return ScenarioMetadata(
                 scenario_name=scenario_name,
                 scenario_doc_path=str(scenario_file),
+                agent_path=agent_path,
                 technology_area=technology_area,
             )
 
@@ -176,13 +180,16 @@ async def process_execution(msg: func.ServiceBusMessage) -> None:
                     logger.warning(f"[{execution_id}] Scenario metadata not found: {scenario_name}")
                     continue
 
-                container_details = await deploy_container_app(
+                # deploy_container_app returns a resource ID string
+                container_resource_id = await deploy_container_app(
                     scenario=scenario_metadata,
                     sp=sp_details,
                     config=config,
                 )
 
-                container_id = container_details.get("name")
+                # Extract container app name from resource ID
+                # Format: /subscriptions/.../resourceGroups/.../providers/Microsoft.App/containerApps/{name}
+                container_id = container_resource_id.split("/")[-1]
                 container_ids.append(container_id)
                 logger.info(f"[{execution_id}] Deployed container: {container_id}")
 
@@ -224,7 +231,7 @@ async def process_execution(msg: func.ServiceBusMessage) -> None:
 
             for container_id in container_ids:
                 try:
-                    status = await container_manager.get_container_status(container_id)
+                    status = await container_manager.get_status(container_id)
                     if status in ["Running", "Processing"]:
                         running_count += 1
                     elif status == "Terminated":
@@ -258,9 +265,7 @@ async def process_execution(msg: func.ServiceBusMessage) -> None:
             run_id=execution_id,
         )
 
-        logger.info(
-            f"[{execution_id}] Found {len(remaining_resources)} remaining resources"
-        )
+        logger.info(f"[{execution_id}] Found {len(remaining_resources)} remaining resources")
 
         # ========================================================================
         # PHASE 5: FORCED CLEANUP
@@ -269,9 +274,10 @@ async def process_execution(msg: func.ServiceBusMessage) -> None:
             logger.warning(f"[{execution_id}] Starting forced cleanup...")
 
             cleanup_report = await force_delete_resources(
+                resources=remaining_resources,
+                sp_details=[sp for _, sp in sp_details_list],
+                kv_client=key_vault_client,
                 subscription_id=config.target_subscription_id,
-                run_id=execution_id,
-                sp_details_list=[sp for _, sp in sp_details_list],
             )
 
             logger.info(
@@ -306,7 +312,7 @@ async def process_execution(msg: func.ServiceBusMessage) -> None:
 
         container_client = blob_service_client.get_container_client("execution-reports")
         blob_client = container_client.get_blob_client(f"{execution_id}/report.json")
-        await blob_client.upload_blob(json.dumps(report, indent=2), overwrite=True)
+        await blob_client.upload_blob(json.dumps(report, indent=2), overwrite=True)  # type: ignore[misc]  # BlobClient upload_blob is sync but used in async context
 
         report_url = blob_client.url
         logger.info(f"[{execution_id}] Report stored: {report_url}")

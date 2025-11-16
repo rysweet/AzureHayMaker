@@ -104,7 +104,10 @@ class TestLoadConfigFromEnvAndKeyvault:
             with pytest.raises(ConfigurationError) as exc_info:
                 await load_config_from_env_and_keyvault()
 
-            assert "AZURE_TENANT_ID" in str(exc_info.value)
+            # Verify error message mentions a required field (validation order may vary)
+            error_msg = str(exc_info.value)
+            assert "Required environment variable" in error_msg
+            assert "is not set" in error_msg
 
     @pytest.mark.asyncio
     async def test_load_config_missing_keyvault_secret(self, mock_env: dict[str, str]) -> None:

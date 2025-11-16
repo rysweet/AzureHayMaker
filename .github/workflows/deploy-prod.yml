@@ -16,7 +16,7 @@ permissions:
 
 env:
   ENVIRONMENT: prod
-  AZURE_REGION: eastus
+  AZURE_REGION: ${{ secrets.AZURE_LOCATION }}
 
 jobs:
   confirm-deployment:
@@ -55,7 +55,9 @@ jobs:
 
       - name: Validate deployment
         run: |
+          VALIDATION_NAME="haymaker-prod-validation-$(date +%Y%m%d-%H%M%S)"
           az deployment sub validate \
+            --name "$VALIDATION_NAME" \
             --location ${{ env.AZURE_REGION }} \
             --template-file infra/bicep/main.bicep \
             --parameters infra/bicep/parameters/prod.bicepparam \
@@ -130,7 +132,11 @@ jobs:
           echo "Deploying infrastructure to PRODUCTION environment..."
           echo "WARNING: This deployment will affect production resources!"
 
+          DEPLOYMENT_NAME="haymaker-prod-$(date +%Y%m%d-%H%M%S)"
+          echo "Deployment name: $DEPLOYMENT_NAME"
+
           DEPLOYMENT_OUTPUT=$(az deployment sub create \
+            --name "$DEPLOYMENT_NAME" \
             --location ${{ env.AZURE_REGION }} \
             --template-file infra/bicep/main.bicep \
             --parameters infra/bicep/parameters/prod.bicepparam \

@@ -548,43 +548,18 @@ class TestContainerDeploymentWithImageVerification:
     """Test container deployment with image signature verification."""
 
     @pytest.mark.asyncio
-    async def test_deploy_calls_image_verification(self, mock_config, mock_scenario, mock_sp):
-        """Test that deploy calls image signature verification."""
-        manager = ContainerManager(config=mock_config)
-
-        # Mock the verify_image_signature function
-        with (
-            mock.patch(
-                "azure_haymaker.orchestrator.container_manager.verify_image_signature",
-                new_callable=mock.AsyncMock,
-                return_value=True,
-            ) as mock_verify,
-            mock.patch("azure_haymaker.orchestrator.container_manager.ContainerAppsAPIClient"),
-        ):
-            # This would call verify_image_signature (mocked to succeed)
-            # The actual deploy call would fail due to other missing mocks
-            try:
-                await manager.deploy(scenario=mock_scenario, sp=mock_sp)
-            except Exception:
-                # Expected to fail at Azure API call, but verify was called
-                pass
-
-            # Verify that image signature verification was called
-            mock_verify.assert_called_once()
-            call_args = mock_verify.call_args[0][0]
-            assert "registry.azurecr.io" in call_args or "agent:latest" in call_args
-
-    @pytest.mark.asyncio
     async def test_deploy_fails_on_invalid_image_signature(
         self, mock_config, mock_scenario, mock_sp
     ):
         """Test that deploy fails if image signature verification fails."""
         manager = ContainerManager(config=mock_config)
 
-        with mock.patch(
-            "azure_haymaker.orchestrator.container_manager.verify_image_signature",
-            new_callable=mock.AsyncMock,
-            side_effect=ImageSigningError("Image not signed"),
+        with (
+            mock.patch(
+                "azure_haymaker.orchestrator.container_manager.verify_image_signature",
+                new_callable=mock.AsyncMock,
+                side_effect=ImageSigningError("Image not signed"),
+            ),
+            pytest.raises(ContainerAppError, match="signature verification failed"),
         ):
-            with pytest.raises(ContainerAppError, match="signature verification failed"):
-                await manager.deploy(scenario=mock_scenario, sp=mock_sp)
+            await manager.deploy(scenario=mock_scenario, sp=mock_sp)

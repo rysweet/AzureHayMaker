@@ -1,7 +1,8 @@
 """Metrics API endpoint for HayMaker orchestrator."""
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import azure.functions as func
 from azure.cosmos import CosmosClient
@@ -46,8 +47,13 @@ def parse_period(period: str) -> timedelta:
         ValueError: If period format is invalid
     """
     if period.endswith("d"):
-        days = int(period[:-1])
-        return timedelta(days=days)
+        try:
+            days = int(period[:-1])
+            return timedelta(days=days)
+        except ValueError:
+            raise ValueError(
+                f"Invalid period format: {period}. Must be like '7d', '30d', '90d'"
+            ) from None
     else:
         raise ValueError(f"Invalid period format: {period}. Must be like '7d', '30d', '90d'")
 
@@ -58,7 +64,7 @@ async def query_cosmos_metrics(
     container_name: str,
     start_time: datetime,
     scenario_filter: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Query metrics from Cosmos DB.
 
     Args:
@@ -86,7 +92,7 @@ async def query_cosmos_metrics(
         WHERE c.started_at >= @start_time
     """
 
-    params = [{"name": "@start_time", "value": start_time.isoformat()}]
+    params: list[dict[str, object]] = [{"name": "@start_time", "value": start_time.isoformat()}]
 
     if scenario_filter:
         query += " AND c.scenario_name = @scenario"
@@ -102,7 +108,7 @@ async def query_cosmos_metrics(
     )
 
     # Aggregate metrics
-    scenario_stats: dict[str, dict] = {}
+    scenario_stats: dict[str, dict[str, Any]] = {}
     total_executions = len(items)
     success_count = 0
     last_execution = None
@@ -170,7 +176,7 @@ async def query_cosmos_metrics(
         )
 
     # Sort by run count (descending)
-    scenario_metrics.sort(key=lambda x: x.run_count, reverse=True)
+    scenario_metrics.sort(key=lambda x: int(x.run_count), reverse=True)  # type: ignore[arg-type,return-value]  # Lambda typing inference issue
 
     # Calculate success rate
     success_rate = success_count / total_executions if total_executions > 0 else 0.0
@@ -234,7 +240,7 @@ async def get_metrics(req: func.HttpRequest) -> func.HttpResponse:
             )
 
         # Calculate start time
-        start_time = datetime.now(timezone.utc) - period_delta
+        start_time = datetime.now(UTC) - period_delta
 
         # Get Cosmos DB configuration from environment
         import os

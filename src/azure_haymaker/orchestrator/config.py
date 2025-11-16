@@ -169,9 +169,20 @@ async def load_config_from_env_and_keyvault() -> OrchestratorConfig:
             credential = DefaultAzureCredential()
             kv_client = SecretClient(vault_url=key_vault_url, credential=credential)
 
-            main_sp_secret = kv_client.get_secret("main-sp-client-secret").value
-            anthropic_api_key = kv_client.get_secret("anthropic-api-key").value
-            log_analytics_key = kv_client.get_secret("log-analytics-workspace-key").value
+            main_sp_secret_obj = kv_client.get_secret("main-sp-client-secret")
+            anthropic_api_key_obj = kv_client.get_secret("anthropic-api-key")
+            log_analytics_key_obj = kv_client.get_secret("log-analytics-workspace-key")
+
+            if not main_sp_secret_obj.value:
+                raise ConfigurationError("main-sp-client-secret value is None")
+            if not anthropic_api_key_obj.value:
+                raise ConfigurationError("anthropic-api-key value is None")
+            if not log_analytics_key_obj.value:
+                raise ConfigurationError("log-analytics-workspace-key value is None")
+
+            main_sp_secret = main_sp_secret_obj.value
+            anthropic_api_key = anthropic_api_key_obj.value
+            log_analytics_key = log_analytics_key_obj.value
 
         except Exception as e:
             raise ConfigurationError(

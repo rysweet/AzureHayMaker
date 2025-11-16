@@ -79,7 +79,7 @@ def get_client(ctx: click.Context) -> SyncHayMakerClient:
         auth = create_auth_provider(config.auth.model_dump())
         return SyncHayMakerClient(config.endpoint, auth)
     except Exception as e:
-        raise click.ClickException(f"Configuration error: {e}")
+        raise click.ClickException(f"Configuration error: {e}") from e
 
 
 def handle_output(ctx: click.Context, data: Any, formatter_func=None):
@@ -103,7 +103,7 @@ def handle_output(ctx: click.Context, data: Any, formatter_func=None):
             else:
                 click.echo(format_json(data))
     except Exception as e:
-        raise click.ClickException(f"Output formatting error: {e}")
+        raise click.ClickException(f"Output formatting error: {e}") from e
 
 
 def handle_error(error: Exception):
@@ -127,7 +127,7 @@ def handle_error(error: Exception):
 # Status command
 
 
-@cli.command()
+@cli.command()  # type: ignore[misc]  # Click decorators modify function signatures
 @click.pass_context
 def status(ctx: click.Context):
     """Show current orchestrator status.
@@ -147,7 +147,7 @@ def status(ctx: click.Context):
 # Metrics command
 
 
-@cli.command()
+@cli.command()  # type: ignore[misc]  # Click decorators modify function signatures
 @click.option(
     "--period",
     default="7d",
@@ -175,7 +175,7 @@ def metrics(ctx: click.Context, period: str, scenario: str | None):
 # Agents command group
 
 
-@cli.group()
+@cli.group()  # type: ignore[misc]  # Click decorators modify function signatures
 def agents():
     """Manage and view agents."""
 
@@ -206,7 +206,7 @@ def agents_list(ctx: click.Context, status: str | None, limit: int):
 # Logs command
 
 
-@cli.command()
+@cli.command()  # type: ignore[misc]  # Click decorators modify function signatures
 @click.option("--agent-id", required=True, help="Agent ID to view logs for")
 @click.option("--tail", default=100, type=int, help="Number of recent log entries")
 @click.option("--follow", "-f", is_flag=True, help="Follow logs (stream new entries)")
@@ -234,9 +234,7 @@ def logs(ctx: click.Context, agent_id: str, tail: int, follow: bool):
 
                     # Filter out logs we've already seen
                     new_logs = [
-                        log
-                        for log in logs_data
-                        if f"{log.timestamp}-{log.message}" not in seen_ids
+                        log for log in logs_data if f"{log.timestamp}-{log.message}" not in seen_ids
                     ]
 
                     if new_logs:
@@ -261,7 +259,7 @@ def logs(ctx: click.Context, agent_id: str, tail: int, follow: bool):
 # Resources command group
 
 
-@cli.group()
+@cli.group()  # type: ignore[misc]  # Click decorators modify function signatures
 def resources():
     """Manage and view resources."""
 
@@ -317,7 +315,7 @@ def resources_list(
 # Cleanup command
 
 
-@cli.command()
+@cli.command()  # type: ignore[misc]  # Click decorators modify function signatures
 @click.option("--execution-id", help="Cleanup specific execution")
 @click.option("--scenario", help="Cleanup specific scenario")
 @click.option("--dry-run", is_flag=True, help="Show what would be cleaned without deleting")
@@ -357,7 +355,7 @@ def cleanup(
 # Deploy command
 
 
-@cli.command()
+@cli.command()  # type: ignore[misc]  # Click decorators modify function signatures
 @click.option("--scenario", required=True, help="Scenario name to execute")
 @click.option("--wait", is_flag=True, help="Wait for execution to complete")
 @click.option(
@@ -381,7 +379,7 @@ def deploy(ctx: click.Context, scenario: str, wait: bool, poll_interval: int):
         handle_output(ctx, execution, format_execution_response)
 
         if wait:
-            console.print(f"\n[dim]Waiting for execution to complete...[/dim]")
+            console.print("\n[dim]Waiting for execution to complete...[/dim]")
             console.print(f"[dim]Execution ID: {execution.execution_id}[/dim]")
             console.print(f"[dim]Polling every {poll_interval} seconds[/dim]")
             console.print("[dim]Press Ctrl+C to stop waiting[/dim]\n")
@@ -428,7 +426,7 @@ def deploy(ctx: click.Context, scenario: str, wait: bool, poll_interval: int):
 # Config command group
 
 
-@cli.group()
+@cli.group()  # type: ignore[misc]  # Click decorators modify function signatures
 def config():
     """Manage CLI configuration."""
 
@@ -490,9 +488,8 @@ def config_list(profile: str):
 
         for key, value in config_data.items():
             # Mask sensitive values
-            if "key" in key.lower() or "secret" in key.lower():
-                if value and value != "(not set)":
-                    value = "*" * 8 + value[-4:] if len(value) > 4 else "****"
+            if ("key" in key.lower() or "secret" in key.lower()) and value and value != "(not set)":
+                value = "*" * 8 + value[-4:] if len(value) > 4 else "****"
 
             console.print(f"  {key:20} = {value}")
 
@@ -502,7 +499,7 @@ def config_list(profile: str):
 
 def main():
     """Main entry point for CLI."""
-    cli()
+    cli()  # type: ignore[call-arg]  # Click modifies function signature
 
 
 if __name__ == "__main__":

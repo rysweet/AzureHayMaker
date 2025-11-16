@@ -208,7 +208,9 @@ class TestLoadDotenvWithWarnings:
                 result = load_dotenv_with_warnings()
 
                 assert result == {}
-                assert any("Failed to load .env file" in record.message for record in caplog.records)
+                assert any(
+                    "Failed to load .env file" in record.message for record in caplog.records
+                )
                 assert any("Permission denied" in record.message for record in caplog.records)
 
     def test_load_dotenv_various_environments(

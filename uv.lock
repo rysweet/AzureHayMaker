@@ -235,6 +235,7 @@ dependencies = [
     { name = "azure-mgmt-authorization" },
     { name = "azure-mgmt-containerinstance" },
     { name = "azure-mgmt-resource" },
+    { name = "azure-mgmt-resourcegraph" },
     { name = "azure-mgmt-subscription" },
     { name = "azure-monitor-ingestion" },
     { name = "azure-servicebus" },
@@ -269,6 +270,7 @@ requires-dist = [
     { name = "azure-mgmt-authorization", specifier = ">=4.0.0" },
     { name = "azure-mgmt-containerinstance", specifier = ">=10.1.0" },
     { name = "azure-mgmt-resource", specifier = ">=23.2.0" },
+    { name = "azure-mgmt-resourcegraph", specifier = ">=8.0.0" },
     { name = "azure-mgmt-subscription", specifier = ">=3.1.1" },
     { name = "azure-monitor-ingestion", specifier = ">=1.0.4" },
     { name = "azure-servicebus", specifier = ">=7.13.0" },
@@ -370,6 +372,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/50/4c/b27a3dfbedebbcc8e346a956a803528bd94a19fdf14b1de4bd781b03a6cc/azure_mgmt_resource-24.0.0.tar.gz", hash = "sha256:cf6b8995fcdd407ac9ff1dd474087129429a1d90dbb1ac77f97c19b96237b265", size = 3030022 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/14/18/f047cb553dad6fdb65c625c4fe48552e043c4e9a859416a70c5047d07475/azure_mgmt_resource-24.0.0-py3-none-any.whl", hash = "sha256:27b32cd223e2784269f5a0db3c282042886ee4072d79cedc638438ece7cd0df4", size = 3613790 },
+]
+
+[[package]]
+name = "azure-mgmt-resourcegraph"
+version = "8.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-common" },
+    { name = "azure-mgmt-core" },
+    { name = "msrest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/be/9f/45ad0c9690dba2bd00760b0dcf6a43414db567e4648a134abd753dc31c7e/azure-mgmt-resourcegraph-8.0.0.zip", hash = "sha256:d25f01dae3897780fb3ddca16d1625b6347c32f1b581c767fba5ef3b24443f11", size = 45769 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bd/16/63c37bffdce5082c9997ad7783921b02ed534b5971e5bdbd1ae617a5b2e3/azure_mgmt_resourcegraph-8.0.0-py2.py3-none-any.whl", hash = "sha256:0cf55f7ea82dc03e69d0fae0f1606e09b08b80b6ae23bd597d8b62b1ed938ace", size = 27334 },
 ]
 
 [[package]]

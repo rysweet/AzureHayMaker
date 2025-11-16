@@ -18,7 +18,7 @@ permissions:
 
 env:
   ENVIRONMENT: staging
-  AZURE_REGION: eastus
+  AZURE_REGION: ${{ secrets.AZURE_LOCATION }}
 
 jobs:
   validate:
@@ -42,7 +42,9 @@ jobs:
 
       - name: Validate deployment
         run: |
+          VALIDATION_NAME="haymaker-staging-validation-$(date +%Y%m%d-%H%M%S)"
           az deployment sub validate \
+            --name "$VALIDATION_NAME" \
             --location ${{ env.AZURE_REGION }} \
             --template-file infra/bicep/main.bicep \
             --parameters infra/bicep/parameters/staging.bicepparam \
@@ -104,7 +106,11 @@ jobs:
         run: |
           echo "Deploying infrastructure to staging environment..."
 
+          DEPLOYMENT_NAME="haymaker-staging-$(date +%Y%m%d-%H%M%S)"
+          echo "Deployment name: $DEPLOYMENT_NAME"
+
           DEPLOYMENT_OUTPUT=$(az deployment sub create \
+            --name "$DEPLOYMENT_NAME" \
             --location ${{ env.AZURE_REGION }} \
             --template-file infra/bicep/main.bicep \
             --parameters infra/bicep/parameters/staging.bicepparam \

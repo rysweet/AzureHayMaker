@@ -25,7 +25,9 @@ from haymaker_cli.models import (
 class HayMakerClientError(Exception):
     """Base exception for HayMaker client errors."""
 
-    def __init__(self, message: str, status_code: int | None = None, details: dict[str, Any] | None = None):
+    def __init__(
+        self, message: str, status_code: int | None = None, details: dict[str, Any] | None = None
+    ):
         super().__init__(message)
         self.status_code = status_code
         self.details = details or {}
@@ -119,23 +121,23 @@ class HayMakerClient:
                             status_code=response.status_code,
                             details=error.error.details,
                         )
-                    except (ValidationError, ValueError):
+                    except (ValidationError, ValueError) as e:
                         # Fallback for non-standard error responses
                         raise HayMakerClientError(
                             f"Request failed: {response.text}",
                             status_code=response.status_code,
-                        )
+                        ) from e
 
                 return response
 
             except httpx.TimeoutException as e:
                 if attempt == self.retry_count - 1:
-                    raise HayMakerClientError(f"Request timeout: {e}")
+                    raise HayMakerClientError(f"Request timeout: {e}") from e
                 await asyncio.sleep(2**attempt)  # Exponential backoff
 
             except httpx.NetworkError as e:
                 if attempt == self.retry_count - 1:
-                    raise HayMakerClientError(f"Network error: {e}")
+                    raise HayMakerClientError(f"Network error: {e}") from e
                 await asyncio.sleep(2**attempt)
 
         raise HayMakerClientError("Request failed after all retries")
@@ -175,9 +177,7 @@ class HayMakerClient:
 
     # Metrics endpoints
 
-    async def get_metrics(
-        self, period: str = "7d", scenario: str | None = None
-    ) -> MetricsSummary:
+    async def get_metrics(self, period: str = "7d", scenario: str | None = None) -> MetricsSummary:
         """Get execution metrics.
 
         Args:
@@ -218,13 +218,9 @@ class HayMakerClient:
             >>> print(execution.execution_id)  # doctest: +SKIP
             'exec-123-456'
         """
-        request = ExecutionRequest(
-            scenario_name=scenario_name, parameters=parameters or {}
-        )
+        request = ExecutionRequest(scenario_name=scenario_name, parameters=parameters or {})
 
-        response = await self._request(
-            "POST", "/api/v1/execute", json=request.model_dump()
-        )
+        response = await self._request("POST", "/api/v1/execute", json=request.model_dump())
         return ExecutionResponse(**response.json())
 
     async def get_execution_status(self, execution_id: str) -> ExecutionStatus:
@@ -246,9 +242,7 @@ class HayMakerClient:
 
     # Agent endpoints
 
-    async def list_agents(
-        self, status: str | None = None, limit: int = 100
-    ) -> list[AgentInfo]:
+    async def list_agents(self, status: str | None = None, limit: int = 100) -> list[AgentInfo]:
         """List agents.
 
         Args:
@@ -263,7 +257,7 @@ class HayMakerClient:
             >>> print(len(agents))  # doctest: +SKIP
             5
         """
-        params = {"limit": limit}
+        params: dict[str, str | int] = {"limit": limit}
         if status:
             params["status"] = status
 
@@ -319,7 +313,7 @@ class HayMakerClient:
             >>> print(len(resources))  # doctest: +SKIP
             15
         """
-        params = {"limit": limit}
+        params: dict[str, str | int] = {"limit": limit}
         if execution_id:
             params["execution_id"] = execution_id
         if scenario:
@@ -354,9 +348,7 @@ class HayMakerClient:
             >>> print(cleanup.resources_found)  # doctest: +SKIP
             25
         """
-        request = CleanupRequest(
-            execution_id=execution_id, scenario=scenario, dry_run=dry_run
-        )
+        request = CleanupRequest(execution_id=execution_id, scenario=scenario, dry_run=dry_run)
 
         response = await self._request("POST", "/api/v1/cleanup", json=request.model_dump())
         return CleanupResponse(**response.json())
@@ -375,6 +367,7 @@ class HayMakerClient:
 
 
 # Synchronous wrapper for easier CLI usage
+
 
 class SyncHayMakerClient:
     """Synchronous wrapper for HayMakerClient.
@@ -439,9 +432,7 @@ class SyncHayMakerClient:
         limit: int = 100,
     ) -> list[ResourceInfo]:
         """Sync version of list_resources."""
-        return self._run(
-            self._async_client.list_resources(execution_id, scenario, status, limit)
-        )
+        return self._run(self._async_client.list_resources(execution_id, scenario, status, limit))
 
     def trigger_cleanup(
         self,

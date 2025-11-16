@@ -188,9 +188,7 @@ def format_metrics_summary(metrics: MetricsSummary) -> str:
 
         for scenario in metrics.scenarios:
             success_rate = (
-                scenario.success_count / scenario.run_count * 100
-                if scenario.run_count > 0
-                else 0
+                scenario.success_count / scenario.run_count * 100 if scenario.run_count > 0 else 0
             )
             avg_duration = (
                 f"{scenario.avg_duration_hours:.1f}h"

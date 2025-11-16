@@ -104,7 +104,7 @@ class RateLimiter:
                 etag = None
                 try:
                     # Get existing rate limit record with ETag
-                    entity = await self.table.get_entity(
+                    entity = await self.table.get_entity(  # type: ignore[misc]  # TableClient.get_entity is sync - requires async TableClient refactor
                         partition_key=partition_key,
                         row_key=row_key,
                     )
@@ -153,7 +153,7 @@ class RateLimiter:
                     try:
                         if etag:
                             # Update existing entity with ETag check
-                            await self.table.update_entity(
+                            await self.table.update_entity(  # type: ignore[misc]  # TableClient.upsert_entity is sync - requires async TableClient refactor
                                 entity=entity_data,
                                 mode=UpdateMode.REPLACE,
                                 etag=etag,
@@ -161,7 +161,7 @@ class RateLimiter:
                             )
                         else:
                             # Create new entity
-                            await self.table.create_entity(entity=entity_data)
+                            await self.table.create_entity(entity=entity_data)  # type: ignore[misc]  # TableClient.upsert_entity is sync - requires async TableClient refactor
                     except ResourceModifiedError:
                         # Another request updated the counter - retry
                         if attempt < max_retries - 1:
@@ -238,6 +238,8 @@ class RateLimiter:
             ... ]
             >>> result = await limiter.check_multiple_limits(checks)
         """
+        result: RateLimitResult | None = None
+
         for limit_type, identifier in checks:
             config = DEFAULT_RATE_LIMITS.get(limit_type)
             if not config:
@@ -254,7 +256,18 @@ class RateLimiter:
             if not result.allowed:
                 return result
 
-        # All checks passed - return success from last check
+        # All checks passed - return success from last check, or default if no checks were run
+        if result is None:
+            # No checks were performed, return default success
+            now = datetime.now(UTC)
+            return RateLimitResult(
+                allowed=True,
+                retry_after=0,
+                current_count=0,
+                limit=0,
+                window_reset_at=now,
+            )
+
         return result
 
     async def reset_limit(
@@ -275,7 +288,7 @@ class RateLimiter:
         row_key = identifier
 
         try:
-            await self.table.delete_entity(
+            await self.table.delete_entity(  # type: ignore[misc]  # TableClient.upsert_entity is sync - requires async TableClient refactor
                 partition_key=partition_key,
                 row_key=row_key,
             )
@@ -309,7 +322,7 @@ class RateLimiter:
         row_key = identifier
 
         try:
-            entity = await self.table.get_entity(
+            entity = await self.table.get_entity(  # type: ignore[misc]  # TableClient.get_entity is sync - requires async TableClient refactor
                 partition_key=partition_key,
                 row_key=row_key,
             )
