@@ -1,7 +1,10 @@
 // Azure HayMaker Infrastructure - Main Template
 // Purpose: Orchestrates deployment of all Azure resources for HayMaker orchestrator
+//
+// NOTE: Deploy to existing resource group. Create RG first:
+// az group create --name haymaker-<env>-rg --location <region>
 
-targetScope = 'subscription'
+targetScope = 'resourceGroup'
 
 // Parameters
 @description('Environment name (dev, staging, prod)')
@@ -56,16 +59,11 @@ var containerRegistryName = toLower('${namingPrefix}${environment}${take(uniqueS
 var functionAppName = '${namingPrefix}-${environment}-${take(uniqueSuffix, 6)}-func'
 var appServicePlanName = '${namingPrefix}-${environment}-plan'
 
-// Resource Group
-resource resourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
-  name: resourceGroupName
-  location: location
-  tags: commonTags
-}
+// Resource Group should be created before deploying this template
+// Example: az group create --name haymaker-dev-rg --location westus2
 
 // Log Analytics Workspace
 module logAnalytics 'modules/log-analytics.bicep' = {
-  scope: az.resourceGroup(resourceGroupName)
   name: 'logAnalytics-${uniqueSuffix}'
   params: {
     workspaceName: logAnalyticsName
@@ -78,7 +76,6 @@ module logAnalytics 'modules/log-analytics.bicep' = {
 
 // Storage Account
 module storage 'modules/storage.bicep' = {
-  scope: az.resourceGroup(resourceGroupName)
   name: 'storage-${uniqueSuffix}'
   params: {
     storageAccountName: storageAccountName
@@ -92,7 +89,6 @@ module storage 'modules/storage.bicep' = {
 
 // Service Bus
 module serviceBus 'modules/servicebus.bicep' = {
-  scope: az.resourceGroup(resourceGroupName)
   name: 'serviceBus-${uniqueSuffix}'
   params: {
     namespaceName: serviceBusName
@@ -106,7 +102,6 @@ module serviceBus 'modules/servicebus.bicep' = {
 
 // Key Vault
 module keyVault 'modules/keyvault.bicep' = {
-  scope: az.resourceGroup(resourceGroupName)
   name: 'keyVault-${uniqueSuffix}'
   params: {
     keyVaultName: keyVaultName
@@ -124,7 +119,6 @@ module keyVault 'modules/keyvault.bicep' = {
 // Cosmos DB
 // Cosmos DB (Optional for dev - region capacity limitations)
 module cosmosDb 'modules/cosmosdb.bicep' = if (environment != 'dev') {
-  scope: az.resourceGroup(resourceGroupName)
   name: 'cosmosDb-${uniqueSuffix}'
   params: {
     accountName: cosmosDbName
@@ -139,7 +133,6 @@ module cosmosDb 'modules/cosmosdb.bicep' = if (environment != 'dev') {
 
 // Container Apps Environment
 module containerAppsEnv 'modules/container-apps-env.bicep' = {
-  scope: az.resourceGroup(resourceGroupName)
   name: 'containerAppsEnv-${uniqueSuffix}'
   params: {
     environmentName: containerAppsEnvName
@@ -152,7 +145,6 @@ module containerAppsEnv 'modules/container-apps-env.bicep' = {
 
 // Container Registry (Optional for dev - SKU limitations in some subscriptions)
 module containerRegistry 'modules/container-registry.bicep' = if (environment != 'dev') {
-  scope: az.resourceGroup(resourceGroupName)
   name: 'containerRegistry-${uniqueSuffix}'
   params: {
     registryName: containerRegistryName
@@ -165,7 +157,6 @@ module containerRegistry 'modules/container-registry.bicep' = if (environment !=
 
 // Function App (depends on most other resources)
 module functionApp 'modules/function-app.bicep' = {
-  scope: az.resourceGroup(resourceGroupName)
   name: 'functionApp-${uniqueSuffix}'
   params: {
     functionAppName: functionAppName
@@ -187,7 +178,6 @@ module functionApp 'modules/function-app.bicep' = {
 
 // Grant Function App access to Key Vault (via module to match scope)
 module functionAppKeyVaultRole 'modules/role-assignment.bicep' = {
-  scope: az.resourceGroup(resourceGroupName)
   name: 'functionAppKeyVaultRole-${uniqueSuffix}'
   params: {
     principalId: functionApp.outputs.principalId
@@ -198,7 +188,6 @@ module functionAppKeyVaultRole 'modules/role-assignment.bicep' = {
 
 // Grant Function App access to Storage (via module to match scope)
 module functionAppStorageRole 'modules/role-assignment.bicep' = {
-  scope: az.resourceGroup(resourceGroupName)
   name: 'functionAppStorageRole-${uniqueSuffix}'
   params: {
     principalId: functionApp.outputs.principalId
@@ -209,7 +198,6 @@ module functionAppStorageRole 'modules/role-assignment.bicep' = {
 
 // Grant Function App access to Cosmos DB (via module to match scope) - only if Cosmos DB is deployed
 module functionAppCosmosRole 'modules/role-assignment.bicep' = if (environment != 'dev') {
-  scope: az.resourceGroup(resourceGroupName)
   name: 'functionAppCosmosRole-${uniqueSuffix}'
   params: {
     principalId: functionApp.outputs.principalId
