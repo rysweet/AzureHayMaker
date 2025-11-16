@@ -117,6 +117,7 @@ module keyVault 'modules/keyvault.bicep' = {
     enableSoftDelete: true
     softDeleteRetentionInDays: 7
     enablePurgeProtection: environment == 'prod'
+    publicNetworkAccess: environment != 'prod'  // Enable public access for dev/staging (GitHub Actions needs it)
   }
 }
 

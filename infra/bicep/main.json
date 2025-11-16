@@ -6,7 +6,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.35.1.17967",
-      "templateHash": "12596935279064241484"
+      "templateHash": "9646491055624716860"
     }
   },
   "parameters": {
@@ -668,6 +668,9 @@
           },
           "enablePurgeProtection": {
             "value": "[equals(parameters('environment'), 'prod')]"
+          },
+          "publicNetworkAccess": {
+            "value": "[not(equals(parameters('environment'), 'prod'))]"
           }
         },
         "template": {
@@ -1409,7 +1412,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.35.1.17967",
-              "templateHash": "8051335864081803260"
+              "templateHash": "12916607428183132844"
             }
           },
           "parameters": {
@@ -1509,8 +1512,8 @@
               "location": "[parameters('location')]",
               "tags": "[parameters('tags')]",
               "sku": {
-                "name": "[if(equals(parameters('environment'), 'prod'), 'EP1', 'Y1')]",
-                "tier": "[if(equals(parameters('environment'), 'prod'), 'ElasticPremium', 'Dynamic')]"
+                "name": "[if(equals(parameters('environment'), 'prod'), 'EP1', 'S1')]",
+                "tier": "[if(equals(parameters('environment'), 'prod'), 'ElasticPremium', 'Standard')]"
               },
               "kind": "linux",
               "properties": {
