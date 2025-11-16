@@ -40,13 +40,17 @@ jobs:
 
       - name: Validate deployment
         run: |
+          RG_NAME="haymaker-dev-rg"
+          # Create RG if needed for validation
+          az group create --name "$RG_NAME" --location ${{ env.AZURE_REGION }} --tags Environment=dev ManagedBy=GitHubActions || true
+
           # Get the Object ID for the service principal (required for RBAC)
           SP_OBJECT_ID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)
 
           VALIDATION_NAME="haymaker-dev-validation-$(date +%Y%m%d-%H%M%S)"
-          az deployment sub validate \
+          az deployment group validate \
             --name "$VALIDATION_NAME" \
-            --location ${{ env.AZURE_REGION }} \
+            --resource-group "$RG_NAME" \
             --template-file infra/bicep/main.bicep \
             --parameters infra/bicep/parameters/dev.bicepparam \
             --parameters adminObjectIds="['$SP_OBJECT_ID']" \
