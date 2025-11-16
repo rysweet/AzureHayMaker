@@ -66,6 +66,7 @@ resource resourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
 // Log Analytics Workspace
 module logAnalytics 'modules/log-analytics.bicep' = {
   scope: resourceGroup
+  dependsOn: [resourceGroup]
   name: 'logAnalytics-${uniqueSuffix}'
   params: {
     workspaceName: logAnalyticsName
