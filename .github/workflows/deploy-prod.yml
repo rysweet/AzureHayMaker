@@ -16,7 +16,7 @@ permissions:
 
 env:
   ENVIRONMENT: prod
-  AZURE_REGION: eastus
+  AZURE_REGION: ${{ secrets.AZURE_LOCATION }}
 
 jobs:
   confirm-deployment:
