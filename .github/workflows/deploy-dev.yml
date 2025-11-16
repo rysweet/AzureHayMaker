@@ -40,13 +40,16 @@ jobs:
 
       - name: Validate deployment
         run: |
+          # Get the Object ID for the service principal (required for RBAC)
+          SP_OBJECT_ID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)
+
           VALIDATION_NAME="haymaker-dev-validation-$(date +%Y%m%d-%H%M%S)"
           az deployment sub validate \
             --name "$VALIDATION_NAME" \
             --location ${{ env.AZURE_REGION }} \
             --template-file infra/bicep/main.bicep \
             --parameters infra/bicep/parameters/dev.bicepparam \
-            --parameters adminObjectIds="['${{ secrets.AZURE_CLIENT_ID }}']" \
+            --parameters adminObjectIds="['$SP_OBJECT_ID']" \
             --parameters githubOidcClientId="${{ secrets.AZURE_CLIENT_ID }}"
 
   test:
@@ -104,6 +107,11 @@ jobs:
         run: |
           echo "Deploying infrastructure to dev environment..."
 
+          # Get the Object ID for the service principal (required for RBAC)
+          echo "Looking up Service Principal Object ID..."
+          SP_OBJECT_ID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)
+          echo "Service Principal Object ID: $SP_OBJECT_ID"
+
           DEPLOYMENT_NAME="haymaker-dev-$(date +%Y%m%d-%H%M%S)"
           echo "Deployment name: $DEPLOYMENT_NAME"
 
@@ -112,7 +120,7 @@ jobs:
             --location ${{ env.AZURE_REGION }} \
             --template-file infra/bicep/main.bicep \
             --parameters infra/bicep/parameters/dev.bicepparam \
-            --parameters adminObjectIds="['${{ secrets.AZURE_CLIENT_ID }}']" \
+            --parameters adminObjectIds="['$SP_OBJECT_ID']" \
             --parameters githubOidcClientId="${{ secrets.AZURE_CLIENT_ID }}" \
             --output json)
 
