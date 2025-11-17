@@ -182,12 +182,13 @@ jobs:
       - name: Inject secrets to Key Vault
         run: |
           echo "Injecting secrets to Key Vault: ${{ steps.deploy.outputs.keyVaultName }}"
-          echo "Waiting 60 seconds for RBAC role assignments to propagate..."
-          sleep 60
+          echo "Waiting 180 seconds for RBAC role assignments to propagate..."
+          echo "(Azure RBAC can take 5-10 minutes to fully propagate)"
+          sleep 180
 
           # Retry logic for secret injection (RBAC propagation can take time)
-          MAX_RETRIES=3
-          RETRY_DELAY=30
+          MAX_RETRIES=6
+          RETRY_DELAY=60
 
           for secret_name in "main-sp-client-secret" "anthropic-api-key" "log-analytics-workspace-key"; do
             echo "Setting secret: $secret_name"
@@ -206,20 +207,25 @@ jobs:
 
             RETRY_COUNT=0
             while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-              if az keyvault secret set \
+              echo "Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES for $secret_name..."
+              ERROR_MSG=$(az keyvault secret set \
                 --vault-name ${{ steps.deploy.outputs.keyVaultName }} \
                 --name $secret_name \
                 --value "$SECRET_VALUE" \
-                --output none 2>/dev/null; then
+                --output none 2>&1)
+
+              if [ $? -eq 0 ]; then
                 echo "✓ Successfully set $secret_name"
                 break
               else
                 RETRY_COUNT=$((RETRY_COUNT + 1))
+                echo "Azure Error: $ERROR_MSG"
                 if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
                   echo "Failed to set $secret_name (attempt $RETRY_COUNT/$MAX_RETRIES). Waiting ${RETRY_DELAY}s before retry..."
                   sleep $RETRY_DELAY
                 else
                   echo "ERROR: Failed to set $secret_name after $MAX_RETRIES attempts"
+                  echo "Last error: $ERROR_MSG"
                   exit 1
                 fi
               fi
