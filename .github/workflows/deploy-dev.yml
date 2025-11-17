@@ -144,8 +144,8 @@ jobs:
           KEY_VAULT_NAME=$(echo $DEPLOYMENT_OUTPUT | jq -r '.properties.outputs.keyVaultName.value')
           RESOURCE_GROUP_NAME=$(echo $DEPLOYMENT_OUTPUT | jq -r '.properties.outputs.resourceGroupName.value')
 
-          # Mask sensitive resource names to prevent exposure in logs
-          echo "::add-mask::$FUNCTION_APP_NAME"
+          # Note: Not masking function app name as it's needed for subsequent job
+          # Key Vault and RG names are masked for security
           echo "::add-mask::$KEY_VAULT_NAME"
           echo "::add-mask::$RESOURCE_GROUP_NAME"
 
@@ -153,7 +153,8 @@ jobs:
           echo "keyVaultName=$KEY_VAULT_NAME" >> $GITHUB_OUTPUT
           echo "resourceGroupName=$RESOURCE_GROUP_NAME" >> $GITHUB_OUTPUT
 
-          echo "Deployment complete. Resource details masked for security."
+          echo "Function App: $FUNCTION_APP_NAME"
+          echo "Deployment complete."
 
       - name: Grant Key Vault Secrets Officer role
         run: |
