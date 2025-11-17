@@ -179,63 +179,30 @@ jobs:
 
           echo "Role assignment complete"
 
-      - name: Inject secrets to Key Vault
+      - name: Configure Function App settings with secrets
         run: |
-          echo "Injecting secrets to Key Vault: ${{ steps.deploy.outputs.keyVaultName }}"
-          echo "Waiting 180 seconds for RBAC role assignments to propagate..."
-          echo "(Azure RBAC can take 5-10 minutes to fully propagate)"
-          sleep 180
+          echo "Configuring Function App with secrets from GitHub Secrets..."
+          FUNCTION_APP_NAME="${{ steps.deploy.outputs.functionAppName }}"
+          RG_NAME="${{ steps.deploy.outputs.resourceGroupName }}"
 
-          # Retry logic for secret injection (RBAC propagation can take time)
-          MAX_RETRIES=6
-          RETRY_DELAY=60
+          echo "Setting application settings for Function App: $FUNCTION_APP_NAME"
 
-          for secret_name in "main-sp-client-secret" "anthropic-api-key" "log-analytics-workspace-key"; do
-            echo "Setting secret: $secret_name"
+          # Configure Function App with secrets directly as environment variables
+          az functionapp config appsettings set \
+            --name "$FUNCTION_APP_NAME" \
+            --resource-group "$RG_NAME" \
+            --settings \
+              AZURE_CLIENT_SECRET="${{ secrets.MAIN_SP_CLIENT_SECRET }}" \
+              ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}" \
+              LOG_ANALYTICS_WORKSPACE_KEY="${{ secrets.LOG_ANALYTICS_WORKSPACE_KEY }}" \
+              AZURE_TENANT_ID="${{ secrets.AZURE_TENANT_ID }}" \
+              AZURE_SUBSCRIPTION_ID="${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
+              AZURE_CLIENT_ID="${{ secrets.AZURE_CLIENT_ID }}" \
+              SIMULATION_SIZE="${{ secrets.SIMULATION_SIZE }}" \
+            --output none
 
-            case $secret_name in
-              "main-sp-client-secret")
-                SECRET_VALUE="${{ secrets.MAIN_SP_CLIENT_SECRET }}"
-                ;;
-              "anthropic-api-key")
-                SECRET_VALUE="${{ secrets.ANTHROPIC_API_KEY }}"
-                ;;
-              "log-analytics-workspace-key")
-                SECRET_VALUE="${{ secrets.LOG_ANALYTICS_WORKSPACE_KEY }}"
-                ;;
-            esac
-
-            RETRY_COUNT=0
-            SUCCESS=false
-            while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$SUCCESS" = "false" ]; do
-              RETRY_COUNT=$((RETRY_COUNT + 1))
-              echo "Attempt $RETRY_COUNT/$MAX_RETRIES for $secret_name..."
-
-              set +e  # Don't exit on error
-              az keyvault secret set \
-                --vault-name ${{ steps.deploy.outputs.keyVaultName }} \
-                --name $secret_name \
-                --value "$SECRET_VALUE" \
-                --output none
-              EXIT_CODE=$?
-              set -e  # Re-enable exit on error
-
-              if [ $EXIT_CODE -eq 0 ]; then
-                echo "✓ Successfully set $secret_name"
-                SUCCESS=true
-              else
-                if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-                  echo "Failed to set $secret_name (exit code $EXIT_CODE). Waiting ${RETRY_DELAY}s before retry..."
-                  sleep $RETRY_DELAY
-                else
-                  echo "ERROR: Failed to set $secret_name after $MAX_RETRIES attempts (exit code $EXIT_CODE)"
-                  exit 1
-                fi
-              fi
-            done
-          done
-
-          echo "All secrets injected successfully"
+          echo "✓ Function App configured with secrets as environment variables"
+          echo "Note: Secrets passed directly, no Key Vault injection needed"
 
   deploy-function:
     name: Deploy Function App
