@@ -37,18 +37,9 @@ cp .env.example .env
 **Option B: Using environment variables**
 
 ```bash
-export AZURE_TENANT_ID="your-tenant-id"
-export AZURE_SUBSCRIPTION_ID="your-subscription-id"
-export AZURE_CLIENT_ID="your-client-id"
-export KEY_VAULT_URL="https://your-keyvault.vault.azure.net"
-export SIMULATION_SIZE="small"
-# ... more variables (see .env.example)
+cp .env.example .env
+# Edit .env and fill in your values
 ```
-
-**Configuration Priority Order:**
-1. Environment variables (explicit override) - highest priority
-2. Azure Key Vault (production secrets)
-3. .env file (local development only) - lowest priority
 
 ### 3. Run Tests
 
@@ -63,7 +54,62 @@ pytest
 # python -m azure_haymaker.orchestrator
 ```
 
-**Security Note:** The .env file should only be used for local development. Production deployments must use Azure Key Vault for secrets management.
+## Configuration
+
+Azure HayMaker uses different secret management approaches for local development vs production:
+
+### Local Development
+
+Secrets are loaded from `.env` file:
+
+1. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Fill in your Azure credentials and Anthropic API key
+
+3. Run locally:
+   ```bash
+   cd src
+   uv run func start
+   ```
+
+**Important**: The `.env` file is gitignored and must never be committed to version control.
+
+### Production (Azure Function App)
+
+Secrets are managed securely via Azure Key Vault:
+
+1. **Deployment**: GitHub Actions injects secrets to Key Vault
+   ```bash
+   az keyvault secret set --vault-name <keyvault> --name anthropic-api-key --value "$SECRET"
+   ```
+
+2. **Runtime**: Function App uses Key Vault references
+   ```bicep
+   {
+     name: 'ANTHROPIC_API_KEY'
+     value: '@Microsoft.KeyVault(VaultName=mykeyvault;SecretName=anthropic-api-key)'
+   }
+   ```
+
+3. **Access**: Function App Managed Identity has "Key Vault Secrets User" role
+
+**Security Benefits:**
+- Secrets never visible in Azure Portal
+- Automatic secret rotation support
+- Audit logging via Key Vault diagnostics
+- RBAC-based access control
+
+### Configuration Priority
+
+The application loads configuration in this order:
+
+1. **Local Development**: `.env` file (gitignored)
+2. **Production**: Azure Key Vault (via references)
+
+Environment variables are NOT used in production to avoid accidental secret exposure.
 
 ## Documentation
 

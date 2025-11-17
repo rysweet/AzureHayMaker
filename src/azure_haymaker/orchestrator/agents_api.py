@@ -1,12 +1,14 @@
 """Agents API endpoints for HayMaker orchestrator."""
 
+import json
 import logging
+import os
 from datetime import datetime
 
 import azure.functions as func
+from azure.cosmos import CosmosClient
 from azure.data.tables import TableServiceClient
 from azure.identity import DefaultAzureCredential
-from azure.servicebus import ServiceBusClient
 from pydantic import BaseModel
 
 app = func.FunctionApp()
@@ -41,11 +43,11 @@ class AgentInfo(BaseModel):
 class LogEntry(BaseModel):
     """Log entry."""
 
-    timestamp: datetime
+    timestamp: str
     level: str
     message: str
     agent_id: str
-    scenario: str | None = None
+    source: str = "agent"
 
 
 async def query_agents_from_table(
@@ -112,39 +114,83 @@ async def query_agents_from_table(
     return agents
 
 
-async def query_logs_from_servicebus(
-    servicebus_client: ServiceBusClient,
-    topic_name: str,
-    subscription_name: str,
+async def query_logs_from_cosmosdb(
     agent_id: str,
     tail: int = 100,
+    since_timestamp: str | None = None,
 ) -> list[LogEntry]:
-    """Query logs from Service Bus.
-
-    Note: This is a simplified implementation. In production, logs should be
-    stored in a persistent store (Cosmos DB, Blob Storage) for querying.
+    """Query logs from Cosmos DB.
 
     Args:
-        servicebus_client: Service Bus client
-        topic_name: Topic name
-        subscription_name: Subscription name for the agent
         agent_id: Agent ID to filter logs
-        tail: Number of recent entries to return
+        tail: Number of recent entries to return (default: 100)
+        since_timestamp: Optional ISO 8601 timestamp to get logs after
 
     Returns:
-        List of log entries
+        List of log entries, sorted by timestamp (newest first)
     """
     logs = []
 
     try:
-        # In production, query logs from persistent storage (Cosmos DB, Log Analytics)
-        # For now, return empty list as Service Bus doesn't support querying
-        # This would need to be implemented with a proper log storage solution
+        # Initialize Cosmos DB client
+        cosmos_endpoint = os.getenv("COSMOSDB_ENDPOINT")
+        if not cosmos_endpoint:
+            logger.error("COSMOSDB_ENDPOINT not configured")
+            return logs
 
-        logger.info(f"Log query for agent {agent_id} (returning empty - needs log storage)")
+        credential = DefaultAzureCredential()
+        cosmos_client = CosmosClient(cosmos_endpoint, credential)
+        database = cosmos_client.get_database_client("haymaker")
+        container = database.get_container_client("agent-logs")
+
+        # Build query
+        if since_timestamp:
+            query = """
+                SELECT * FROM c
+                WHERE c.agent_id = @agent_id
+                AND c.timestamp > @since_timestamp
+                ORDER BY c.timestamp DESC
+            """
+            parameters = [
+                {"name": "@agent_id", "value": agent_id},
+                {"name": "@since_timestamp", "value": since_timestamp},
+            ]
+        else:
+            query = """
+                SELECT TOP @limit * FROM c
+                WHERE c.agent_id = @agent_id
+                ORDER BY c.timestamp DESC
+            """
+            parameters = [
+                {"name": "@agent_id", "value": agent_id},
+                {"name": "@limit", "value": tail},
+            ]
+
+        # Execute query
+        items = list(
+            container.query_items(
+                query=query,
+                parameters=parameters,
+                partition_key=agent_id,
+                enable_cross_partition_query=False,
+            )
+        )
+
+        # Convert to LogEntry objects
+        for item in items:
+            log_entry = LogEntry(
+                timestamp=item.get("timestamp", ""),
+                level=item.get("level", "INFO"),
+                message=item.get("message", ""),
+                agent_id=item.get("agent_id", ""),
+                source=item.get("source", "agent"),
+            )
+            logs.append(log_entry)
+
+        logger.info(f"Retrieved {len(logs)} logs for agent {agent_id}")
 
     except Exception as e:
-        logger.error(f"Error querying logs: {e}")
+        logger.error(f"Error querying logs from Cosmos DB: {e}")
         raise
 
     return logs
@@ -250,7 +296,7 @@ async def get_agent_logs(req: func.HttpRequest) -> func.HttpResponse:
 
     Query Parameters:
         tail: Number of recent log entries (default: 100)
-        follow: Whether to stream logs (not implemented via HTTP)
+        since: ISO 8601 timestamp to get logs after (for --follow mode)
 
     Response:
         200 OK: {
@@ -260,7 +306,7 @@ async def get_agent_logs(req: func.HttpRequest) -> func.HttpResponse:
                     "level": str,
                     "message": str,
                     "agent_id": str,
-                    "scenario": str | null
+                    "source": str
                 }
             ]
         }
@@ -271,6 +317,7 @@ async def get_agent_logs(req: func.HttpRequest) -> func.HttpResponse:
     Example:
         GET /api/v1/agents/agent-123/logs
         GET /api/v1/agents/agent-123/logs?tail=50
+        GET /api/v1/agents/agent-123/logs?since=2025-11-17T12:00:00Z
     """
     try:
         # Parse path parameter
@@ -284,41 +331,30 @@ async def get_agent_logs(req: func.HttpRequest) -> func.HttpResponse:
             )
 
         # Parse query parameters
-        # TODO: Implement log tailing and following once log storage is added
-        # tail = int(req.params.get("tail", "100"))
-        # follow = req.params.get("follow", "false").lower() == "true"
+        tail = int(req.params.get("tail", "100"))
+        since_timestamp = req.params.get("since")
 
-        # Get Service Bus configuration
-        import os
+        # Query logs from Cosmos DB
+        logs = await query_logs_from_cosmosdb(
+            agent_id=agent_id, tail=tail, since_timestamp=since_timestamp
+        )
 
-        servicebus_namespace = os.getenv("SERVICE_BUS_NAMESPACE")
-        # topic_name = os.getenv("SERVICE_BUS_TOPIC", "agent-logs")
-
-        if not servicebus_namespace:
-            logger.error("SERVICE_BUS_NAMESPACE not configured")
-            return func.HttpResponse(
-                body='{"error": "Log storage not configured"}',
-                status_code=500,
-                mimetype="application/json",
-            )
-
-        # Note: In production, logs should be queried from persistent storage
-        # (Cosmos DB, Log Analytics, Blob Storage) not Service Bus
-        # Service Bus is for real-time streaming, not historical queries
-
-        # For now, return placeholder response
-        logs = []
-
-        # Build response
-        response = {
-            "logs": [log.model_dump(mode="json") for log in logs],
-            "note": "Log storage implementation pending. Logs should be queried from Log Analytics or Cosmos DB.",
+        # Format response
+        response_data = {
+            "logs": [
+                {
+                    "timestamp": log.timestamp,
+                    "level": log.level,
+                    "message": log.message,
+                    "agent_id": log.agent_id,
+                    "source": log.source,
+                }
+                for log in logs
+            ]
         }
 
         return func.HttpResponse(
-            body=str(response),
-            status_code=200,
-            mimetype="application/json",
+            body=json.dumps(response_data), status_code=200, mimetype="application/json"
         )
 
     except ValueError as e:
