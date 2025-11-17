@@ -174,6 +174,8 @@ resource logsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/conta
 }
 
 // Outputs
+// NOTE: Do not output secrets like primaryKey or connectionString (security best practice)
+// Use Key Vault references or Managed Identity for secure secret access
 output accountId string = cosmosAccount.id
 output accountName string = cosmosAccount.name
 output endpoint string = cosmosAccount.properties.documentEndpoint
@@ -181,5 +183,4 @@ output databaseName string = database.name
 output metricsContainerName string = metricsContainer.name
 output runsContainerName string = runsContainer.name
 output logsContainerName string = logsContainer.name
-output primaryKey string = cosmosAccount.listKeys().primaryMasterKey
-output connectionString string = 'AccountEndpoint=${cosmosAccount.properties.documentEndpoint};AccountKey=${cosmosAccount.listKeys().primaryMasterKey};'
+// SECURITY: Removed primaryKey and connectionString outputs per security review
