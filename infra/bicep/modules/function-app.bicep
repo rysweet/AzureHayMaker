@@ -135,10 +135,18 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
           name: 'ServiceBusConnection'
           value: serviceBusConnectionString
         }
-        // Cosmos DB
+        // Cosmos DB (optional for dev - will be empty string if not deployed)
         {
           name: 'CosmosDbConnection'
           value: cosmosDbConnectionString
+        }
+        {
+          name: 'COSMOSDB_ENDPOINT'
+          value: ''  // Optional - use Managed Identity when available
+        }
+        {
+          name: 'COSMOSDB_DATABASE'
+          value: 'haymaker'  // Default database name
         }
         // Storage accounts
         {
