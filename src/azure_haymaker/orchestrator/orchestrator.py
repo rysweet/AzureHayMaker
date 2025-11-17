@@ -16,11 +16,13 @@ Requirements: azure-durable-functions and azure-functions must be installed for 
 
 import json
 import logging
+import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
 import azure.functions as func
+from azure.data.tables import TableServiceClient
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 from azure.storage.blob import BlobServiceClient
@@ -55,7 +57,7 @@ app = func.FunctionApp()
 @app.timer_trigger(
     schedule="0 0 0,6,12,18 * * *",
     arg_name="timer_request",
-    run_on_startup=False,
+    run_on_startup=True,
 )
 @app.durable_client_input(client_name="durable_client")
 async def haymaker_timer(
@@ -64,7 +66,7 @@ async def haymaker_timer(
 ) -> dict[str, Any]:
     """Timer trigger for orchestrator execution (4x daily: 00:00, 06:00, 12:00, 18:00 UTC).
 
-    Triggered by CRON schedule and starts a new durable orchestration instance.
+    Triggered by CRON schedule and also runs on startup if run_on_startup=True.
 
     Args:
         timer_request: Timer trigger request containing execution time
@@ -75,9 +77,48 @@ async def haymaker_timer(
 
     Example:
         Automatically triggered at 00:00, 06:00, 12:00, 18:00 UTC.
-        No manual invocation needed.
+        Also triggered on Function App startup.
     """
-    if timer_request.past_due:
+    # Check if triggered by startup vs scheduled timer
+    is_startup = timer_request is None or not hasattr(timer_request, "schedule_status")
+
+    if is_startup:
+        logger.info("Startup trigger detected - checking for recent executions")
+
+        # Query for recent orchestration instances (last 5 minutes)
+        try:
+            # Connect to Table Storage for execution history
+            table_account_name = os.getenv("TABLE_STORAGE_ACCOUNT_NAME")
+            if table_account_name:
+                credential = DefaultAzureCredential()
+                table_service = TableServiceClient(
+                    endpoint=f"https://{table_account_name}.table.core.windows.net",
+                    credential=credential,
+                )
+
+                # Query executions table for recent runs
+                table_client = table_service.get_table_client("orchestrationHistory")
+                five_minutes_ago = datetime.now(UTC) - timedelta(minutes=5)
+
+                # Check for any executions in last 5 minutes
+                query_filter = f"Timestamp ge datetime'{five_minutes_ago.isoformat()}'"
+                recent_executions = list(table_client.query_entities(query_filter, top=1))
+
+                if recent_executions:
+                    logger.warning(
+                        "Skipping startup execution - orchestration ran within last 5 minutes. "
+                        f"Last execution: {recent_executions[0].get('Timestamp')}"
+                    )
+                    return {
+                        "status": "skipped",
+                        "reason": "recent_execution_detected",
+                        "message": "Startup execution skipped to avoid conflict with recent run",
+                    }
+        except Exception as e:
+            logger.warning(f"Could not check recent executions: {e}. Proceeding with startup.")
+
+    # Original timer trigger logic continues...
+    if timer_request and hasattr(timer_request, "past_due") and timer_request.past_due:
         logger.warning(
             "Timer trigger is running late. Past due time: %s",
             timer_request.past_due,
@@ -85,7 +126,10 @@ async def haymaker_timer(
 
     # Generate unique run ID for this execution
     run_id = str(uuid4())
-    logger.info("Haymaker timer trigger fired. Starting orchestration with run_id=%s", run_id)
+    execution_type = "startup" if is_startup else "scheduled"
+    logger.info(
+        f"Haymaker {execution_type} trigger fired. Starting orchestration with run_id={run_id}"
+    )
 
     # Start the main orchestration function
     instance_id = await durable_client.start_new(
