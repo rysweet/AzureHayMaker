@@ -207,8 +207,8 @@ jobs:
 
       - name: Wait for RBAC propagation
         run: |
-          echo "Waiting 60 seconds for RBAC role assignments to propagate..."
-          sleep 60
+          echo "Waiting 90 seconds for RBAC role assignments to propagate..."
+          sleep 90
           echo "✓ RBAC propagation complete"
 
       - name: Verify Key Vault access from Function App
