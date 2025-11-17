@@ -167,7 +167,7 @@ module functionApp 'modules/function-app.bicep' = {
     appInsightsConnectionString: logAnalytics.outputs.workspaceId
     keyVaultUri: keyVault.outputs.keyVaultUri
     serviceBusConnectionString: serviceBus.outputs.connectionString
-    cosmosDbConnectionString: environment != 'dev' ? cosmosDb.outputs.connectionString : ''
+    // SECURITY: Removed cosmosDbConnectionString - use Managed Identity instead
     tenantId: tenantId
     subscriptionId: subscriptionId
     clientId: githubOidcClientId

@@ -28,9 +28,9 @@ param keyVaultUri string
 @secure()
 param serviceBusConnectionString string
 
-@description('Cosmos DB connection string')
+@description('Cosmos DB connection string - DEPRECATED: Use Managed Identity instead')
 @secure()
-param cosmosDbConnectionString string
+param cosmosDbConnectionString string = ''
 
 @description('Azure tenant ID')
 param tenantId string
