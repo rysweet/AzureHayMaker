@@ -206,26 +206,29 @@ jobs:
             esac
 
             RETRY_COUNT=0
-            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-              echo "Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES for $secret_name..."
-              ERROR_MSG=$(az keyvault secret set \
+            SUCCESS=false
+            while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$SUCCESS" = "false" ]; do
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              echo "Attempt $RETRY_COUNT/$MAX_RETRIES for $secret_name..."
+
+              set +e  # Don't exit on error
+              az keyvault secret set \
                 --vault-name ${{ steps.deploy.outputs.keyVaultName }} \
                 --name $secret_name \
                 --value "$SECRET_VALUE" \
-                --output none 2>&1)
+                --output none
+              EXIT_CODE=$?
+              set -e  # Re-enable exit on error
 
-              if [ $? -eq 0 ]; then
+              if [ $EXIT_CODE -eq 0 ]; then
                 echo "✓ Successfully set $secret_name"
-                break
+                SUCCESS=true
               else
-                RETRY_COUNT=$((RETRY_COUNT + 1))
-                echo "Azure Error: $ERROR_MSG"
                 if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-                  echo "Failed to set $secret_name (attempt $RETRY_COUNT/$MAX_RETRIES). Waiting ${RETRY_DELAY}s before retry..."
+                  echo "Failed to set $secret_name (exit code $EXIT_CODE). Waiting ${RETRY_DELAY}s before retry..."
                   sleep $RETRY_DELAY
                 else
-                  echo "ERROR: Failed to set $secret_name after $MAX_RETRIES attempts"
-                  echo "Last error: $ERROR_MSG"
+                  echo "ERROR: Failed to set $secret_name after $MAX_RETRIES attempts (exit code $EXIT_CODE)"
                   exit 1
                 fi
               fi
