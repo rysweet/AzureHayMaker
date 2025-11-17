@@ -138,9 +138,9 @@ async def load_config_from_env_and_keyvault() -> OrchestratorConfig:
         storage_account_name = _get_required_env("STORAGE_ACCOUNT_NAME", dotenv_vars)
         table_storage_account_name = _get_required_env("TABLE_STORAGE_ACCOUNT_NAME", dotenv_vars)
 
-        # Cosmos DB configuration
-        cosmosdb_endpoint = _get_required_env("COSMOSDB_ENDPOINT", dotenv_vars)
-        cosmosdb_database = _get_required_env("COSMOSDB_DATABASE", dotenv_vars)
+        # Cosmos DB configuration (optional for dev where Cosmos DB not deployed)
+        cosmosdb_endpoint = _get_optional_env("COSMOSDB_ENDPOINT", "")
+        cosmosdb_database = _get_optional_env("COSMOSDB_DATABASE", "haymaker")
 
         # Log Analytics configuration
         log_analytics_workspace_id = _get_required_env("LOG_ANALYTICS_WORKSPACE_ID", dotenv_vars)
