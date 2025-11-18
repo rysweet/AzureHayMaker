@@ -372,6 +372,11 @@ class ContainerManager:
                 "name": "ANTHROPIC_API_KEY",
                 "secretRef": "anthropic-api-key",
             },
+            # Node.js memory configuration (Captain's requirement - 32GB heap)
+            {
+                "name": "NODE_OPTIONS",
+                "value": "--max-old-space-size=32768",
+            },
         ]
 
         # Build container with resource constraints: 64GB RAM, 2 CPU minimum
