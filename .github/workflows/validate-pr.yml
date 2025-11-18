@@ -1,0 +1,37 @@
+name: Validate Pull Request
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      
+      - name: Install dependencies
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          cd src
+          uv sync --no-dev
+      
+      - name: Run tests
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          cd src
+          uv run pytest
+      
+      - name: Run linting
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          cd src
+          uv run ruff check .
