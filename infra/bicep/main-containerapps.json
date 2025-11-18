@@ -6,7 +6,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.35.1.17967",
-      "templateHash": "1785223192024158584"
+      "templateHash": "1381032053641496257"
     }
   },
   "parameters": {
@@ -73,7 +73,7 @@
     },
     "uniqueSuffix": "[uniqueString(resourceGroup().id, parameters('environment'))]",
     "containerAppEnvName": "[format('haymaker-{0}-{1}-cae', parameters('environment'), variables('uniqueSuffix'))]",
-    "orchestratorAppName": "[format('haymaker-{0}-{1}-orchestrator', parameters('environment'), variables('uniqueSuffix'))]",
+    "orchestratorAppName": "[format('orch-{0}-{1}', parameters('environment'), substring(variables('uniqueSuffix'), 0, 10))]",
     "keyVaultName": "[format('haymaker-{0}-{1}-kv', parameters('environment'), substring(variables('uniqueSuffix'), 0, 6))]",
     "serviceBusName": "[format('haymaker-{0}-{1}-bus', parameters('environment'), variables('uniqueSuffix'))]",
     "storageName": "[format('haymaker{0}{1}', parameters('environment'), substring(variables('uniqueSuffix'), 0, 8))]",
@@ -992,7 +992,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.35.1.17967",
-              "templateHash": "13997883072631196078"
+              "templateHash": "6364578389414398736"
             }
           },
           "parameters": {
@@ -1024,14 +1024,14 @@
             },
             "containerImage": {
               "type": "string",
-              "defaultValue": "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest",
+              "defaultValue": "haymakerorchacr.azurecr.io/haymaker-orchestrator:latest",
               "metadata": {
                 "description": "Container image"
               }
             },
             "containerRegistry": {
               "type": "string",
-              "defaultValue": "",
+              "defaultValue": "haymakerorchacr.azurecr.io",
               "metadata": {
                 "description": "Container registry server"
               }
@@ -1142,17 +1142,6 @@
                             "timezone": "UTC",
                             "start": "0 0,6,12,18 * * *",
                             "end": "0 1,7,13,19 * * *",
-                            "desiredReplicas": "1"
-                          }
-                        }
-                      },
-                      {
-                        "name": "startup-trigger",
-                        "custom": {
-                          "type": "cron",
-                          "metadata": {
-                            "timezone": "UTC",
-                            "start": "@reboot",
                             "desiredReplicas": "1"
                           }
                         }

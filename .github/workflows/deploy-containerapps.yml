@@ -47,10 +47,44 @@ jobs:
           az bicep build --file infra/bicep/main-containerapps.bicep
           echo "✅ Bicep templates validated"
 
+  build-orchestrator-image:
+    name: Build and Push Orchestrator Image
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build orchestrator Docker image
+        run: |
+          cd src
+          docker build -t haymaker-orchestrator:${{ github.sha }} -f Dockerfile .
+          docker tag haymaker-orchestrator:${{ github.sha }} haymaker-orchestrator:latest
+          echo "✅ Docker image built"
+
+      - name: Login to ACR
+        run: |
+          az acr login --name haymakerorchacr
+          echo "✅ ACR login successful"
+
+      - name: Push image to ACR
+        run: |
+          docker tag haymaker-orchestrator:latest haymakerorchacr.azurecr.io/haymaker-orchestrator:latest
+          docker tag haymaker-orchestrator:latest haymakerorchacr.azurecr.io/haymaker-orchestrator:${{ github.sha }}
+          docker push haymakerorchacr.azurecr.io/haymaker-orchestrator:latest
+          docker push haymakerorchacr.azurecr.io/haymaker-orchestrator:${{ github.sha }}
+          echo "✅ Images pushed to ACR"
+
   deploy-infrastructure:
     name: Deploy 128GB Container Apps Infrastructure
     runs-on: ubuntu-latest
-    needs: validate
+    needs: [validate, build-orchestrator-image]
     outputs:
       orchestratorName: ${{ steps.deploy.outputs.orchestratorName }}
       orchestratorFqdn: ${{ steps.deploy.outputs.orchestratorFqdn }}
