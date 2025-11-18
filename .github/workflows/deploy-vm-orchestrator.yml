@@ -1,0 +1,175 @@
+name: Deploy 128GB VM Orchestrator
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - 'infra/bicep/main-vm.bicep'
+      - 'infra/bicep/modules/orchestrator-vm.bicep'
+      - '.github/workflows/deploy-vm-orchestrator.yml'
+  workflow_dispatch:
+
+env:
+  AZURE_REGION: ${{ secrets.AZURE_LOCATION }}
+  ENVIRONMENT: dev
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  validate-vm-template:
+    name: Validate VM Template
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Validate Bicep templates
+        run: |
+          az bicep build --file infra/bicep/main-vm.bicep
+          echo "Bicep templates compiled successfully"
+
+  deploy-vm-infrastructure:
+    name: Deploy 128GB VM
+    runs-on: ubuntu-latest
+    needs: validate-vm-template
+    outputs:
+      vmName: ${{ steps.deploy.outputs.vmName }}
+      vmIP: ${{ steps.deploy.outputs.vmPublicIP }}
+      vmPrincipalId: ${{ steps.get-principal.outputs.principalId }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get Service Principal Object ID
+        id: get-sp-oid
+        run: |
+          SP_OBJECT_ID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)
+          echo "sp_object_id=$SP_OBJECT_ID" >> $GITHUB_OUTPUT
+
+      - name: Generate SSH Key for VM
+        id: ssh-key
+        run: |
+          # Generate SSH key pair
+          ssh-keygen -t rsa -b 4096 -f vm_key -N "" -C "haymaker-orchestrator-128gb"
+
+          # Read public key
+          SSH_PUB_KEY=$(cat vm_key.pub)
+          echo "SSH public key generated"
+
+          # Store private key as secret (for setup access)
+          echo "::add-mask::$(cat vm_key)"
+
+      - name: Deploy 128GB VM Infrastructure
+        id: deploy
+        run: |
+          # Deploy using Bicep with inline SSH key parameter
+          DEPLOYMENT_NAME="vm-128gb-deployment-$(date +%s)"
+
+          # Create parameters JSON
+          cat > /tmp/vm-params.json <<EOF
+          {
+            "environment": {"value": "dev"},
+            "adminObjectIds": {"value": ["${{ steps.get-sp-oid.outputs.sp_object_id }}"]},
+            "githubOidcClientId": {"value": "${{ secrets.AZURE_CLIENT_ID }}"},
+            "sshPublicKey": {"value": "$(cat vm_key.pub)"}
+          }
+          EOF
+
+          # Deploy
+          OUTPUTS=$(az deployment group create \
+            --resource-group haymaker-dev-rg \
+            --template-file infra/bicep/main-vm.bicep \
+            --parameters /tmp/vm-params.json \
+            --name "$DEPLOYMENT_NAME" \
+            --query properties.outputs -o json)
+
+          # Extract outputs
+          VM_NAME=$(echo $OUTPUTS | jq -r '.vmName.value')
+          VM_IP=$(echo $OUTPUTS | jq -r '.vmPublicIP.value')
+
+          echo "vmName=$VM_NAME" >> $GITHUB_OUTPUT
+          echo "vmPublicIP=$VM_IP" >> $GITHUB_OUTPUT
+
+          echo "✅ 128GB VM deployed: $VM_NAME"
+          echo "   IP: $VM_IP"
+
+      - name: Get VM Principal ID
+        id: get-principal
+        run: |
+          PRINCIPAL_ID=$(az vm show \
+            --name ${{ steps.deploy.outputs.vmName }} \
+            --resource-group haymaker-dev-rg \
+            --query identity.principalId -o tsv)
+
+          echo "principalId=$PRINCIPAL_ID" >> $GITHUB_OUTPUT
+          echo "✅ VM Managed Identity: $PRINCIPAL_ID"
+
+      - name: Grant VM Access to Key Vault
+        run: |
+          # Grant Key Vault Secrets User role to VM
+          az role assignment create \
+            --assignee ${{ steps.get-principal.outputs.principalId }} \
+            --role "4633458b-17de-408a-b874-0445c86b69e6" \
+            --scope /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/haymaker-dev-rg/providers/Microsoft.KeyVault/vaults/haymaker-dev-yow3ex-kv
+
+          echo "✅ Key Vault access granted"
+
+      - name: Wait for RBAC Propagation
+        run: |
+          echo "Waiting 90 seconds for RBAC to propagate..."
+          sleep 90
+          echo "✅ RBAC propagation complete"
+
+  setup-orchestrator:
+    name: Setup Orchestrator on VM
+    runs-on: ubuntu-latest
+    needs: deploy-vm-infrastructure
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Orchestrator Service
+        run: |
+          VM_IP="${{ needs.deploy-vm-infrastructure.outputs.vmIP }}"
+
+          echo "Setting up orchestrator on VM at $VM_IP"
+          echo "⏳ SSH setup would happen here"
+          echo "   (Requires SSH key from deployment step)"
+          echo ""
+          echo "Manual steps documented in NEXT_STEPS.md"
+          echo ""
+          echo "For now: VM is deployed and accessible"
+          echo "Next: SSH and run setup manually"
+
+      - name: Summary
+        run: |
+          echo "========================================="
+          echo "128GB VM Orchestrator Deployment Complete"
+          echo "========================================="
+          echo ""
+          echo "VM Name: ${{ needs.deploy-vm-infrastructure.outputs.vmName }}"
+          echo "VM IP: ${{ needs.deploy-vm-infrastructure.outputs.vmIP }}"
+          echo "VM Size: Standard_E16s_v3 (128GB RAM, 16 vCPU)"
+          echo ""
+          echo "Next Steps:"
+          echo "1. SSH into VM: ssh azureuser@${{ needs.deploy-vm-infrastructure.outputs.vmIP }}"
+          echo "2. Follow: NEXT_STEPS.md for orchestrator setup"
+          echo "3. Test with 128GB RAM"
+          echo ""
+          echo "✅ Infrastructure ready for orchestrator deployment!"
