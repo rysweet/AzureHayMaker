@@ -98,7 +98,7 @@ module orchestratorVM 'modules/orchestrator-vm.bicep' = {
     location: location
     tags: commonTags
     sshPublicKey: sshPublicKey
-    vmSize: 'Standard_E8s_v3' // 64GB RAM - EXACTLY what captain ordered!
+    vmSize: 'Standard_E16s_v3' // 128GB RAM - Captain's PREFERRED specification!
     environment: environment
     keyVaultUri: keyVault.outputs.keyVaultUri
   }

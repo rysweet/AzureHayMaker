@@ -17,8 +17,8 @@ param adminUsername string = 'azureuser'
 @description('SSH public key')
 param sshPublicKey string
 
-@description('VM size - E8s_v3 has 64GB RAM (memory optimized)')
-param vmSize string = 'Standard_E8s_v3' // 8 vCPU, 64 GB RAM
+@description('VM size - E16s_v3 has 128GB RAM (memory optimized)')
+param vmSize string = 'Standard_E16s_v3' // 16 vCPU, 128 GB RAM
 
 @description('Environment name')
 param environment string
@@ -137,7 +137,7 @@ resource vm 'Microsoft.Compute/virtualMachines@2023-09-01' = {
   }
   properties: {
     hardwareProfile: {
-      vmSize: vmSize // Standard_E8s_v3 = 64GB RAM
+      vmSize: vmSize // Standard_E16s_v3 = 128GB RAM (Captain's preferred)
     }
     storageProfile: {
       imageReference: {
