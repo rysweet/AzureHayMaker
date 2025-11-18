@@ -1,0 +1,6 @@
+using '../main-vm.bicep'
+
+param environment = 'dev'
+param adminObjectIds = ['42d7dce2-072a-4ff4-9c3c-11474f4fc7df']
+param githubOidcClientId = '7fc87f52-c911-49ce-b64f-e4f22fa7c8b0'
+param sshPublicKey = 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDXL/CnsziUa6Rn/xoFq+HiyLx++q29ersziJIQ/Yz4LRSoscF6cw/tYkf7rORv0LYD6jf9AcOSi62eJnB6hZr353WcPssM3xmPc/PjLMV1lZGe6Y50tZBj9HXObE/+ox+Djtvnb1LiHZYiYHDMKZXe5F3WZb2PxTvQUuHftjhgW57Aekedxz2Vrguo2k0fAjKjXL9Vr6YciY3Ppy4vC15yR9TR/bvKj188vR2JXgjfRfX//KuFjS4dbhz0XIhT1D8TPgEq5ES3PHvBalknGqwFDZZ2pBYn9tDc1ZjzPEJer8Q80qOOVYnA4wywx6mA9HBfa/48qpMGG1ulr5JPKoE2iGyYWSnk/+UODgLgqKkC4M2PyHZZ+EJ9PNGxpHyMT8NuEm3kxAbFsHLEhQYofALGjA46Me/BEoP5+jvoeX8onZfTosYGUgImcAAKQahpNCUFrxE30QhIi/YAA6SzywKKeEmuBxdhPeE+hWGGKzU9Fna26gSA63sWqlx52JjRfSovdmA2HX22Z0AipRBFYpLnaFRAaWPNQhkGO8OaEkpXCjbKQYzc5oc0HYPvS4zSXOaewITLuhzVxs/XtrZnbjyr5DmrrN11jqD89OylDFPFSLUXAbVQ13ZXnPmao+qfeQQy2dof3P/2XzyjCWHelPO3KuEsZ5hv2RsAvc3w3l+P+Q== haymaker-orchestrator'
