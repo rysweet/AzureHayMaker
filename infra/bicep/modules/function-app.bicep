@@ -45,7 +45,7 @@ param clientId string
 param environment string
 
 @description('Python version')
-param pythonVersion string = '3.13'
+param pythonVersion string = '3.11'
 
 @description('Service Bus namespace name')
 param serviceBusNamespace string
