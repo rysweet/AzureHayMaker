@@ -1,0 +1,1378 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "languageVersion": "2.0",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.35.1.17967",
+      "templateHash": "1785223192024158584"
+    }
+  },
+  "parameters": {
+    "environment": {
+      "type": "string",
+      "defaultValue": "dev",
+      "allowedValues": [
+        "dev",
+        "staging",
+        "prod"
+      ],
+      "metadata": {
+        "description": "Environment name (dev/staging/prod)"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources"
+      }
+    },
+    "adminObjectIds": {
+      "type": "array",
+      "metadata": {
+        "description": "Admin object IDs for Key Vault access"
+      }
+    },
+    "githubOidcClientId": {
+      "type": "string",
+      "metadata": {
+        "description": "GitHub OIDC client ID"
+      }
+    },
+    "orchestratorImage": {
+      "type": "string",
+      "defaultValue": "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest",
+      "metadata": {
+        "description": "Orchestrator container image"
+      }
+    },
+    "agentImage": {
+      "type": "string",
+      "defaultValue": "azure-haymaker-agent:latest",
+      "metadata": {
+        "description": "Agent container image"
+      }
+    },
+    "simulationSize": {
+      "type": "string",
+      "defaultValue": "small",
+      "metadata": {
+        "description": "Simulation size"
+      }
+    }
+  },
+  "variables": {
+    "commonTags": {
+      "Environment": "[parameters('environment')]",
+      "Project": "AzureHayMaker",
+      "ManagedBy": "Bicep",
+      "DeployedBy": "GitHubActions",
+      "Architecture": "ContainerApps"
+    },
+    "uniqueSuffix": "[uniqueString(resourceGroup().id, parameters('environment'))]",
+    "containerAppEnvName": "[format('haymaker-{0}-{1}-cae', parameters('environment'), variables('uniqueSuffix'))]",
+    "orchestratorAppName": "[format('haymaker-{0}-{1}-orchestrator', parameters('environment'), variables('uniqueSuffix'))]",
+    "keyVaultName": "[format('haymaker-{0}-{1}-kv', parameters('environment'), substring(variables('uniqueSuffix'), 0, 6))]",
+    "serviceBusName": "[format('haymaker-{0}-{1}-bus', parameters('environment'), variables('uniqueSuffix'))]",
+    "storageName": "[format('haymaker{0}{1}', parameters('environment'), substring(variables('uniqueSuffix'), 0, 8))]",
+    "tenantId": "[tenant().tenantId]",
+    "subscriptionId": "[subscription().subscriptionId]"
+  },
+  "resources": {
+    "storage": {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('storage-{0}', variables('uniqueSuffix'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "storageAccountName": {
+            "value": "[variables('storageName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[variables('commonTags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "languageVersion": "2.0",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "8159135503772857645"
+            }
+          },
+          "parameters": {
+            "storageAccountName": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 24,
+              "metadata": {
+                "description": "Storage account name (globally unique)"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Azure region"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Resource tags"
+              }
+            },
+            "sku": {
+              "type": "string",
+              "defaultValue": "Standard_LRS",
+              "allowedValues": [
+                "Standard_LRS",
+                "Standard_GRS",
+                "Standard_RAGRS",
+                "Standard_ZRS",
+                "Premium_LRS"
+              ],
+              "metadata": {
+                "description": "Storage account SKU"
+              }
+            },
+            "enableVersioning": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Enable blob versioning"
+              }
+            },
+            "retentionDays": {
+              "type": "int",
+              "defaultValue": 7,
+              "minValue": 1,
+              "maxValue": 365,
+              "metadata": {
+                "description": "Blob retention days"
+              }
+            }
+          },
+          "resources": {
+            "storageAccount": {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2023-01-01",
+              "name": "[parameters('storageAccountName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "[parameters('sku')]"
+              },
+              "kind": "StorageV2",
+              "properties": {
+                "minimumTlsVersion": "TLS1_2",
+                "supportsHttpsTrafficOnly": true,
+                "allowBlobPublicAccess": false,
+                "allowSharedKeyAccess": true,
+                "networkAcls": {
+                  "bypass": "AzureServices",
+                  "defaultAction": "Allow"
+                },
+                "encryption": {
+                  "services": {
+                    "blob": {
+                      "enabled": true
+                    },
+                    "file": {
+                      "enabled": true
+                    }
+                  },
+                  "keySource": "Microsoft.Storage"
+                }
+              }
+            },
+            "blobService": {
+              "type": "Microsoft.Storage/storageAccounts/blobServices",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}', parameters('storageAccountName'), 'default')]",
+              "properties": {
+                "deleteRetentionPolicy": {
+                  "enabled": true,
+                  "days": "[parameters('retentionDays')]"
+                },
+                "isVersioningEnabled": "[parameters('enableVersioning')]"
+              },
+              "dependsOn": [
+                "storageAccount"
+              ]
+            },
+            "logsContainer": {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}/{2}', parameters('storageAccountName'), 'default', 'logs')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "blobService"
+              ]
+            },
+            "reportsContainer": {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}/{2}', parameters('storageAccountName'), 'default', 'reports')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "blobService"
+              ]
+            },
+            "stateContainer": {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}/{2}', parameters('storageAccountName'), 'default', 'state')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "blobService"
+              ]
+            },
+            "tableService": {
+              "type": "Microsoft.Storage/storageAccounts/tableServices",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}', parameters('storageAccountName'), 'default')]",
+              "dependsOn": [
+                "storageAccount"
+              ]
+            },
+            "executionsTable": {
+              "type": "Microsoft.Storage/storageAccounts/tableServices/tables",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}/{2}', parameters('storageAccountName'), 'default', 'executions')]",
+              "dependsOn": [
+                "tableService"
+              ]
+            },
+            "rateLimitsTable": {
+              "type": "Microsoft.Storage/storageAccounts/tableServices/tables",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}/{2}', parameters('storageAccountName'), 'default', 'ratelimits')]",
+              "dependsOn": [
+                "tableService"
+              ]
+            }
+          },
+          "outputs": {
+            "storageAccountId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+            },
+            "storageAccountName": {
+              "type": "string",
+              "value": "[parameters('storageAccountName')]"
+            },
+            "primaryEndpoints": {
+              "type": "object",
+              "value": "[reference('storageAccount').primaryEndpoints]"
+            },
+            "connectionString": {
+              "type": "string",
+              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', parameters('storageAccountName'), listKeys('storageAccount', '2023-01-01').keys[0].value, environment().suffixes.storage)]"
+            }
+          }
+        }
+      }
+    },
+    "keyVault": {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('keyVault-{0}', variables('uniqueSuffix'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "keyVaultName": {
+            "value": "[variables('keyVaultName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[variables('commonTags')]"
+          },
+          "tenantId": {
+            "value": "[variables('tenantId')]"
+          },
+          "adminObjectIds": {
+            "value": "[parameters('adminObjectIds')]"
+          },
+          "enableSoftDelete": {
+            "value": true
+          },
+          "softDeleteRetentionInDays": {
+            "value": 7
+          },
+          "enablePurgeProtection": {
+            "value": "[equals(parameters('environment'), 'prod')]"
+          },
+          "publicNetworkAccess": {
+            "value": true
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "14431015508011725666"
+            }
+          },
+          "parameters": {
+            "keyVaultName": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 24,
+              "metadata": {
+                "description": "Key Vault name (globally unique)"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Azure region"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Resource tags"
+              }
+            },
+            "tenantId": {
+              "type": "string",
+              "metadata": {
+                "description": "Azure AD tenant ID"
+              }
+            },
+            "adminObjectIds": {
+              "type": "array",
+              "defaultValue": [],
+              "metadata": {
+                "description": "Object IDs with full access (admins)"
+              }
+            },
+            "enableSoftDelete": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Enable soft delete"
+              }
+            },
+            "softDeleteRetentionInDays": {
+              "type": "int",
+              "defaultValue": 30,
+              "minValue": 7,
+              "maxValue": 90,
+              "metadata": {
+                "description": "Soft delete retention days (minimum 30 days recommended for production)"
+              }
+            },
+            "enablePurgeProtection": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Enable purge protection"
+              }
+            },
+            "publicNetworkAccess": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Allow public network access (set to false for production)"
+              }
+            },
+            "allowedIpAddresses": {
+              "type": "array",
+              "defaultValue": [],
+              "metadata": {
+                "description": "Allowed IP addresses for Key Vault access"
+              }
+            },
+            "allowedSubnetIds": {
+              "type": "array",
+              "defaultValue": [],
+              "metadata": {
+                "description": "Allowed VNet subnet resource IDs"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.KeyVault/vaults",
+              "apiVersion": "2023-07-01",
+              "name": "[parameters('keyVaultName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "tenantId": "[parameters('tenantId')]",
+                "sku": {
+                  "family": "A",
+                  "name": "standard"
+                },
+                "enabledForDeployment": false,
+                "enabledForDiskEncryption": false,
+                "enabledForTemplateDeployment": true,
+                "enableSoftDelete": "[parameters('enableSoftDelete')]",
+                "softDeleteRetentionInDays": "[parameters('softDeleteRetentionInDays')]",
+                "enablePurgeProtection": "[if(parameters('enablePurgeProtection'), true(), null())]",
+                "enableRbacAuthorization": true,
+                "publicNetworkAccess": "[if(parameters('publicNetworkAccess'), 'Enabled', 'Disabled')]",
+                "networkAcls": {
+                  "copy": [
+                    {
+                      "name": "ipRules",
+                      "count": "[length(parameters('allowedIpAddresses'))]",
+                      "input": {
+                        "value": "[parameters('allowedIpAddresses')[copyIndex('ipRules')]]"
+                      }
+                    },
+                    {
+                      "name": "virtualNetworkRules",
+                      "count": "[length(parameters('allowedSubnetIds'))]",
+                      "input": {
+                        "id": "[parameters('allowedSubnetIds')[copyIndex('virtualNetworkRules')]]",
+                        "ignoreMissingVnetServiceEndpoint": false
+                      }
+                    }
+                  ],
+                  "bypass": "AzureServices",
+                  "defaultAction": "[if(parameters('publicNetworkAccess'), 'Allow', 'Deny')]"
+                }
+              }
+            },
+            {
+              "copy": {
+                "name": "adminRoleAssignments",
+                "count": "[length(parameters('adminObjectIds'))]"
+              },
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[format('Microsoft.KeyVault/vaults/{0}', parameters('keyVaultName'))]",
+              "name": "[guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), parameters('adminObjectIds')[copyIndex()], 'KeyVaultAdministrator')]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '00482a5a-887f-4fb3-b363-3b7fe8e74483')]",
+                "principalId": "[parameters('adminObjectIds')[copyIndex()]]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "keyVaultId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]"
+            },
+            "keyVaultName": {
+              "type": "string",
+              "value": "[parameters('keyVaultName')]"
+            },
+            "keyVaultUri": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), '2023-07-01').vaultUri]"
+            }
+          }
+        }
+      }
+    },
+    "serviceBus": {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('serviceBus-{0}', variables('uniqueSuffix'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "namespaceName": {
+            "value": "[variables('serviceBusName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[variables('commonTags')]"
+          },
+          "sku": "[if(equals(parameters('environment'), 'prod'), createObject('value', 'Premium'), createObject('value', 'Standard'))]"
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "languageVersion": "2.0",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "13567463626903100957"
+            }
+          },
+          "parameters": {
+            "namespaceName": {
+              "type": "string",
+              "metadata": {
+                "description": "Service Bus namespace name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Azure region"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Resource tags"
+              }
+            },
+            "sku": {
+              "type": "string",
+              "defaultValue": "Standard",
+              "allowedValues": [
+                "Basic",
+                "Standard",
+                "Premium"
+              ],
+              "metadata": {
+                "description": "Service Bus SKU"
+              }
+            },
+            "topicName": {
+              "type": "string",
+              "defaultValue": "agent-logs",
+              "metadata": {
+                "description": "Topic name for agent logs"
+              }
+            },
+            "queueName": {
+              "type": "string",
+              "defaultValue": "execution-requests",
+              "metadata": {
+                "description": "Queue name for execution requests"
+              }
+            }
+          },
+          "resources": {
+            "serviceBusNamespace": {
+              "type": "Microsoft.ServiceBus/namespaces",
+              "apiVersion": "2022-10-01-preview",
+              "name": "[parameters('namespaceName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "[parameters('sku')]",
+                "tier": "[parameters('sku')]"
+              },
+              "properties": {
+                "minimumTlsVersion": "1.2",
+                "publicNetworkAccess": "Enabled",
+                "disableLocalAuth": false,
+                "zoneRedundant": "[if(equals(parameters('sku'), 'Premium'), true(), false())]"
+              }
+            },
+            "agentLogsTopic": {
+              "type": "Microsoft.ServiceBus/namespaces/topics",
+              "apiVersion": "2022-10-01-preview",
+              "name": "[format('{0}/{1}', parameters('namespaceName'), parameters('topicName'))]",
+              "properties": {
+                "defaultMessageTimeToLive": "P7D",
+                "maxSizeInMegabytes": 1024,
+                "requiresDuplicateDetection": false,
+                "enableBatchedOperations": true,
+                "supportOrdering": true,
+                "status": "Active"
+              },
+              "dependsOn": [
+                "serviceBusNamespace"
+              ]
+            },
+            "logProcessingSubscription": {
+              "type": "Microsoft.ServiceBus/namespaces/topics/subscriptions",
+              "apiVersion": "2022-10-01-preview",
+              "name": "[format('{0}/{1}/{2}', parameters('namespaceName'), parameters('topicName'), 'log-processor')]",
+              "properties": {
+                "defaultMessageTimeToLive": "P7D",
+                "maxDeliveryCount": 10,
+                "lockDuration": "PT5M",
+                "requiresSession": false,
+                "deadLetteringOnMessageExpiration": true,
+                "enableBatchedOperations": true
+              },
+              "dependsOn": [
+                "agentLogsTopic"
+              ]
+            },
+            "executionRequestsQueue": {
+              "type": "Microsoft.ServiceBus/namespaces/queues",
+              "apiVersion": "2022-10-01-preview",
+              "name": "[format('{0}/{1}', parameters('namespaceName'), parameters('queueName'))]",
+              "properties": {
+                "defaultMessageTimeToLive": "P1D",
+                "maxSizeInMegabytes": 1024,
+                "requiresDuplicateDetection": false,
+                "requiresSession": false,
+                "lockDuration": "PT5M",
+                "maxDeliveryCount": 10,
+                "deadLetteringOnMessageExpiration": true,
+                "enableBatchedOperations": true
+              },
+              "dependsOn": [
+                "serviceBusNamespace"
+              ]
+            }
+          },
+          "outputs": {
+            "namespaceId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.ServiceBus/namespaces', parameters('namespaceName'))]"
+            },
+            "namespaceName": {
+              "type": "string",
+              "value": "[parameters('namespaceName')]"
+            },
+            "topicName": {
+              "type": "string",
+              "value": "[parameters('topicName')]"
+            },
+            "queueName": {
+              "type": "string",
+              "value": "[parameters('queueName')]"
+            },
+            "endpoint": {
+              "type": "string",
+              "value": "[reference('serviceBusNamespace').serviceBusEndpoint]"
+            },
+            "connectionString": {
+              "type": "string",
+              "value": "[listKeys(format('{0}/AuthorizationRules/RootManageSharedAccessKey', resourceId('Microsoft.ServiceBus/namespaces', parameters('namespaceName'))), '2022-10-01-preview').primaryConnectionString]"
+            }
+          }
+        }
+      }
+    },
+    "logAnalytics": {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('logAnalytics-{0}', variables('uniqueSuffix'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "workspaceName": {
+            "value": "[format('haymaker-{0}-{1}-logs', parameters('environment'), variables('uniqueSuffix'))]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[variables('commonTags')]"
+          },
+          "sku": {
+            "value": "PerGB2018"
+          },
+          "retentionInDays": "[if(equals(parameters('environment'), 'prod'), createObject('value', 90), createObject('value', 30))]"
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "languageVersion": "2.0",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "5530946079889920547"
+            }
+          },
+          "parameters": {
+            "workspaceName": {
+              "type": "string",
+              "metadata": {
+                "description": "Workspace name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Azure region"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Resource tags"
+              }
+            },
+            "retentionInDays": {
+              "type": "int",
+              "defaultValue": 30,
+              "minValue": 30,
+              "maxValue": 730,
+              "metadata": {
+                "description": "Retention in days (30-730)"
+              }
+            },
+            "sku": {
+              "type": "string",
+              "defaultValue": "PerGB2018",
+              "allowedValues": [
+                "PerGB2018",
+                "Free",
+                "Standalone",
+                "PerNode",
+                "Premium"
+              ],
+              "metadata": {
+                "description": "Workspace SKU"
+              }
+            }
+          },
+          "resources": {
+            "logAnalyticsWorkspace": {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2023-09-01",
+              "name": "[parameters('workspaceName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "sku": {
+                  "name": "[parameters('sku')]"
+                },
+                "retentionInDays": "[parameters('retentionInDays')]",
+                "features": {
+                  "enableLogAccessUsingOnlyResourcePermissions": true
+                },
+                "publicNetworkAccessForIngestion": "Enabled",
+                "publicNetworkAccessForQuery": "Enabled"
+              }
+            }
+          },
+          "outputs": {
+            "workspaceId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]"
+            },
+            "workspaceName": {
+              "type": "string",
+              "value": "[parameters('workspaceName')]"
+            },
+            "customerId": {
+              "type": "string",
+              "value": "[reference('logAnalyticsWorkspace').customerId]"
+            },
+            "primarySharedKey": {
+              "type": "string",
+              "value": "[listKeys('logAnalyticsWorkspace', '2023-09-01').primarySharedKey]"
+            }
+          }
+        }
+      }
+    },
+    "containerAppsEnv": {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('containerAppsEnv-{0}', variables('uniqueSuffix'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "environmentName": {
+            "value": "[variables('containerAppEnvName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[variables('commonTags')]"
+          },
+          "logAnalyticsWorkspaceId": {
+            "value": "[reference('logAnalytics').outputs.workspaceId.value]"
+          },
+          "workloadProfiles": {
+            "value": [
+              {
+                "name": "E16",
+                "workloadProfileType": "E16",
+                "minimumCount": 1,
+                "maximumCount": "[if(equals(parameters('environment'), 'prod'), 3, 1)]"
+              }
+            ]
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "5495414711163742054"
+            }
+          },
+          "parameters": {
+            "environmentName": {
+              "type": "string",
+              "metadata": {
+                "description": "Environment name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Azure region"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Resource tags"
+              }
+            },
+            "logAnalyticsWorkspaceId": {
+              "type": "string",
+              "metadata": {
+                "description": "Log Analytics workspace resource ID"
+              }
+            },
+            "workloadProfiles": {
+              "type": "array",
+              "defaultValue": [
+                {
+                  "name": "E16",
+                  "workloadProfileType": "E16",
+                  "minimumCount": 1,
+                  "maximumCount": 3
+                }
+              ],
+              "metadata": {
+                "description": "Workload profiles (E16 for 128GB RAM)"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.App/managedEnvironments",
+              "apiVersion": "2023-05-01",
+              "name": "[parameters('environmentName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "appLogsConfiguration": {
+                  "destination": "log-analytics",
+                  "logAnalyticsConfiguration": {
+                    "customerId": "[reference(parameters('logAnalyticsWorkspaceId'), '2022-10-01').customerId]",
+                    "sharedKey": "[listKeys(parameters('logAnalyticsWorkspaceId'), '2022-10-01').primarySharedKey]"
+                  }
+                },
+                "workloadProfiles": "[parameters('workloadProfiles')]",
+                "zoneRedundant": false
+              }
+            }
+          ],
+          "outputs": {
+            "environmentId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.App/managedEnvironments', parameters('environmentName'))]"
+            },
+            "environmentName": {
+              "type": "string",
+              "value": "[parameters('environmentName')]"
+            },
+            "defaultDomain": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.App/managedEnvironments', parameters('environmentName')), '2023-05-01').defaultDomain]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "logAnalytics"
+      ]
+    },
+    "orchestrator": {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('orchestrator-{0}', variables('uniqueSuffix'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "containerAppName": {
+            "value": "[variables('orchestratorAppName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[variables('commonTags')]"
+          },
+          "environmentId": {
+            "value": "[reference('containerAppsEnv').outputs.environmentId.value]"
+          },
+          "containerImage": {
+            "value": "[parameters('orchestratorImage')]"
+          },
+          "containerRegistry": {
+            "value": ""
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "keyVaultUri": {
+            "value": "[reference('keyVault').outputs.keyVaultUri.value]"
+          },
+          "serviceBusNamespace": {
+            "value": "[reference('serviceBus').outputs.namespaceName.value]"
+          },
+          "storageAccountName": {
+            "value": "[reference('storage').outputs.storageAccountName.value]"
+          },
+          "cosmosDbEndpoint": {
+            "value": ""
+          },
+          "tenantId": {
+            "value": "[variables('tenantId')]"
+          },
+          "subscriptionId": {
+            "value": "[variables('subscriptionId')]"
+          },
+          "clientId": {
+            "value": "[parameters('githubOidcClientId')]"
+          },
+          "simulationSize": {
+            "value": "[parameters('simulationSize')]"
+          },
+          "logAnalyticsWorkspaceId": {
+            "value": "[reference('logAnalytics').outputs.workspaceId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "13997883072631196078"
+            }
+          },
+          "parameters": {
+            "containerAppName": {
+              "type": "string",
+              "metadata": {
+                "description": "Container App name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Azure region"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Resource tags"
+              }
+            },
+            "environmentId": {
+              "type": "string",
+              "metadata": {
+                "description": "Container Apps Environment resource ID"
+              }
+            },
+            "containerImage": {
+              "type": "string",
+              "defaultValue": "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest",
+              "metadata": {
+                "description": "Container image"
+              }
+            },
+            "containerRegistry": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Container registry server"
+              }
+            },
+            "environment": {
+              "type": "string",
+              "metadata": {
+                "description": "Environment name (dev/staging/prod)"
+              }
+            },
+            "keyVaultUri": {
+              "type": "string",
+              "metadata": {
+                "description": "Key Vault URI"
+              }
+            },
+            "serviceBusNamespace": {
+              "type": "string",
+              "metadata": {
+                "description": "Service Bus namespace"
+              }
+            },
+            "storageAccountName": {
+              "type": "string",
+              "metadata": {
+                "description": "Storage account name"
+              }
+            },
+            "cosmosDbEndpoint": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Cosmos DB endpoint"
+              }
+            },
+            "tenantId": {
+              "type": "string",
+              "metadata": {
+                "description": "Tenant ID"
+              }
+            },
+            "subscriptionId": {
+              "type": "string",
+              "metadata": {
+                "description": "Subscription ID"
+              }
+            },
+            "clientId": {
+              "type": "string",
+              "metadata": {
+                "description": "Client ID"
+              }
+            },
+            "simulationSize": {
+              "type": "string",
+              "defaultValue": "small",
+              "metadata": {
+                "description": "Simulation size"
+              }
+            },
+            "logAnalyticsWorkspaceId": {
+              "type": "string",
+              "metadata": {
+                "description": "Log Analytics workspace ID"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.App/containerApps",
+              "apiVersion": "2023-05-01",
+              "name": "[parameters('containerAppName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "environmentId": "[parameters('environmentId')]",
+                "workloadProfileName": "E16",
+                "configuration": {
+                  "activeRevisionsMode": "Single",
+                  "secrets": [],
+                  "ingress": {
+                    "external": true,
+                    "targetPort": 8080,
+                    "transport": "http",
+                    "allowInsecure": false,
+                    "traffic": [
+                      {
+                        "latestRevision": true,
+                        "weight": 100
+                      }
+                    ]
+                  },
+                  "registries": "[if(not(equals(parameters('containerRegistry'), '')), createArray(createObject('server', parameters('containerRegistry'), 'identity', 'system')), createArray())]"
+                },
+                "template": {
+                  "scale": {
+                    "minReplicas": 0,
+                    "maxReplicas": 1,
+                    "rules": [
+                      {
+                        "name": "cron-schedule",
+                        "custom": {
+                          "type": "cron",
+                          "metadata": {
+                            "timezone": "UTC",
+                            "start": "0 0,6,12,18 * * *",
+                            "end": "0 1,7,13,19 * * *",
+                            "desiredReplicas": "1"
+                          }
+                        }
+                      },
+                      {
+                        "name": "startup-trigger",
+                        "custom": {
+                          "type": "cron",
+                          "metadata": {
+                            "timezone": "UTC",
+                            "start": "@reboot",
+                            "desiredReplicas": "1"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "containers": [
+                    {
+                      "name": "orchestrator",
+                      "image": "[parameters('containerImage')]",
+                      "resources": {
+                        "cpu": "[json('16')]",
+                        "memory": "128Gi"
+                      },
+                      "env": [
+                        {
+                          "name": "AZURE_TENANT_ID",
+                          "value": "[parameters('tenantId')]"
+                        },
+                        {
+                          "name": "AZURE_SUBSCRIPTION_ID",
+                          "value": "[parameters('subscriptionId')]"
+                        },
+                        {
+                          "name": "AZURE_CLIENT_ID",
+                          "value": "[parameters('clientId')]"
+                        },
+                        {
+                          "name": "KEY_VAULT_URL",
+                          "value": "[parameters('keyVaultUri')]"
+                        },
+                        {
+                          "name": "SERVICE_BUS_NAMESPACE",
+                          "value": "[parameters('serviceBusNamespace')]"
+                        },
+                        {
+                          "name": "SERVICE_BUS_TOPIC",
+                          "value": "agent-logs"
+                        },
+                        {
+                          "name": "STORAGE_ACCOUNT_NAME",
+                          "value": "[parameters('storageAccountName')]"
+                        },
+                        {
+                          "name": "TABLE_STORAGE_ACCOUNT_NAME",
+                          "value": "[parameters('storageAccountName')]"
+                        },
+                        {
+                          "name": "COSMOSDB_ENDPOINT",
+                          "value": "[parameters('cosmosDbEndpoint')]"
+                        },
+                        {
+                          "name": "COSMOSDB_DATABASE",
+                          "value": "haymaker"
+                        },
+                        {
+                          "name": "CONTAINER_REGISTRY",
+                          "value": "[parameters('containerRegistry')]"
+                        },
+                        {
+                          "name": "CONTAINER_IMAGE",
+                          "value": "azure-haymaker-agent:latest"
+                        },
+                        {
+                          "name": "SIMULATION_SIZE",
+                          "value": "[parameters('simulationSize')]"
+                        },
+                        {
+                          "name": "LOG_ANALYTICS_WORKSPACE_ID",
+                          "value": "[parameters('logAnalyticsWorkspaceId')]"
+                        },
+                        {
+                          "name": "RESOURCE_GROUP_NAME",
+                          "value": "[resourceGroup().name]"
+                        },
+                        {
+                          "name": "NODE_OPTIONS",
+                          "value": "--max-old-space-size=32768"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "containerAppId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.App/containerApps', parameters('containerAppName'))]"
+            },
+            "containerAppName": {
+              "type": "string",
+              "value": "[parameters('containerAppName')]"
+            },
+            "principalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.App/containerApps', parameters('containerAppName')), '2023-05-01', 'full').identity.principalId]"
+            },
+            "fqdn": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.App/containerApps', parameters('containerAppName')), '2023-05-01').configuration.ingress.fqdn]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "containerAppsEnv",
+        "keyVault",
+        "logAnalytics",
+        "serviceBus",
+        "storage"
+      ]
+    },
+    "orchestratorKeyVaultRole": {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('orchestratorKeyVaultRole-{0}', variables('uniqueSuffix'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "principalId": {
+            "value": "[reference('orchestrator').outputs.principalId.value]"
+          },
+          "roleDefinitionId": {
+            "value": "4633458b-17de-408a-b874-0445c86b69e6"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "11417151874665992677"
+            }
+          },
+          "parameters": {
+            "principalId": {
+              "type": "string",
+              "metadata": {
+                "description": "Principal ID (object ID)"
+              }
+            },
+            "roleDefinitionId": {
+              "type": "string",
+              "metadata": {
+                "description": "Role definition ID (GUID)"
+              }
+            },
+            "principalType": {
+              "type": "string",
+              "defaultValue": "ServicePrincipal",
+              "allowedValues": [
+                "ServicePrincipal",
+                "User",
+                "Group"
+              ],
+              "metadata": {
+                "description": "Principal type"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "name": "[guid(resourceGroup().id, parameters('principalId'), parameters('roleDefinitionId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', parameters('roleDefinitionId'))]",
+                "principalId": "[parameters('principalId')]",
+                "principalType": "[parameters('principalType')]"
+              }
+            }
+          ],
+          "outputs": {
+            "roleAssignmentId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Authorization/roleAssignments', guid(resourceGroup().id, parameters('principalId'), parameters('roleDefinitionId')))]"
+            },
+            "roleAssignmentName": {
+              "type": "string",
+              "value": "[guid(resourceGroup().id, parameters('principalId'), parameters('roleDefinitionId'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "orchestrator"
+      ]
+    }
+  },
+  "outputs": {
+    "containerAppEnvName": {
+      "type": "string",
+      "value": "[reference('containerAppsEnv').outputs.environmentName.value]"
+    },
+    "orchestratorName": {
+      "type": "string",
+      "value": "[reference('orchestrator').outputs.containerAppName.value]"
+    },
+    "orchestratorFqdn": {
+      "type": "string",
+      "value": "[reference('orchestrator').outputs.fqdn.value]"
+    },
+    "keyVaultName": {
+      "type": "string",
+      "value": "[reference('keyVault').outputs.keyVaultName.value]"
+    },
+    "serviceBusName": {
+      "type": "string",
+      "value": "[reference('serviceBus').outputs.namespaceName.value]"
+    },
+    "storageName": {
+      "type": "string",
+      "value": "[reference('storage').outputs.storageAccountName.value]"
+    }
+  }
+}
