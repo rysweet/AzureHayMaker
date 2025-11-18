@@ -23,25 +23,45 @@ Design Pattern: Facade Pattern
 - All existing code continues to work
 """
 
-# Shared FunctionApp instance
-from .orchestrator_app import app
+# Conditional imports to avoid azure-functions-durable dependency in test environment
+# When running tests, the durable functions decorators cause import errors if the
+# azure-functions-durable package is not installed. This try-except allows tests
+# to import other orchestrator modules without requiring the full Azure Functions stack.
+try:
+    # Shared FunctionApp instance
+    from .orchestrator_app import app
 
-# Timer trigger function
-from .timer_trigger import haymaker_timer
+    # Timer trigger function
+    from .timer_trigger import haymaker_timer
 
-# Orchestration function
-from .workflow_orchestrator import orchestrate_haymaker_run
+    # Orchestration function
+    from .workflow_orchestrator import orchestrate_haymaker_run
 
-# Activity functions
-from .activities.validation import validate_environment_activity
-from .activities.selection import select_scenarios_activity
-from .activities.provisioning import (
-    create_service_principal_activity,
-    deploy_container_app_activity,
-)
-from .activities.monitoring import check_agent_status_activity
-from .activities.cleanup import force_cleanup_activity, verify_cleanup_activity
-from .activities.reporting import generate_report_activity
+    # Activity functions
+    from .activities.validation import validate_environment_activity
+    from .activities.selection import select_scenarios_activity
+    from .activities.provisioning import (
+        create_service_principal_activity,
+        deploy_container_app_activity,
+    )
+    from .activities.monitoring import check_agent_status_activity
+    from .activities.cleanup import force_cleanup_activity, verify_cleanup_activity
+    from .activities.reporting import generate_report_activity
+except Exception:
+    # In test environment without azure-functions-durable, create None placeholders
+    # Note: We catch Exception (not just ImportError) because the durable functions
+    # decorators raise Exception when the azure-functions-durable package is missing
+    app = None
+    haymaker_timer = None
+    orchestrate_haymaker_run = None
+    validate_environment_activity = None
+    select_scenarios_activity = None
+    create_service_principal_activity = None
+    deploy_container_app_activity = None
+    check_agent_status_activity = None
+    force_cleanup_activity = None
+    verify_cleanup_activity = None
+    generate_report_activity = None
 
 # Other orchestrator modules (unchanged)
 from .container_manager import (
