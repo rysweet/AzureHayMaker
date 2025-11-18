@@ -110,7 +110,14 @@ jobs:
       - name: Inject Secrets to Key Vault
         run: |
           RG_NAME="haymaker-${{ env.ENVIRONMENT }}-rg"
-          KV_NAME=$(az deployment group show -n $(az deployment group list -g "$RG_NAME" --query "[0].name" -o tsv) -g "$RG_NAME" --query "properties.outputs.keyVaultName.value" -o tsv)
+
+          # Get Key Vault name from deployment outputs
+          KV_NAME=$(echo '${{ steps.deploy.outputs }}' | jq -r '.keyVaultName.value' || echo "")
+
+          if [ -z "$KV_NAME" ]; then
+            # Fallback: find Key Vault in resource group
+            KV_NAME=$(az keyvault list -g "$RG_NAME" --query "[0].name" -o tsv)
+          fi
 
           echo "Injecting secrets to Key Vault: $KV_NAME"
 
