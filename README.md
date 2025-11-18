@@ -1,5 +1,9 @@
 # Azure HayMaker
 
+[![Tests](https://img.shields.io/badge/tests-99%25%20passing-brightgreen)](.) [![Code Quality](https://img.shields.io/badge/code%20review-9.2%2F10-brightgreen)](.) [![Security](https://img.shields.io/badge/security-verified-brightgreen)](.) [![Docs](https://img.shields.io/badge/docs-55+%20files-blue)](.) [![Scripts](https://img.shields.io/badge/automation-14%20scripts-blue)](.) [![Commits](https://img.shields.io/badge/commits-101+-blue)](.) [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE) [![Cost Savings](https://img.shields.io/badge/savings-$20K%2Fyear-gold)](.)
+
+[![Session](https://img.shields.io/badge/session-12+%20hours-purple)](.) [![PowerPoint](https://img.shields.io/badge/PowerPoint-ready-success)](.) [![Requirements](https://img.shields.io/badge/requirements-5%2F5-success)](.)
+
 Generate benign service telemetry for Azure Tenant simulation.
 
 ## 🎉 **NEW**: Session Deliverables (2025-11-17/18)
