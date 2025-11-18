@@ -27,16 +27,12 @@ from .models.api_errors import APIError, InvalidParameterError, RunNotFoundError
 from .repositories.monitoring_repository import MonitoringRepository
 from .services.monitoring_service import MonitoringService
 
-# Global controller instance (lazy initialization)
-_controller: MonitoringController | None = None
-
-
 def _get_controller(blob_client: BlobServiceClient) -> MonitoringController:
     """
     Get or create controller instance.
 
-    This function implements lazy initialization of the controller and its
-    dependencies. The controller is reused across requests for efficiency.
+    This function creates a new controller instance for each blob_client.
+    This ensures tests with different mock clients work correctly.
 
     Args:
         blob_client: Azure Blob Service client
@@ -44,13 +40,12 @@ def _get_controller(blob_client: BlobServiceClient) -> MonitoringController:
     Returns:
         MonitoringController instance with fully initialized dependencies
     """
-    global _controller
-    if _controller is None:
-        # Initialize layers with dependency injection
-        repository = MonitoringRepository(blob_client)
-        service = MonitoringService(repository)
-        _controller = MonitoringController(service)
-    return _controller
+    # Initialize layers with dependency injection
+    # Always create a new instance to support testing with different mock clients
+    repository = MonitoringRepository(blob_client)
+    service = MonitoringService(repository)
+    controller = MonitoringController(service)
+    return controller
 
 
 # ==============================================================================
