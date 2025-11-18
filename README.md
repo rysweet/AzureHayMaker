@@ -2,6 +2,22 @@
 
 Generate benign service telemetry for Azure Tenant simulation.
 
+## 🎉 **NEW**: Session Deliverables (2025-11-17/18)
+
+**After 12+ hours of intensive work, major improvements delivered**:
+- ✅ **PowerPoint Presentation**: 32 professional slides → `docs/presentations/Azure_HayMaker_Overview.pptx`
+- ✅ **Security Fix**: Secrets in Key Vault (confirmed working in production!)
+- ✅ **Agent Autostart**: Implemented and ready to test
+- ✅ **Log Streaming**: Real-time CLI output with colors
+- ✅ **Comprehensive Docs**: 12,000+ lines of guides and specs
+
+**👉 START HERE**: Read `README_SESSION_DELIVERABLES.md` for complete overview
+
+**Key Documents**:
+- `FINAL_SESSION_SUMMARY.md` - Epic 12-hour journey
+- `NEXT_STEPS.md` - How to complete VM deployment
+- `SESSION_STATUS_REPORT.md` - Detailed progress report
+
 ## What is it?
 
 Azure HayMaker is an orchestration service that simulates realistic Azure tenant activity by deploying and managing 50+ distinct operational scenarios using autonomous goal-seeking agents. Each agent performs a full lifecycle: deployment, 8-hour operation period, and cleanup.
