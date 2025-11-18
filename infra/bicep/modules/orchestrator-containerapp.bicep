@@ -14,10 +14,10 @@ param tags object = {}
 param environmentId string
 
 @description('Container image')
-param containerImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+param containerImage string = 'haymakerorchacr.azurecr.io/haymaker-orchestrator:latest'
 
 @description('Container registry server')
-param containerRegistry string = ''
+param containerRegistry string = 'haymakerorchacr.azurecr.io'
 
 @description('Environment name (dev/staging/prod)')
 param environment string
