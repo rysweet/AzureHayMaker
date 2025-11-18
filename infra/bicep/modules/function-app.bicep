@@ -47,6 +47,24 @@ param environment string
 @description('Python version')
 param pythonVersion string = '3.13'
 
+@description('Service Bus namespace name')
+param serviceBusNamespace string
+
+@description('Container registry login server')
+param containerRegistryLoginServer string = ''
+
+@description('Container image name')
+param containerImage string = 'azure-haymaker-agent:latest'
+
+@description('Simulation size (small/medium/large)')
+param simulationSize string = 'small'
+
+@description('Log Analytics workspace ID')
+param logAnalyticsWorkspaceId string
+
+@description('Resource group name')
+param resourceGroupName string
+
 // App Service Plan
 // Note: Using Standard (S1) for dev - most subscriptions have this quota
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
@@ -169,6 +187,35 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         {
           name: 'LOG_ANALYTICS_WORKSPACE_KEY'
           value: '@Microsoft.KeyVault(VaultName=${split(keyVaultUri, '.')[0]};SecretName=log-analytics-workspace-key)'
+        }
+        // Additional required environment variables for orchestrator
+        {
+          name: 'SERVICE_BUS_NAMESPACE'
+          value: serviceBusNamespace
+        }
+        {
+          name: 'CONTAINER_REGISTRY'
+          value: containerRegistryLoginServer
+        }
+        {
+          name: 'CONTAINER_IMAGE'
+          value: containerImage
+        }
+        {
+          name: 'SIMULATION_SIZE'
+          value: simulationSize
+        }
+        {
+          name: 'LOG_ANALYTICS_WORKSPACE_ID'
+          value: logAnalyticsWorkspaceId
+        }
+        {
+          name: 'RESOURCE_GROUP_NAME'
+          value: resourceGroupName
+        }
+        {
+          name: 'SERVICE_BUS_TOPIC'
+          value: 'agent-logs'
         }
       ]
       cors: {

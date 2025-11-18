@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<deployment>
+  <id>9dbe9957-940b-487e-9149-8d8b2b90c709</id>
+  <author>N/A</author>
+  <deployer>GITHUB_ZIP_DEPLOY_FUNCTIONS_V1</deployer>
+  <authorEmail>N/A</authorEmail>
+  <message>{"type":"deployment","sha":"ec887fcc86e35733b0796c0b3ad5c544045e45a6","repoName":"rysweet/AzureHayMaker","actor":"rysweet","slotName":"production"}</message>
+  <progress></progress>
+  <status>Success</status>
+  <statusText></statusText>
+  <lastSuccessEndTime>2025-11-17T22:10:45.439643Z</lastSuccessEndTime>
+  <receivedTime>2025-11-17T22:10:34.1121897Z</receivedTime>
+  <startTime>2025-11-17T22:10:35.5785785Z</startTime>
+  <endTime>2025-11-17T22:10:45.439643Z</endTime>
+  <complete>True</complete>
+  <is_temp>False</is_temp>
+  <is_readonly>True</is_readonly>
+  <buildSummary />
+</deployment>

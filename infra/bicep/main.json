@@ -1,12 +1,12 @@
 {
-  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "languageVersion": "2.0",
   "contentVersion": "1.0.0.0",
   "metadata": {
     "_generator": {
       "name": "bicep",
       "version": "0.35.1.17967",
-      "templateHash": "9646491055624716860"
+      "templateHash": "4930305221543972534"
     }
   },
   "parameters": {
@@ -93,18 +93,10 @@
     "appServicePlanName": "[format('{0}-{1}-plan', parameters('namingPrefix'), parameters('environment'))]"
   },
   "resources": {
-    "resourceGroup": {
-      "type": "Microsoft.Resources/resourceGroups",
-      "apiVersion": "2023-07-01",
-      "name": "[variables('resourceGroupName')]",
-      "location": "[parameters('location')]",
-      "tags": "[variables('commonTags')]"
-    },
     "logAnalytics": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "[format('logAnalytics-{0}', variables('uniqueSuffix'))]",
-      "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -220,16 +212,12 @@
             }
           }
         }
-      },
-      "dependsOn": [
-        "resourceGroup"
-      ]
+      }
     },
     "storage": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "[format('storage-{0}', variables('uniqueSuffix'))]",
-      "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -441,16 +429,12 @@
             }
           }
         }
-      },
-      "dependsOn": [
-        "resourceGroup"
-      ]
+      }
     },
     "serviceBus": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "[format('serviceBus-{0}', variables('uniqueSuffix'))]",
-      "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -629,16 +613,12 @@
             }
           }
         }
-      },
-      "dependsOn": [
-        "resourceGroup"
-      ]
+      }
     },
     "keyVault": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "[format('keyVault-{0}', variables('uniqueSuffix'))]",
-      "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -680,7 +660,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.35.1.17967",
-              "templateHash": "824905415098631538"
+              "templateHash": "14431015508011725666"
             }
           },
           "parameters": {
@@ -804,7 +784,7 @@
                     }
                   ],
                   "bypass": "AzureServices",
-                  "defaultAction": "Deny"
+                  "defaultAction": "[if(parameters('publicNetworkAccess'), 'Allow', 'Deny')]"
                 }
               }
             },
@@ -842,17 +822,13 @@
             }
           }
         }
-      },
-      "dependsOn": [
-        "resourceGroup"
-      ]
+      }
     },
     "cosmosDb": {
       "condition": "[not(equals(parameters('environment'), 'dev'))]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "[format('cosmosDb-{0}', variables('uniqueSuffix'))]",
-      "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -881,13 +857,12 @@
         },
         "template": {
           "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-          "languageVersion": "2.0",
           "contentVersion": "1.0.0.0",
           "metadata": {
             "_generator": {
               "name": "bicep",
               "version": "0.35.1.17967",
-              "templateHash": "11443534632541318049"
+              "templateHash": "9547274271518949746"
             }
           },
           "parameters": {
@@ -934,6 +909,13 @@
                 "description": "Container name for runs"
               }
             },
+            "logsContainerName": {
+              "type": "string",
+              "defaultValue": "agent-logs",
+              "metadata": {
+                "description": "Container name for agent logs"
+              }
+            },
             "throughput": {
               "type": "int",
               "defaultValue": 400,
@@ -944,8 +926,8 @@
               }
             }
           },
-          "resources": {
-            "cosmosAccount": {
+          "resources": [
+            {
               "type": "Microsoft.DocumentDB/databaseAccounts",
               "apiVersion": "2023-11-15",
               "name": "[parameters('accountName')]",
@@ -971,7 +953,7 @@
                 "enableFreeTier": false
               }
             },
-            "database": {
+            {
               "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases",
               "apiVersion": "2023-11-15",
               "name": "[format('{0}/{1}', parameters('accountName'), parameters('databaseName'))]",
@@ -982,10 +964,10 @@
                 "options": "[if(equals(parameters('throughput'), 0), createObject(), createObject('throughput', parameters('throughput')))]"
               },
               "dependsOn": [
-                "cosmosAccount"
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('accountName'))]"
               ]
             },
-            "metricsContainer": {
+            {
               "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
               "apiVersion": "2023-11-15",
               "name": "[format('{0}/{1}/{2}', parameters('accountName'), parameters('databaseName'), parameters('metricsContainerName'))]",
@@ -1016,10 +998,10 @@
                 }
               },
               "dependsOn": [
-                "database"
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', parameters('accountName'), parameters('databaseName'))]"
               ]
             },
-            "runsContainer": {
+            {
               "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
               "apiVersion": "2023-11-15",
               "name": "[format('{0}/{1}/{2}', parameters('accountName'), parameters('databaseName'), parameters('runsContainerName'))]",
@@ -1045,10 +1027,53 @@
                 }
               },
               "dependsOn": [
-                "database"
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', parameters('accountName'), parameters('databaseName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
+              "apiVersion": "2023-11-15",
+              "name": "[format('{0}/{1}/{2}', parameters('accountName'), parameters('databaseName'), parameters('logsContainerName'))]",
+              "properties": {
+                "resource": {
+                  "id": "[parameters('logsContainerName')]",
+                  "partitionKey": {
+                    "paths": [
+                      "/agent_id"
+                    ],
+                    "kind": "Hash"
+                  },
+                  "indexingPolicy": {
+                    "indexingMode": "consistent",
+                    "automatic": true,
+                    "includedPaths": [
+                      {
+                        "path": "/timestamp/?"
+                      },
+                      {
+                        "path": "/level/?"
+                      },
+                      {
+                        "path": "/run_id/?"
+                      },
+                      {
+                        "path": "/scenario/?"
+                      }
+                    ],
+                    "excludedPaths": [
+                      {
+                        "path": "/*"
+                      }
+                    ]
+                  },
+                  "defaultTtl": 604800
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', parameters('accountName'), parameters('databaseName'))]"
               ]
             }
-          },
+          ],
           "outputs": {
             "accountId": {
               "type": "string",
@@ -1060,7 +1085,7 @@
             },
             "endpoint": {
               "type": "string",
-              "value": "[reference('cosmosAccount').documentEndpoint]"
+              "value": "[reference(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('accountName')), '2023-11-15').documentEndpoint]"
             },
             "databaseName": {
               "type": "string",
@@ -1074,26 +1099,18 @@
               "type": "string",
               "value": "[parameters('runsContainerName')]"
             },
-            "primaryKey": {
+            "logsContainerName": {
               "type": "string",
-              "value": "[listKeys('cosmosAccount', '2023-11-15').primaryMasterKey]"
-            },
-            "connectionString": {
-              "type": "string",
-              "value": "[format('AccountEndpoint={0};AccountKey={1};', reference('cosmosAccount').documentEndpoint, listKeys('cosmosAccount', '2023-11-15').primaryMasterKey)]"
+              "value": "[parameters('logsContainerName')]"
             }
           }
         }
-      },
-      "dependsOn": [
-        "resourceGroup"
-      ]
+      }
     },
     "containerAppsEnv": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "[format('containerAppsEnv-{0}', variables('uniqueSuffix'))]",
-      "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -1206,8 +1223,7 @@
         }
       },
       "dependsOn": [
-        "logAnalytics",
-        "resourceGroup"
+        "logAnalytics"
       ]
     },
     "containerRegistry": {
@@ -1215,7 +1231,6 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "[format('containerRegistry-{0}', variables('uniqueSuffix'))]",
-      "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -1348,16 +1363,12 @@
             }
           }
         }
-      },
-      "dependsOn": [
-        "resourceGroup"
-      ]
+      }
     },
     "functionApp": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "[format('functionApp-{0}', variables('uniqueSuffix'))]",
-      "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -1388,7 +1399,6 @@
           "serviceBusConnectionString": {
             "value": "[reference('serviceBus').outputs.connectionString.value]"
           },
-          "cosmosDbConnectionString": "[if(not(equals(parameters('environment'), 'dev')), createObject('value', reference('cosmosDb').outputs.connectionString.value), createObject('value', ''))]",
           "tenantId": {
             "value": "[parameters('tenantId')]"
           },
@@ -1403,6 +1413,22 @@
           },
           "pythonVersion": {
             "value": "3.13"
+          },
+          "serviceBusNamespace": {
+            "value": "[reference('serviceBus').outputs.namespaceName.value]"
+          },
+          "containerRegistryLoginServer": "[if(not(equals(parameters('environment'), 'dev')), createObject('value', reference('containerRegistry').outputs.loginServer.value), createObject('value', ''))]",
+          "containerImage": {
+            "value": "azure-haymaker-agent:latest"
+          },
+          "simulationSize": {
+            "value": "small"
+          },
+          "logAnalyticsWorkspaceId": {
+            "value": "[reference('logAnalytics').outputs.workspaceId.value]"
+          },
+          "resourceGroupName": {
+            "value": "[resourceGroup().name]"
           }
         },
         "template": {
@@ -1412,7 +1438,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.35.1.17967",
-              "templateHash": "12916607428183132844"
+              "templateHash": "4790079728299217301"
             }
           },
           "parameters": {
@@ -1468,8 +1494,9 @@
             },
             "cosmosDbConnectionString": {
               "type": "securestring",
+              "defaultValue": "",
               "metadata": {
-                "description": "Cosmos DB connection string"
+                "description": "Cosmos DB connection string - DEPRECATED: Use Managed Identity instead"
               }
             },
             "tenantId": {
@@ -1501,6 +1528,45 @@
               "defaultValue": "3.13",
               "metadata": {
                 "description": "Python version"
+              }
+            },
+            "serviceBusNamespace": {
+              "type": "string",
+              "metadata": {
+                "description": "Service Bus namespace name"
+              }
+            },
+            "containerRegistryLoginServer": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Container registry login server"
+              }
+            },
+            "containerImage": {
+              "type": "string",
+              "defaultValue": "azure-haymaker-agent:latest",
+              "metadata": {
+                "description": "Container image name"
+              }
+            },
+            "simulationSize": {
+              "type": "string",
+              "defaultValue": "small",
+              "metadata": {
+                "description": "Simulation size (small/medium/large)"
+              }
+            },
+            "logAnalyticsWorkspaceId": {
+              "type": "string",
+              "metadata": {
+                "description": "Log Analytics workspace ID"
+              }
+            },
+            "resourceGroupName": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource group name"
               }
             }
           },
@@ -1595,6 +1661,14 @@
                       "value": "[parameters('cosmosDbConnectionString')]"
                     },
                     {
+                      "name": "COSMOSDB_ENDPOINT",
+                      "value": ""
+                    },
+                    {
+                      "name": "COSMOSDB_DATABASE",
+                      "value": "haymaker"
+                    },
+                    {
                       "name": "STORAGE_ACCOUNT_NAME",
                       "value": "[split(split(parameters('storageConnectionString'), ';')[1], '=')[1]]"
                     },
@@ -1613,6 +1687,34 @@
                     {
                       "name": "LOG_ANALYTICS_WORKSPACE_KEY",
                       "value": "[format('@Microsoft.KeyVault(VaultName={0};SecretName=log-analytics-workspace-key)', split(parameters('keyVaultUri'), '.')[0])]"
+                    },
+                    {
+                      "name": "SERVICE_BUS_NAMESPACE",
+                      "value": "[parameters('serviceBusNamespace')]"
+                    },
+                    {
+                      "name": "CONTAINER_REGISTRY",
+                      "value": "[parameters('containerRegistryLoginServer')]"
+                    },
+                    {
+                      "name": "CONTAINER_IMAGE",
+                      "value": "[parameters('containerImage')]"
+                    },
+                    {
+                      "name": "SIMULATION_SIZE",
+                      "value": "[parameters('simulationSize')]"
+                    },
+                    {
+                      "name": "LOG_ANALYTICS_WORKSPACE_ID",
+                      "value": "[parameters('logAnalyticsWorkspaceId')]"
+                    },
+                    {
+                      "name": "RESOURCE_GROUP_NAME",
+                      "value": "[parameters('resourceGroupName')]"
+                    },
+                    {
+                      "name": "SERVICE_BUS_TOPIC",
+                      "value": "agent-logs"
                     }
                   ],
                   "cors": {
@@ -1658,10 +1760,9 @@
         }
       },
       "dependsOn": [
-        "cosmosDb",
+        "containerRegistry",
         "keyVault",
         "logAnalytics",
-        "resourceGroup",
         "serviceBus",
         "storage"
       ]
@@ -1670,7 +1771,6 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "[format('functionAppKeyVaultRole-{0}', variables('uniqueSuffix'))]",
-      "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -1748,15 +1848,13 @@
         }
       },
       "dependsOn": [
-        "functionApp",
-        "resourceGroup"
+        "functionApp"
       ]
     },
     "functionAppStorageRole": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "[format('functionAppStorageRole-{0}', variables('uniqueSuffix'))]",
-      "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -1834,8 +1932,7 @@
         }
       },
       "dependsOn": [
-        "functionApp",
-        "resourceGroup"
+        "functionApp"
       ]
     },
     "functionAppCosmosRole": {
@@ -1843,7 +1940,6 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "[format('functionAppCosmosRole-{0}', variables('uniqueSuffix'))]",
-      "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -1921,19 +2017,18 @@
         }
       },
       "dependsOn": [
-        "functionApp",
-        "resourceGroup"
+        "functionApp"
       ]
     }
   },
   "outputs": {
     "resourceGroupName": {
       "type": "string",
-      "value": "[variables('resourceGroupName')]"
+      "value": "[resourceGroup().name]"
     },
     "location": {
       "type": "string",
-      "value": "[parameters('location')]"
+      "value": "[resourceGroup().location]"
     },
     "environment": {
       "type": "string",

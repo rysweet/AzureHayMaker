@@ -173,6 +173,13 @@ module functionApp 'modules/function-app.bicep' = {
     clientId: githubOidcClientId
     environment: environment
     pythonVersion: '3.13'
+    // Additional parameters for orchestrator configuration
+    serviceBusNamespace: serviceBus.outputs.namespaceName
+    containerRegistryLoginServer: environment != 'dev' ? containerRegistry.outputs.loginServer : ''
+    containerImage: 'azure-haymaker-agent:latest'
+    simulationSize: 'small'
+    logAnalyticsWorkspaceId: logAnalytics.outputs.workspaceId
+    resourceGroupName: resourceGroup().name
   }
 }
 

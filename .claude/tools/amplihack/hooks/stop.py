@@ -84,6 +84,53 @@ class StopHook(HookProcessor):
         # before any potentially long-running reflection analysis that might timeout the user)
         self._handle_neo4j_cleanup()
 
+        # Neo4j learning capture (after cleanup, before reflection)
+        # Separated from cleanup for single responsibility and optional nature
+        self._handle_neo4j_learning()
+
+        # Power-steering check (before reflection)
+        if not lock_exists and self._should_run_power_steering():
+            try:
+                from power_steering_checker import PowerSteeringChecker
+
+                ps_checker = PowerSteeringChecker(self.project_root)
+                transcript_path_str = input_data.get("transcript_path")
+
+                if transcript_path_str:
+                    from pathlib import Path
+
+                    transcript_path = Path(transcript_path_str)
+                    session_id = self._get_current_session_id()
+
+                    self.log("Running power-steering analysis...")
+                    ps_result = ps_checker.check(transcript_path, session_id)
+
+                    if ps_result.decision == "block":
+                        self.log("Power-steering blocking stop - work incomplete")
+                        self.save_metric("power_steering_blocks", 1)
+                        self.log("=== STOP HOOK ENDED (decision: block - power-steering) ===")
+                        return {
+                            "decision": "block",
+                            "reason": ps_result.continuation_prompt or "Session appears incomplete",
+                        }
+                    self.log(f"Power-steering approved stop: {ps_result.reasons}")
+                    self.save_metric("power_steering_approves", 1)
+
+                    # Display summary if available
+                    if ps_result.summary:
+                        self.log("Power-steering summary generated")
+                        # Summary is saved to file by checker
+
+            except Exception as e:
+                # Fail-open: Continue to normal flow on any error
+                self.log(f"Power-steering error (fail-open): {e}", "WARNING")
+                self.save_metric("power_steering_errors", 1)
+
+                # Surface error to user via stderr for visibility
+                print("\n⚠️  Power-Steering Warning", file=sys.stderr)
+                print(f"Power-steering encountered an error and was skipped: {e}", file=sys.stderr)
+                print("Check .claude/runtime/power-steering/power_steering.log for details", file=sys.stderr)
+
         # Check if reflection should run
         if not self._should_run_reflection():
             self.log("Reflection not enabled or skipped - allowing stop")
@@ -168,24 +215,32 @@ class StopHook(HookProcessor):
 
         Executes Neo4j shutdown coordination if appropriate.
         Fail-safe: Never raises exceptions.
+
+        Environment Variables Set:
+            AMPLIHACK_CLEANUP_MODE: Set to "1" to signal cleanup context.
+                Prevents interactive prompts during session exit.
+                Checked by container_selection.py to skip container selection dialog.
         """
         try:
+            # Set cleanup mode to prevent interactive prompts during session exit
+            # This is checked by container_selection.resolve_container_name()
+            os.environ["AMPLIHACK_CLEANUP_MODE"] = "1"
+
             # Import components
             from amplihack.memory.neo4j.lifecycle import Neo4jContainerManager
             from amplihack.neo4j.connection_tracker import Neo4jConnectionTracker
             from amplihack.neo4j.shutdown_coordinator import Neo4jShutdownCoordinator
 
-            # Detect auto mode
-            auto_mode = os.getenv("AMPLIHACK_AUTO_MODE", "false").lower() == "true"
+            # Detect auto mode (standardized format)
+            auto_mode = os.getenv("AMPLIHACK_AUTO_MODE", "0") == "1"
 
             self.log(f"Neo4j cleanup handler started (auto_mode={auto_mode})")
 
             # Initialize components with credentials from environment
-            # Note: Connection tracker will raise ValueError if password not set and
-            # NEO4J_ALLOW_DEFAULT_PASSWORD != "true". This is intentional for production security.
+            # Note: Connection tracker will raise ValueError if password not set and  # pragma: allowlist secret
+            # NEO4J_ALLOW_DEFAULT_PASSWORD != "true". This is intentional for production security.  # pragma: allowlist secret
             tracker = Neo4jConnectionTracker(
-                username=os.getenv("NEO4J_USERNAME"),
-                password=os.getenv("NEO4J_PASSWORD")
+                username=os.getenv("NEO4J_USERNAME"), password=os.getenv("NEO4J_PASSWORD")
             )
             manager = Neo4jContainerManager()
             coordinator = Neo4jShutdownCoordinator(
@@ -201,6 +256,43 @@ class StopHook(HookProcessor):
 
         except Exception as e:
             self.log(f"Neo4j cleanup failed: {e}", "WARNING")
+
+    def _handle_neo4j_learning(self) -> None:
+        """Handle Neo4j learning capture on session exit.
+
+        Extracts learning insights from Neo4j knowledge graph if available.
+        Fail-safe: Never raises exceptions.
+
+        Design Notes:
+            - Called AFTER Neo4j cleanup coordination
+            - Separated from cleanup for single responsibility
+            - Optional feature: Gracefully skips if not yet implemented
+            - Currently planned but not yet implemented (awaiting schema definition)
+        """
+        try:
+            # Import from sibling neo4j module (relative to hooks directory)
+            from neo4j.learning_capture import capture_neo4j_learnings
+
+            session_id = self._get_current_session_id()
+            self.log(f"Starting Neo4j learning capture for session {session_id}")
+
+            # Attempt learning capture (fail-safe design)
+            success = capture_neo4j_learnings(
+                project_root=self.project_root,
+                session_id=session_id,
+                neo4j_connection=None,  # TODO: Pass active connection when available
+            )
+
+            if success:
+                self.log("Neo4j learning capture completed successfully")
+                self.save_metric("neo4j_learning_captures", 1)
+            else:
+                self.log("Neo4j learning capture skipped (Neo4j not available)")
+
+        except ImportError:
+            self.log("Neo4j learning module not available - skipping", "DEBUG")
+        except Exception as e:
+            self.log(f"Neo4j learning capture failed (non-critical): {e}", "WARNING")
 
     def read_continuation_prompt(self) -> str:
         """Read custom continuation prompt from file or return default.
@@ -247,6 +339,38 @@ class StopHook(HookProcessor):
         except (PermissionError, OSError, UnicodeDecodeError) as e:
             self.log(f"Error reading custom prompt: {e} - using default", "WARNING")
             return DEFAULT_CONTINUATION_PROMPT
+
+    def _should_run_power_steering(self) -> bool:
+        """Check if power-steering should run based on config and environment.
+
+        Returns:
+            True if power-steering should run, False otherwise
+        """
+        try:
+            # Reuse PowerSteeringChecker's logic instead of duplicating
+            from power_steering_checker import PowerSteeringChecker
+
+            checker = PowerSteeringChecker(self.project_root)
+            is_disabled = checker._is_disabled()
+
+            if is_disabled:
+                self.log("Power-steering is disabled - skipping", "DEBUG")
+                return False
+
+            # Check for power-steering lock to prevent concurrent runs
+            ps_dir = self.project_root / ".claude" / "runtime" / "power-steering"
+            ps_lock = ps_dir / ".power_steering_lock"
+
+            if ps_lock.exists():
+                self.log("Power-steering already running - skipping", "DEBUG")
+                return False
+
+            return True
+
+        except Exception as e:
+            # Fail-open: On any error, skip power-steering
+            self.log(f"Error checking power-steering status: {e} - skipping", "WARNING")
+            return False
 
     def _should_run_reflection(self) -> bool:
         """Check if reflection should run based on config and environment.
