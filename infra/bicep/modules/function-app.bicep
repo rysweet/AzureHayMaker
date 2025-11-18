@@ -72,7 +72,7 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
   location: location
   tags: tags
   sku: {
-    name: environment == 'prod' ? 'EP1' : 'P1V2' // Elastic Premium for prod, Premium V2 for dev (3.5GB RAM)
+    name: environment == 'prod' ? 'EP1' : 'P3V2' // Elastic Premium for prod, Premium V2 P3 for dev (8GB RAM)
     tier: environment == 'prod' ? 'ElasticPremium' : 'PremiumV2'
   }
   kind: 'linux'
