@@ -38,9 +38,9 @@ var commonTags = {
 // Generate unique suffix
 var uniqueSuffix = uniqueString(resourceGroup().id, environment)
 
-// Resource names
+// Resource names (keep under 32 chars for Container Apps)
 var containerAppEnvName = 'haymaker-${environment}-${uniqueSuffix}-cae'
-var orchestratorAppName = 'haymaker-${environment}-${uniqueSuffix}-orchestrator'
+var orchestratorAppName = 'orch-${environment}-${substring(uniqueSuffix, 0, 10)}' // <32 chars
 var keyVaultName = 'haymaker-${environment}-${substring(uniqueSuffix, 0, 6)}-kv'
 var serviceBusName = 'haymaker-${environment}-${uniqueSuffix}-bus'
 var storageName = 'haymaker${environment}${substring(uniqueSuffix, 0, 8)}'
