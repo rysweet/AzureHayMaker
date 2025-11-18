@@ -11,6 +11,22 @@ Generate benign service telemetry for Azure Tenant simulation.
 - ✅ **Log Streaming**: Real-time CLI output with colors
 - ✅ **Comprehensive Docs**: 12,000+ lines of guides and specs
 
+## 🚨 **URGENT**: Cost Alert - $2,164/month!
+
+**Critical finding**: 21 duplicate resource sets from debugging iterations
+- **Current**: $2,164/month
+- **After cleanup**: $498/month
+- **SAVINGS**: **$1,666/month (77%)!**
+
+**Immediate action** (5 min):
+```bash
+./scripts/cleanup-old-function-apps.sh  # Saves $1,533/month NOW!
+```
+
+**Details**: `CRITICAL_COST_ALERT.md` | **Tracked**: Issue #14
+
+---
+
 **👉 START HERE**: Read `README_SESSION_DELIVERABLES.md` for complete overview
 
 **Key Documents**:
