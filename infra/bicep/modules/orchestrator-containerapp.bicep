@@ -94,18 +94,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2023-05-01' = {
               metadata: {
                 timezone: 'UTC'
                 start: '0 0,6,12,18 * * *' // 4x daily: 00:00, 06:00, 12:00, 18:00 UTC
-                end: '0 1,7,13,19 * * *'   // End 1 hour later
-                desiredReplicas: '1'
-              }
-            }
-          }
-          {
-            name: 'startup-trigger'
-            custom: {
-              type: 'cron'
-              metadata: {
-                timezone: 'UTC'
-                start: '@reboot' // Run on startup
+                end: '0 1,7,13,19 * * *'     // End 1 hour after start
                 desiredReplicas: '1'
               }
             }
