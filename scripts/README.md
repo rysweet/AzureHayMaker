@@ -64,10 +64,28 @@ Step-by-step instructions for deploying 64GB VM via Azure Portal
 
 | Script | Purpose | Time | Impact |
 |--------|---------|------|--------|
-| cleanup-old-function-apps.sh | Cost savings | 5 min | $437/month saved |
+| open-powerpoint.sh | Launch presentation | 10 sec | Instant PowerPoint access |
+| show-session-summary.sh | Display session results | 10 sec | Quick value overview |
 | verify-security-fix.sh | Security validation | 1 min | Confirms fix working |
-| deploy-vm-portal-guide.sh | VM deployment help | - | Prints instructions |
+| cleanup-old-function-apps.sh | Cost savings | 5 min | $437/month saved |
+| ../deploy-vm-portal-guide.sh | VM deployment help | - | Prints instructions |
+
+## 🚀 Quick Start Scripts
+
+### open-powerpoint.sh
+Open the PowerPoint presentation instantly
+
+```bash
+./scripts/open-powerpoint.sh
+```
+
+### show-session-summary.sh
+See what was accomplished in 12-hour session
+
+```bash
+./scripts/show-session-summary.sh
+```
 
 ---
 
-**Created during 12-hour Ultra-Think session (2025-11-17/18)**
+**Created during epic 12-hour Ultra-Think session (2025-11-17/18)**
