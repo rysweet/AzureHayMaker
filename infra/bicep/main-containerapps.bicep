@@ -98,17 +98,8 @@ module logAnalytics 'modules/log-analytics.bicep' = {
   }
 }
 
-// Container Registry for orchestrator images
-module containerRegistry 'modules/container-registry.bicep' = {
-  name: 'acr-${uniqueSuffix}'
-  params: {
-    registryName: 'haymakerorchacr'
-    location: location
-    tags: commonTags
-    sku: 'Basic' // Basic for dev, can upgrade for prod
-    adminUserEnabled: true
-  }
-}
+// Note: ACR 'haymakerorchacr' created by GitHub Actions workflow
+// See .github/workflows/deploy-containerapps.yml - Build job creates ACR if needed
 
 // Container Apps Environment with E16 workload profile
 module containerAppsEnv 'modules/containerapp-environment.bicep' = {
@@ -139,7 +130,7 @@ module orchestrator 'modules/orchestrator-containerapp.bicep' = {
     tags: commonTags
     environmentId: containerAppsEnv.outputs.environmentId
     containerImage: orchestratorImage
-    containerRegistry: containerRegistry.outputs.loginServer // Use ACR for orchestrator images
+    containerRegistry: 'haymakerorchacr.azurecr.io' // ACR created by workflow
     environment: environment
     keyVaultUri: keyVault.outputs.keyVaultUri
     serviceBusNamespace: serviceBus.outputs.namespaceName
