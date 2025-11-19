@@ -1,36 +1,24 @@
-# Azure HayMaker Orchestrator - Container Image
+# Azure HayMaker Orchestrator - Azure Functions on Container Apps
 # For Container Apps with E16 workload profile (128GB RAM)
 
-FROM python:3.11-slim
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+FROM mcr.microsoft.com/azure-functions/python:4-python3.11
 
 # Set working directory
-WORKDIR /app
+WORKDIR /home/site/wwwroot
 
-# Copy requirements first for layer caching
+# Copy requirements and install dependencies
 COPY requirements.txt .
-
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy orchestrator code
 COPY azure_haymaker/ ./azure_haymaker/
 
-# Expose port 8080 for Container Apps
-EXPOSE 8080
+# Azure Functions expects function code in /home/site/wwwroot
+# The Functions runtime will automatically discover and run the app
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
-ENV PORT=8080
+# Expose port 80 (Azure Functions default)
+EXPOSE 80
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:8080/health || exit 1
-
-# Run orchestrator
-CMD ["python", "-m", "azure_haymaker.orchestrator"]
+ENV AzureWebJobsScriptRoot=/home/site/wwwroot \
+    AzureFunctionsJobHost__Logging__Console__IsEnabled=true \
+    FUNCTIONS_WORKER_RUNTIME=python
