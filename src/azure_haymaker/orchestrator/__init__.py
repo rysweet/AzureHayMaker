@@ -67,10 +67,16 @@ except Exception:
 from .container_manager import (
     ContainerAppError,
     ContainerManager,
+    ImageSigningError,
     delete_container_app,
     deploy_container_app,
     get_container_status,
+    verify_image_signature,
 )
+from .container_deployer import ContainerDeployer
+from .container_lifecycle import ContainerLifecycle
+from .container_monitor import ContainerMonitor
+from .image_verifier import ImageVerifier
 from .event_bus import (
     EventBusClient,
     parse_resource_events,
@@ -78,9 +84,14 @@ from .event_bus import (
     subscribe_to_agent_logs,
 )
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 # Orchestrator functions not included in this PR (monitoring API refactoring only)
 # These would require azure-functions-durable package which isn't needed for monitoring tests
+=======
+# Orchestrator functions not included in this PR (container refactoring only)
+# These would require azure-functions-durable package which isn't needed for container tests
+>>>>>>> origin/main
 app = None
 haymaker_timer = None
 orchestrate_haymaker_run = None
@@ -140,7 +151,13 @@ __all__ = [
     # Container manager
     "ContainerManager",
     "ContainerAppError",
+    "ImageSigningError",
     "deploy_container_app",
     "get_container_status",
     "delete_container_app",
+    "verify_image_signature",
+    "ContainerDeployer",
+    "ContainerMonitor",
+    "ContainerLifecycle",
+    "ImageVerifier",
 ]
