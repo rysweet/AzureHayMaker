@@ -18,7 +18,7 @@ param adminObjectIds array
 param githubOidcClientId string
 
 @description('Orchestrator container image')
-param orchestratorImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+param orchestratorImage string = 'haymakerorchacr.azurecr.io/haymaker-orchestrator:latest'
 
 @description('Agent container image')
 param agentImage string = 'azure-haymaker-agent:latest'
@@ -98,6 +98,18 @@ module logAnalytics 'modules/log-analytics.bicep' = {
   }
 }
 
+// Container Registry for orchestrator images
+module containerRegistry 'modules/container-registry.bicep' = {
+  name: 'acr-${uniqueSuffix}'
+  params: {
+    registryName: 'haymakerorchacr'
+    location: location
+    tags: commonTags
+    sku: 'Basic' // Basic for dev, can upgrade for prod
+    adminUserEnabled: true
+  }
+}
+
 // Container Apps Environment with E16 workload profile
 module containerAppsEnv 'modules/containerapp-environment.bicep' = {
   name: 'containerAppsEnv-${uniqueSuffix}'
@@ -127,7 +139,7 @@ module orchestrator 'modules/orchestrator-containerapp.bicep' = {
     tags: commonTags
     environmentId: containerAppsEnv.outputs.environmentId
     containerImage: orchestratorImage
-    containerRegistry: '' // Will use public registry for now
+    containerRegistry: containerRegistry.outputs.loginServer // Use ACR for orchestrator images
     environment: environment
     keyVaultUri: keyVault.outputs.keyVaultUri
     serviceBusNamespace: serviceBus.outputs.namespaceName
@@ -147,6 +159,17 @@ module orchestratorKeyVaultRole 'modules/role-assignment.bicep' = {
   params: {
     principalId: orchestrator.outputs.principalId
     roleDefinitionId: '4633458b-17de-408a-b874-0445c86b69e6' // Key Vault Secrets User
+  }
+}
+
+// Grant Orchestrator access to ACR (AcrPull)
+resource orchestratorAcrRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(containerRegistry.outputs.registryId, orchestrator.outputs.principalId, 'AcrPull')
+  scope: containerRegistry
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d') // AcrPull
+    principalId: orchestrator.outputs.principalId
+    principalType: 'ServicePrincipal'
   }
 }
 
