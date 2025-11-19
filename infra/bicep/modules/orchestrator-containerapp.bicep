@@ -94,7 +94,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2023-05-01' = {
               metadata: {
                 timezone: 'UTC'
                 start: '0 0,6,12,18 * * *' // 4x daily: 00:00, 06:00, 12:00, 18:00 UTC
-                end: '0 1,7,13,19 * * *'     // End 1 hour after start
+                end: '0 8,14,20,2 * * *'     // End 8 hours after start (agent session duration)
                 desiredReplicas: '1'
               }
             }
