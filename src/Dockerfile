@@ -13,6 +13,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy orchestrator code
 COPY azure_haymaker/ ./azure_haymaker/
 
+# Copy function_app.py entry point (REQUIRED for Azure Functions discovery)
+COPY function_app.py .
+
 # Azure Functions expects function code in /home/site/wwwroot
 # The Functions runtime will automatically discover and run the app
 
