@@ -163,15 +163,8 @@ module orchestratorKeyVaultRole 'modules/role-assignment.bicep' = {
 }
 
 // Grant Orchestrator access to ACR (AcrPull)
-resource orchestratorAcrRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(containerRegistry.outputs.registryId, orchestrator.outputs.principalId, 'AcrPull')
-  scope: containerRegistry
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d') // AcrPull
-    principalId: orchestrator.outputs.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
+// Note: Role assignment created in workflow after ACR deployment
+// See: .github/workflows/deploy-containerapps.yml - "Grant ACR Pull Permission" step
 
 // Outputs
 output containerAppEnvName string = containerAppsEnv.outputs.environmentName

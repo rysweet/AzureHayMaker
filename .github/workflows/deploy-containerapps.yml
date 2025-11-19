@@ -176,6 +176,36 @@ jobs:
 
           echo "✅ Secrets injected to Key Vault"
 
+      - name: Grant ACR Pull Permission
+        run: |
+          RG_NAME="haymaker-${{ env.ENVIRONMENT }}-rg"
+          ORCHESTRATOR="${{ steps.deploy.outputs.orchestratorName }}"
+
+          # Get orchestrator's managed identity principal ID
+          PRINCIPAL_ID=$(az containerapp show \
+            --name "$ORCHESTRATOR" \
+            --resource-group "$RG_NAME" \
+            --query "identity.principalId" -o tsv)
+
+          # Get ACR resource ID
+          ACR_ID=$(az acr show \
+            --name haymakerorchacr \
+            --resource-group "$RG_NAME" \
+            --query "id" -o tsv)
+
+          echo "Granting AcrPull permission to orchestrator..."
+          echo "  Principal ID: $PRINCIPAL_ID"
+          echo "  ACR: $ACR_ID"
+
+          # Grant AcrPull role
+          az role assignment create \
+            --assignee "$PRINCIPAL_ID" \
+            --role AcrPull \
+            --scope "$ACR_ID" \
+            --output none || echo "Role assignment already exists"
+
+          echo "✅ ACR pull permission granted"
+
       - name: Wait for RBAC Propagation
         run: |
           echo "Waiting 90 seconds for RBAC to propagate..."
