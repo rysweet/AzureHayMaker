@@ -6,7 +6,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.35.1.17967",
-      "templateHash": "4930305221543972534"
+      "templateHash": "17071000981233879286"
     }
   },
   "parameters": {
@@ -1438,7 +1438,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.35.1.17967",
-              "templateHash": "4790079728299217301"
+              "templateHash": "4199942471249241481"
             }
           },
           "parameters": {
@@ -1525,7 +1525,7 @@
             },
             "pythonVersion": {
               "type": "string",
-              "defaultValue": "3.13",
+              "defaultValue": "3.11",
               "metadata": {
                 "description": "Python version"
               }
@@ -1578,8 +1578,9 @@
               "location": "[parameters('location')]",
               "tags": "[parameters('tags')]",
               "sku": {
-                "name": "[if(equals(parameters('environment'), 'prod'), 'EP1', 'S1')]",
-                "tier": "[if(equals(parameters('environment'), 'prod'), 'ElasticPremium', 'Standard')]"
+                "name": "[if(equals(parameters('environment'), 'prod'), 'EP3', 'EP3')]",
+                "tier": "ElasticPremium",
+                "capacity": "[if(equals(parameters('environment'), 'prod'), 3, 1)]"
               },
               "kind": "linux",
               "properties": {
