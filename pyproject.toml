@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "Ryan Sweet", email = "rysweet@microsoft.com" }
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.11,<3.13"
 dependencies = [
     "anthropic>=0.40.0",
     "azure-functions>=1.20.0",

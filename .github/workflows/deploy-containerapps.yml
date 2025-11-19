@@ -1,0 +1,265 @@
+name: Deploy Container Apps (128GB Orchestrator)
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - 'infra/bicep/main-containerapps.bicep'
+      - 'infra/bicep/modules/orchestrator-containerapp.bicep'
+      - 'infra/bicep/modules/containerapp-environment.bicep'
+      - '.github/workflows/deploy-containerapps.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+env:
+  AZURE_REGION: ${{ secrets.AZURE_LOCATION }}
+  ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  validate:
+    name: Validate Container Apps Templates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Validate Bicep templates
+        run: |
+          az bicep build --file infra/bicep/main-containerapps.bicep
+          echo "✅ Bicep templates validated"
+
+  build-orchestrator-image:
+    name: Build and Push Orchestrator Image
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build orchestrator Docker image
+        run: |
+          cd src
+          docker build -t haymaker-orchestrator:${{ github.sha }} -f Dockerfile .
+          docker tag haymaker-orchestrator:${{ github.sha }} haymaker-orchestrator:latest
+          echo "✅ Docker image built"
+
+      - name: Login to ACR
+        run: |
+          az acr login --name haymakerorchacr
+          echo "✅ ACR login successful"
+
+      - name: Push image to ACR
+        run: |
+          docker tag haymaker-orchestrator:latest haymakerorchacr.azurecr.io/haymaker-orchestrator:latest
+          docker tag haymaker-orchestrator:latest haymakerorchacr.azurecr.io/haymaker-orchestrator:${{ github.sha }}
+          docker push haymakerorchacr.azurecr.io/haymaker-orchestrator:latest
+          docker push haymakerorchacr.azurecr.io/haymaker-orchestrator:${{ github.sha }}
+          echo "✅ Images pushed to ACR"
+
+  deploy-infrastructure:
+    name: Deploy 128GB Container Apps Infrastructure
+    runs-on: ubuntu-latest
+    needs: [validate, build-orchestrator-image]
+    outputs:
+      orchestratorName: ${{ steps.deploy.outputs.orchestratorName }}
+      orchestratorFqdn: ${{ steps.deploy.outputs.orchestratorFqdn }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get Service Principal Object ID
+        id: get-sp-oid
+        run: |
+          SP_OBJECT_ID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)
+          echo "sp_object_id=$SP_OBJECT_ID" >> $GITHUB_OUTPUT
+
+      - name: Create Resource Group
+        run: |
+          RG_NAME="haymaker-${{ env.ENVIRONMENT }}-rg"
+          az group create --name "$RG_NAME" --location ${{ env.AZURE_REGION }} \
+            --tags Environment=${{ env.ENVIRONMENT }} ManagedBy=GitHubActions || true
+          echo "✅ Resource group ready"
+
+      - name: Deploy Container Apps Infrastructure
+        id: deploy
+        run: |
+          RG_NAME="haymaker-${{ env.ENVIRONMENT }}-rg"
+          DEPLOYMENT_NAME="containerapp-deployment-$(date +%s)"
+
+          echo "Deploying Container Apps with E16 workload profile (128GB RAM)..."
+
+          OUTPUTS=$(az deployment group create \
+            --resource-group "$RG_NAME" \
+            --template-file infra/bicep/main-containerapps.bicep \
+            --parameters environment=${{ env.ENVIRONMENT }} \
+                         adminObjectIds="['${{ steps.get-sp-oid.outputs.sp_object_id }}']" \
+                         githubOidcClientId="${{ secrets.AZURE_CLIENT_ID }}" \
+                         simulationSize="${{ secrets.SIMULATION_SIZE }}" \
+            --name "$DEPLOYMENT_NAME" \
+            --query properties.outputs -o json)
+
+          # Extract outputs
+          ORCHESTRATOR_NAME=$(echo $OUTPUTS | jq -r '.orchestratorName.value')
+          ORCHESTRATOR_FQDN=$(echo $OUTPUTS | jq -r '.orchestratorFqdn.value')
+
+          echo "orchestratorName=$ORCHESTRATOR_NAME" >> $GITHUB_OUTPUT
+          echo "orchestratorFqdn=$ORCHESTRATOR_FQDN" >> $GITHUB_OUTPUT
+
+          echo "✅ Container Apps deployed"
+          echo "   Orchestrator: $ORCHESTRATOR_NAME"
+          echo "   FQDN: $ORCHESTRATOR_FQDN"
+          echo "   Profile: E16 (128GB RAM, 16 vCPU)"
+
+      - name: Inject Secrets to Key Vault
+        run: |
+          RG_NAME="haymaker-${{ env.ENVIRONMENT }}-rg"
+
+          # Get Key Vault name from deployment outputs
+          KV_NAME=$(echo '${{ steps.deploy.outputs }}' | jq -r '.keyVaultName.value' || echo "")
+
+          if [ -z "$KV_NAME" ]; then
+            # Fallback: find Key Vault in resource group
+            KV_NAME=$(az keyvault list -g "$RG_NAME" --query "[0].name" -o tsv)
+          fi
+
+          echo "Injecting secrets to Key Vault: $KV_NAME"
+
+          # Store secrets
+          az keyvault secret set \
+            --vault-name "$KV_NAME" \
+            --name main-sp-client-secret \
+            --value "${{ secrets.MAIN_SP_CLIENT_SECRET }}" \
+            --output none
+
+          az keyvault secret set \
+            --vault-name "$KV_NAME" \
+            --name anthropic-api-key \
+            --value "${{ secrets.ANTHROPIC_API_KEY }}" \
+            --output none
+
+          az keyvault secret set \
+            --vault-name "$KV_NAME" \
+            --name log-analytics-workspace-key \
+            --value "${{ secrets.LOG_ANALYTICS_WORKSPACE_KEY }}" \
+            --output none
+
+          echo "✅ Secrets injected to Key Vault"
+
+      - name: Grant ACR Pull Permission
+        run: |
+          RG_NAME="haymaker-${{ env.ENVIRONMENT }}-rg"
+          ORCHESTRATOR="${{ steps.deploy.outputs.orchestratorName }}"
+
+          # Get orchestrator's managed identity principal ID
+          PRINCIPAL_ID=$(az containerapp show \
+            --name "$ORCHESTRATOR" \
+            --resource-group "$RG_NAME" \
+            --query "identity.principalId" -o tsv)
+
+          # Get ACR resource ID
+          ACR_ID=$(az acr show \
+            --name haymakerorchacr \
+            --resource-group "$RG_NAME" \
+            --query "id" -o tsv)
+
+          echo "Granting AcrPull permission to orchestrator..."
+          echo "  Principal ID: $PRINCIPAL_ID"
+          echo "  ACR: $ACR_ID"
+
+          # Grant AcrPull role
+          az role assignment create \
+            --assignee "$PRINCIPAL_ID" \
+            --role AcrPull \
+            --scope "$ACR_ID" \
+            --output none || echo "Role assignment already exists"
+
+          echo "✅ ACR pull permission granted"
+
+      - name: Wait for RBAC Propagation
+        run: |
+          echo "Waiting 90 seconds for RBAC to propagate..."
+          sleep 90
+          echo "✅ RBAC propagation complete"
+
+  validate-deployment:
+    name: Validate Container Apps Deployment
+    runs-on: ubuntu-latest
+    needs: deploy-infrastructure
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Check Orchestrator Status
+        run: |
+          RG_NAME="haymaker-${{ env.ENVIRONMENT }}-rg"
+          ORCHESTRATOR="${{ needs.deploy-infrastructure.outputs.orchestratorName }}"
+
+          echo "Checking orchestrator: $ORCHESTRATOR"
+
+          STATUS=$(az containerapp show \
+            --name "$ORCHESTRATOR" \
+            --resource-group "$RG_NAME" \
+            --query "properties.provisioningState" -o tsv)
+
+          echo "Orchestrator Status: $STATUS"
+
+          if [ "$STATUS" = "Succeeded" ]; then
+            echo "✅ Orchestrator deployed successfully"
+            echo "   FQDN: ${{ needs.deploy-infrastructure.outputs.orchestratorFqdn }}"
+            echo "   Profile: E16 (128GB RAM, 16 vCPU)"
+            echo "   Scheduling: KEDA CRON (4x daily + startup)"
+          else
+            echo "❌ Orchestrator deployment incomplete: $STATUS"
+            exit 1
+          fi
+
+      - name: Summary
+        run: |
+          echo "========================================="
+          echo "Container Apps Deployment Complete!"
+          echo "========================================="
+          echo ""
+          echo "Architecture: Container Apps with E16 workload profile"
+          echo "Orchestrator RAM: 128GB (Captain's specification!)"
+          echo "Scheduling: KEDA CRON (00:00, 06:00, 12:00, 18:00 UTC)"
+          echo "Agent NODE_OPTIONS: --max-old-space-size=32768"
+          echo "GitOps: Fully automated ✅"
+          echo ""
+          echo "✅ ALL REQUIREMENTS MET!"

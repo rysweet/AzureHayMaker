@@ -59,7 +59,9 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     publicNetworkAccess: publicNetworkAccess ? 'Enabled' : 'Disabled'
     networkAcls: {
       bypass: 'AzureServices'
-      defaultAction: 'Deny'
+      // For dev/staging: Allow all when public access enabled (GitHub Actions needs access)
+      // For prod: Deny all except specific IPs/VNets
+      defaultAction: publicNetworkAccess ? 'Allow' : 'Deny'
       ipRules: [for ip in allowedIpAddresses: {
         value: ip
       }]

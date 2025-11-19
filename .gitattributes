@@ -1,0 +1,36 @@
+# Azure HayMaker - Git Attributes
+
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Scripts should always use LF
+*.sh text eol=lf
+*.py text eol=lf
+
+# Documents
+*.md text
+*.txt text
+*.json text
+*.yml text
+*.yaml text
+
+# Bicep files
+*.bicep text
+*.bicepparam text
+
+# Binary files
+*.pptx binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
+*.zip binary
+
+# Archive files
+*.gz binary
+*.tar binary
+
+# Linguist overrides (for GitHub language stats)
+workspace/node_modules/* linguist-vendored
+*.md linguist-documentation
+*.bicep linguist-language=Bicep
