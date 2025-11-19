@@ -77,6 +77,22 @@ from .event_bus import (
     publish_event,
     subscribe_to_agent_logs,
 )
+<<<<<<< HEAD
+=======
+# Orchestrator functions not included in this PR (monitoring API refactoring only)
+# These would require azure-functions-durable package which isn't needed for monitoring tests
+app = None
+haymaker_timer = None
+orchestrate_haymaker_run = None
+validate_environment_activity = None
+select_scenarios_activity = None
+create_service_principal_activity = None
+deploy_container_app_activity = None
+check_agent_status_activity = None
+verify_cleanup_activity = None
+force_cleanup_activity = None
+generate_report_activity = None
+>>>>>>> origin/main
 from .scenario_selector import (
     list_available_scenarios,
     parse_scenario_metadata,
