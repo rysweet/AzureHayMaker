@@ -13,19 +13,19 @@ from .event_bus import (
     publish_event,
     subscribe_to_agent_logs,
 )
-from .orchestrator import (
-    app,
-    check_agent_status_activity,
-    create_service_principal_activity,
-    deploy_container_app_activity,
-    force_cleanup_activity,
-    generate_report_activity,
-    haymaker_timer,
-    orchestrate_haymaker_run,
-    select_scenarios_activity,
-    validate_environment_activity,
-    verify_cleanup_activity,
-)
+# Orchestrator functions not included in this PR (monitoring API refactoring only)
+# These would require azure-functions-durable package which isn't needed for monitoring tests
+app = None
+haymaker_timer = None
+orchestrate_haymaker_run = None
+validate_environment_activity = None
+select_scenarios_activity = None
+create_service_principal_activity = None
+deploy_container_app_activity = None
+check_agent_status_activity = None
+verify_cleanup_activity = None
+force_cleanup_activity = None
+generate_report_activity = None
 from .scenario_selector import (
     list_available_scenarios,
     parse_scenario_metadata,
