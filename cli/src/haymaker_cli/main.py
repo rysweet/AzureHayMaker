@@ -27,6 +27,7 @@ from haymaker_cli.formatters import (
     format_resource_list,
     format_yaml,
 )
+from haymaker_cli.orch.commands import orch
 
 console = Console()
 
@@ -170,6 +171,15 @@ def metrics(ctx: click.Context, period: str, scenario: str | None):
         handle_output(ctx, metrics_data, format_metrics_summary)
     except Exception as e:
         handle_error(e)
+
+
+# Agents command group
+
+
+# Orchestrator command group
+
+# Register orch command group from orch.commands module
+cli.add_command(orch)
 
 
 # Agents command group
