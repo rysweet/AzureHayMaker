@@ -40,6 +40,10 @@ balanced
 
 autonomous and independent
 
+### Auto Update
+
+always
+
 ### Preferred Languages
 
 (not set)
@@ -81,18 +85,42 @@ Sycophancy erodes trust. ALWAYS stick to facts and be direct. NEVER use excessiv
 
 Always prefer complete work with high quality over speed of implementation.
 
+### .claude Directory Auto-Update
+
+Controls automatic updating of .claude/ directory when version mismatch detected at session start.
+
+**Note**: The actual preference value is set in the "### Auto Update" section above (line 43). This section provides documentation and usage examples only.
+
+**Current setting:** always (set at line 43)
+
+**Options:**
+- `always` - Always auto-update without prompting
+- `never` - Never auto-update (just show warning)
+- `ask` - Prompt user each time (default)
+
+**Usage:**
+```bash
+/amplihack:customize set auto_update always
+/amplihack:customize set auto_update never
+/amplihack:customize set auto_update ask
+```
+
+**Note:** This prevents bugs from running stale hooks/tools when package is upgraded.
+
 ### Neo4j Auto-Shutdown
 
 Controls whether Neo4j database shuts down automatically on session exit.
 
-**Current setting:** ask
+**Current setting:** always
 
 **Options:**
+
 - `always` - Always shut down Neo4j when last connection closes (no prompt)
 - `never` - Never shut down Neo4j (no prompt)
 - `ask` - Prompt user each time (default)
 
 **Usage:**
+
 ```bash
 /amplihack:customize set neo4j_auto_shutdown always
 /amplihack:customize set neo4j_auto_shutdown never
@@ -169,6 +197,7 @@ Example: "Always run tests before committing"
 I always want you to test each PR like a user would, from the outside in, not just unit testing. For instance you should use "uvx --from git..." syntax to test the branch. You can use agentic test scenarios defined with github.com/rysweet/gadgugi-agentic-test or your own auto mode to test features.
 
 **Implementation Requirements:**
+
 - MUST test with `uvx --from git+https://github.com/org/repo@branch-name package command`
 - MUST verify the actual user workflow that was broken/enhanced
 - MUST validate error messages, configuration updates, and user experience

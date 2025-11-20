@@ -10,7 +10,7 @@ Replace the sections below with information about your project.
 
 ---
 
-## Project: feat-issue-1-azure-haymaker-implementation
+## Project: AzureHayMaker
 
 ## Overview
 
@@ -28,8 +28,6 @@ Generate benign service telemetry for Azure Tenant simulation. Azure HayMaker is
 
 - **Language**: Python
 - **Language**: JavaScript/TypeScript
-- **Language**: Rust
-- **Language**: Go
 - **Framework**: [Main framework if applicable]
 - **Database**: [Database system if applicable]
 
