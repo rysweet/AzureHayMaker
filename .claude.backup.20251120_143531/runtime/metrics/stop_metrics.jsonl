@@ -1,0 +1,10 @@
+{"timestamp": "2025-11-20T04:16:58.381248", "metric": "power_steering_approves", "value": 1, "hook": "stop"}
+{"timestamp": "2025-11-20T04:16:58.381494", "metric": "reflection_disabled_checks", "value": 1, "hook": "stop"}
+{"timestamp": "2025-11-20T04:16:58.443640", "metric": "power_steering_approves", "value": 1, "hook": "stop"}
+{"timestamp": "2025-11-20T04:16:58.443896", "metric": "reflection_disabled_checks", "value": 1, "hook": "stop"}
+{"timestamp": "2025-11-20T06:09:56.178520", "metric": "power_steering_approves", "value": 1, "hook": "stop"}
+{"timestamp": "2025-11-20T06:09:56.178753", "metric": "reflection_disabled_checks", "value": 1, "hook": "stop"}
+{"timestamp": "2025-11-20T06:09:56.272657", "metric": "power_steering_approves", "value": 1, "hook": "stop"}
+{"timestamp": "2025-11-20T06:09:56.272890", "metric": "reflection_disabled_checks", "value": 1, "hook": "stop"}
+{"timestamp": "2025-11-20T14:26:13.225923", "metric": "power_steering_missing_transcript", "value": 1, "hook": "stop"}
+{"timestamp": "2025-11-20T14:26:13.226073", "metric": "reflection_disabled_checks", "value": 1, "hook": "stop"}

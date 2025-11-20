@@ -65,7 +65,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2023-05-01' = {
       secrets: []
       ingress: {
         external: true
-        targetPort: 8080
+        targetPort: 80  // Azure Functions default port
         transport: 'http'
         allowInsecure: false
         traffic: [
@@ -84,7 +84,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2023-05-01' = {
     }
     template: {
       scale: {
-        minReplicas: 0 // Scale to zero when not running
+        minReplicas: 1 // Keep 1 replica always running for Functions
         maxReplicas: 1 // Single instance for orchestrator
         rules: [
           {
