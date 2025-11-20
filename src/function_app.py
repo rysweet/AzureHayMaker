@@ -23,5 +23,17 @@ from azure_haymaker.orchestrator import (
     generate_report_activity,
 )
 
-# Export the app so Azure Functions runtime can find it
-__all__ = ["app"]
+# Export app AND all functions so Azure Functions runtime can find them
+__all__ = [
+    "app",
+    "haymaker_timer",
+    "orchestrate_haymaker_run",
+    "validate_environment_activity",
+    "select_scenarios_activity",
+    "create_service_principal_activity",
+    "deploy_container_app_activity",
+    "check_agent_status_activity",
+    "verify_cleanup_activity",
+    "force_cleanup_activity",
+    "generate_report_activity",
+]
