@@ -27,7 +27,7 @@ dependencies = [
     "rich>=13.7.0",
     "pyyaml>=6.0.1",
     "azure-identity>=1.16.0",
-    "azure-mgmt-app>=1.0.0",
+    "azure-mgmt-app>=1.0.0b2",
     "python-dateutil>=2.9.0",
 ]
 

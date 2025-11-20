@@ -82,7 +82,7 @@ class ContainerAppsClient:
         """
         if self._client is None:
             # Lazy import to avoid loading uninstalled package during testing
-            from azure.mgmt.appcontainers import ContainerAppsAPIClient
+            from azure.mgmt.app import ContainerAppsAPIClient
 
             credential = self._get_credential()
             self._client = ContainerAppsAPIClient(
@@ -340,7 +340,7 @@ class ContainerAppsClient:
         app = await self._retry_operation(
             client.container_apps.get,
             resource_group_name=self.resource_group,
-            container_app_name=app_name,
+            name=app_name,
         )
 
         return self._convert_to_container_app_info(app)
