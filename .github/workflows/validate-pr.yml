@@ -21,7 +21,7 @@ jobs:
       - name: Install dependencies
         run: |
           export PATH="$HOME/.cargo/bin:$PATH"
-          uv sync --no-dev
+          uv sync
       
       - name: Run tests
         run: |
