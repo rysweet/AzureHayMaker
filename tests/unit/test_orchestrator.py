@@ -259,7 +259,7 @@ class TestCreateServicePrincipalActivity:
         with (
             mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch(
-                "azure_haymaker.orchestrator.orchestrator.create_service_principal"
+                "azure_haymaker.orchestrator.sp_manager.create_service_principal"
             ) as mock_create_sp,
         ):
             mock_load_config.return_value = mock_config
@@ -294,7 +294,7 @@ class TestCreateServicePrincipalActivity:
         with (
             mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch(
-                "azure_haymaker.orchestrator.orchestrator.create_service_principal"
+                "azure_haymaker.orchestrator.sp_manager.create_service_principal"
             ) as mock_create_sp,
         ):
             mock_load_config.return_value = mock_config
@@ -327,7 +327,7 @@ class TestDeployContainerAppActivity:
         with (
             mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch(
-                "azure_haymaker.orchestrator.orchestrator.deploy_container_app"
+                "azure_haymaker.orchestrator.container_manager.deploy_container_app"
             ) as mock_deploy,
         ):
             mock_load_config.return_value = mock_config
@@ -358,7 +358,7 @@ class TestDeployContainerAppActivity:
         with (
             mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch(
-                "azure_haymaker.orchestrator.orchestrator.deploy_container_app"
+                "azure_haymaker.orchestrator.container_manager.deploy_container_app"
             ) as mock_deploy,
         ):
             mock_load_config.return_value = mock_config
@@ -392,7 +392,7 @@ class TestCheckAgentStatusActivity:
         with (
             mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch(
-                "azure_haymaker.orchestrator.orchestrator.ContainerManager"
+                "azure_haymaker.orchestrator.container_manager.ContainerManager"
             ) as mock_container_manager,
         ):
             mock_load_config.return_value = mock_config
@@ -423,7 +423,7 @@ class TestCheckAgentStatusActivity:
         with (
             mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch(
-                "azure_haymaker.orchestrator.orchestrator.ContainerManager"
+                "azure_haymaker.orchestrator.container_manager.ContainerManager"
             ) as mock_container_manager,
         ):
             mock_load_config.return_value = mock_config
@@ -466,7 +466,7 @@ class TestVerifyCleanupActivity:
         with (
             mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch(
-                "azure_haymaker.orchestrator.orchestrator.query_managed_resources"
+                "azure_haymaker.orchestrator.cleanup.query_managed_resources"
             ) as mock_query,
         ):
             mock_load_config.return_value = mock_config
@@ -504,7 +504,7 @@ class TestVerifyCleanupActivity:
         with (
             mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch(
-                "azure_haymaker.orchestrator.orchestrator.query_managed_resources"
+                "azure_haymaker.orchestrator.cleanup.query_managed_resources"
             ) as mock_query,
         ):
             mock_load_config.return_value = mock_config
@@ -539,10 +539,10 @@ class TestForceCleanupActivity:
         with (
             mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch(
-                "azure_haymaker.orchestrator.orchestrator.query_managed_resources"
+                "azure_haymaker.orchestrator.cleanup.query_managed_resources"
             ) as mock_query,
             mock.patch(
-                "azure_haymaker.orchestrator.orchestrator.force_delete_resources"
+                "azure_haymaker.orchestrator.cleanup.force_delete_resources"
             ) as mock_force_cleanup,
         ):
             mock_load_config.return_value = mock_config
@@ -597,10 +597,10 @@ class TestForceCleanupActivity:
         with (
             mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch(
-                "azure_haymaker.orchestrator.orchestrator.query_managed_resources"
+                "azure_haymaker.orchestrator.cleanup.query_managed_resources"
             ) as mock_query,
             mock.patch(
-                "azure_haymaker.orchestrator.orchestrator.force_delete_resources"
+                "azure_haymaker.orchestrator.cleanup.force_delete_resources"
             ) as mock_force_cleanup,
         ):
             mock_load_config.return_value = mock_config
@@ -667,7 +667,7 @@ class TestGenerateReportActivity:
             mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch("azure.identity.DefaultAzureCredential"),
             mock.patch(
-                "azure_haymaker.orchestrator.orchestrator.BlobServiceClient"
+                "azure.storage.blob.BlobServiceClient"
             ) as mock_blob_client,
         ):
             mock_load_config.return_value = mock_config
