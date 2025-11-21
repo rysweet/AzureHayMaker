@@ -39,12 +39,3 @@
 {"timestamp": "2025-11-21T03:54:59.693904", "metric": "auto_update_executed", "value": false, "hook": "session_start"}
 {"timestamp": "2025-11-21T03:54:59.694014", "metric": "prompt_length", "value": 0, "hook": "session_start"}
 {"timestamp": "2025-11-21T03:54:59.694128", "metric": "neo4j_enabled", "value": false, "hook": "session_start"}
-{"timestamp": "2025-11-21T03:54:59.760580", "metric": "auto_update_executed", "value": false, "hook": "session_start"}
-{"timestamp": "2025-11-21T03:54:59.760716", "metric": "prompt_length", "value": 0, "hook": "session_start"}
-{"timestamp": "2025-11-21T03:54:59.760841", "metric": "neo4j_enabled", "value": false, "hook": "session_start"}
-{"timestamp": "2025-11-21T03:55:14.979925", "metric": "auto_update_executed", "value": false, "hook": "session_start"}
-{"timestamp": "2025-11-21T03:55:14.980034", "metric": "prompt_length", "value": 0, "hook": "session_start"}
-{"timestamp": "2025-11-21T03:55:14.980149", "metric": "neo4j_enabled", "value": false, "hook": "session_start"}
-{"timestamp": "2025-11-21T03:55:15.041849", "metric": "auto_update_executed", "value": false, "hook": "session_start"}
-{"timestamp": "2025-11-21T03:55:15.042002", "metric": "prompt_length", "value": 0, "hook": "session_start"}
-{"timestamp": "2025-11-21T03:55:15.042121", "metric": "neo4j_enabled", "value": false, "hook": "session_start"}
