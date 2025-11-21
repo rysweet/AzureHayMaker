@@ -10,7 +10,13 @@ decorators in the entry point file where Azure Functions expects them.
 
 Architecture:
 - Single FunctionApp instance created in this file
-- All 10 functions decorated here (not in separate modules)
+- All 17 functions decorated here (not in separate modules)
+  * 1 Timer Trigger: haymaker_timer
+  * 1 Orchestrator: orchestrate_haymaker_run
+  * 8 Activities: validation, selection, SP creation, container deployment,
+                  status checks, cleanup verification, force cleanup, reporting
+  * 7 HTTP APIs: execute, get_execution_status, list_agents, get_agent_logs,
+                 get_metrics, list_resources, get_resource
 - Implementation logic delegates to helper modules for maintainability
 - Guaranteed function discovery per Azure Functions documentation
 """
@@ -845,3 +851,1308 @@ async def generate_report_activity(params: dict[str, Any]) -> dict[str, Any]:
             "report_id": params.get("run_id"),
             "error": str(e),
         }
+
+
+# =============================================================================
+# HTTP API FUNCTIONS - CLI Access (7 total)
+# =============================================================================
+
+
+@app.route(route="execute", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
+async def execute_scenario(req: func.HttpRequest) -> func.HttpResponse:
+    """Execute scenarios on-demand via HTTP POST.
+
+    Request:
+        POST /api/execute
+        Body: {
+            "scenarios": ["scenario-name-1", "scenario-name-2"],
+            "duration_hours": 2,
+            "tags": {"requester": "user@example.com"}
+        }
+
+    Response:
+        202 Accepted: {
+            "execution_id": "exec-20251115-abc123",
+            "status": "queued",
+            "scenarios": [...],
+            "estimated_completion": "2025-11-15T10:00:00Z",
+            "created_at": "2025-11-15T08:00:00Z"
+        }
+
+        400 Bad Request: Invalid request body
+        404 Not Found: Scenario doesn't exist
+        429 Too Many Requests: Rate limit exceeded
+        500 Internal Server Error: Server error
+
+    Args:
+        req: HTTP request object
+
+    Returns:
+        HTTP response with execution details or error
+    """
+    import re
+    from pathlib import Path
+    from typing import Literal
+
+    from azure.data.tables import TableClient
+    from azure.servicebus import ServiceBusClient, ServiceBusMessage
+    from pydantic import ValidationError
+
+    from azure_haymaker.models.execution import (
+        ExecutionRequest,
+        ExecutionResponse,
+        OnDemandExecutionStatus,
+    )
+    from azure_haymaker.orchestrator.config import load_config
+    from azure_haymaker.orchestrator.execution_tracker import ExecutionTracker
+    from azure_haymaker.orchestrator.rate_limiter import RateLimiter
+
+    def extract_user_from_request(req: func.HttpRequest) -> str:
+        """Extract user identifier from request for per-user rate limiting."""
+        # Try to get Azure AD principal ID from headers
+        principal_id = req.headers.get("x-ms-client-principal-id")
+        if principal_id:
+            return f"aad:{principal_id}"
+
+        # Try to get API key from header and hash it
+        api_key = req.headers.get("x-functions-key")
+        if api_key:
+            return f"key:{api_key[:8]}"
+
+        # Fallback to IP address
+        client_ip = req.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        if not client_ip:
+            client_ip = req.headers.get("x-real-ip", "")
+
+        if not client_ip:
+            client_ip = "unknown"
+
+        return f"ip:{client_ip}"
+
+    def get_scenario_path(scenario_name: str) -> Path | None:
+        """Get path to scenario document with path traversal protection."""
+        # Validate scenario name format (alphanumeric and hyphens only)
+        if not re.match(r"^[a-z0-9\-]+$", scenario_name):
+            logger.warning(f"Invalid scenario name format: {scenario_name}")
+            return None
+
+        # Search in docs/scenarios directory
+        project_root = Path(__file__).parent.parent
+        scenarios_dir = project_root / "docs" / "scenarios"
+
+        if not scenarios_dir.exists():
+            logger.warning(f"Scenarios directory not found: {scenarios_dir}")
+            return None
+
+        # Construct expected scenario file path safely
+        scenario_file = scenarios_dir / f"{scenario_name}.md"
+
+        # Resolve to absolute path and verify it's within scenarios directory
+        try:
+            resolved_path = scenario_file.resolve(strict=False)
+            scenarios_dir_resolved = scenarios_dir.resolve()
+
+            # Check if resolved path is within scenarios directory
+            if not str(resolved_path).startswith(str(scenarios_dir_resolved)):
+                logger.warning(f"Path traversal attempt detected: {scenario_name}")
+                return None
+
+            # Return path if it exists
+            return resolved_path if resolved_path.exists() else None
+
+        except Exception as e:
+            logger.error(f"Error resolving scenario path: {e}")
+            return None
+
+    def validate_scenarios(scenarios: list[str]) -> tuple[bool, str | None]:
+        """Validate that all scenarios exist."""
+        missing_scenarios = []
+
+        for scenario_name in scenarios:
+            path = get_scenario_path(scenario_name)
+            if not path or not path.exists():
+                missing_scenarios.append(scenario_name)
+
+        if missing_scenarios:
+            error_msg = f"Scenarios not found: {', '.join(missing_scenarios)}"
+            return False, error_msg
+
+        return True, None
+
+    try:
+        # Parse request body
+        try:
+            body = req.get_json()
+        except ValueError:
+            return func.HttpResponse(
+                body=json.dumps(
+                    {
+                        "error": {
+                            "code": "INVALID_JSON",
+                            "message": "Invalid JSON in request body",
+                        }
+                    }
+                ),
+                status_code=400,
+                mimetype="application/json",
+            )
+
+        # Validate request with Pydantic
+        try:
+            execution_request = ExecutionRequest(**body)
+        except ValidationError as e:
+            return func.HttpResponse(
+                body=json.dumps(
+                    {
+                        "error": {
+                            "code": "INVALID_REQUEST",
+                            "message": "Request validation failed",
+                            "details": e.errors(),
+                        }
+                    }
+                ),
+                status_code=400,
+                mimetype="application/json",
+            )
+
+        # Validate scenarios exist
+        valid, error_msg = validate_scenarios(execution_request.scenarios)
+        if not valid:
+            return func.HttpResponse(
+                body=json.dumps(
+                    {
+                        "error": {
+                            "code": "SCENARIO_NOT_FOUND",
+                            "message": error_msg,
+                        }
+                    }
+                ),
+                status_code=404,
+                mimetype="application/json",
+            )
+
+        # Load config
+        config = await load_config()
+
+        # Check rate limits
+        credential = DefaultAzureCredential()
+        rate_limit_table = TableClient(
+            endpoint=config.table_storage.account_url,
+            table_name="RateLimits",
+            credential=credential,
+        )
+
+        limiter = RateLimiter(rate_limit_table)
+
+        # Extract user identifier for per-user rate limiting
+        user_id = extract_user_from_request(req)
+
+        # Check global, per-user, and per-scenario limits
+        rate_limit_checks: list[tuple[Literal["global", "scenario", "user"], str]] = [
+            ("global", "default"),
+            ("user", user_id),
+        ]
+        for scenario in execution_request.scenarios:
+            rate_limit_checks.append(("scenario", scenario))
+
+        rate_limit_result = await limiter.check_multiple_limits(rate_limit_checks)
+
+        if not rate_limit_result.allowed:
+            return func.HttpResponse(
+                body=json.dumps(
+                    {
+                        "error": {
+                            "code": "RATE_LIMIT_EXCEEDED",
+                            "message": f"Rate limit exceeded. Try again in {rate_limit_result.retry_after} seconds.",
+                        },
+                        "retry_after": rate_limit_result.retry_after,
+                    }
+                ),
+                status_code=429,
+                mimetype="application/json",
+                headers={"Retry-After": str(rate_limit_result.retry_after)},
+            )
+
+        # Create execution record
+        execution_table = TableClient(
+            endpoint=config.table_storage.account_url,
+            table_name="Executions",
+            credential=credential,
+        )
+
+        tracker = ExecutionTracker(execution_table)
+
+        execution_id = await tracker.create_execution(
+            scenarios=execution_request.scenarios,
+            duration_hours=execution_request.duration_hours,
+            tags=execution_request.tags,
+        )
+
+        # Enqueue execution request to Service Bus
+        service_bus_client = ServiceBusClient(
+            fully_qualified_namespace=f"{config.service_bus_namespace}.servicebus.windows.net",
+            credential=credential,
+        )
+
+        async with service_bus_client:  # type: ignore[misc]
+            sender = service_bus_client.get_queue_sender(queue_name="execution-requests")
+            async with sender:  # type: ignore[misc]
+                message_body = {
+                    "execution_id": execution_id,
+                    "scenarios": execution_request.scenarios,
+                    "duration_hours": execution_request.duration_hours,
+                    "tags": execution_request.tags,
+                    "requested_at": datetime.now(UTC).isoformat(),
+                }
+
+                message = ServiceBusMessage(json.dumps(message_body))
+                await sender.send_messages(message)  # type: ignore[misc]
+
+        logger.info(f"Execution request queued: {execution_id}")
+
+        # Build response
+        now = datetime.now(UTC)
+        estimated_completion = now + timedelta(hours=execution_request.duration_hours)
+
+        response = ExecutionResponse(
+            execution_id=execution_id,
+            status=OnDemandExecutionStatus.QUEUED,
+            scenarios=execution_request.scenarios,
+            estimated_completion=estimated_completion,
+            created_at=now,
+        )
+
+        return func.HttpResponse(
+            body=response.model_dump_json(),
+            status_code=202,
+            mimetype="application/json",
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to process execution request: {e}", exc_info=True)
+        return func.HttpResponse(
+            body=json.dumps(
+                {
+                    "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "Failed to process execution request",
+                    }
+                }
+            ),
+            status_code=500,
+            mimetype="application/json",
+        )
+
+
+@app.route(route="executions/{execution_id}", methods=["GET"], auth_level=func.AuthLevel.FUNCTION)
+async def get_execution_status(req: func.HttpRequest) -> func.HttpResponse:
+    """Get execution status via HTTP GET.
+
+    Request:
+        GET /api/executions/{execution_id}
+
+    Response:
+        200 OK: {
+            "execution_id": "exec-20251115-abc123",
+            "status": "running",
+            "scenarios": [...],
+            "created_at": "2025-11-15T08:00:00Z",
+            "started_at": "2025-11-15T08:05:00Z",
+            "progress": {
+                "completed": 1,
+                "running": 1,
+                "failed": 0,
+                "total": 2
+            },
+            "resources_created": 15
+        }
+
+        404 Not Found: Execution doesn't exist
+        500 Internal Server Error: Server error
+
+    Args:
+        req: HTTP request object with execution_id in route
+
+    Returns:
+        HTTP response with execution status or error
+    """
+    from azure.data.tables import TableClient
+
+    from azure_haymaker.orchestrator.config import load_config
+    from azure_haymaker.orchestrator.execution_tracker import ExecutionTracker
+
+    try:
+        # Extract execution_id from route
+        execution_id = req.route_params.get("execution_id")
+
+        if not execution_id:
+            return func.HttpResponse(
+                body=json.dumps(
+                    {
+                        "error": {
+                            "code": "MISSING_EXECUTION_ID",
+                            "message": "Execution ID is required",
+                        }
+                    }
+                ),
+                status_code=400,
+                mimetype="application/json",
+            )
+
+        # Load config
+        config = await load_config()
+
+        # Query execution status
+        credential = DefaultAzureCredential()
+        execution_table = TableClient(
+            endpoint=config.table_storage.account_url,
+            table_name="Executions",
+            credential=credential,
+        )
+
+        tracker = ExecutionTracker(execution_table)
+
+        try:
+            status = await tracker.get_execution_status(execution_id)
+
+            return func.HttpResponse(
+                body=status.model_dump_json(),
+                status_code=200,
+                mimetype="application/json",
+            )
+
+        except Exception:
+            # Log detailed error internally but return generic message
+            logger.error(f"Execution not found: {execution_id}", exc_info=True)
+            return func.HttpResponse(
+                body=json.dumps(
+                    {
+                        "error": {
+                            "code": "EXECUTION_NOT_FOUND",
+                            "message": "Execution not found",
+                        }
+                    }
+                ),
+                status_code=404,
+                mimetype="application/json",
+            )
+
+    except Exception as e:
+        logger.error(f"Failed to get execution status: {e}", exc_info=True)
+        return func.HttpResponse(
+            body=json.dumps(
+                {
+                    "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "Failed to get execution status",
+                    }
+                }
+            ),
+            status_code=500,
+            mimetype="application/json",
+        )
+
+
+@app.route(route="agents", methods=["GET"], auth_level=func.AuthLevel.FUNCTION)
+async def list_agents(req: func.HttpRequest) -> func.HttpResponse:
+    """List all agents.
+
+    Query Parameters:
+        status: Optional status filter (running, completed, failed)
+        limit: Maximum number of results (default: 100)
+
+    Response:
+        200 OK: {
+            "agents": [
+                {
+                    "agent_id": str,
+                    "scenario": str,
+                    "status": str,
+                    "started_at": str (ISO 8601),
+                    "completed_at": str (ISO 8601) | null,
+                    "progress": str | null,
+                    "error": str | null
+                }
+            ]
+        }
+
+        500 Internal Server Error: Server error
+
+    Example:
+        GET /api/agents
+        GET /api/agents?status=running
+        GET /api/agents?limit=50
+    """
+    import os
+
+    from azure.data.tables import TableServiceClient
+    from pydantic import BaseModel
+
+    class AgentInfo(BaseModel):
+        """Agent information."""
+
+        agent_id: str
+        scenario: str
+        status: str
+        started_at: datetime
+        completed_at: datetime | None = None
+        progress: str | None = None
+        error: str | None = None
+
+    def sanitize_odata_value(value: str) -> str:
+        """Sanitize input for OData query filters."""
+        return str(value).replace("'", "''")
+
+    async def query_agents_from_table(
+        table_client,
+        status_filter: str | None = None,
+        limit: int = 100,
+    ) -> list[AgentInfo]:
+        """Query agents from Table Storage."""
+        agents = []
+
+        try:
+            # Build query filter
+            query_filter = None
+            if status_filter:
+                query_filter = f"status eq '{sanitize_odata_value(status_filter)}'"
+
+            # Query table
+            entities = table_client.query_entities(
+                query_filter=query_filter,
+                select=[
+                    "agent_id",
+                    "scenario",
+                    "status",
+                    "started_at",
+                    "completed_at",
+                    "progress",
+                    "error",
+                ],
+            )
+
+            # Convert to AgentInfo models
+            for entity in entities:
+                if len(agents) >= limit:
+                    break
+
+                try:
+                    agent = AgentInfo(
+                        agent_id=entity.get("agent_id", entity.get("RowKey", "unknown")),
+                        scenario=entity.get("scenario", "unknown"),
+                        status=entity.get("status", "unknown"),
+                        started_at=entity.get("started_at", datetime.now()),
+                        completed_at=entity.get("completed_at"),
+                        progress=entity.get("progress"),
+                        error=entity.get("error"),
+                    )
+                    agents.append(agent)
+                except Exception as e:
+                    logger.warning(f"Error parsing agent entity: {e}")
+                    continue
+
+        except Exception as e:
+            logger.error(f"Error querying agents from table: {e}")
+            raise
+
+        return agents
+
+    try:
+        # Parse query parameters
+        status_filter = req.params.get("status")
+        limit = int(req.params.get("limit", "100"))
+
+        # Get Table Storage configuration
+        table_account_name = os.getenv("TABLE_STORAGE_ACCOUNT_NAME")
+        table_name = os.getenv("AGENTS_TABLE_NAME", "agents")
+
+        if not table_account_name:
+            logger.error("TABLE_STORAGE_ACCOUNT_NAME not configured")
+            return func.HttpResponse(
+                body='{"error": "Agents storage not configured"}',
+                status_code=500,
+                mimetype="application/json",
+            )
+
+        # Create Table Storage client (using managed identity)
+        credential = DefaultAzureCredential()
+        table_service_client = TableServiceClient(
+            endpoint=f"https://{table_account_name}.table.core.windows.net",
+            credential=credential,
+        )
+        table_client = table_service_client.get_table_client(table_name)
+
+        # Query agents
+        agents = await query_agents_from_table(
+            table_client,
+            status_filter=status_filter,
+            limit=limit,
+        )
+
+        # Build response
+        response = {"agents": [agent.model_dump(mode="json") for agent in agents]}
+
+        return func.HttpResponse(
+            body=str(response),
+            status_code=200,
+            mimetype="application/json",
+        )
+
+    except ValueError as e:
+        logger.warning(f"Invalid parameter in list_agents: {e}")
+        return func.HttpResponse(
+            body='{"error": {"code": "INVALID_PARAMETER", "message": "Invalid request parameter"}}',
+            status_code=400,
+            mimetype="application/json",
+        )
+    except Exception:
+        logger.exception("Error listing agents")
+        return func.HttpResponse(
+            body='{"error": {"code": "INTERNAL_ERROR", "message": "Failed to list agents"}}',
+            status_code=500,
+            mimetype="application/json",
+        )
+
+
+@app.route(route="agents/{agent_id}/logs", methods=["GET"], auth_level=func.AuthLevel.FUNCTION)
+async def get_agent_logs(req: func.HttpRequest) -> func.HttpResponse:
+    """Get logs for an agent.
+
+    Path Parameters:
+        agent_id: Agent ID
+
+    Query Parameters:
+        tail: Number of recent log entries (default: 100)
+        since: ISO 8601 timestamp to get logs after (for --follow mode)
+
+    Response:
+        200 OK: {
+            "logs": [
+                {
+                    "timestamp": str (ISO 8601),
+                    "level": str,
+                    "message": str,
+                    "agent_id": str,
+                    "source": str
+                }
+            ]
+        }
+
+        404 Not Found: Agent not found
+        500 Internal Server Error: Server error
+
+    Example:
+        GET /api/agents/agent-123/logs
+        GET /api/agents/agent-123/logs?tail=50
+        GET /api/agents/agent-123/logs?since=2025-11-17T12:00:00Z
+    """
+    import os
+
+    from azure.cosmos import CosmosClient
+    from pydantic import BaseModel
+
+    class LogEntry(BaseModel):
+        """Log entry."""
+
+        timestamp: str
+        level: str
+        message: str
+        agent_id: str
+        source: str = "agent"
+
+    async def query_logs_from_cosmosdb(
+        agent_id: str,
+        tail: int = 100,
+        since_timestamp: str | None = None,
+    ) -> list[LogEntry]:
+        """Query logs from Cosmos DB."""
+        logs = []
+
+        try:
+            # Initialize Cosmos DB client
+            cosmos_endpoint = os.getenv("COSMOSDB_ENDPOINT")
+            if not cosmos_endpoint:
+                logger.error("COSMOSDB_ENDPOINT not configured")
+                return logs
+
+            credential = DefaultAzureCredential()
+            cosmos_client = CosmosClient(cosmos_endpoint, credential)
+            database = cosmos_client.get_database_client("haymaker")
+            container = database.get_container_client("agent-logs")
+
+            # Build query
+            if since_timestamp:
+                query = """
+                    SELECT * FROM c
+                    WHERE c.agent_id = @agent_id
+                    AND c.timestamp > @since_timestamp
+                    ORDER BY c.timestamp DESC
+                """
+                parameters = [
+                    {"name": "@agent_id", "value": agent_id},
+                    {"name": "@since_timestamp", "value": since_timestamp},
+                ]
+            else:
+                query = """
+                    SELECT TOP @limit * FROM c
+                    WHERE c.agent_id = @agent_id
+                    ORDER BY c.timestamp DESC
+                """
+                parameters = [
+                    {"name": "@agent_id", "value": agent_id},
+                    {"name": "@limit", "value": tail},
+                ]
+
+            # Execute query
+            items = list(
+                container.query_items(
+                    query=query,
+                    parameters=parameters,
+                    partition_key=agent_id,
+                    enable_cross_partition_query=False,
+                )
+            )
+
+            # Convert to LogEntry objects
+            for item in items:
+                log_entry = LogEntry(
+                    timestamp=item.get("timestamp", ""),
+                    level=item.get("level", "INFO"),
+                    message=item.get("message", ""),
+                    agent_id=item.get("agent_id", ""),
+                    source=item.get("source", "agent"),
+                )
+                logs.append(log_entry)
+
+            logger.info(f"Retrieved {len(logs)} logs for agent {agent_id}")
+
+        except Exception as e:
+            logger.error(f"Error querying logs from Cosmos DB: {e}")
+            raise
+
+        return logs
+
+    try:
+        # Parse path parameter
+        agent_id = req.route_params.get("agent_id")
+
+        if not agent_id:
+            return func.HttpResponse(
+                body='{"error": "agent_id is required"}',
+                status_code=400,
+                mimetype="application/json",
+            )
+
+        # Parse query parameters
+        tail = int(req.params.get("tail", "100"))
+        since_timestamp = req.params.get("since")
+
+        # Query logs from Cosmos DB
+        logs = await query_logs_from_cosmosdb(
+            agent_id=agent_id, tail=tail, since_timestamp=since_timestamp
+        )
+
+        # Format response
+        response_data = {
+            "logs": [
+                {
+                    "timestamp": log.timestamp,
+                    "level": log.level,
+                    "message": log.message,
+                    "agent_id": log.agent_id,
+                    "source": log.source,
+                }
+                for log in logs
+            ]
+        }
+
+        return func.HttpResponse(
+            body=json.dumps(response_data), status_code=200, mimetype="application/json"
+        )
+
+    except ValueError as e:
+        logger.warning(f"Invalid parameter in get_agent_logs: {e}")
+        return func.HttpResponse(
+            body='{"error": {"code": "INVALID_PARAMETER", "message": "Invalid request parameter"}}',
+            status_code=400,
+            mimetype="application/json",
+        )
+    except Exception:
+        logger.exception("Error retrieving agent logs")
+        return func.HttpResponse(
+            body='{"error": {"code": "INTERNAL_ERROR", "message": "Failed to retrieve agent logs"}}',
+            status_code=500,
+            mimetype="application/json",
+        )
+
+
+@app.route(route="metrics", methods=["GET"], auth_level=func.AuthLevel.FUNCTION)
+async def get_metrics(req: func.HttpRequest) -> func.HttpResponse:
+    """Get aggregated execution metrics.
+
+    Query Parameters:
+        period: Time period (7d, 30d, 90d) - default: 7d
+        scenario: Optional scenario name filter
+
+    Response:
+        200 OK: {
+            "total_executions": int,
+            "active_agents": int,
+            "total_resources": int,
+            "last_execution": str (ISO 8601) | null,
+            "success_rate": float,
+            "period": str,
+            "scenarios": [
+                {
+                    "scenario_name": str,
+                    "run_count": int,
+                    "success_count": int,
+                    "fail_count": int,
+                    "avg_duration_hours": float | null
+                }
+            ]
+        }
+
+        400 Bad Request: Invalid query parameters
+        500 Internal Server Error: Server error
+
+    Example:
+        GET /api/metrics?period=30d
+        GET /api/metrics?period=7d&scenario=compute-01
+    """
+    import os
+
+    from azure.cosmos import CosmosClient
+    from pydantic import BaseModel, Field
+
+    class ScenarioMetrics(BaseModel):
+        """Per-scenario metrics."""
+
+        scenario_name: str
+        run_count: int
+        success_count: int
+        fail_count: int
+        avg_duration_hours: float | None = None
+
+    class MetricsSummary(BaseModel):
+        """Metrics summary response."""
+
+        total_executions: int
+        active_agents: int
+        total_resources: int
+        last_execution: datetime | None = None
+        success_rate: float
+        period: str = "7d"
+        scenarios: list[ScenarioMetrics] = Field(default_factory=list)
+
+    def parse_period(period: str) -> timedelta:
+        """Parse period string to timedelta."""
+        if period.endswith("d"):
+            try:
+                days = int(period[:-1])
+                return timedelta(days=days)
+            except ValueError:
+                raise ValueError(
+                    f"Invalid period format: {period}. Must be like '7d', '30d', '90d'"
+                ) from None
+        else:
+            raise ValueError(f"Invalid period format: {period}. Must be like '7d', '30d', '90d'")
+
+    async def query_cosmos_metrics(
+        cosmos_client: CosmosClient,
+        database_name: str,
+        container_name: str,
+        start_time: datetime,
+        scenario_filter: str | None = None,
+    ) -> dict[str, Any]:
+        """Query metrics from Cosmos DB."""
+        database = cosmos_client.get_database_client(database_name)
+        container = database.get_container_client(container_name)
+
+        # Build query
+        query = """
+            SELECT
+                c.scenario_name,
+                c.status,
+                c.started_at,
+                c.completed_at,
+                c.execution_id
+            FROM c
+            WHERE c.started_at >= @start_time
+        """
+
+        params: list[dict[str, object]] = [
+            {"name": "@start_time", "value": start_time.isoformat()}
+        ]
+
+        if scenario_filter:
+            query += " AND c.scenario_name = @scenario"
+            params.append({"name": "@scenario", "value": scenario_filter})
+
+        # Execute query
+        items = list(
+            container.query_items(
+                query=query,
+                parameters=params,
+                enable_cross_partition_query=True,
+            )
+        )
+
+        # Aggregate metrics
+        scenario_stats: dict[str, dict[str, Any]] = {}
+        total_executions = len(items)
+        success_count = 0
+        last_execution = None
+
+        for item in items:
+            scenario_name = item.get("scenario_name", "unknown")
+            status = item.get("status", "unknown")
+            started_at = item.get("started_at")
+            completed_at = item.get("completed_at")
+
+            # Track scenario stats
+            if scenario_name not in scenario_stats:
+                scenario_stats[scenario_name] = {
+                    "run_count": 0,
+                    "success_count": 0,
+                    "fail_count": 0,
+                    "total_duration": 0,
+                    "duration_count": 0,
+                }
+
+            stats = scenario_stats[scenario_name]
+            stats["run_count"] += 1
+
+            if status == "completed":
+                stats["success_count"] += 1
+                success_count += 1
+            elif status == "failed":
+                stats["fail_count"] += 1
+
+            # Calculate duration
+            if started_at and completed_at:
+                try:
+                    start = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+                    end = datetime.fromisoformat(completed_at.replace("Z", "+00:00"))
+                    duration = (end - start).total_seconds() / 3600  # hours
+                    stats["total_duration"] += duration
+                    stats["duration_count"] += 1
+                except (ValueError, AttributeError):
+                    pass
+
+            # Track latest execution
+            if started_at:
+                try:
+                    execution_time = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+                    if last_execution is None or execution_time > last_execution:
+                        last_execution = execution_time
+                except (ValueError, AttributeError):
+                    pass
+
+        # Build scenario metrics
+        scenario_metrics = []
+        for scenario_name, stats in scenario_stats.items():
+            avg_duration = None
+            if stats["duration_count"] > 0:
+                avg_duration = stats["total_duration"] / stats["duration_count"]
+
+            scenario_metrics.append(
+                ScenarioMetrics(
+                    scenario_name=scenario_name,
+                    run_count=stats["run_count"],
+                    success_count=stats["success_count"],
+                    fail_count=stats["fail_count"],
+                    avg_duration_hours=avg_duration,
+                )
+            )
+
+        # Sort by run count (descending)
+        scenario_metrics.sort(key=lambda x: int(x.run_count), reverse=True)  # type: ignore[arg-type,return-value]
+
+        # Calculate success rate
+        success_rate = success_count / total_executions if total_executions > 0 else 0.0
+
+        return {
+            "total_executions": total_executions,
+            "success_count": success_count,
+            "success_rate": success_rate,
+            "last_execution": last_execution,
+            "scenario_metrics": scenario_metrics,
+        }
+
+    try:
+        # Parse query parameters
+        period = req.params.get("period", "7d")
+        scenario_filter = req.params.get("scenario")
+
+        # Validate period
+        try:
+            period_delta = parse_period(period)
+        except ValueError as e:
+            return func.HttpResponse(
+                body=str(e),
+                status_code=400,
+                mimetype="application/json",
+            )
+
+        # Calculate start time
+        start_time = datetime.now(UTC) - period_delta
+
+        # Get Cosmos DB configuration from environment
+        cosmos_endpoint = os.getenv("COSMOSDB_ENDPOINT")
+        cosmos_database = os.getenv("COSMOSDB_DATABASE", "haymaker")
+        cosmos_container = os.getenv("COSMOSDB_METRICS_CONTAINER", "execution_metrics")
+
+        if not cosmos_endpoint:
+            logger.error("COSMOSDB_ENDPOINT not configured")
+            return func.HttpResponse(
+                body='{"error": "Metrics database not configured"}',
+                status_code=500,
+                mimetype="application/json",
+            )
+
+        # Create Cosmos DB client (using managed identity)
+        credential = DefaultAzureCredential()
+        cosmos_client = CosmosClient(cosmos_endpoint, credential)
+
+        # Query metrics
+        metrics_data = await query_cosmos_metrics(
+            cosmos_client,
+            cosmos_database,
+            cosmos_container,
+            start_time,
+            scenario_filter,
+        )
+
+        # Get active agents count (query from Table Storage or return 0)
+        active_agents = 0
+        total_resources = 0
+
+        # Build response
+        summary = MetricsSummary(
+            total_executions=metrics_data["total_executions"],
+            active_agents=active_agents,
+            total_resources=total_resources,
+            last_execution=metrics_data["last_execution"],
+            success_rate=metrics_data["success_rate"],
+            period=period,
+            scenarios=metrics_data["scenario_metrics"],
+        )
+
+        return func.HttpResponse(
+            body=summary.model_dump_json(),
+            status_code=200,
+            mimetype="application/json",
+        )
+
+    except Exception as e:
+        logger.exception("Error retrieving metrics")
+        return func.HttpResponse(
+            body=f'{{"error": "{str(e)}"}}',
+            status_code=500,
+            mimetype="application/json",
+        )
+
+
+@app.route(route="resources", methods=["GET"], auth_level=func.AuthLevel.FUNCTION)
+async def list_resources(req: func.HttpRequest) -> func.HttpResponse:
+    """List all resources.
+
+    Query Parameters:
+        execution_id: Optional execution ID filter
+        scenario: Optional scenario filter
+        status: Optional status filter (created, deleted)
+        limit: Maximum number of results (default: 100)
+
+    Response:
+        200 OK: {
+            "resources": [
+                {
+                    "id": str,
+                    "name": str,
+                    "type": str,
+                    "scenario": str,
+                    "execution_id": str,
+                    "created_at": str (ISO 8601),
+                    "deleted_at": str (ISO 8601) | null,
+                    "status": str,
+                    "tags": {
+                        "key": "value"
+                    }
+                }
+            ]
+        }
+
+        500 Internal Server Error: Server error
+
+    Example:
+        GET /api/resources
+        GET /api/resources?scenario=compute-01
+        GET /api/resources?execution_id=exec-123
+        GET /api/resources?status=created
+    """
+    import os
+
+    from azure.data.tables import TableServiceClient
+    from pydantic import BaseModel, Field
+
+    class ResourceInfo(BaseModel):
+        """Resource information."""
+
+        id: str
+        name: str
+        type: str
+        scenario: str
+        execution_id: str
+        created_at: datetime
+        deleted_at: datetime | None = None
+        status: str = "created"
+        tags: dict[str, str] = Field(default_factory=dict)
+
+    async def query_resources_from_table(
+        table_client,
+        execution_id: str | None = None,
+        scenario: str | None = None,
+        status: str | None = None,
+        limit: int = 100,
+    ) -> list[ResourceInfo]:
+        """Query resources from Table Storage."""
+        resources = []
+
+        try:
+            # Build query filter
+            filters = []
+
+            if execution_id:
+                filters.append(f"execution_id eq '{execution_id}'")
+
+            if scenario:
+                filters.append(f"scenario eq '{scenario}'")
+
+            if status:
+                filters.append(f"status eq '{status}'")
+
+            query_filter = " and ".join(filters) if filters else None
+
+            # Query table
+            entities = table_client.query_entities(
+                query_filter=query_filter,
+                select=[
+                    "resource_id",
+                    "resource_name",
+                    "resource_type",
+                    "scenario",
+                    "execution_id",
+                    "created_at",
+                    "deleted_at",
+                    "status",
+                ],
+            )
+
+            # Convert to ResourceInfo models
+            for entity in entities:
+                if len(resources) >= limit:
+                    break
+
+                try:
+                    # Parse tags from entity
+                    tags = {}
+                    for key, value in entity.items():
+                        if key.startswith("tag_"):
+                            tag_name = key[4:]  # Remove 'tag_' prefix
+                            tags[tag_name] = value
+
+                    resource = ResourceInfo(
+                        id=entity.get("resource_id", entity.get("RowKey", "unknown")),
+                        name=entity.get("resource_name", "unknown"),
+                        type=entity.get("resource_type", "unknown"),
+                        scenario=entity.get("scenario", "unknown"),
+                        execution_id=entity.get("execution_id", "unknown"),
+                        created_at=entity.get("created_at", datetime.now()),
+                        deleted_at=entity.get("deleted_at"),
+                        status=entity.get("status", "created"),
+                        tags=tags,
+                    )
+                    resources.append(resource)
+                except Exception as e:
+                    logger.warning(f"Error parsing resource entity: {e}")
+                    continue
+
+        except Exception as e:
+            logger.error(f"Error querying resources from table: {e}")
+            raise
+
+        return resources
+
+    try:
+        # Parse query parameters
+        execution_id = req.params.get("execution_id")
+        scenario = req.params.get("scenario")
+        status = req.params.get("status")
+        limit = int(req.params.get("limit", "100"))
+
+        # Get Table Storage configuration
+        table_account_name = os.getenv("TABLE_STORAGE_ACCOUNT_NAME")
+        table_name = os.getenv("RESOURCES_TABLE_NAME", "resources")
+
+        if not table_account_name:
+            logger.error("TABLE_STORAGE_ACCOUNT_NAME not configured")
+            return func.HttpResponse(
+                body='{"error": "Resources storage not configured"}',
+                status_code=500,
+                mimetype="application/json",
+            )
+
+        # Create Table Storage client (using managed identity)
+        credential = DefaultAzureCredential()
+        table_service_client = TableServiceClient(
+            endpoint=f"https://{table_account_name}.table.core.windows.net",
+            credential=credential,
+        )
+        table_client = table_service_client.get_table_client(table_name)
+
+        # Query resources
+        resources = await query_resources_from_table(
+            table_client,
+            execution_id=execution_id,
+            scenario=scenario,
+            status=status,
+            limit=limit,
+        )
+
+        # Build response
+        response = {"resources": [resource.model_dump(mode="json") for resource in resources]}
+
+        return func.HttpResponse(
+            body=str(response),
+            status_code=200,
+            mimetype="application/json",
+        )
+
+    except ValueError as e:
+        return func.HttpResponse(
+            body=f'{{"error": "Invalid parameter: {str(e)}"}}',
+            status_code=400,
+            mimetype="application/json",
+        )
+    except Exception as e:
+        logger.exception("Error listing resources")
+        return func.HttpResponse(
+            body=f'{{"error": "{str(e)}"}}',
+            status_code=500,
+            mimetype="application/json",
+        )
+
+
+@app.route(route="resources/{resource_id}", methods=["GET"], auth_level=func.AuthLevel.FUNCTION)
+async def get_resource(req: func.HttpRequest) -> func.HttpResponse:
+    """Get details for a specific resource.
+
+    Path Parameters:
+        resource_id: Resource ID
+
+    Response:
+        200 OK: ResourceInfo object
+        404 Not Found: Resource not found
+        500 Internal Server Error: Server error
+
+    Example:
+        GET /api/resources/resource-123
+    """
+    import os
+
+    from azure.data.tables import TableServiceClient
+    from pydantic import BaseModel, Field
+
+    class ResourceInfo(BaseModel):
+        """Resource information."""
+
+        id: str
+        name: str
+        type: str
+        scenario: str
+        execution_id: str
+        created_at: datetime
+        deleted_at: datetime | None = None
+        status: str = "created"
+        tags: dict[str, str] = Field(default_factory=dict)
+
+    try:
+        # Parse path parameter
+        resource_id = req.route_params.get("resource_id")
+
+        if not resource_id:
+            return func.HttpResponse(
+                body='{"error": "resource_id is required"}',
+                status_code=400,
+                mimetype="application/json",
+            )
+
+        # Get Table Storage configuration
+        table_account_name = os.getenv("TABLE_STORAGE_ACCOUNT_NAME")
+        table_name = os.getenv("RESOURCES_TABLE_NAME", "resources")
+
+        if not table_account_name:
+            logger.error("TABLE_STORAGE_ACCOUNT_NAME not configured")
+            return func.HttpResponse(
+                body='{"error": "Resources storage not configured"}',
+                status_code=500,
+                mimetype="application/json",
+            )
+
+        # Create Table Storage client (using managed identity)
+        credential = DefaultAzureCredential()
+        table_service_client = TableServiceClient(
+            endpoint=f"https://{table_account_name}.table.core.windows.net",
+            credential=credential,
+        )
+        table_client = table_service_client.get_table_client(table_name)
+
+        # Query specific resource
+        try:
+            entity = table_client.get_entity(
+                partition_key="resources",  # Assuming all resources use same partition
+                row_key=resource_id,
+            )
+
+            # Parse tags
+            tags = {}
+            for key, value in entity.items():
+                if key.startswith("tag_"):
+                    tag_name = key[4:]
+                    tags[tag_name] = value
+
+            # Build resource info
+            resource = ResourceInfo(
+                id=entity.get("resource_id", resource_id),
+                name=entity.get("resource_name", "unknown"),
+                type=entity.get("resource_type", "unknown"),
+                scenario=entity.get("scenario", "unknown"),
+                execution_id=entity.get("execution_id", "unknown"),
+                created_at=entity.get("created_at", datetime.now()),
+                deleted_at=entity.get("deleted_at"),
+                status=entity.get("status", "created"),
+                tags=tags,
+            )
+
+            return func.HttpResponse(
+                body=resource.model_dump_json(),
+                status_code=200,
+                mimetype="application/json",
+            )
+
+        except Exception:
+            logger.warning(f"Resource not found: {resource_id}")
+            return func.HttpResponse(
+                body='{"error": "Resource not found"}',
+                status_code=404,
+                mimetype="application/json",
+            )
+
+    except Exception as e:
+        logger.exception("Error retrieving resource")
+        return func.HttpResponse(
+            body=f'{{"error": "{str(e)}"}}',
+            status_code=500,
+            mimetype="application/json",
+        )
