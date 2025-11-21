@@ -234,6 +234,7 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "azure-functions-durable" },
     { name = "pre-commit" },
     { name = "pyright" },
     { name = "pytest" },
@@ -250,6 +251,7 @@ requires-dist = [
     { name = "azure-data-tables", specifier = ">=12.5.0" },
     { name = "azure-functions", specifier = ">=1.20.0" },
     { name = "azure-functions-durable", specifier = ">=1.2.0" },
+    { name = "azure-functions-durable", marker = "extra == 'dev'", specifier = ">=1.2.0" },
     { name = "azure-identity", specifier = ">=1.19.0" },
     { name = "azure-keyvault-secrets", specifier = ">=4.8.0" },
     { name = "azure-mgmt-authorization", specifier = ">=4.0.0" },

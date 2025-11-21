@@ -28,25 +28,29 @@ Design Pattern: Facade Pattern
 # azure-functions-durable package is not installed. This try-except allows tests
 # to import other orchestrator modules without requiring the full Azure Functions stack.
 try:
-    # Shared FunctionApp instance
-    from .activities.cleanup import force_cleanup_activity, verify_cleanup_activity
-    from .activities.monitoring import check_agent_status_activity
-    from .activities.provisioning import (
+    # Import all functions from monolithic function_app.py (Issue #28 fix)
+    # function_app.py is in src/ directory, import it from parent
+    import sys
+    from pathlib import Path
+
+    # Add src directory to path
+    src_dir = Path(__file__).parent.parent.parent
+    if str(src_dir) not in sys.path:
+        sys.path.insert(0, str(src_dir))
+
+    from function_app import (
+        app,
+        check_agent_status_activity,
         create_service_principal_activity,
         deploy_container_app_activity,
+        force_cleanup_activity,
+        generate_report_activity,
+        haymaker_timer,
+        orchestrate_haymaker_run,
+        select_scenarios_activity,
+        validate_environment_activity,
+        verify_cleanup_activity,
     )
-    from .activities.reporting import generate_report_activity
-    from .activities.selection import select_scenarios_activity
-
-    # Activity functions
-    from .activities.validation import validate_environment_activity
-    from .orchestrator_app import app
-
-    # Timer trigger function
-    from .timer_trigger import haymaker_timer
-
-    # Orchestration function
-    from .workflow_orchestrator import orchestrate_haymaker_run
 except Exception:
     # In test environment without azure-functions-durable, create None placeholders
     # Note: We catch Exception (not just ImportError) because the durable functions

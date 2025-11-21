@@ -26,15 +26,7 @@ from azure_haymaker.models import (
     StorageConfig,
     TableStorageConfig,
 )
-# Import functions from new monolithic function_app.py
-import sys
-from pathlib import Path
-
-# Add src to path for function_app import
-src_path = Path(__file__).parent.parent.parent / "src"
-sys.path.insert(0, str(src_path))
-
-from function_app import (
+from azure_haymaker.orchestrator import (
     check_agent_status_activity,
     create_service_principal_activity,
     deploy_container_app_activity,
