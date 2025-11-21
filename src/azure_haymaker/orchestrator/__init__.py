@@ -65,24 +65,21 @@ except Exception:
 
 # Other orchestrator modules (unchanged)
 from .container_deployer import ContainerDeployer
-from .container_lifecycle import ContainerLifecycle
+from .container_lifecycle import ContainerLifecycle, delete_container_app
 from .container_manager import (
     ContainerAppError,
     ContainerManager,
     ImageSigningError,
-    delete_container_app,
     deploy_container_app,
-    get_container_status,
-    verify_image_signature,
 )
-from .container_monitor import ContainerMonitor
+from .container_monitor import ContainerMonitor, get_container_status
 from .event_bus import (
     EventBusClient,
     parse_resource_events,
     publish_event,
     subscribe_to_agent_logs,
 )
-from .image_verifier import ImageVerifier
+from .image_verifier import ImageVerifier, verify_image_signature
 from .scenario_selector import (
     list_available_scenarios,
     parse_scenario_metadata,
