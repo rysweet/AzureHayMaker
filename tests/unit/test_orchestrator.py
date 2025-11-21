@@ -192,7 +192,7 @@ class TestValidateEnvironmentActivity:
     @pytest.mark.asyncio
     async def test_validate_environment_activity_failure(self):
         """Test validation activity with failed checks."""
-        with mock.patch("azure_haymaker.orchestrator.orchestrator.load_config") as mock_load_config:
+        with mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config:
             mock_load_config.side_effect = Exception("Config load failed")
 
             result = await validate_environment_activity(None)
