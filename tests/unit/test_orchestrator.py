@@ -221,8 +221,8 @@ class TestSelectScenariosActivity:
     async def test_select_scenarios_activity_success(self, mock_config, mock_scenario):
         """Test scenario selection activity."""
         with (
-            mock.patch("azure_haymaker.orchestrator.orchestrator.load_config") as mock_load_config,
-            mock.patch("azure_haymaker.orchestrator.orchestrator.select_scenarios") as mock_select,
+            mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
+            mock.patch("azure_haymaker.orchestrator.scenario_selector.select_scenarios") as mock_select,
         ):
             mock_load_config.return_value = mock_config
             mock_select.return_value = [mock_scenario]
@@ -235,7 +235,7 @@ class TestSelectScenariosActivity:
     @pytest.mark.asyncio
     async def test_select_scenarios_activity_failure(self):
         """Test scenario selection activity with error."""
-        with mock.patch("azure_haymaker.orchestrator.orchestrator.load_config") as mock_load_config:
+        with mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config:
             mock_load_config.side_effect = Exception("Config load failed")
 
             result = await select_scenarios_activity(None)
@@ -257,7 +257,7 @@ class TestCreateServicePrincipalActivity:
     ):
         """Test SP creation activity success."""
         with (
-            mock.patch("azure_haymaker.orchestrator.orchestrator.load_config") as mock_load_config,
+            mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch(
                 "azure_haymaker.orchestrator.orchestrator.create_service_principal"
             ) as mock_create_sp,
@@ -292,7 +292,7 @@ class TestCreateServicePrincipalActivity:
     ):
         """Test SP creation activity with error."""
         with (
-            mock.patch("azure_haymaker.orchestrator.orchestrator.load_config") as mock_load_config,
+            mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch(
                 "azure_haymaker.orchestrator.orchestrator.create_service_principal"
             ) as mock_create_sp,
@@ -325,7 +325,7 @@ class TestDeployContainerAppActivity:
     ):
         """Test container deployment activity success."""
         with (
-            mock.patch("azure_haymaker.orchestrator.orchestrator.load_config") as mock_load_config,
+            mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch(
                 "azure_haymaker.orchestrator.orchestrator.deploy_container_app"
             ) as mock_deploy,
@@ -356,7 +356,7 @@ class TestDeployContainerAppActivity:
     ):
         """Test container deployment activity with error."""
         with (
-            mock.patch("azure_haymaker.orchestrator.orchestrator.load_config") as mock_load_config,
+            mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch(
                 "azure_haymaker.orchestrator.orchestrator.deploy_container_app"
             ) as mock_deploy,
@@ -390,7 +390,7 @@ class TestCheckAgentStatusActivity:
         container_ids = [f"container-{uuid4()}" for _ in range(3)]
 
         with (
-            mock.patch("azure_haymaker.orchestrator.orchestrator.load_config") as mock_load_config,
+            mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch(
                 "azure_haymaker.orchestrator.orchestrator.ContainerManager"
             ) as mock_container_manager,
@@ -421,7 +421,7 @@ class TestCheckAgentStatusActivity:
         container_ids = [f"container-{uuid4()}" for _ in range(4)]
 
         with (
-            mock.patch("azure_haymaker.orchestrator.orchestrator.load_config") as mock_load_config,
+            mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch(
                 "azure_haymaker.orchestrator.orchestrator.ContainerManager"
             ) as mock_container_manager,
@@ -464,7 +464,7 @@ class TestVerifyCleanupActivity:
         scenarios = ["scenario-1", "scenario-2"]
 
         with (
-            mock.patch("azure_haymaker.orchestrator.orchestrator.load_config") as mock_load_config,
+            mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch(
                 "azure_haymaker.orchestrator.orchestrator.query_managed_resources"
             ) as mock_query,
@@ -502,7 +502,7 @@ class TestVerifyCleanupActivity:
         ]
 
         with (
-            mock.patch("azure_haymaker.orchestrator.orchestrator.load_config") as mock_load_config,
+            mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch(
                 "azure_haymaker.orchestrator.orchestrator.query_managed_resources"
             ) as mock_query,
@@ -537,7 +537,7 @@ class TestForceCleanupActivity:
         sp_details_list = [mock_sp_details]
 
         with (
-            mock.patch("azure_haymaker.orchestrator.orchestrator.load_config") as mock_load_config,
+            mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch(
                 "azure_haymaker.orchestrator.orchestrator.query_managed_resources"
             ) as mock_query,
@@ -595,7 +595,7 @@ class TestForceCleanupActivity:
         sp_details_list = [mock_sp_details]
 
         with (
-            mock.patch("azure_haymaker.orchestrator.orchestrator.load_config") as mock_load_config,
+            mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch(
                 "azure_haymaker.orchestrator.orchestrator.query_managed_resources"
             ) as mock_query,
@@ -664,8 +664,8 @@ class TestGenerateReportActivity:
         selected_scenarios = ["scenario-1", "scenario-2"]
 
         with (
-            mock.patch("azure_haymaker.orchestrator.orchestrator.load_config") as mock_load_config,
-            mock.patch("azure_haymaker.orchestrator.orchestrator.DefaultAzureCredential"),
+            mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
+            mock.patch("azure.identity.DefaultAzureCredential"),
             mock.patch(
                 "azure_haymaker.orchestrator.orchestrator.BlobServiceClient"
             ) as mock_blob_client,
@@ -705,7 +705,7 @@ class TestGenerateReportActivity:
         }
         selected_scenarios = ["scenario-1"]
 
-        with mock.patch("azure_haymaker.orchestrator.orchestrator.load_config") as mock_load_config:
+        with mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config:
             mock_load_config.side_effect = Exception("Config load failed")
 
             params = {
@@ -777,7 +777,7 @@ class TestErrorHandling:
     async def test_activity_handles_none_input(self):
         """Test that activities handle None input gracefully."""
         # Some activities are called with None input
-        with mock.patch("azure_haymaker.orchestrator.orchestrator.load_config") as mock_load_config:
+        with mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config:
             mock_load_config.return_value = {}
 
             # Should not raise
@@ -789,7 +789,7 @@ class TestErrorHandling:
         """Test activities handle missing fields in input."""
         params = {}  # Missing required fields
 
-        with mock.patch("azure_haymaker.orchestrator.orchestrator.load_config") as mock_load_config:
+        with mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config:
             mock_load_config.return_value = {}
 
             # Should not raise
