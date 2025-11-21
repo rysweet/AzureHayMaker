@@ -27,6 +27,7 @@ from .models.api_errors import APIError, InvalidParameterError, RunNotFoundError
 from .repositories.monitoring_repository import MonitoringRepository
 from .services.monitoring_service import MonitoringService
 
+
 def _get_controller(blob_client: BlobServiceClient) -> MonitoringController:
     """
     Get or create controller instance.

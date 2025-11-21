@@ -29,6 +29,17 @@ Design Pattern: Facade Pattern
 # to import other orchestrator modules without requiring the full Azure Functions stack.
 try:
     # Shared FunctionApp instance
+    from .activities.cleanup import force_cleanup_activity, verify_cleanup_activity
+    from .activities.monitoring import check_agent_status_activity
+    from .activities.provisioning import (
+        create_service_principal_activity,
+        deploy_container_app_activity,
+    )
+    from .activities.reporting import generate_report_activity
+    from .activities.selection import select_scenarios_activity
+
+    # Activity functions
+    from .activities.validation import validate_environment_activity
     from .orchestrator_app import app
 
     # Timer trigger function
@@ -36,17 +47,6 @@ try:
 
     # Orchestration function
     from .workflow_orchestrator import orchestrate_haymaker_run
-
-    # Activity functions
-    from .activities.validation import validate_environment_activity
-    from .activities.selection import select_scenarios_activity
-    from .activities.provisioning import (
-        create_service_principal_activity,
-        deploy_container_app_activity,
-    )
-    from .activities.monitoring import check_agent_status_activity
-    from .activities.cleanup import force_cleanup_activity, verify_cleanup_activity
-    from .activities.reporting import generate_report_activity
 except Exception:
     # In test environment without azure-functions-durable, create None placeholders
     # Note: We catch Exception (not just ImportError) because the durable functions
@@ -64,6 +64,8 @@ except Exception:
     generate_report_activity = None
 
 # Other orchestrator modules (unchanged)
+from .container_deployer import ContainerDeployer
+from .container_lifecycle import ContainerLifecycle
 from .container_manager import (
     ContainerAppError,
     ContainerManager,
@@ -73,16 +75,14 @@ from .container_manager import (
     get_container_status,
     verify_image_signature,
 )
-from .container_deployer import ContainerDeployer
-from .container_lifecycle import ContainerLifecycle
 from .container_monitor import ContainerMonitor
-from .image_verifier import ImageVerifier
 from .event_bus import (
     EventBusClient,
     parse_resource_events,
     publish_event,
     subscribe_to_agent_logs,
 )
+from .image_verifier import ImageVerifier
 from .scenario_selector import (
     list_available_scenarios,
     parse_scenario_metadata,
