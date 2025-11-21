@@ -170,9 +170,9 @@ class TestValidateEnvironmentActivity:
     async def test_validate_environment_activity_success(self, mock_config):
         """Test validation activity with successful checks."""
         with (
-            mock.patch("azure_haymaker.orchestrator.orchestrator.load_config") as mock_load_config,
+            mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch(
-                "azure_haymaker.orchestrator.orchestrator.validate_environment"
+                "azure_haymaker.orchestrator.validation.validate_environment"
             ) as mock_validate,
         ):
             mock_load_config.return_value = mock_config
