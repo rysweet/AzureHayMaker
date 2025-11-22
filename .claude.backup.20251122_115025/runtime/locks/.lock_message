@@ -1,1 +1,0 @@
-Must get Azure Functions orchestrator working with all 17 functions discovered and container running. Then test CLI and deploy agents. No stopping until complete end-to-end verification.
