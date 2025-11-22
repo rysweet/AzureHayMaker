@@ -27,6 +27,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
+import azure.durable_functions as df
 import azure.functions as func
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
@@ -35,11 +36,11 @@ from azure.storage.blob import BlobServiceClient
 # =============================================================================
 # FUNCTION APP INSTANCE
 # =============================================================================
-# Create the single FunctionApp instance that all decorators reference.
-# Azure Functions discovers this instance via module introspection.
+# CRITICAL: Use df.DFApp() for Durable Functions, not func.FunctionApp()!
+# Azure Functions V4 with Durable Functions requires DFApp for proper discovery.
 # =============================================================================
 
-app = func.FunctionApp()
+app = df.DFApp(http_auth_level=func.AuthLevel.FUNCTION)
 
 logger = logging.getLogger(__name__)
 
