@@ -10,8 +10,9 @@ WORKDIR /home/site/wwwroot
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy orchestrator code
+# Copy orchestrator code (EXCLUDE old *_api.py files - they conflict with function_app.py)
 COPY azure_haymaker/ ./azure_haymaker/
+RUN rm -f ./azure_haymaker/orchestrator/*_api.py ./azure_haymaker/orchestrator/timer_trigger.py ./azure_haymaker/orchestrator/workflow_orchestrator.py ./azure_haymaker/orchestrator/orchestrator_app.py ./azure_haymaker/orchestrator/activities/*.py 2>/dev/null || true
 
 # Copy Azure Functions required files
 COPY function_app.py .
