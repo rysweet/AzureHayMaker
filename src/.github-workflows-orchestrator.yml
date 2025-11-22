@@ -1,0 +1,81 @@
+# GitHub Actions workflow for orchestrator deployment
+# Save this as .github/workflows/orchestrator.yml
+
+name: Deploy Orchestrator
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/orchestrator_server.py'
+      - 'src/Dockerfile.orchestrator'
+      - 'src/requirements-orchestrator.txt'
+      - 'src/azure_haymaker/orchestrator/**'
+  workflow_dispatch:  # Allow manual trigger
+
+env:
+  REGISTRY: yourregistry.azurecr.io
+  IMAGE_NAME: azure-haymaker-orchestrator
+  RESOURCE_GROUP: azure-haymaker-rg
+  CONTAINER_APP_NAME: haymaker-orchestrator
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Log in to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Log in to ACR
+      run: |
+        az acr login --name yourregistry
+
+    - name: Build and push Docker image
+      working-directory: ./src
+      run: |
+        az acr build \
+          --registry yourregistry \
+          --image ${{ env.IMAGE_NAME }}:${{ github.sha }} \
+          --image ${{ env.IMAGE_NAME }}:latest \
+          --file Dockerfile.orchestrator \
+          .
+
+    - name: Update Container App
+      run: |
+        az containerapp update \
+          --name ${{ env.CONTAINER_APP_NAME }} \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+    - name: Verify deployment
+      run: |
+        # Wait for deployment to complete
+        sleep 30
+
+        # Get FQDN
+        FQDN=$(az containerapp show \
+          --name ${{ env.CONTAINER_APP_NAME }} \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --query properties.configuration.ingress.fqdn -o tsv)
+
+        # Test health endpoint
+        curl -f https://$FQDN/ || exit 1
+
+        echo "Deployment successful! Orchestrator available at: https://$FQDN"
+
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "::error::Deployment failed! Check logs at:"
+        echo "az containerapp logs show --name ${{ env.CONTAINER_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }}"
+
+# Required GitHub Secrets:
+# - AZURE_CREDENTIALS: Service principal credentials in JSON format
+#   Create with: az ad sp create-for-rbac --name "github-actions" --role contributor --scopes /subscriptions/{subscription-id} --sdk-auth
