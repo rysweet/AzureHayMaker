@@ -17,6 +17,9 @@ RUN pip install --no-cache-dir fastapi uvicorn apscheduler
 # Copy application code
 COPY . .
 
+# Copy scenario files from parent docs directory
+COPY ../docs/scenarios /app/docs/scenarios
+
 # Expose port 80
 EXPOSE 80
 
