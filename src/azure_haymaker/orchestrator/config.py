@@ -164,30 +164,29 @@ async def load_config_from_env_and_keyvault() -> OrchestratorConfig:
                 f"Must be one of: small, medium, large"
             ) from e
 
-        # Retrieve secrets from Key Vault
-        try:
-            credential = DefaultAzureCredential()
-            kv_client = SecretClient(vault_url=key_vault_url, credential=credential)
+        # Check environment variables FIRST (allows App Service direct config)
+        main_sp_secret = os.getenv("MAIN_SP_CLIENT_SECRET")
+        anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+        log_analytics_key = os.getenv("LOG_ANALYTICS_WORKSPACE_KEY")
 
-            main_sp_secret_obj = kv_client.get_secret("main-sp-client-secret")
-            anthropic_api_key_obj = kv_client.get_secret("anthropic-api-key")
-            log_analytics_key_obj = kv_client.get_secret("log-analytics-workspace-key")
+        # Only try Key Vault if env vars not set
+        if not main_sp_secret or not anthropic_api_key or not log_analytics_key:
+            try:
+                credential = DefaultAzureCredential()
+                kv_client = SecretClient(vault_url=key_vault_url, credential=credential)
 
-            if not main_sp_secret_obj.value:
-                raise ConfigurationError("main-sp-client-secret value is None")
-            if not anthropic_api_key_obj.value:
-                raise ConfigurationError("anthropic-api-key value is None")
-            if not log_analytics_key_obj.value:
-                raise ConfigurationError("log-analytics-workspace-key value is None")
+                if not main_sp_secret:
+                    main_sp_secret = kv_client.get_secret("main-sp-client-secret").value
+                if not anthropic_api_key:
+                    anthropic_api_key = kv_client.get_secret("anthropic-api-key").value
+                if not log_analytics_key:
+                    log_analytics_key = kv_client.get_secret("log-analytics-workspace-key").value
 
-            main_sp_secret = main_sp_secret_obj.value
-            anthropic_api_key = anthropic_api_key_obj.value
-            log_analytics_key = log_analytics_key_obj.value
-
-        except Exception as e:
-            raise ConfigurationError(
-                f"Failed to retrieve secrets from Key Vault ({key_vault_url}): {e}"
-            ) from e
+            except Exception as e:
+                raise ConfigurationError(
+                    f"Secrets not in env vars and Key Vault failed ({key_vault_url}): {e}. "
+                    f"Set MAIN_SP_CLIENT_SECRET, ANTHROPIC_API_KEY, LOG_ANALYTICS_WORKSPACE_KEY as env vars."
+                ) from e
 
         # Build configuration object
         try:
