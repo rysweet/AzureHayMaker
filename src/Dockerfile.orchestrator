@@ -14,11 +14,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Install FastAPI and APScheduler (if not in requirements.txt)
 RUN pip install --no-cache-dir fastapi uvicorn apscheduler
 
-# Copy application code from src directory
-COPY src/ .
+# Copy application code
+COPY . .
 
-# Copy scenario files
-COPY docs/scenarios /app/docs/scenarios
+# Copy scenario files to /docs/scenarios (scenario_selector.py looks at project root)
+COPY docs_scenarios /docs/scenarios
 
 # Expose port 80
 EXPOSE 80
