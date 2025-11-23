@@ -89,7 +89,7 @@ jobs:
       - name: Setup Python
         run: |
           export PATH="$HOME/.cargo/bin:$PATH"
-          uv python install 3.13
+          uv python install 3.11
 
       - name: Install dependencies
         run: |
@@ -198,7 +198,7 @@ jobs:
       - name: Setup Python
         run: |
           export PATH="$HOME/.cargo/bin:$PATH"
-          uv python install 3.13
+          uv python install 3.11
 
       - name: Install dependencies
         run: |
