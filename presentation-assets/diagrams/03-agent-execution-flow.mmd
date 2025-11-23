@@ -1,0 +1,52 @@
+sequenceDiagram
+    participant Timer as Timer Trigger<br/>(4x Daily + Startup)
+    participant Orch as Orchestrator<br/>Durable Function
+    participant SP as Service Principal<br/>Manager
+    participant CA as Container App<br/>Agent Executor
+    participant SB as Service Bus<br/>Event Stream
+    participant COSMOS as Cosmos DB<br/>Log Storage
+    participant AZURE as Azure Subscription<br/>(Target)
+
+    Timer->>Orch: Trigger (00:00, 06:00, 12:00, 18:00 UTC)
+    Note over Orch: Phase 1: Validate Environment
+    Orch->>Orch: Check Azure credentials
+    Orch->>Orch: Validate API access
+
+    Note over Orch: Phase 2: Select Scenarios
+    Orch->>Orch: Random selection (5/15/30)
+    Orch->>Orch: Load agent metadata
+
+    Note over Orch: Phase 3: Provision (Parallel)
+    loop For each scenario
+        Orch->>SP: Create ephemeral SP
+        SP-->>Orch: Credentials
+        Orch->>CA: Deploy Container App
+        CA-->>Orch: Running
+    end
+
+    Note over Orch: Phase 4: Monitor (8 hours)
+    loop Every 15 minutes
+        Orch->>CA: Check status
+        CA-->>Orch: Running/Completed/Failed
+        CA->>SB: Publish logs
+        SB->>COSMOS: Store logs (7-day TTL)
+    end
+
+    CA->>AZURE: Execute scenario
+    AZURE-->>CA: Resources created
+
+    Note over Orch: Phase 5: Cleanup Verification
+    Orch->>AZURE: Query Resource Graph
+    AZURE-->>Orch: Remaining resources
+
+    Note over Orch: Phase 6: Force Cleanup
+    Orch->>AZURE: Delete resources
+    Orch->>SP: Delete SPs
+
+    Note over Orch: Phase 7: Report
+    Orch->>Orch: Generate summary
+    Orch->>SB: Publish completion event
+
+    style Orch fill:#0078D4,color:#fff
+    style CA fill:#00A4EF,color:#fff
+    style COSMOS fill:#0078D4,color:#fff

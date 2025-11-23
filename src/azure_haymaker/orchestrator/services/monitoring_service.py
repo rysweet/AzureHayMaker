@@ -131,8 +131,8 @@ class MonitoringService:
         # Fetch from repository
         try:
             run_data = await self.repository.get_run_report(run_id)
-        except ResourceNotFoundError:
-            raise RunNotFoundError(run_id)
+        except ResourceNotFoundError as e:
+            raise RunNotFoundError(run_id) from e
 
         # Build response matching RunDetails schema
         return {
@@ -193,8 +193,8 @@ class MonitoringService:
         # Fetch from repository
         try:
             resources_data = await self.repository.get_run_resources(run_id)
-        except ResourceNotFoundError:
-            raise RunNotFoundError(run_id)
+        except ResourceNotFoundError as e:
+            raise RunNotFoundError(run_id) from e
 
         # Get all resources
         all_resources = resources_data.get("resources", [])

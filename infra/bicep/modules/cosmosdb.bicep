@@ -21,6 +21,9 @@ param metricsContainerName string = 'metrics'
 @description('Container name for runs')
 param runsContainerName string = 'runs'
 
+@description('Container name for agent logs')
+param logsContainerName string = 'agent-logs'
+
 @description('Throughput (RU/s) - set to 0 for serverless')
 @minValue(0)
 @maxValue(1000000)
@@ -129,12 +132,55 @@ resource runsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/conta
   }
 }
 
+// Agent Logs Container
+resource logsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-11-15' = {
+  parent: database
+  name: logsContainerName
+  properties: {
+    resource: {
+      id: logsContainerName
+      partitionKey: {
+        paths: [
+          '/agent_id'
+        ]
+        kind: 'Hash'
+      }
+      indexingPolicy: {
+        indexingMode: 'consistent'
+        automatic: true
+        includedPaths: [
+          {
+            path: '/timestamp/?'
+          }
+          {
+            path: '/level/?'
+          }
+          {
+            path: '/run_id/?'
+          }
+          {
+            path: '/scenario/?'
+          }
+        ]
+        excludedPaths: [
+          {
+            path: '/*'
+          }
+        ]
+      }
+      defaultTtl: 604800 // 7 days
+    }
+  }
+}
+
 // Outputs
+// NOTE: Do not output secrets like primaryKey or connectionString (security best practice)
+// Use Key Vault references or Managed Identity for secure secret access
 output accountId string = cosmosAccount.id
 output accountName string = cosmosAccount.name
 output endpoint string = cosmosAccount.properties.documentEndpoint
 output databaseName string = database.name
 output metricsContainerName string = metricsContainer.name
 output runsContainerName string = runsContainer.name
-output primaryKey string = cosmosAccount.listKeys().primaryMasterKey
-output connectionString string = 'AccountEndpoint=${cosmosAccount.properties.documentEndpoint};AccountKey=${cosmosAccount.listKeys().primaryMasterKey};'
+output logsContainerName string = logsContainer.name
+// SECURITY: Removed primaryKey and connectionString outputs per security review

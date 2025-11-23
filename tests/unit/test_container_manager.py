@@ -21,7 +21,7 @@ from azure_haymaker.models.config import (
 )
 from azure_haymaker.models.scenario import ScenarioMetadata, ScenarioStatus
 from azure_haymaker.models.service_principal import ServicePrincipalDetails
-from azure_haymaker.orchestrator.container_manager import (
+from azure_haymaker.orchestrator import (
     ContainerAppError,
     ContainerManager,
     ImageSigningError,

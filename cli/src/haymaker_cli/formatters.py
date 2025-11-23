@@ -394,35 +394,78 @@ def format_cleanup_response(cleanup: CleanupResponse) -> str:
     return ""
 
 
-def format_log_entries(logs: list[LogEntry]) -> str:
-    """Format log entries.
+def format_log_entries(logs: list[LogEntry], follow: bool = False) -> str:
+    """Format log entries with rich syntax highlighting.
 
     Args:
         logs: List of log entries
+        follow: If True, use streaming format (no table borders)
 
     Returns:
-        Formatted string
+        Formatted log output string
     """
     if not logs:
-        console.print("[dim]No logs found[/dim]")
+        if not follow:
+            console.print("[dim]No logs found[/dim]")
         return ""
 
-    level_colors = {
-        "DEBUG": "dim",
-        "INFO": "white",
-        "WARNING": "yellow",
-        "ERROR": "red",
-        "CRITICAL": "red bold",
-    }
+    if follow:
+        # Streaming format (no borders, continuous output)
+        level_colors = {
+            "DEBUG": "cyan",
+            "INFO": "green",
+            "WARNING": "yellow",
+            "ERROR": "red",
+            "CRITICAL": "red bold",
+        }
 
-    for log in logs:
-        timestamp = log.timestamp.strftime("%Y-%m-%d %H:%M:%S")
-        level_style = level_colors.get(log.level, "white")
+        for log in logs:
+            # Parse timestamp - handle both datetime objects and strings
+            if isinstance(log.timestamp, str):
+                try:
+                    from datetime import datetime
 
-        console.print(
-            f"[dim]{timestamp}[/dim] "
-            f"[{level_style}]{log.level:8}[/{level_style}] "
-            f"{log.message}"
-        )
+                    # Convert UTC 'Z' suffix to timezone offset for ISO format parsing
+                    timestamp_str: str = log.timestamp.replace("Z", "+00:00")
+                    dt = datetime.fromisoformat(timestamp_str)
+                    time_str = dt.strftime("%H:%M:%S")
+                except Exception:
+                    time_str = log.timestamp[:8] if len(log.timestamp) >= 8 else log.timestamp
+            else:
+                time_str = log.timestamp.strftime("%H:%M:%S")
+
+            level_color = level_colors.get(log.level, "white")
+
+            # Print formatted log line
+            console.print(
+                f"[dim]{time_str}[/dim] [{level_color}]{log.level:8}[/{level_color}] {log.message}"
+            )
+    else:
+        # Table format (default for tail mode)
+        table = Table(title="Agent Logs", show_header=True, header_style="bold magenta")
+        table.add_column("Timestamp", style="dim", width=20)
+        table.add_column("Level", width=10)
+        table.add_column("Message", width=80)
+
+        level_colors = {
+            "DEBUG": "cyan",
+            "INFO": "green",
+            "WARNING": "yellow",
+            "ERROR": "red",
+            "CRITICAL": "red bold",
+        }
+
+        for log in logs:
+            # Parse timestamp - handle both datetime objects and strings
+            if isinstance(log.timestamp, str):
+                timestamp_str = log.timestamp[:19] if len(log.timestamp) >= 19 else log.timestamp
+            else:
+                timestamp_str = log.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+
+            level_style = level_colors.get(log.level, "white")
+
+            table.add_row(timestamp_str, Text(log.level, style=level_style), log.message)
+
+        console.print(table)
 
     return ""

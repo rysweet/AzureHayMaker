@@ -3,10 +3,14 @@
 import inspect
 import json
 import logging
+import os
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
+from uuid import uuid4
 
+from azure.cosmos import CosmosClient
+from azure.identity import DefaultAzureCredential
 from azure.servicebus import ServiceBusMessage
 from azure.servicebus.aio import ServiceBusClient
 
@@ -39,6 +43,98 @@ class EventBusClient:
         self.connection_string = connection_string
         self.topic_name = topic_name
         self.batch_size = batch_size
+
+
+async def publish_log(
+    agent_id: str,
+    run_id: str,
+    scenario: str,
+    level: str,
+    message: str,
+    source: str = "agent",
+    connection_string: str | None = None,
+    topic_name: str = "agent-logs",
+) -> None:
+    """Publish log entry to Service Bus and Cosmos DB (dual-write pattern).
+
+    Stores logs to both Service Bus (real-time streaming) and Cosmos DB
+    (persistent queryable storage).
+
+    Args:
+        agent_id: Agent identifier
+        run_id: Execution run identifier
+        scenario: Scenario name
+        level: Log level (INFO, WARNING, ERROR, DEBUG)
+        message: Log message content
+        source: Log source (agent, orchestrator)
+        connection_string: Optional Service Bus connection string
+        topic_name: Service Bus topic name
+
+    Example:
+        >>> await publish_log(
+        ...     agent_id="agent-123",
+        ...     run_id="run-456",
+        ...     scenario="compute-01",
+        ...     level="INFO",
+        ...     message="Resource group created",
+        ... )
+    """
+    timestamp = datetime.now(UTC).isoformat()
+
+    log_entry = {
+        "agent_id": agent_id,
+        "run_id": run_id,
+        "scenario": scenario,
+        "timestamp": timestamp,
+        "level": level,
+        "message": message,
+        "source": source,
+    }
+
+    # WRITE 1: Service Bus (real-time streaming)
+    if connection_string:
+        client: ServiceBusClient | None = None
+        try:
+            sb_client = ServiceBusClient.from_connection_string(connection_string)
+            client = sb_client
+            sender = sb_client.get_topic_sender(topic_name)
+
+            service_bus_message = ServiceBusMessage(
+                body=json.dumps(log_entry), content_type="application/json"
+            )
+            await sender.send_messages(service_bus_message)
+            logger.debug(f"Published log to Service Bus: {agent_id}")
+        except Exception as e:
+            logger.error(f"Failed to publish log to Service Bus: {e}")
+        finally:
+            if client:
+                await client.close()
+
+    # WRITE 2: Cosmos DB (persistent storage)
+    try:
+        cosmos_endpoint = os.getenv("COSMOSDB_ENDPOINT")
+        if cosmos_endpoint:
+            credential = DefaultAzureCredential()
+            cosmos_client = CosmosClient(cosmos_endpoint, credential)
+            database = cosmos_client.get_database_client("haymaker")
+            logs_container = database.get_container_client("agent-logs")
+
+            cosmos_item = {
+                "id": f"log-{uuid4()}",
+                "agent_id": agent_id,  # Partition key
+                "run_id": run_id,
+                "scenario": scenario,
+                "timestamp": timestamp,
+                "level": level,
+                "message": message,
+                "source": source,
+                "ttl": 604800,  # 7 days in seconds
+            }
+            logs_container.upsert_item(cosmos_item)
+            logger.debug(f"Stored log to Cosmos DB: {agent_id}")
+    except Exception as e:
+        logger.error(f"Failed to store log to Cosmos DB: {e}")
+        # Non-critical failure - log continues to Service Bus
 
 
 async def publish_event(

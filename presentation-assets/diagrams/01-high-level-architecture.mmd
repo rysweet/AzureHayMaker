@@ -1,0 +1,62 @@
+graph TB
+    subgraph "GitHub"
+        GH[GitHub Actions]
+        REPO[Azure HayMaker Repo]
+    end
+
+    subgraph "Azure Infrastructure"
+        subgraph "Orchestration Layer"
+            FA[Azure Functions<br/>Orchestrator<br/>Durable Functions]
+            KV[Key Vault<br/>Secrets]
+            SB[Service Bus<br/>Event Stream]
+        end
+
+        subgraph "Execution Layer"
+            CA1[Container App 1<br/>Agent Executor]
+            CA2[Container App 2<br/>Agent Executor]
+            CA3[Container App N<br/>Agent Executor]
+        end
+
+        subgraph "Data Layer"
+            STORAGE[Blob Storage<br/>Reports & Artifacts]
+            TABLE[Table Storage<br/>Execution Tracking]
+            COSMOS[Cosmos DB<br/>Logs & Metrics]
+        end
+
+        subgraph "Monitoring"
+            LA[Log Analytics<br/>Workspace]
+            AI[Application Insights]
+        end
+    end
+
+    subgraph "Target Azure Subscription"
+        RG[Resource Groups<br/>Created by Agents]
+        RES[Azure Resources<br/>VMs, Storage, etc.]
+    end
+
+    %% Flows
+    GH -->|GitOps Deploy| FA
+    REPO -->|Bicep Templates| GH
+    FA -->|Read Secrets| KV
+    FA -->|Publish Events| SB
+    FA -->|Deploy Containers| CA1
+    FA -->|Deploy Containers| CA2
+    FA -->|Deploy Containers| CA3
+    CA1 -->|Execute Scenarios| RES
+    CA2 -->|Execute Scenarios| RES
+    CA3 -->|Execute Scenarios| RES
+    CA1 -->|Send Logs| SB
+    CA2 -->|Send Logs| SB
+    CA3 -->|Send Logs| SB
+    SB -->|Store| COSMOS
+    FA -->|Track Execution| TABLE
+    FA -->|Store Reports| STORAGE
+    FA -->|Send Telemetry| LA
+    FA -->|Send Metrics| AI
+    RES -->|Managed in| RG
+
+    style FA fill:#0078D4,color:#fff
+    style KV fill:#FFB900,color:#000
+    style SB fill:#00A4EF,color:#fff
+    style COSMOS fill:#0078D4,color:#fff
+    style GH fill:#24292e,color:#fff

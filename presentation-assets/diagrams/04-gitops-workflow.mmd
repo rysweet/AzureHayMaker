@@ -1,0 +1,57 @@
+graph LR
+    subgraph "Developer Workflow"
+        DEV[Developer]
+        CODE[Code Changes]
+        PR[Pull Request]
+    end
+
+    subgraph "GitHub"
+        MAIN[main branch]
+        DEV_BRANCH[develop branch]
+        ACTIONS[GitHub Actions]
+        SECRETS[GitHub Secrets]
+    end
+
+    subgraph "CI/CD Pipeline"
+        TEST[Run Tests]
+        VALIDATE[Validate Bicep]
+        DEPLOY_INFRA[Deploy Infrastructure]
+        DEPLOY_CODE[Deploy Function Code]
+        SMOKE[Smoke Tests]
+    end
+
+    subgraph "Azure Resources"
+        RG[Resource Group]
+        KV[Key Vault]
+        FA[Function App]
+        SB[Service Bus]
+        STORAGE[Storage]
+    end
+
+    DEV -->|Commit & Push| CODE
+    CODE -->|Create| PR
+    PR -->|Merge to| DEV_BRANCH
+    DEV_BRANCH -->|Trigger| ACTIONS
+    SECRETS -->|Provide| ACTIONS
+
+    ACTIONS -->|Step 1| TEST
+    ACTIONS -->|Step 2| VALIDATE
+    TEST -->|Pass| VALIDATE
+    VALIDATE -->|Pass| DEPLOY_INFRA
+
+    DEPLOY_INFRA -->|Create| RG
+    DEPLOY_INFRA -->|Deploy Bicep| KV
+    DEPLOY_INFRA -->|Deploy Bicep| FA
+    DEPLOY_INFRA -->|Deploy Bicep| SB
+    DEPLOY_INFRA -->|Deploy Bicep| STORAGE
+    DEPLOY_INFRA -->|Inject Secrets| KV
+
+    DEPLOY_INFRA -->|Success| DEPLOY_CODE
+    DEPLOY_CODE -->|ZIP Deploy| FA
+    DEPLOY_CODE -->|Success| SMOKE
+    SMOKE -->|Verify| FA
+    SMOKE -->|Verify| KV
+
+    style ACTIONS fill:#24292e,color:#fff
+    style KV fill:#FFB900,color:#000
+    style FA fill:#0078D4,color:#fff

@@ -27,12 +27,14 @@ The orchestration function references them by string name.
 """
 
 # Import all activity modules to ensure decorators are registered
-from azure_haymaker.orchestrator.activities import cleanup  # noqa: F401
-from azure_haymaker.orchestrator.activities import monitoring  # noqa: F401
-from azure_haymaker.orchestrator.activities import provisioning  # noqa: F401
-from azure_haymaker.orchestrator.activities import reporting  # noqa: F401
-from azure_haymaker.orchestrator.activities import selection  # noqa: F401
-from azure_haymaker.orchestrator.activities import validation  # noqa: F401
+from azure_haymaker.orchestrator.activities import (
+    cleanup,  # noqa: F401
+    monitoring,  # noqa: F401
+    provisioning,  # noqa: F401
+    reporting,  # noqa: F401
+    selection,  # noqa: F401
+    validation,  # noqa: F401
+)
 
 # Activity functions are registered via @app.activity_trigger decorators
 # and are called by name in the orchestration function.

@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile.orchestrator
+    ports:
+      - "8080:80"
+    environment:
+      # Required environment variables (set these in .env file)
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID}
+      - AZURE_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID}
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
+      - KEY_VAULT_URL=${KEY_VAULT_URL}
+      - SERVICE_BUS_NAMESPACE=${SERVICE_BUS_NAMESPACE}
+      - CONTAINER_REGISTRY=${CONTAINER_REGISTRY}
+      - CONTAINER_IMAGE=${CONTAINER_IMAGE}
+      - SIMULATION_SIZE=${SIMULATION_SIZE:-small}
+      - STORAGE_ACCOUNT_NAME=${STORAGE_ACCOUNT_NAME}
+      - TABLE_STORAGE_ACCOUNT_NAME=${TABLE_STORAGE_ACCOUNT_NAME}
+      - LOG_ANALYTICS_WORKSPACE_ID=${LOG_ANALYTICS_WORKSPACE_ID}
+      - RESOURCE_GROUP_NAME=${RESOURCE_GROUP_NAME:-azure-haymaker-rg}
+      - SERVICE_BUS_TOPIC=${SERVICE_BUS_TOPIC:-agent-logs}
+      # Optional - Cosmos DB
+      - COSMOSDB_ENDPOINT=${COSMOSDB_ENDPOINT:-}
+      - COSMOSDB_DATABASE=${COSMOSDB_DATABASE:-haymaker}
+      # Optional - VNet
+      - VNET_INTEGRATION_ENABLED=${VNET_INTEGRATION_ENABLED:-false}
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

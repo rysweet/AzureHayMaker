@@ -13,16 +13,11 @@ from azure_haymaker.models.scenario import ScenarioMetadata
 from azure_haymaker.models.service_principal import ServicePrincipalDetails
 
 # Import specialized classes
-from .container_deployer import ContainerDeployer
+# Import exceptions and functions for re-export
+from .container_deployer import ContainerAppError, ContainerDeployer
 from .container_lifecycle import ContainerLifecycle
 from .container_monitor import ContainerMonitor
-from .image_verifier import ImageVerifier
-
-# Import exceptions and functions for re-export
-from .container_deployer import ContainerAppError
-from .container_lifecycle import delete_container_app
-from .container_monitor import get_container_status
-from .image_verifier import ImageSigningError, verify_image_signature
+from .image_verifier import ImageSigningError, ImageVerifier, verify_image_signature
 
 # Configure logging
 logger = logging.getLogger(__name__)

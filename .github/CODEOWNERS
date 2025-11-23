@@ -1,0 +1,17 @@
+# Azure HayMaker - Code Owners
+
+# Default owners for everything
+* @rysweet
+
+# Infrastructure
+/infra/ @rysweet
+/.github/workflows/ @rysweet
+
+# Documentation
+/*.md @rysweet
+/docs/ @rysweet
+
+# Security-sensitive
+/scripts/*cleanup* @rysweet
+/.github/ @rysweet
+/infra/bicep/modules/keyvault.bicep @rysweet
