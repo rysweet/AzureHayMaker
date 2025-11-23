@@ -133,7 +133,7 @@ async def validate():
         }
     except Exception as e:
         logger.error(f"Validation failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/api/scenarios")
@@ -155,7 +155,7 @@ async def list_scenarios():
         }
     except Exception as e:
         logger.error(f"Failed to list scenarios: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ==============================================================================
