@@ -131,7 +131,7 @@ async def check_container_app_status(
                 ],
             }
 
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return {
             "check_name": "Container App Status",
             "status": "FAIL",
@@ -197,6 +197,7 @@ async def check_endpoint_connectivity(
         if endpoint.startswith("http://") or endpoint.startswith("https://"):
             # Extract hostname from URL
             from urllib.parse import urlparse
+
             parsed = urlparse(endpoint)
             hostname = parsed.hostname or parsed.netloc
             port = parsed.port or (443 if parsed.scheme == "https" else 80)
@@ -225,7 +226,7 @@ async def check_endpoint_connectivity(
                 timeout=timeout / 2,
             )
             ip_address = addresses[0][4][0] if addresses else None
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return {
                 "check_name": "Endpoint Connectivity",
                 "status": "FAIL",
@@ -262,7 +263,7 @@ async def check_endpoint_connectivity(
             return {
                 "check_name": "Endpoint Connectivity",
                 "status": "PASS",
-                "message": f"DNS and TCP connection successful",
+                "message": "DNS and TCP connection successful",
                 "details": {
                     "hostname": hostname,
                     "ip_address": ip_address or "unknown",
@@ -271,7 +272,7 @@ async def check_endpoint_connectivity(
                 "suggestions": [],
             }
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return {
                 "check_name": "Endpoint Connectivity",
                 "status": "FAIL",
@@ -387,25 +388,31 @@ async def check_replica_health(
                 healthy_count = sum(1 for r in replicas if r.running_state == "Running")
                 healthy_replicas += healthy_count
 
-                revision_details.append({
-                    "revision": revision.name,
-                    "total": len(replicas),
-                    "healthy": healthy_count,
-                })
+                revision_details.append(
+                    {
+                        "revision": revision.name,
+                        "total": len(replicas),
+                        "healthy": healthy_count,
+                    }
+                )
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Skip this revision on timeout
-                revision_details.append({
-                    "revision": revision.name,
-                    "error": "timeout",
-                })
+                revision_details.append(
+                    {
+                        "revision": revision.name,
+                        "error": "timeout",
+                    }
+                )
                 continue
             except Exception as e:
                 # Skip this revision on error
-                revision_details.append({
-                    "revision": revision.name,
-                    "error": str(e),
-                })
+                revision_details.append(
+                    {
+                        "revision": revision.name,
+                        "error": str(e),
+                    }
+                )
                 continue
 
         # Determine health status
@@ -472,7 +479,7 @@ async def check_replica_health(
                 ],
             }
 
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return {
             "check_name": "Replica Health",
             "status": "FAIL",
@@ -532,6 +539,9 @@ async def check_http_health_endpoint(
         >>> result["check_name"]  # doctest: +SKIP
         'HTTP Health Endpoint'
     """
+    # Initialize url for error handling
+    url: str = endpoint
+
     try:
         # Build full URL
         if not endpoint.startswith("http://") and not endpoint.startswith("https://"):
@@ -609,7 +619,7 @@ async def check_http_health_endpoint(
             "status": "FAIL",
             "message": f"HTTP request timeout after {timeout}s",
             "details": {
-                "url": url if 'url' in locals() else endpoint,
+                "url": url,
                 "timeout": timeout,
             },
             "suggestions": [
@@ -624,7 +634,7 @@ async def check_http_health_endpoint(
             "status": "FAIL",
             "message": f"Connection failed: {e}",
             "details": {
-                "url": url if 'url' in locals() else endpoint,
+                "url": url,
             },
             "suggestions": [
                 "Check if ingress is enabled",
@@ -638,7 +648,7 @@ async def check_http_health_endpoint(
             "status": "FAIL",
             "message": f"HTTP error: {e}",
             "details": {
-                "url": url if 'url' in locals() else endpoint,
+                "url": url,
             },
             "suggestions": [
                 "Check error message for details",
@@ -696,7 +706,7 @@ async def run_health_checks(
     num_basic_checks = 3
     num_deep_checks = 1 if deep else 0
     total_checks = num_basic_checks + num_deep_checks
-    check_timeout = timeout / total_checks
+    check_timeout = int(timeout / total_checks)
 
     # Build list of checks to run
     checks = [
@@ -716,9 +726,7 @@ async def run_health_checks(
         endpoint = None
 
     if endpoint:
-        checks.append(
-            check_endpoint_connectivity(f"https://{endpoint}", timeout=check_timeout)
-        )
+        checks.append(check_endpoint_connectivity(f"https://{endpoint}", timeout=check_timeout))
 
         # Add deep HTTP check if requested
         if deep:
@@ -742,6 +750,7 @@ async def run_health_checks(
                     "Verify app is deployed",
                 ],
             }
+
         checks.append(_failed_endpoint_check())
 
     # Run all checks in parallel
@@ -751,13 +760,15 @@ async def run_health_checks(
     final_results = []
     for i, result in enumerate(results):
         if isinstance(result, Exception):
-            final_results.append({
-                "check_name": f"Check {i+1}",
-                "status": "FAIL",
-                "message": f"Check failed: {result}",
-                "details": {"error_type": type(result).__name__},
-                "suggestions": ["Check error message for details"],
-            })
+            final_results.append(
+                {
+                    "check_name": f"Check {i+1}",
+                    "status": "FAIL",
+                    "message": f"Check failed: {result}",
+                    "details": {"error_type": type(result).__name__},
+                    "suggestions": ["Check error message for details"],
+                }
+            )
         else:
             final_results.append(result)
 

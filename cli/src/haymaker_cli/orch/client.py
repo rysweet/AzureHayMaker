@@ -133,6 +133,13 @@ class ContainerAppsClient:
                         details={"attempts": str(self.retry_count), "error": str(e)},
                     ) from e
 
+            except ResourceNotFoundError as e:
+                # Resource not found - not retriable (more specific, catch first)
+                raise ApiError(
+                    f"Resource not found: {e}",
+                    details={"error_type": "ResourceNotFoundError"},
+                ) from e
+
             except HttpResponseError as e:
                 # HTTP errors from Azure API
                 status_code = e.status_code if hasattr(e, "status_code") else None
@@ -165,13 +172,6 @@ class ContainerAppsClient:
                 raise ApiError(
                     f"Azure API error: {error_msg}",
                     details={"status_code": str(status_code) if status_code else "unknown"},
-                ) from e
-
-            except ResourceNotFoundError as e:
-                # Resource not found - not retriable
-                raise ApiError(
-                    f"Resource not found: {e}",
-                    details={"error_type": "ResourceNotFoundError"},
                 ) from e
 
             except Exception as e:
@@ -243,9 +243,9 @@ class ContainerAppsClient:
             running_status=running_status,
             latest_revision_name=latest_revision_name,
             latest_revision_fqdn=latest_revision_fqdn,
-            active_revisions_count=len(
-                getattr(app, "custom_domain_verification_id", [])
-            ) if hasattr(app, "custom_domain_verification_id") else 0,
+            active_revisions_count=len(getattr(app, "custom_domain_verification_id", []))
+            if hasattr(app, "custom_domain_verification_id")
+            else 0,
             min_replicas=scale.get("min_replicas", 0),
             max_replicas=scale.get("max_replicas", 10),
             ingress_enabled=ingress is not None,
@@ -509,9 +509,7 @@ class ContainerAppsClient:
             try:
                 replicas = await self.list_replicas(app_name, revision.name)
                 total_replicas += len(replicas)
-                healthy_replicas += sum(
-                    1 for r in replicas if r.running_state == "Running"
-                )
+                healthy_replicas += sum(1 for r in replicas if r.running_state == "Running")
             except Exception as e:
                 warnings.append(f"Failed to get replicas for {revision.name}: {e}")
 

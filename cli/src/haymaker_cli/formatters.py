@@ -426,7 +426,8 @@ def format_log_entries(logs: list[LogEntry], follow: bool = False) -> str:
                     from datetime import datetime
 
                     # Convert UTC 'Z' suffix to timezone offset for ISO format parsing
-                    timestamp_str: str = log.timestamp.replace("Z", "+00:00")
+                    raw_timestamp: str = str(log.timestamp)
+                    timestamp_str: str = raw_timestamp.replace("Z", "+00:00")
                     dt = datetime.fromisoformat(timestamp_str)
                     time_str = dt.strftime("%H:%M:%S")
                 except Exception:
