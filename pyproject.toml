@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "Ryan Sweet", email = "rysweet@microsoft.com" }
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 dependencies = [
     "anthropic>=0.40.0",
     "azure-functions>=1.20.0",
@@ -50,7 +50,7 @@ packages = ["src/azure_haymaker"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py313"
+target-version = "py311"
 extend-exclude = [".claude", ".claude-trace"]
 
 [tool.ruff.lint]
@@ -74,7 +74,7 @@ ignore = [
 "tests/**/*.py" = ["S101"] # allow assert in tests
 
 [tool.pyright]
-pythonVersion = "3.13"
+pythonVersion = "3.11"
 typeCheckingMode = "strict"
 reportMissingTypeStubs = false
 reportMissingImports = false
