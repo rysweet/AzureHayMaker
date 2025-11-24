@@ -157,10 +157,16 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
         if not app.app_id:
             raise ServicePrincipalError("Failed to create application registration")
 
+        logger.info(f"Application created: id={app.id}, appId={app.app_id}")
+
+        # Wait for application to propagate in Azure AD (typically 1-2 seconds)
+        await asyncio.sleep(3)
+
         # Create service principal
         sp_request_body = ServicePrincipal()
         sp_request_body.app_id = app.app_id
 
+        logger.info(f"Creating service principal for appId={app.app_id}")
         # Graph SDK methods are async, await directly
         sp = await graph_client.service_principals.post(sp_request_body)
 
@@ -176,7 +182,12 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
         if not app.id:
             raise ServicePrincipalError("Application ID is None")
 
+        logger.info(f"Adding password to application id={app.id}")
+        # Wait for service principal to propagate
+        await asyncio.sleep(3)
+
         # Graph SDK async method - await directly
+        # Note: by_application_id() expects the application's object ID (app.id), not appId
         password_result = await graph_client.applications.by_application_id(app.id).add_password.post(
             password_credential_request
         )
