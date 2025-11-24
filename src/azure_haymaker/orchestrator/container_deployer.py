@@ -107,8 +107,12 @@ class ContainerDeployer:
             configuration = self._build_configuration(sp)
 
             # Build complete Container App as dict
+            # Get Container Apps Environment ID (required for deployment)
+            container_env_id = f"/subscriptions/{self.subscription_id}/resourceGroups/{self.resource_group_name}/providers/Microsoft.App/managedEnvironments/haymaker-dev-yc4hkcb2vvnwg-cae"
+
             container_app = {
                 "location": self._get_region(),
+                "managed_environment_id": container_env_id,  # Required: specify Container Apps Environment
                 "template": template,
                 "configuration": configuration,
                 "tags": {
