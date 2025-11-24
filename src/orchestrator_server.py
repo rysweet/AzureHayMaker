@@ -264,12 +264,15 @@ async def run_orchestration(run_id: str, skip_validation: bool = False):
         # Filter successful SPs
         successful_sps = []
         failed_sps = []
+        sp_errors = []  # Track errors for debugging
         for i, result in enumerate(sp_results):
             if isinstance(result, Exception):
+                error_msg = f"{type(result).__name__}: {str(result)}"
                 logger.warning(
-                    f"[{run_id}] SP creation failed for {scenarios[i].scenario_name}: {result}"
+                    f"[{run_id}] SP creation failed for {scenarios[i].scenario_name}: {error_msg}"
                 )
                 failed_sps.append(scenarios[i].scenario_name)
+                sp_errors.append({"scenario": scenarios[i].scenario_name, "error": error_msg})
             else:
                 successful_sps.append((scenarios[i], result))
 
@@ -302,6 +305,7 @@ async def run_orchestration(run_id: str, skip_validation: bool = False):
                 "requested": len(scenarios),
                 "created": len(successful_sps),
                 "failed": len(failed_sps),
+                "errors": sp_errors if sp_errors else None,  # Surface actual errors in API
             },
             "container_apps": {
                 "requested": len(successful_sps),
