@@ -176,13 +176,25 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
                 else:
                     raise ServicePrincipalError(f"Application failed to propagate after {max_retries} attempts") from e
 
-        # Create service principal
+        # Create service principal with retry (handles eventual consistency)
         sp_request_body = ServicePrincipal()
         sp_request_body.app_id = app.app_id
 
         logger.info(f"Creating service principal for appId={app.app_id}")
-        # Graph SDK methods are async, await directly
-        sp = await graph_client.service_principals.post(sp_request_body)
+        sp = None
+        for attempt in range(max_retries):
+            try:
+                # Graph SDK methods are async, await directly
+                sp = await graph_client.service_principals.post(sp_request_body)
+                logger.info(f"Service principal created successfully after {attempt + 1} attempts")
+                break
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt
+                    logger.warning(f"SP creation failed (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s: {e}")
+                    await asyncio.sleep(wait_time)
+                else:
+                    raise ServicePrincipalError(f"Failed to create SP after {max_retries} attempts: {e}") from e
 
         if not sp:
             raise ServicePrincipalError("Failed to create service principal")
