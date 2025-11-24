@@ -1,46 +1,8 @@
 # Azure HayMaker
 
-[![Tests](https://img.shields.io/badge/tests-99%25%20passing-brightgreen)](.) [![Code Quality](https://img.shields.io/badge/code%20review-9.2%2F10-brightgreen)](.) [![Security](https://img.shields.io/badge/security-verified-brightgreen)](.) [![Docs](https://img.shields.io/badge/docs-55+%20files-blue)](.) [![Scripts](https://img.shields.io/badge/automation-14%20scripts-blue)](.) [![Commits](https://img.shields.io/badge/commits-101+-blue)](.) [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE) [![Cost Savings](https://img.shields.io/badge/savings-$20K%2Fyear-gold)](.)
-
-[![Session](https://img.shields.io/badge/session-12+%20hours-purple)](.) [![PowerPoint](https://img.shields.io/badge/PowerPoint-ready-success)](.) [![Requirements](https://img.shields.io/badge/requirements-5%2F5-success)](.)
-
-Generate benign service telemetry for Azure Tenant simulation.
-
-## 🎉 **NEW**: Session Deliverables (2025-11-17/18)
-
-**After 12+ hours of intensive work, major improvements delivered**:
-- ✅ **PowerPoint Presentation**: 32 professional slides → `docs/presentations/Azure_HayMaker_Overview.pptx`
-- ✅ **Security Fix**: Secrets in Key Vault (confirmed working in production!)
-- ✅ **Agent Autostart**: Implemented and ready to test
-- ✅ **Log Streaming**: Real-time CLI output with colors
-- ✅ **Comprehensive Docs**: 12,000+ lines of guides and specs
-
-## 🚨 **URGENT**: Cost Alert - $2,164/month!
-
-**Critical finding**: 21 duplicate resource sets from debugging iterations
-- **Current**: $2,164/month
-- **After cleanup**: $498/month
-- **SAVINGS**: **$1,666/month (77%)!**
-
-**Immediate action** (5 min):
-```bash
-./scripts/cleanup-old-function-apps.sh  # Saves $1,533/month NOW!
-```
-
-**Details**: `CRITICAL_COST_ALERT.md` | **Tracked**: Issue #14
-
----
-
-**👉 START HERE**: Read `README_SESSION_DELIVERABLES.md` for complete overview
-
-**Key Documents**:
-- `FINAL_SESSION_SUMMARY.md` - Epic 12-hour journey
-- `NEXT_STEPS.md` - How to complete VM deployment
-- `SESSION_STATUS_REPORT.md` - Detailed progress report
-
 ## What is it?
 
-Azure HayMaker is an orchestration service that simulates realistic Azure tenant activity by deploying and managing 50+ distinct operational scenarios using autonomous goal-seeking agents. Each agent performs a full lifecycle: deployment, 8-hour operation period, and cleanup.
+Azure HayMaker is an orchestration service that simulates realistic Azure tenant activity by deploying and managing 50+ distinct operational scenarios using autonomous goal-seeking agents. Each agent performs a full lifecycle: deployment, 8-hour operation period, and cleanup, in a follow-the-sun rotation.  The goal is the creation of benign telemetry (Hay) in which to hide cybersecurity simulation red team signals (the needle in the haystack). 
 
 ## Key Features
 
@@ -111,8 +73,6 @@ Secrets are loaded from `.env` file:
    uv run func start
    ```
 
-**Important**: The `.env` file is gitignored and must never be committed to version control.
-
 ### Production (Azure Function App)
 
 Secrets are managed securely via Azure Key Vault:
@@ -131,12 +91,6 @@ Secrets are managed securely via Azure Key Vault:
    ```
 
 3. **Access**: Function App Managed Identity has "Key Vault Secrets User" role
-
-**Security Benefits:**
-- Secrets never visible in Azure Portal
-- Automatic secret rotation support
-- Audit logging via Key Vault diagnostics
-- RBAC-based access control
 
 ### Configuration Priority
 
@@ -171,32 +125,3 @@ pre-commit run --all-files
 ## License
 
 MIT License - Open Source
-
-## Status
-
-🚧 **Under Active Development** - See [Issue #1](https://github.com/rysweet/AzureHayMaker/issues/1) for progress
-
-
----
-
-## 🎊 **QUICK START - NEW USERS**
-
-**Just cloned the repo? Start here**:
-
-```bash
-# 1. See what's ready
-./scripts/show-session-summary.sh
-
-# 2. View the presentation
-./scripts/open-powerpoint.sh
-
-# 3. Verify security fix
-./scripts/verify-security-fix.sh
-
-# 4. Read the handoff
-cat HANDOFF.md
-```
-
-**All major features implemented and ready to deploy!**
-
----
