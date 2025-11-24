@@ -121,26 +121,54 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
     secret_name = f"scenario-sp-{scenario_name}-secret"
 
     try:
-        # Initialize Microsoft Graph client
-        credential = DefaultAzureCredential()
+        # Initialize Microsoft Graph client with explicit service principal credentials
+        # Use ClientSecretCredential instead of DefaultAzureCredential to ensure
+        # we use the SP credentials from environment variables (AZURE_CLIENT_ID/SECRET)
+        from azure.identity import ClientSecretCredential
+        import os
+
+        tenant_id = os.getenv("AZURE_TENANT_ID")
+        client_id = os.getenv("AZURE_CLIENT_ID")
+        client_secret = os.getenv("AZURE_CLIENT_SECRET")
+
+        logger.info(f"Creating SP for {scenario_name} using client_id={client_id[:8]}...")
+
+        credential = ClientSecretCredential(
+            tenant_id=tenant_id,
+            client_id=client_id,
+            client_secret=client_secret
+        )
         graph_client = GraphServiceClient(credential)
 
         # Create application registration
         app_request_body = Application()
         app_request_body.display_name = sp_name
 
-        app = await asyncio.to_thread(graph_client.applications.post, app_request_body)
+        logger.info(f"Calling Graph API to create application: {sp_name}")
+        try:
+            # Graph SDK methods are already async, await them directly (not asyncio.to_thread)
+            app = await graph_client.applications.post(app_request_body)
+        except Exception as e:
+            logger.error(f"Graph API application creation failed: {type(e).__name__}: {str(e)}")
+            raise ServicePrincipalError(f"Graph API create app failed: {type(e).__name__}: {e}") from e
 
         if not app:
             raise ServicePrincipalError("Failed to create application registration")
         if not app.app_id:
             raise ServicePrincipalError("Failed to create application registration")
 
+        logger.info(f"Application created: id={app.id}, appId={app.app_id}")
+
+        # Wait for application to propagate in Azure AD (typically 1-2 seconds)
+        await asyncio.sleep(10)
+
         # Create service principal
         sp_request_body = ServicePrincipal()
         sp_request_body.app_id = app.app_id
 
-        sp = await asyncio.to_thread(graph_client.service_principals.post, sp_request_body)
+        logger.info(f"Creating service principal for appId={app.app_id}")
+        # Graph SDK methods are async, await directly
+        sp = await graph_client.service_principals.post(sp_request_body)
 
         if not sp:
             raise ServicePrincipalError("Failed to create service principal")
@@ -154,9 +182,14 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
         if not app.id:
             raise ServicePrincipalError("Application ID is None")
 
-        password_result = await asyncio.to_thread(
-            graph_client.applications.by_application_id(app.id).add_password.post,
-            password_credential_request,
+        logger.info(f"Adding password to application id={app.id}")
+        # Wait for service principal to propagate
+        await asyncio.sleep(10)
+
+        # Graph SDK async method - await directly
+        # Note: by_application_id() expects the application's object ID (app.id), not appId
+        password_result = await graph_client.applications.by_application_id(app.id).add_password.post(
+            password_credential_request
         )
 
         if not password_result:

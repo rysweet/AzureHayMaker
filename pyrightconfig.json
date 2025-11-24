@@ -1,6 +1,6 @@
 {
   "include": ["src", "cli"],
-  "exclude": ["**/node_modules", "**/__pycache__"],
+  "exclude": ["**/node_modules", "**/__pycache__", "**/.venv", "**/venv"],
   "ignore": [],
   "defineConstant": {},
   "stubPath": "typings",

@@ -5,6 +5,7 @@ NO AZURE FUNCTIONS. NO DURABLE FUNCTIONS. JUST WORKING CODE.
 This replaces the Azure Functions implementation with a simple REST API
 that can run anywhere - locally, Docker, or Azure Container Apps.
 """
+
 import asyncio
 import logging
 from contextlib import asynccontextmanager
@@ -107,10 +108,11 @@ async def get_execution(execution_id: str):
 async def execute(request: dict[str, Any] | None = None):
     """Manually trigger an orchestration run."""
     run_id = str(uuid4())
-    logger.info(f"Manual execution triggered: run_id={run_id}")
+    skip_validation = request.get("skip_validation", False) if request else False
+    logger.info(f"Manual execution triggered: run_id={run_id}, skip_validation={skip_validation}")
 
     # Start orchestration in background
-    asyncio.create_task(run_orchestration(run_id))
+    asyncio.create_task(run_orchestration(run_id, skip_validation=skip_validation))
 
     return {
         "execution_id": run_id,
@@ -131,7 +133,7 @@ async def validate():
         }
     except Exception as e:
         logger.error(f"Validation failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/api/scenarios")
@@ -139,6 +141,7 @@ async def list_scenarios():
     """List available scenarios (small simulation size)."""
     try:
         from azure_haymaker.models.config import SimulationSize
+
         scenarios = select_scenarios(SimulationSize.SMALL)
         return {
             "scenarios": [
@@ -152,7 +155,7 @@ async def list_scenarios():
         }
     except Exception as e:
         logger.error(f"Failed to list scenarios: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ==============================================================================
@@ -167,7 +170,7 @@ async def run_scheduled_orchestration():
     await run_orchestration(run_id)
 
 
-async def run_orchestration(run_id: str):
+async def run_orchestration(run_id: str, skip_validation: bool = False):
     """Main orchestration workflow.
 
     Phases:
@@ -188,27 +191,34 @@ async def run_orchestration(run_id: str):
 
     try:
         # ========================================================================
-        # PHASE 1: VALIDATION
+        # PHASE 1: VALIDATION (can be skipped for testing)
         # ========================================================================
-        logger.info(f"[{run_id}] Phase 1: Validation")
-        config = await load_config()
-        validation_result = await validate_environment(config)
+        if not skip_validation:
+            logger.info(f"[{run_id}] Phase 1: Validation")
+            config = await load_config()
+            validation_result = await validate_environment(config)
 
-        if not validation_result.overall_passed:
-            logger.error(f"[{run_id}] Validation failed")
-            execution_report["status"] = "failed"
-            execution_report["failure_reason"] = "validation_failed"
+            if not validation_result.overall_passed:
+                logger.error(f"[{run_id}] Validation failed")
+                execution_report["status"] = "failed"
+                execution_report["failure_reason"] = "validation_failed"
+                execution_report["phases"]["validation"] = {
+                    "status": "failed",
+                    "results": [r.model_dump() for r in validation_result.results],
+                }
+                return
+
             execution_report["phases"]["validation"] = {
-                "status": "failed",
-                "results": [r.model_dump() for r in validation_result.results],
+                "status": "passed",
+                "checks": [r.model_dump() for r in validation_result.results],
             }
-            return
-
-        execution_report["phases"]["validation"] = {
-            "status": "passed",
-            "checks": [r.model_dump() for r in validation_result.results],
-        }
-        logger.info(f"[{run_id}] Validation passed")
+            logger.info(f"[{run_id}] Validation passed")
+        else:
+            logger.warning(f"[{run_id}] Skipping validation (skip_validation=true)")
+            config = await load_config()
+            execution_report["phases"]["validation"] = {
+                "status": "skipped",
+            }
 
         # ========================================================================
         # PHASE 2: SCENARIO SELECTION
@@ -254,10 +264,15 @@ async def run_orchestration(run_id: str):
         # Filter successful SPs
         successful_sps = []
         failed_sps = []
+        sp_errors = []  # Track errors for debugging
         for i, result in enumerate(sp_results):
             if isinstance(result, Exception):
-                logger.warning(f"[{run_id}] SP creation failed for {scenarios[i].scenario_name}: {result}")
+                error_msg = f"{type(result).__name__}: {str(result)}"
+                logger.warning(
+                    f"[{run_id}] SP creation failed for {scenarios[i].scenario_name}: {error_msg}"
+                )
                 failed_sps.append(scenarios[i].scenario_name)
+                sp_errors.append({"scenario": scenarios[i].scenario_name, "error": error_msg})
             else:
                 successful_sps.append((scenarios[i], result))
 
@@ -280,7 +295,9 @@ async def run_orchestration(run_id: str):
             else:
                 successful_containers.append(result)
 
-        logger.info(f"[{run_id}] Deployed {len(successful_containers)}/{len(successful_sps)} containers")
+        logger.info(
+            f"[{run_id}] Deployed {len(successful_containers)}/{len(successful_sps)} containers"
+        )
 
         execution_report["phases"]["provisioning"] = {
             "status": "completed",
@@ -288,6 +305,7 @@ async def run_orchestration(run_id: str):
                 "requested": len(scenarios),
                 "created": len(successful_sps),
                 "failed": len(failed_sps),
+                "errors": sp_errors if sp_errors else None,  # Surface actual errors in API
             },
             "container_apps": {
                 "requested": len(successful_sps),
@@ -331,12 +349,14 @@ async def run_orchestration(run_id: str):
                     logger.warning(f"[{run_id}] Failed to check container status: {e}")
                     failed_count += 1
 
-            monitoring_status["status_checks"].append({
-                "timestamp": datetime.now(UTC).isoformat(),
-                "running_count": running_count,
-                "completed_count": completed_count,
-                "failed_count": failed_count,
-            })
+            monitoring_status["status_checks"].append(
+                {
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "running_count": running_count,
+                    "completed_count": completed_count,
+                    "failed_count": failed_count,
+                }
+            )
 
             logger.info(
                 f"[{run_id}] Status check {check_num+1}/32: "
@@ -391,6 +411,7 @@ async def run_orchestration(run_id: str):
         # Store report to blob storage (if configured)
         try:
             from azure.storage.blob import BlobServiceClient
+
             blob_service_client = BlobServiceClient(
                 account_url=config.storage.account_url,
                 credential=credential,
@@ -399,6 +420,7 @@ async def run_orchestration(run_id: str):
             blob_client = container_client.get_blob_client(f"{run_id}/report.json")
 
             import json
+
             await blob_client.upload_blob(
                 json.dumps(execution_report, indent=2),
                 overwrite=True,
@@ -425,4 +447,5 @@ async def run_orchestration(run_id: str):
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=80)
