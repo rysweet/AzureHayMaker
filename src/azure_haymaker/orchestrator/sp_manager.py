@@ -127,10 +127,16 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
         from azure.identity import ClientSecretCredential
         import os
 
+        tenant_id = os.getenv("AZURE_TENANT_ID")
+        client_id = os.getenv("AZURE_CLIENT_ID")
+        client_secret = os.getenv("AZURE_CLIENT_SECRET")
+
+        logger.info(f"Creating SP for {scenario_name} using client_id={client_id[:8]}...")
+
         credential = ClientSecretCredential(
-            tenant_id=os.getenv("AZURE_TENANT_ID"),
-            client_id=os.getenv("AZURE_CLIENT_ID"),
-            client_secret=os.getenv("AZURE_CLIENT_SECRET")
+            tenant_id=tenant_id,
+            client_id=client_id,
+            client_secret=client_secret
         )
         graph_client = GraphServiceClient(credential)
 
@@ -138,7 +144,12 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
         app_request_body = Application()
         app_request_body.display_name = sp_name
 
-        app = await asyncio.to_thread(graph_client.applications.post, app_request_body)
+        logger.info(f"Calling Graph API to create application: {sp_name}")
+        try:
+            app = await asyncio.to_thread(graph_client.applications.post, app_request_body)
+        except Exception as e:
+            logger.error(f"Graph API application creation failed: {type(e).__name__}: {str(e)}")
+            raise ServicePrincipalError(f"Graph API create app failed: {type(e).__name__}: {e}") from e
 
         if not app:
             raise ServicePrincipalError("Failed to create application registration")
