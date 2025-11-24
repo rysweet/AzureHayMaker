@@ -81,7 +81,7 @@ Command-line interface and diagnostic tools.
 Security documentation and fixes.
 
 - [Security Fixes](SECURITY_FIXES.md) - Security improvements and patches
-- [Security Policy](../SECURITY.md) - Security reporting and policies
+- [Security Policy](SECURITY.md) - Security reporting and policies
 
 ## 🎨 Presentations
 
@@ -89,8 +89,8 @@ Security documentation and fixes.
 
 ## 📝 Contributing
 
-- [Contributing Guide](../CONTRIBUTING.md) - How to contribute
-- [Changelog](../CHANGELOG.md) - Version history
+- [Contributing Guide](CONTRIBUTING.md) - How to contribute
+- [Changelog](CHANGELOG.md) - Version history
 
 ---
 
