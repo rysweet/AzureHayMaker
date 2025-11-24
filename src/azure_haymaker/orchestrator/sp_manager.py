@@ -159,8 +159,22 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
 
         logger.info(f"Application created: id={app.id}, appId={app.app_id}")
 
-        # Wait for application to propagate in Azure AD (typically 1-2 seconds)
-        await asyncio.sleep(10)
+        # Verify application exists with retry logic (Azure AD eventual consistency)
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                # Verify application exists before creating SP
+                verify_app = await graph_client.applications.by_application_id(app.id).get()
+                if verify_app and verify_app.app_id == app.app_id:
+                    logger.info(f"Application verified after {attempt + 1} attempts")
+                    break
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt  # Exponential backoff: 1, 2, 4, 8, 16 seconds
+                    logger.warning(f"Application not yet propagated (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s: {e}")
+                    await asyncio.sleep(wait_time)
+                else:
+                    raise ServicePrincipalError(f"Application failed to propagate after {max_retries} attempts") from e
 
         # Create service principal
         sp_request_body = ServicePrincipal()
@@ -183,14 +197,25 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
             raise ServicePrincipalError("Application ID is None")
 
         logger.info(f"Adding password to application id={app.id}")
-        # Wait for service principal to propagate
-        await asyncio.sleep(10)
 
-        # Graph SDK async method - await directly
-        # Note: by_application_id() expects the application's object ID (app.id), not appId
-        password_result = await graph_client.applications.by_application_id(app.id).add_password.post(
-            password_credential_request
-        )
+        # Retry password addition with exponential backoff (handles eventual consistency)
+        password_result = None
+        for attempt in range(max_retries):
+            try:
+                # Graph SDK async method - await directly
+                # Note: by_application_id() expects the application's object ID (app.id), not appId
+                password_result = await graph_client.applications.by_application_id(app.id).add_password.post(
+                    password_credential_request
+                )
+                logger.info(f"Password added successfully after {attempt + 1} attempts")
+                break
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt
+                    logger.warning(f"Password addition failed (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s: {e}")
+                    await asyncio.sleep(wait_time)
+                else:
+                    raise ServicePrincipalError(f"Failed to add password after {max_retries} attempts: {e}") from e
 
         if not password_result:
             raise ServicePrincipalError("Failed to generate service principal secret")
