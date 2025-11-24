@@ -88,7 +88,16 @@ class ContainerDeployer:
         app_name = self._generate_app_name(scenario.scenario_name)
 
         try:
-            credential = DefaultAzureCredential()
+            # Use explicit SP credentials like sp_manager.py
+            from azure.identity import ClientSecretCredential
+            import os
+
+            credential = ClientSecretCredential(
+                tenant_id=os.getenv("AZURE_TENANT_ID"),
+                client_id=os.getenv("AZURE_CLIENT_ID"),
+                client_secret=os.getenv("AZURE_CLIENT_SECRET")
+            )
+
             # Lazy import to avoid loading uninstalled package during testing
             from azure.mgmt.appcontainers import ContainerAppsAPIClient
 
