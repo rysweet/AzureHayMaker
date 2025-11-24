@@ -108,7 +108,8 @@ class ContainerDeployer:
 
             # Build complete Container App as dict
             # Get Container Apps Environment ID (required for deployment)
-            container_env_id = f"/subscriptions/{self.subscription_id}/resourceGroups/{self.resource_group_name}/providers/Microsoft.App/managedEnvironments/haymaker-dev-yc4hkcb2vvnwg-cae"
+            # Use the main dev environment (haymaker-dev-cae)
+            container_env_id = f"/subscriptions/{self.subscription_id}/resourceGroups/{self.resource_group_name}/providers/Microsoft.App/managedEnvironments/haymaker-dev-cae"
 
             container_app = {
                 "location": self._get_region(),
