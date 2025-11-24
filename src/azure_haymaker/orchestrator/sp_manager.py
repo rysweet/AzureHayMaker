@@ -121,8 +121,17 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
     secret_name = f"scenario-sp-{scenario_name}-secret"
 
     try:
-        # Initialize Microsoft Graph client
-        credential = DefaultAzureCredential()
+        # Initialize Microsoft Graph client with explicit service principal credentials
+        # Use ClientSecretCredential instead of DefaultAzureCredential to ensure
+        # we use the SP credentials from environment variables (AZURE_CLIENT_ID/SECRET)
+        from azure.identity import ClientSecretCredential
+        import os
+
+        credential = ClientSecretCredential(
+            tenant_id=os.getenv("AZURE_TENANT_ID"),
+            client_id=os.getenv("AZURE_CLIENT_ID"),
+            client_secret=os.getenv("AZURE_CLIENT_SECRET")
+        )
         graph_client = GraphServiceClient(credential)
 
         # Create application registration
