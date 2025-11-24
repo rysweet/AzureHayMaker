@@ -275,4 +275,4 @@ yarl==1.22.0
     #   azure-data-tables
 zipp==3.23.0
     # via importlib-metadata
-azure-mgmt-app>=1.0.0b2
+azure-mgmt-appcontainers>=2.0.0
