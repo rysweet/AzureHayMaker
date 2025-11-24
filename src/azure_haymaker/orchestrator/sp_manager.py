@@ -146,7 +146,8 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
 
         logger.info(f"Calling Graph API to create application: {sp_name}")
         try:
-            app = await asyncio.to_thread(graph_client.applications.post, app_request_body)
+            # Graph SDK methods are already async, await them directly (not asyncio.to_thread)
+            app = await graph_client.applications.post(app_request_body)
         except Exception as e:
             logger.error(f"Graph API application creation failed: {type(e).__name__}: {str(e)}")
             raise ServicePrincipalError(f"Graph API create app failed: {type(e).__name__}: {e}") from e
@@ -160,7 +161,8 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
         sp_request_body = ServicePrincipal()
         sp_request_body.app_id = app.app_id
 
-        sp = await asyncio.to_thread(graph_client.service_principals.post, sp_request_body)
+        # Graph SDK methods are async, await directly
+        sp = await graph_client.service_principals.post(sp_request_body)
 
         if not sp:
             raise ServicePrincipalError("Failed to create service principal")
@@ -174,9 +176,9 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
         if not app.id:
             raise ServicePrincipalError("Application ID is None")
 
-        password_result = await asyncio.to_thread(
-            graph_client.applications.by_application_id(app.id).add_password.post,
-            password_credential_request,
+        # Graph SDK async method - await directly
+        password_result = await graph_client.applications.by_application_id(app.id).add_password.post(
+            password_credential_request
         )
 
         if not password_result:
