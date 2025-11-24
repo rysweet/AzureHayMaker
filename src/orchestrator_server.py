@@ -288,10 +288,13 @@ async def run_orchestration(run_id: str, skip_validation: bool = False):
         # Filter successful containers
         successful_containers = []
         failed_containers = []
+        container_errors = []  # Track errors for debugging
         for i, result in enumerate(container_results):
             if isinstance(result, Exception):
-                logger.warning(f"[{run_id}] Container deployment failed: {result}")
+                error_msg = f"{type(result).__name__}: {str(result)}"
+                logger.warning(f"[{run_id}] Container deployment failed: {error_msg}")
                 failed_containers.append(successful_sps[i][0].scenario_name)
+                container_errors.append({"scenario": successful_sps[i][0].scenario_name, "error": error_msg})
             else:
                 successful_containers.append(result)
 
@@ -311,6 +314,7 @@ async def run_orchestration(run_id: str, skip_validation: bool = False):
                 "requested": len(successful_sps),
                 "deployed": len(successful_containers),
                 "failed": len(failed_containers),
+                "errors": container_errors if container_errors else None,  # Surface actual errors
             },
         }
 
