@@ -11,7 +11,6 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from azure.core.exceptions import ResourceNotFoundError
-from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 from azure.mgmt.authorization import AuthorizationManagementClient
 from kiota_abstractions.api_error import APIError
@@ -20,6 +19,8 @@ from msgraph.generated.models.password_credential import PasswordCredential
 from msgraph.generated.models.service_principal import ServicePrincipal
 from msgraph.graph_service_client import GraphServiceClient
 from pydantic import BaseModel, Field
+
+from azure_haymaker.utils.credentials import get_credential
 
 logger = logging.getLogger(__name__)
 
@@ -321,7 +322,7 @@ async def delete_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
     secret_name = sp_name.replace("AzureHayMaker-", "scenario-sp-").replace("-admin", "-secret")
 
     try:
-        credential = DefaultAzureCredential()
+        credential = get_credential()
         graph_client = GraphServiceClient(credential)
 
         # Find service principal by display name
@@ -388,7 +389,7 @@ async def verify_sp_deleted(sp_name: str) -> bool:  # pyright: ignore[reportGene
         ServicePrincipalError: If verification fails
     """
     try:
-        credential = DefaultAzureCredential()
+        credential = get_credential()
         graph_client = GraphServiceClient(credential)
 
         # Query for service principal by display name
@@ -430,7 +431,7 @@ async def list_haymaker_service_principals() -> list[str]:  # pyright: ignore[re
         ServicePrincipalError: If listing fails
     """
     try:
-        credential = DefaultAzureCredential()
+        credential = get_credential()
         graph_client = GraphServiceClient(credential)
 
         # List all service principals (filter applied client-side due to Graph API limitations)

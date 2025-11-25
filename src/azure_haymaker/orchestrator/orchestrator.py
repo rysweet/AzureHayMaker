@@ -23,11 +23,11 @@ from uuid import uuid4
 
 import azure.functions as func
 from azure.data.tables import TableServiceClient
-from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 from azure.storage.blob import BlobServiceClient
 
 from azure_haymaker.models.scenario import ScenarioMetadata
+from azure_haymaker.utils.credentials import get_credential
 from azure_haymaker.orchestrator.cleanup import (
     force_delete_resources,
     query_managed_resources,
@@ -90,7 +90,7 @@ async def haymaker_timer(
             # Connect to Table Storage for execution history
             table_account_name = os.getenv("TABLE_STORAGE_ACCOUNT_NAME")
             if table_account_name:
-                credential = DefaultAzureCredential()
+                credential = get_credential()
                 table_service = TableServiceClient(
                     endpoint=f"https://{table_account_name}.table.core.windows.net",
                     credential=credential,
@@ -590,7 +590,7 @@ async def create_service_principal_activity(params: dict[str, Any]) -> dict[str,
         key_vault_url = config.key_vault_url
 
         # Create Key Vault client for secret storage
-        credential = DefaultAzureCredential()
+        credential = get_credential()
         key_vault_client = SecretClient(vault_url=key_vault_url, credential=credential)
 
         # Assign minimal required roles to service principal
@@ -898,7 +898,7 @@ async def force_cleanup_activity(params: dict[str, Any]) -> dict[str, Any]:
         )
 
         # Create Key Vault client for SP secret deletion
-        credential = DefaultAzureCredential()
+        credential = get_credential()
         key_vault_client = SecretClient(vault_url=config.key_vault_url, credential=credential)
 
         # Convert sp_details dicts to ServicePrincipalDetails objects
@@ -1022,7 +1022,7 @@ async def generate_report_activity(params: dict[str, Any]) -> dict[str, Any]:
         )
 
         config = await load_config()
-        credential = DefaultAzureCredential()
+        credential = get_credential()
 
         # Store report to blob storage
         blob_service_client = BlobServiceClient(
