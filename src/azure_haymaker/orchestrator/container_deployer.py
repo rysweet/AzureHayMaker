@@ -180,7 +180,7 @@ class ContainerDeployer:
                 "--env-vars",
                 f"SCENARIO_NAME={scenario.scenario_name}",
                 f"AZURE_CLIENT_ID={sp.client_id}",
-                f"AZURE_TENANT_ID={sp.tenant_id}",
+                f"AZURE_TENANT_ID={self.config.target_tenant_id}",
                 "--query", "properties.latestRevisionFqdn",
                 "-o", "tsv"
             ]
