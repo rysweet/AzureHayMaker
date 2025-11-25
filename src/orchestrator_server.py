@@ -218,8 +218,9 @@ async def get_analytics(
 
         # Query execution history
         # OData filter for records after cutoff date
+        # Azure Table Storage OData requires datetime'...' prefix for date comparisons
         cutoff_iso = cutoff_date.isoformat()
-        query_filter = f"CreatedAt ge '{cutoff_iso}'"
+        query_filter = f"CreatedAt ge datetime'{cutoff_iso}'"
 
         # Aggregate statistics
         total_executions = 0
@@ -269,8 +270,10 @@ async def get_analytics(
                         if duration > 0:
                             total_duration_hours += duration
                             duration_count += 1
-                    except (ValueError, TypeError):
-                        pass
+                    except (ValueError, TypeError) as e:
+                        logger.debug(
+                            f"Failed to parse timestamps for execution {execution_id}: {e}"
+                        )
 
                 # Track scenario statistics
                 scenarios_json = entity.get("Scenarios", "[]")
@@ -282,8 +285,10 @@ async def get_analytics(
                             scenario_stats[scenario_name]["succeeded"] += 1
                         elif status in ("failed", "FAILED", "error", "ERROR"):
                             scenario_stats[scenario_name]["failed"] += 1
-                except (json.JSONDecodeError, TypeError):
-                    pass
+                except (json.JSONDecodeError, TypeError) as e:
+                    logger.debug(
+                        f"Failed to parse scenarios JSON for execution {execution_id}: {e}"
+                    )
 
         except Exception as e:
             logger.warning(f"Failed to query Table Storage: {e}")
