@@ -70,7 +70,7 @@ class Windows365CloudPCManager:
         """
         policy_name = display_name or self.PROVISIONING_POLICY_NAME
         image = image_id or self.DEFAULT_IMAGE
-        sku = sku_id or self.DEFAULT_SKU
+        selected_sku = sku_id or self.DEFAULT_SKU
 
         try:
             # Check if policy exists
@@ -92,6 +92,11 @@ class Windows365CloudPCManager:
                 "provisioningType": "dedicated",
                 "imageId": image,
                 "imageType": "gallery",
+                "cloudPcNamingTemplate": f"kw-{self.run_id[:8]}-%RAND:5%",
+                "microsoftManagedDesktop": {
+                    "type": "starterManaged",
+                    "profile": selected_sku,
+                },
                 "domainJoinConfiguration": {
                     "type": "azureADJoin",
                 },

@@ -112,7 +112,7 @@ class EndpointManager:
         # Provision Cloud PCs
         if cloud_pc_workers:
             logger.info(f"Provisioning {len(cloud_pc_workers)} Cloud PCs")
-            for worker, config in cloud_pc_workers:
+            for worker, _config in cloud_pc_workers:
                 try:
                     endpoint_id = await self._provision_cloud_pc(worker)
                     results[worker.worker_id] = endpoint_id
@@ -130,7 +130,7 @@ class EndpointManager:
             logger.info(f"Provisioning {len(container_workers)} CLI containers")
             endpoint_ids = await self.container_manager.deploy_batch(container_workers)
 
-            for (worker, config), endpoint_id in zip(container_workers, endpoint_ids):
+            for (worker, _config), endpoint_id in zip(container_workers, endpoint_ids, strict=False):
                 results[worker.worker_id] = endpoint_id
                 self._provisioned_endpoints[worker.worker_id] = {
                     "endpoint_id": endpoint_id,
