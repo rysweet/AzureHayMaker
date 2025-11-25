@@ -28,6 +28,8 @@ from haymaker_cli.formatters import (
     format_yaml,
 )
 from haymaker_cli.orch.commands import orch
+from haymaker_cli.scenarios import scenarios
+from haymaker_cli.validate import validate
 
 console = Console()
 
@@ -180,6 +182,12 @@ def metrics(ctx: click.Context, period: str, scenario: str | None):
 
 # Register orch command group from orch.commands module
 cli.add_command(orch)
+
+# Register scenarios command group
+cli.add_command(scenarios)
+
+# Register validate command
+cli.add_command(validate)
 
 
 # Agents command group
