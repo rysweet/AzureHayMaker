@@ -4,6 +4,7 @@ import logging
 from datetime import datetime
 
 import azure.functions as func
+from azure.core.exceptions import AzureError, ResourceNotFoundError
 from azure.data.tables import TableServiceClient
 from azure.identity import DefaultAzureCredential
 from pydantic import BaseModel, Field
@@ -198,18 +199,24 @@ async def list_resources(req: func.HttpRequest) -> func.HttpResponse:
         )
 
     except ValueError as e:
+        logger.warning(f"Invalid parameter in list_resources: {e}")
         return func.HttpResponse(
             body=f'{{"error": "Invalid parameter: {str(e)}"}}',
             status_code=400,
             mimetype="application/json",
         )
-    except Exception as e:
-        logger.exception("Error listing resources")
+    except AzureError as e:
+        # Azure service error - log and return error response
+        logger.error(f"Azure service error listing resources: {e}", exc_info=True)
         return func.HttpResponse(
-            body=f'{{"error": "{str(e)}"}}',
+            body='{"error": {"code": "AZURE_SERVICE_ERROR", "message": "Failed to query resource storage"}}',
             status_code=500,
             mimetype="application/json",
         )
+    except Exception as e:
+        # Unexpected error - log and re-raise for visibility
+        logger.error(f"Unexpected error listing resources: {e}", exc_info=True)
+        raise
 
 
 @app.route(route="resources/{resource_id}", methods=["GET"], auth_level=func.AuthLevel.FUNCTION)
@@ -293,18 +300,28 @@ async def get_resource(req: func.HttpRequest) -> func.HttpResponse:
                 mimetype="application/json",
             )
 
-        except Exception:
-            logger.warning(f"Resource not found: {resource_id}")
+        except ResourceNotFoundError:
+            # Expected case: resource doesn't exist
+            logger.info(f"Resource not found: {resource_id}")
             return func.HttpResponse(
                 body='{"error": "Resource not found"}',
                 status_code=404,
                 mimetype="application/json",
             )
+        except Exception as e:
+            # Unexpected error - log and re-raise for visibility
+            logger.error(f"Failed to get resource {resource_id}: {e}", exc_info=True)
+            raise
 
-    except Exception as e:
-        logger.exception("Error retrieving resource")
+    except AzureError as e:
+        # Azure service error - log and return error response
+        logger.error(f"Azure service error retrieving resource: {e}", exc_info=True)
         return func.HttpResponse(
-            body=f'{{"error": "{str(e)}"}}',
+            body='{"error": {"code": "AZURE_SERVICE_ERROR", "message": "Failed to query resource storage"}}',
             status_code=500,
             mimetype="application/json",
         )
+    except Exception as e:
+        # Unexpected error - log and re-raise for visibility
+        logger.error(f"Unexpected error retrieving resource: {e}", exc_info=True)
+        raise

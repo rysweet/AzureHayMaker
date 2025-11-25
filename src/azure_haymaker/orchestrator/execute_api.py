@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Literal
 
 import azure.functions as func
+from azure.core.exceptions import ResourceNotFoundError
 from azure.data.tables import TableClient
 from azure.identity import DefaultAzureCredential
 from azure.servicebus import ServiceBusClient, ServiceBusMessage
@@ -418,9 +419,9 @@ async def get_execution_status(req: func.HttpRequest) -> func.HttpResponse:
                 mimetype="application/json",
             )
 
-        except Exception:
-            # Log detailed error internally but return generic message
-            logger.error(f"Execution not found: {execution_id}", exc_info=True)
+        except ResourceNotFoundError:
+            # Expected case: execution doesn't exist
+            logger.info(f"Execution not found: {execution_id}")
             return func.HttpResponse(
                 body=json.dumps(
                     {
@@ -433,6 +434,10 @@ async def get_execution_status(req: func.HttpRequest) -> func.HttpResponse:
                 status_code=404,
                 mimetype="application/json",
             )
+        except Exception as e:
+            # Unexpected error - log and re-raise for visibility
+            logger.error(f"Failed to get execution status for {execution_id}: {e}", exc_info=True)
+            raise
 
     except Exception as e:
         logger.error(f"Failed to get execution status: {e}", exc_info=True)

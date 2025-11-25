@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import azure.functions as func
 import pytest
+from azure.core.exceptions import ResourceNotFoundError
 
 from azure_haymaker.models.execution import OnDemandExecutionStatus
 
@@ -259,7 +260,7 @@ async def test_get_execution_status_not_found(mock_load_config, mock_request_fac
 
     # Mock execution tracker - not found
     mock_tracker = AsyncMock()
-    mock_tracker.get_execution_status.side_effect = Exception("Not found")
+    mock_tracker.get_execution_status.side_effect = ResourceNotFoundError("Not found")
 
     with (
         patch("azure_haymaker.orchestrator.execute_api.DefaultAzureCredential"),

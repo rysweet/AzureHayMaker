@@ -6,6 +6,7 @@ import os
 from datetime import datetime
 
 import azure.functions as func
+from azure.core.exceptions import AzureError
 from azure.cosmos import CosmosClient
 from azure.data.tables import TableServiceClient
 from azure.identity import DefaultAzureCredential
@@ -277,14 +278,18 @@ async def list_agents(req: func.HttpRequest) -> func.HttpResponse:
             status_code=400,
             mimetype="application/json",
         )
-    except Exception:
-        # Log detailed error internally but return generic message
-        logger.exception("Error listing agents")
+    except AzureError as e:
+        # Azure service error - log and return error response
+        logger.error(f"Azure service error listing agents: {e}", exc_info=True)
         return func.HttpResponse(
-            body='{"error": {"code": "INTERNAL_ERROR", "message": "Failed to list agents"}}',
+            body='{"error": {"code": "AZURE_SERVICE_ERROR", "message": "Failed to query agent storage"}}',
             status_code=500,
             mimetype="application/json",
         )
+    except Exception as e:
+        # Unexpected error - log and re-raise for visibility
+        logger.error(f"Unexpected error listing agents: {e}", exc_info=True)
+        raise
 
 
 @app.route(route="agents/{agent_id}/logs", methods=["GET"], auth_level=func.AuthLevel.FUNCTION)
@@ -365,11 +370,15 @@ async def get_agent_logs(req: func.HttpRequest) -> func.HttpResponse:
             status_code=400,
             mimetype="application/json",
         )
-    except Exception:
-        # Log detailed error internally but return generic message
-        logger.exception("Error retrieving agent logs")
+    except AzureError as e:
+        # Azure service error - log and return error response
+        logger.error(f"Azure service error retrieving agent logs: {e}", exc_info=True)
         return func.HttpResponse(
-            body='{"error": {"code": "INTERNAL_ERROR", "message": "Failed to retrieve agent logs"}}',
+            body='{"error": {"code": "AZURE_SERVICE_ERROR", "message": "Failed to query agent logs"}}',
             status_code=500,
             mimetype="application/json",
         )
+    except Exception as e:
+        # Unexpected error - log and re-raise for visibility
+        logger.error(f"Unexpected error retrieving agent logs: {e}", exc_info=True)
+        raise
