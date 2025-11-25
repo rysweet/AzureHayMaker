@@ -382,7 +382,7 @@ async def test_list_agents_invalid_limit(mock_request):
         response = await list_agents(mock_request)
 
         assert response.status_code == 400
-        body = json.loads(response.body)
+        body = json.loads(response.get_body())
         assert "error" in body
         assert "INVALID_PARAMETER" in body["error"]["code"]
 
@@ -394,7 +394,7 @@ async def test_list_agents_missing_config(mock_request):
         response = await list_agents(mock_request)
 
         assert response.status_code == 500
-        body = json.loads(response.body)
+        body = json.loads(response.get_body())
         assert "Agents storage not configured" in body["error"]
 
 
@@ -412,7 +412,7 @@ async def test_list_agents_storage_error(mock_request):
             response = await list_agents(mock_request)
 
             assert response.status_code == 500
-            body = json.loads(response.body)
+            body = json.loads(response.get_body())
             assert "error" in body
 
 
@@ -443,7 +443,7 @@ async def test_get_agent_logs_happy_path(mock_request):
         response = await get_agent_logs(mock_request)
 
         assert response.status_code == 200
-        body = json.loads(response.body)
+        body = json.loads(response.get_body())
         assert "logs" in body
         assert len(body["logs"]) == 1
         assert body["logs"][0]["message"] == "Test log"
@@ -457,7 +457,7 @@ async def test_get_agent_logs_missing_agent_id(mock_request):
     response = await get_agent_logs(mock_request)
 
     assert response.status_code == 400
-    body = json.loads(response.body)
+    body = json.loads(response.get_body())
     assert "agent_id is required" in body["error"]
 
 
@@ -506,7 +506,7 @@ async def test_get_agent_logs_invalid_tail(mock_request):
     response = await get_agent_logs(mock_request)
 
     assert response.status_code == 400
-    body = json.loads(response.body)
+    body = json.loads(response.get_body())
     assert "error" in body
 
 
@@ -524,5 +524,5 @@ async def test_get_agent_logs_cosmos_error(mock_request):
         response = await get_agent_logs(mock_request)
 
         assert response.status_code == 500
-        body = json.loads(response.body)
+        body = json.loads(response.get_body())
         assert "error" in body
