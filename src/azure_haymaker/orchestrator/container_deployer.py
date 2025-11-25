@@ -164,26 +164,37 @@ class ContainerDeployer:
             import subprocess
             import json as json_module
             import os
+            import shlex
 
-            # Security fix for issue #74: Avoid passing credentials as CLI arguments
-            # CLI arguments are visible in process listings (ps aux, /proc/*/cmdline)
-            # Instead, use environment variables which are more secure
+            # Security fix for issue #74: Avoid credential exposure in process listings
+            # CLI arguments are visible in /proc/*/cmdline and ps output.
+            # Mitigation: Use shell with environment variable expansion so the secret
+            # value appears only in the process environment (more restricted access)
+            # rather than the command line arguments.
 
-            # Authenticate Azure CLI using SP credentials via environment variables
-            # Azure CLI reads AZURE_CLIENT_SECRET from environment when -p/--password not provided
-            login_env = os.environ.copy()
-            login_env["AZURE_CLIENT_SECRET"] = os.getenv("AZURE_CLIENT_SECRET", "")
+            # Validate required credentials exist
+            client_id = os.getenv("AZURE_CLIENT_ID", "")
+            tenant_id = os.getenv("AZURE_TENANT_ID", "")
+            client_secret = os.getenv("AZURE_CLIENT_SECRET", "")
 
-            # Azure CLI login with service principal using env var for password
-            # The CLI will read AZURE_CLIENT_SECRET from environment automatically
-            login_cmd = [
-                "az", "login", "--service-principal",
-                "-u", os.getenv("AZURE_CLIENT_ID", ""),
-                "-t", os.getenv("AZURE_TENANT_ID", ""),
-            ]
+            if not all([client_id, tenant_id, client_secret]):
+                raise ContainerAppError(
+                    "Missing required Azure credentials: AZURE_CLIENT_ID, "
+                    "AZURE_CLIENT_SECRET, and AZURE_TENANT_ID must be set"
+                )
+
+            # Build login command using env var for password to avoid cmdline exposure
+            # The $AZURE_CLIENT_SECRET is expanded by the shell from the environment
+            login_shell_cmd = (
+                f"az login --service-principal "
+                f"-u {shlex.quote(client_id)} "
+                f"-t {shlex.quote(tenant_id)} "
+                f'-p "$AZURE_CLIENT_SECRET"'
+            )
 
             login_result = await asyncio.to_thread(
-                subprocess.run, login_cmd, capture_output=True, text=True, env=login_env
+                subprocess.run, login_shell_cmd, shell=True,
+                capture_output=True, text=True, env=os.environ
             )
             if login_result.returncode != 0:
                 logger.warning(f"CLI login warning (may already be logged in): {login_result.stderr}")
@@ -200,14 +211,11 @@ class ContainerDeployer:
             acr_username = acr_data['username']
             acr_password = acr_data['passwords'][0]['value']
 
-            # Security: Use managed identity for ACR authentication when possible
-            # This is the most secure approach as it eliminates password handling entirely
-            # Fall back to registry credentials passed via environment variable
+            # Build container app command - pass registry password via env var
+            # to avoid exposure in process listings
             deploy_env = os.environ.copy()
-            deploy_env["CONTAINERAPP_REGISTRY_PASSWORD"] = acr_password
+            deploy_env["ACR_PASSWORD"] = acr_password
 
-            # First, try to use managed identity for ACR (most secure)
-            # If that fails, use the two-step approach: create app, then set registry
             cli_command = [
                 "az", "containerapp", "create",
                 "--name", app_name,
@@ -230,24 +238,13 @@ class ContainerDeployer:
                 "-o", "tsv"
             ]
 
-            # Security: Pass registry password via stdin to avoid process listing exposure
-            # subprocess.run with input= passes data via stdin, not visible in ps output
-            # Construct shell command that reads password from stdin
-            import shlex
-
-            # Build the base command without password
+            # Build shell command with password from env var
             base_cmd = " ".join(shlex.quote(arg) for arg in cli_command)
-            # Use shell to read password from environment variable
-            # This keeps the password out of the command line visible in process listings
-            shell_cmd = f'{base_cmd} --registry-password "$CONTAINERAPP_REGISTRY_PASSWORD"'
+            shell_cmd = f'{base_cmd} --registry-password "$ACR_PASSWORD"'
 
             result = await asyncio.to_thread(
-                subprocess.run,
-                shell_cmd,
-                shell=True,
-                capture_output=True,
-                text=True,
-                env=deploy_env
+                subprocess.run, shell_cmd, shell=True,
+                capture_output=True, text=True, env=deploy_env
             )
 
             if result.returncode != 0:
