@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 class AzureCredentialFactory:
-    """Singleton factory for Azure credentials.
+    """Factory for cached Azure credentials.
 
     This class caches DefaultAzureCredential instances to avoid redundant
     authentication overhead. The credential is thread-safe and can be shared
@@ -46,20 +46,9 @@ class AzureCredentialFactory:
         >>> async_client = AsyncBlobServiceClient(account_url, credential=async_credential)
     """
 
-    _instance: Optional["AzureCredentialFactory"] = None
-    _lock: threading.Lock = threading.Lock()
-
     _credential: Optional[DefaultAzureCredential] = None
     _async_credential: Optional[AsyncDefaultAzureCredential] = None
     _credential_lock: threading.Lock = threading.Lock()
-
-    def __new__(cls) -> "AzureCredentialFactory":
-        """Create singleton instance."""
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-        return cls._instance
 
     @classmethod
     def get_credential(cls, force_refresh: bool = False) -> DefaultAzureCredential:
