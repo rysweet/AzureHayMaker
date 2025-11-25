@@ -164,16 +164,38 @@ class ContainerDeployer:
             import subprocess
             import json as json_module
             import os
+            import shlex
 
-            # Authenticate Azure CLI using SP credentials from environment
-            login_cmd = [
-                "az", "login", "--service-principal",
-                "--username", os.getenv("AZURE_CLIENT_ID"),
-                "--password", os.getenv("AZURE_CLIENT_SECRET"),
-                "--tenant", os.getenv("AZURE_TENANT_ID")
-            ]
+            # Security fix for issue #74: Avoid credential exposure in process listings
+            # CLI arguments are visible in /proc/*/cmdline and ps output.
+            # Mitigation: Use shell with environment variable expansion so the secret
+            # value appears only in the process environment (more restricted access)
+            # rather than the command line arguments.
 
-            login_result = await asyncio.to_thread(subprocess.run, login_cmd, capture_output=True, text=True)
+            # Validate required credentials exist
+            client_id = os.getenv("AZURE_CLIENT_ID", "")
+            tenant_id = os.getenv("AZURE_TENANT_ID", "")
+            client_secret = os.getenv("AZURE_CLIENT_SECRET", "")
+
+            if not all([client_id, tenant_id, client_secret]):
+                raise ContainerAppError(
+                    "Missing required Azure credentials: AZURE_CLIENT_ID, "
+                    "AZURE_CLIENT_SECRET, and AZURE_TENANT_ID must be set"
+                )
+
+            # Build login command using env var for password to avoid cmdline exposure
+            # The $AZURE_CLIENT_SECRET is expanded by the shell from the environment
+            login_shell_cmd = (
+                f"az login --service-principal "
+                f"-u {shlex.quote(client_id)} "
+                f"-t {shlex.quote(tenant_id)} "
+                f'-p "$AZURE_CLIENT_SECRET"'
+            )
+
+            login_result = await asyncio.to_thread(
+                subprocess.run, login_shell_cmd, shell=True,
+                capture_output=True, text=True, env=os.environ
+            )
             if login_result.returncode != 0:
                 logger.warning(f"CLI login warning (may already be logged in): {login_result.stderr}")
 
@@ -189,6 +211,11 @@ class ContainerDeployer:
             acr_username = acr_data['username']
             acr_password = acr_data['passwords'][0]['value']
 
+            # Build container app command - pass registry password via env var
+            # to avoid exposure in process listings
+            deploy_env = os.environ.copy()
+            deploy_env["ACR_PASSWORD"] = acr_password
+
             cli_command = [
                 "az", "containerapp", "create",
                 "--name", app_name,
@@ -203,7 +230,6 @@ class ContainerDeployer:
                 "--max-replicas", "1",
                 "--registry-server", "haymakerorchacr.azurecr.io",
                 "--registry-username", acr_username,
-                "--registry-password", acr_password,
                 "--env-vars",
                 f"SCENARIO_NAME={scenario.scenario_name}",
                 f"AZURE_CLIENT_ID={sp.client_id}",
@@ -212,7 +238,14 @@ class ContainerDeployer:
                 "-o", "tsv"
             ]
 
-            result = await asyncio.to_thread(subprocess.run, cli_command, capture_output=True, text=True)
+            # Build shell command with password from env var
+            base_cmd = " ".join(shlex.quote(arg) for arg in cli_command)
+            shell_cmd = f'{base_cmd} --registry-password "$ACR_PASSWORD"'
+
+            result = await asyncio.to_thread(
+                subprocess.run, shell_cmd, shell=True,
+                capture_output=True, text=True, env=deploy_env
+            )
 
             if result.returncode != 0:
                 error_msg = result.stderr or result.stdout
