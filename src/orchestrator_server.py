@@ -21,6 +21,11 @@ from azure.data.tables import TableServiceClient
 from azure.identity import DefaultAzureCredential
 from fastapi import FastAPI, HTTPException, Query
 
+from azure_haymaker.models.execution import (
+    AnalyticsSummary,
+    ExecutionCounts,
+    ScenarioStats,
+)
 from azure_haymaker.orchestrator.cleanup import (
     force_delete_resources,
     query_managed_resources,
@@ -37,11 +42,6 @@ from azure_haymaker.orchestrator.webhooks import (
     notify_execution_completed,
     notify_execution_failed,
     notify_execution_started,
-)
-from azure_haymaker.models.execution import (
-    AnalyticsSummary,
-    ExecutionCounts,
-    ScenarioStats,
 )
 
 # Configure logging
