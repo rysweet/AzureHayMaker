@@ -155,23 +155,48 @@ class ContainerDeployer:
                 },
             }
 
-            # Deploy container app
+            # Deploy container app using Azure CLI (SDK has persistent ManagedEnvironmentNotFound issues)
+            # CLI proven to work in testing, SDK fails even with correct permissions and environment
             logger.info(f"Deploying container app {app_name} for scenario {scenario.scenario_name}")
-            logger.info(f"   Using environment ID: {container_env_id}")
-            logger.info(f"   Location: {container_app['location']}")
+            logger.info(f"   Using environment: haymaker-fastapi-cae")
             logger.info(f"   RG: {self.resource_group_name}")
 
-            poller = await asyncio.to_thread(
-                client.container_apps.begin_create_or_update,
-                resource_group_name=self.resource_group_name,
-                container_app_name=app_name,
-                container_app_envelope=container_app,
-            )
+            import subprocess
+            import json as json_module
 
-            result = await asyncio.to_thread(poller.result)
+            # Build container app using Azure CLI
+            cli_command = [
+                "az", "containerapp", "create",
+                "--name", app_name,
+                "--resource-group", self.resource_group_name,
+                "--environment", "haymaker-fastapi-cae",
+                "--image", container['image'],
+                "--cpu", str(container['resources']['cpu']),
+                "--memory", container['resources']['memory'],
+                "--target-port", "80",
+                "--ingress", "internal",
+                "--min-replicas", "0",
+                "--max-replicas", "1",
+                "--env-vars",
+                f"SCENARIO_NAME={scenario.scenario_name}",
+                f"AZURE_CLIENT_ID={sp.client_id}",
+                f"AZURE_TENANT_ID={sp.tenant_id}",
+                "--query", "properties.latestRevisionFqdn",
+                "-o", "tsv"
+            ]
 
-            logger.info(f"Container app {app_name} deployed successfully: {result.id}")
-            return result.id
+            result = await asyncio.to_thread(subprocess.run, cli_command, capture_output=True, text=True)
+
+            if result.returncode != 0:
+                error_msg = result.stderr or result.stdout
+                logger.error(f"CLI deployment failed: {error_msg}")
+                raise ContainerAppError(f"Failed to deploy via CLI: {error_msg}")
+
+            fqdn = result.stdout.strip()
+            deployed_id = f"/subscriptions/{self.subscription_id}/resourceGroups/{self.resource_group_name}/providers/Microsoft.App/containerApps/{app_name}"
+            logger.info(f"✅ Container app {app_name} deployed via CLI: {deployed_id}")
+            logger.info(f"   FQDN: {fqdn}")
+            return deployed_id
 
         except Exception as e:
             logger.error(f"Failed to deploy container app {app_name}: {e}")
