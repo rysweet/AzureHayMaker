@@ -7,8 +7,9 @@ Azure Cost Management has approximately a 24-hour delay before cost data
 becomes available, so recent runs may return empty or partial data.
 """
 
+import asyncio
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from azure.core.exceptions import (
@@ -96,8 +97,6 @@ async def get_cost_summary(
         period_end = now
     if period_start is None:
         # Default to 30 days ago to capture most scenarios
-        from datetime import timedelta
-
         period_start = now - timedelta(days=30)
 
     try:
@@ -201,7 +200,6 @@ async def _query_costs_grouped_by(
     Returns:
         Dictionary mapping group names to costs
     """
-    import asyncio
 
     # Build filter for AzureHayMaker-managed resources with specific RunId
     # Filter by tags: AzureHayMaker-managed=true AND RunId={run_id}
@@ -262,30 +260,6 @@ async def _query_costs_grouped_by(
                 cost_value = float(row[0]) if row[0] is not None else 0.0
                 group_name = str(row[1]) if row[1] is not None else "Unknown"
                 costs[group_name] = costs.get(group_name, 0.0) + cost_value
-
-    return costs
-
-
-def _parse_query_result(result: Any) -> dict[str, float]:
-    """Parse cost query result into a dictionary.
-
-    Args:
-        result: QueryResult from Cost Management API
-
-    Returns:
-        Dictionary mapping dimension values to costs
-    """
-    costs: dict[str, float] = {}
-
-    if not result or not result.rows:
-        return costs
-
-    # Result structure: rows contain [Cost, DimensionValue, Currency, ...]
-    for row in result.rows:
-        if len(row) >= 2:
-            cost = float(row[0]) if row[0] is not None else 0.0
-            dimension_value = str(row[1]) if row[1] is not None else "Unknown"
-            costs[dimension_value] = costs.get(dimension_value, 0.0) + cost
 
     return costs
 
