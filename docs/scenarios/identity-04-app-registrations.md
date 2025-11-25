@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Application Registrations and Permissions"
+parent: "Identity"
+grand_parent: Scenarios
+nav_order: 4
+description: "Register applications with Entra ID to enable secure authentication and authorization with API permissions."
+permalink: /scenarios/identity-04-app-registrations/
+---
+
 # Scenario: Application Registrations and Permissions
 
 ## Technology Area

@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Azure Bot Service with Q&A"
+parent: "AI & Machine Learning"
+grand_parent: Scenarios
+nav_order: 5
+description: "Deploy Azure Bot Service with QnA Maker knowledge base integration to create an intelligent question-answering chatbot."
+permalink: /scenarios/ai-ml-05-bot-service/
+---
+
 # Scenario: Azure Bot Service with Q&A
 
 ## Technology Area

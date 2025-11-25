@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Text Analytics for Sentiment Analysis"
+parent: "AI & Machine Learning"
+grand_parent: Scenarios
+nav_order: 2
+description: "Deploy Azure Cognitive Services Text Analytics to analyze customer feedback, support tickets, and reviews for sentiment scores and key phrases."
+permalink: /scenarios/ai-ml-02-text-analytics/
+---
+
 # Scenario: Text Analytics for Sentiment Analysis
 
 ## Technology Area

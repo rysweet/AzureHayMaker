@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Docker Container on Azure App Service"
+parent: "Web Apps"
+grand_parent: Scenarios
+nav_order: 3
+description: "Deploy Docker containers directly to Azure App Service without Kubernetes, with automatic image updates."
+permalink: /scenarios/webapps-03-docker-app-service/
+---
+
 # Scenario: Docker Container on Azure App Service
 
 ## Technology Area

@@ -1,6 +1,20 @@
-# Glossary - Azure HayMaker Terms
+---
+layout: default
+title: Glossary
+parent: Reference
+nav_order: 3
+description: "Terms and definitions for Azure HayMaker"
+permalink: /reference/glossary/
+---
 
-**Key terms used throughout documentation**
+# Glossary
+{: .no_toc }
+
+Key terms and definitions used throughout Azure HayMaker documentation.
+{: .fs-6 .fw-300 }
+
+1. TOC
+{:toc}
 
 ---
 

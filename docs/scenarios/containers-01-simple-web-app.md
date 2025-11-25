@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Simple Web Application on Azure Container Apps"
+parent: "Containers"
+grand_parent: Scenarios
+nav_order: 1
+description: "Deploy a containerized web application to Azure Container Apps with automatic HTTPS certificates and traffic-based scaling."
+permalink: /scenarios/containers-01-simple-web-app/
+---
+
 # Scenario: Simple Web Application on Azure Container Apps
 
 ## Technology Area

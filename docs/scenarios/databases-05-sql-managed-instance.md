@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Azure SQL Managed Instance"
+parent: "Databases"
+grand_parent: Scenarios
+nav_order: 5
+description: "Deploy Azure SQL Managed Instance for SQL Server workload migration with high availability and failover capabilities."
+permalink: /scenarios/databases-05-sql-managed-instance/
+---
+
 # Scenario: Azure SQL Managed Instance
 
 ## Technology Area

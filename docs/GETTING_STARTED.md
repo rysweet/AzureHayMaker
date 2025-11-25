@@ -1,15 +1,24 @@
+---
+layout: default
+title: Getting Started
+nav_order: 2
+description: "Get up and running with Azure HayMaker in 30 minutes"
+permalink: /getting-started/
+---
+
 # Getting Started with Azure HayMaker
+{: .no_toc }
+
+Get up and running with Azure HayMaker in approximately 30 minutes.
+{: .fs-6 .fw-300 }
 
 ## Table of Contents
+{: .no_toc .text-delta }
 
-- [Quick Start (30 Minutes)](#quick-start-30-minutes)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Your First Scenario](#your-first-scenario)
-- [Understanding the Output](#understanding-the-output)
-- [Next Steps](#next-steps)
-- [Troubleshooting](#troubleshooting)
+1. TOC
+{:toc}
+
+---
 
 ## Quick Start (30 Minutes)
 
@@ -198,6 +207,8 @@ cd AzureHayMaker
 ls -la docs/scenarios/
 ```
 
+See the [repository structure](https://github.com/rysweet/AzureHayMaker) for an overview of the codebase.
+
 **Expected output**:
 ```
 total 1024
@@ -304,7 +315,7 @@ Let's run a simple scenario manually to understand how Azure HayMaker works.
 
 ### Choose a Scenario
 
-We'll use `security-01-key-vault-secrets.md` as it's straightforward and demonstrates core concepts:
+We'll use [security-01-key-vault-secrets.md](https://github.com/rysweet/AzureHayMaker/blob/main/docs/scenarios/security-01-key-vault-secrets.md) as it's straightforward and demonstrates core concepts:
 
 ```bash
 # View the scenario
@@ -701,26 +712,26 @@ This is exactly the kind of benign telemetry Azure HayMaker generates at scale!
 
 ### 1. Explore More Scenarios
 
-Try different scenarios to see various Azure services:
+Try different scenarios to see various Azure services. Browse all [scenario documents](https://github.com/rysweet/AzureHayMaker/tree/main/docs/scenarios).
 
 **Simple scenarios** (15-20 min):
-- `webapps-01-static-website.md` - Static website hosting
-- `databases-04-redis-cache.md` - Redis cache deployment
-- `identity-01-service-principals.md` - Identity management
+- [webapps-01-static-website.md](https://github.com/rysweet/AzureHayMaker/blob/main/docs/scenarios/webapps-01-static-website.md) - Static website hosting
+- [databases-04-redis-cache.md](https://github.com/rysweet/AzureHayMaker/blob/main/docs/scenarios/databases-04-redis-cache.md) - Redis cache deployment
+- [identity-01-service-principals.md](https://github.com/rysweet/AzureHayMaker/blob/main/docs/scenarios/identity-01-service-principals.md) - Identity management
 
 **Intermediate scenarios** (20-30 min):
-- `compute-03-app-service-python.md` - Full web app deployment
-- `containers-01-simple-web-app.md` - Container deployment
-- `networking-01-virtual-network.md` - Network infrastructure
+- [compute-03-app-service-python.md](https://github.com/rysweet/AzureHayMaker/blob/main/docs/scenarios/compute-03-app-service-python.md) - Full web app deployment
+- [containers-01-simple-web-app.md](https://github.com/rysweet/AzureHayMaker/blob/main/docs/scenarios/containers-01-simple-web-app.md) - Container deployment
+- [networking-01-virtual-network.md](https://github.com/rysweet/AzureHayMaker/blob/main/docs/scenarios/networking-01-virtual-network.md) - Network infrastructure
 
 **Complex scenarios** (30-45 min):
-- `containers-02-aks-cluster.md` - Kubernetes cluster
-- `analytics-01-batch-etl-pipeline.md` - Data pipeline
-- `ai-ml-03-azure-openai.md` - AI service integration
+- [containers-02-aks-cluster.md](https://github.com/rysweet/AzureHayMaker/blob/main/docs/scenarios/containers-02-aks-cluster.md) - Kubernetes cluster
+- [analytics-01-batch-etl-pipeline.md](https://github.com/rysweet/AzureHayMaker/blob/main/docs/scenarios/analytics-01-batch-etl-pipeline.md) - Data pipeline
+- [ai-ml-03-azure-openai.md](https://github.com/rysweet/AzureHayMaker/blob/main/docs/scenarios/ai-ml-03-azure-openai.md) - AI service integration
 
 ### 2. Create Your Own Scenario
 
-Follow the comprehensive guide in [SCENARIO_MANAGEMENT.md](SCENARIO_MANAGEMENT.md):
+Follow the comprehensive guide in the [Scenario Management Guide](/AzureHayMaker/scenarios/). Use the [scenario template](https://github.com/rysweet/AzureHayMaker/blob/main/docs/scenarios/SCENARIO_TEMPLATE.md):
 
 ```bash
 # Copy the template
@@ -736,7 +747,7 @@ bash test-scenario.sh docs/scenarios/custom-01-my-scenario.md
 
 ### 3. Understand the Architecture
 
-Read [ARCHITECTURE.md](ARCHITECTURE.md) to understand:
+Read the [Architecture documentation](/AzureHayMaker/architecture/) to understand:
 - How the orchestrator coordinates scenarios
 - How agents execute autonomously
 - How cleanup is enforced
@@ -917,9 +928,15 @@ Commands take very long to complete
 ### Getting Help
 
 **Documentation**:
-- [SCENARIO_MANAGEMENT.md](SCENARIO_MANAGEMENT.md) - Scenario creation guide
-- [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture
+- [Scenario Management Guide](/AzureHayMaker/scenarios/) - Scenario creation guide
+- [Architecture](/AzureHayMaker/architecture/) - System architecture
 - [Azure CLI Documentation](https://learn.microsoft.com/en-us/cli/azure/)
+
+**Source Code References**:
+- [Orchestrator Server](https://github.com/rysweet/AzureHayMaker/blob/main/src/orchestrator_server.py) - Main orchestrator
+- [Environment Configuration](https://github.com/rysweet/AzureHayMaker/blob/main/.env.example) - Configuration template
+- [Infrastructure Templates](https://github.com/rysweet/AzureHayMaker/tree/main/infra/bicep) - Bicep files
+- [CI/CD Workflows](https://github.com/rysweet/AzureHayMaker/tree/main/.github/workflows) - GitHub Actions
 
 **GitHub**:
 - Report issues: https://github.com/rysweet/AzureHayMaker/issues
@@ -942,6 +959,6 @@ You've successfully:
 ✅ Generated realistic operational telemetry
 ✅ Performed complete resource cleanup
 
-**Next**: Explore more scenarios in `docs/scenarios/` or create your own using [SCENARIO_MANAGEMENT.md](SCENARIO_MANAGEMENT.md)!
+**Next**: Explore more scenarios in the [Scenarios](/AzureHayMaker/scenarios/) section or create your own using the [Scenario Management Guide](/AzureHayMaker/scenarios/)!
 
 **Remember**: Always run Phase 3 cleanup to avoid unexpected Azure charges!

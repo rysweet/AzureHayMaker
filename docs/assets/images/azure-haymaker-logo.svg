@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60">
+  <defs>
+    <linearGradient id="azureGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0078d4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#50e6ff;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Hay bale icon -->
+  <g transform="translate(10, 10)">
+    <!-- Main bale body -->
+    <ellipse cx="20" cy="20" rx="18" ry="16" fill="url(#azureGradient)" />
+    <!-- Hay strands -->
+    <path d="M8 14 Q12 10 16 14" stroke="#ffc107" stroke-width="2" fill="none" />
+    <path d="M12 18 Q16 14 20 18" stroke="#ffc107" stroke-width="2" fill="none" />
+    <path d="M16 22 Q20 18 24 22" stroke="#ffc107" stroke-width="2" fill="none" />
+    <path d="M20 26 Q24 22 28 26" stroke="#ffc107" stroke-width="2" fill="none" />
+    <!-- Needle -->
+    <line x1="30" y1="8" x2="38" y2="28" stroke="#dc3545" stroke-width="2" />
+    <circle cx="30" cy="8" r="2" fill="#dc3545" />
+  </g>
+
+  <!-- Text -->
+  <text x="60" y="28" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="600" fill="#0078d4">Azure</text>
+  <text x="60" y="46" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="600" fill="#323130">HayMaker</text>
+</svg>

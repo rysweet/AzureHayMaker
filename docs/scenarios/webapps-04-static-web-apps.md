@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Azure Static Web Apps"
+parent: "Web Apps"
+grand_parent: Scenarios
+nav_order: 4
+description: "Deploy modern web applications using Azure Static Web Apps with integrated serverless functions and Git deployment."
+permalink: /scenarios/webapps-04-static-web-apps/
+---
+
 # Scenario: Azure Static Web Apps
 
 ## Technology Area

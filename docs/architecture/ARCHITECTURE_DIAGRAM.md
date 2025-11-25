@@ -1,4 +1,22 @@
+---
+layout: default
+title: Architecture Diagrams
+parent: Architecture
+nav_order: 1
+description: "System architecture diagrams and visual documentation"
+permalink: /architecture/diagrams/
+---
+
 # Container Manager Architecture Diagrams
+{: .no_toc }
+
+Visual documentation of the Container Manager system architecture.
+{: .fs-6 .fw-300 }
+
+1. TOC
+{:toc}
+
+---
 
 ## 1. Class Structure and Delegation Flow
 

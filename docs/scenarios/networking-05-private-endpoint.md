@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Private Endpoints for Azure Services"
+parent: "Networking"
+grand_parent: Scenarios
+nav_order: 5
+description: "Deploy Azure Private Endpoints to provide private IP addresses for Azure services within a virtual network."
+permalink: /scenarios/networking-05-private-endpoint/
+---
+
 # Scenario: Private Endpoints for Azure Services
 
 ## Technology Area

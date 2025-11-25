@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Azure Cache for Redis"
+parent: "Databases"
+grand_parent: Scenarios
+nav_order: 4
+description: "Deploy Azure Cache for Redis to provide low-latency caching for application data and sessions with clustering."
+permalink: /scenarios/databases-04-redis-cache/
+---
+
 # Scenario: Azure Cache for Redis
 
 ## Technology Area

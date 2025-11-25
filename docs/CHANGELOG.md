@@ -37,7 +37,7 @@
 - Audit logging enabled via Key Vault
 
 ### Deprecated
-- Function App orchestrator (will be replaced by VM)
+- Function App orchestrator (replaced by FastAPI orchestrator)
 - Direct secret injection in deploy-dev.yml
 
 ### Infrastructure

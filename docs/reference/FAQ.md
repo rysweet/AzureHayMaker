@@ -1,6 +1,20 @@
-# Azure HayMaker - Frequently Asked Questions
+---
+layout: default
+title: FAQ
+parent: Reference
+nav_order: 1
+description: "Frequently asked questions about Azure HayMaker"
+permalink: /reference/faq/
+---
 
-**Answers to common questions from the 12-hour session**
+# Frequently Asked Questions
+{: .no_toc }
+
+Common questions and answers about Azure HayMaker.
+{: .fs-6 .fw-300 }
+
+1. TOC
+{:toc}
 
 ---
 

@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Scheduled Batch ETL Pipeline"
+parent: "Analytics"
+grand_parent: Scenarios
+nav_order: 1
+description: "Extract daily sales data from cloud storage, transform and aggregate it, and load it into Azure SQL Database for Power BI dashboards."
+permalink: /scenarios/analytics-01-batch-etl-pipeline/
+---
+
 # Scenario: Scheduled Batch ETL Pipeline
 
 ## Technology Area

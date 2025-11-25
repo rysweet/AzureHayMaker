@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Azure Site Recovery for Disaster Recovery"
+parent: "Hybrid + Multicloud"
+grand_parent: Scenarios
+nav_order: 2
+description: "Deploy Azure Site Recovery to replicate virtual machines from on-premises to Azure for business continuity."
+permalink: /scenarios/hybrid-02-site-recovery/
+---
+
 # Scenario: Azure Site Recovery for Disaster Recovery
 
 ## Technology Area

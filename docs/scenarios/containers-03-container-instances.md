@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Azure Container Instances"
+parent: "Containers"
+grand_parent: Scenarios
+nav_order: 3
+description: "Deploy serverless containers using Azure Container Instances without managing infrastructure or orchestration platforms."
+permalink: /scenarios/containers-03-container-instances/
+---
+
 # Scenario: Azure Container Instances
 
 ## Technology Area

@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Static Website with Azure Storage and CDN"
+parent: "Web Apps"
+grand_parent: Scenarios
+nav_order: 1
+description: "Deploy a static HTML/CSS/JS website to Azure Storage with Azure CDN for global distribution and HTTPS."
+permalink: /scenarios/webapps-01-static-website/
+---
+
 # Scenario: Static Website with Azure Storage and CDN
 
 ## Technology Area

@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Azure Security Center Policies and Recommendations"
+parent: "Security"
+grand_parent: Scenarios
+nav_order: 5
+description: "Configure Azure Defender for Cloud with custom security policies, compliance scanning, and security recommendations."
+permalink: /scenarios/security-05-security-center-policies/
+---
+
 # Scenario: Azure Security Center Policies and Recommendations
 
 ## Technology Area
