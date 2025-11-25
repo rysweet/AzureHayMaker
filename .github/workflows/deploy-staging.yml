@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Azure Login (OIDC)
         uses: azure/login@v1
@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install uv
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -92,7 +92,7 @@ jobs:
       resourceGroupName: ${{ steps.deploy.outputs.resourceGroupName }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Azure Login (OIDC)
         uses: azure/login@v1
@@ -164,7 +164,7 @@ jobs:
     environment: staging
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install uv
         run: curl -LsSf https://astral.sh/uv/install.sh | sh

@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Azure Login (OIDC)
         uses: azure/login@v1
@@ -47,7 +47,7 @@ jobs:
       vmPrincipalId: ${{ steps.get-principal.outputs.principalId }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Azure Login (OIDC)
         uses: azure/login@v1
@@ -142,7 +142,7 @@ jobs:
     needs: deploy-vm-infrastructure
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Orchestrator Service
         run: |
