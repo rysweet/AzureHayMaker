@@ -179,6 +179,16 @@ class ContainerDeployer:
 
             # Build container app using Azure CLI
             # Use valid CPU/memory combo: max is 4 CPU + 8Gi per Azure Container Apps limits
+            # Get ACR credentials for registry authentication
+            acr_creds = subprocess.run(
+                ["az", "acr", "credential", "show", "--name", "haymakerorchacr", "-o", "json"],
+                capture_output=True, text=True
+            )
+            import json as json_mod
+            acr_data = json_mod.loads(acr_creds.stdout)
+            acr_username = acr_data['username']
+            acr_password = acr_data['passwords'][0]['value']
+
             cli_command = [
                 "az", "containerapp", "create",
                 "--name", app_name,
@@ -192,8 +202,8 @@ class ContainerDeployer:
                 "--min-replicas", "0",
                 "--max-replicas", "1",
                 "--registry-server", "haymakerorchacr.azurecr.io",
-                "--registry-identity", "system",
-                "--system-assigned",
+                "--registry-username", acr_username,
+                "--registry-password", acr_password,
                 "--env-vars",
                 f"SCENARIO_NAME={scenario.scenario_name}",
                 f"AZURE_CLIENT_ID={sp.client_id}",
