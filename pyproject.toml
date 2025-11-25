@@ -1,6 +1,6 @@
 [project]
 name = "azure-haymaker"
-version = "0.1.0"
+version = "0.1.3"
 description = "Generate benign service telemetry for Azure Tenant simulation"
 readme = "README.md"
 authors = [

@@ -22,9 +22,12 @@ Azure HayMaker is an orchestration service that simulates realistic Azure tenant
 
 - **50+ Azure Scenarios** across 10 technology areas (AI/ML, Analytics, Compute, Containers, Databases, etc.)
 - **Autonomous Agents** that self-manage deployments and troubleshoot issues
-- **Scheduled Execution** (4x daily for different global regions)
+- **Scheduled Execution** with configurable cron-based schedules (default: 4x daily)
 - **Complete Automation** using Azure CLI, Terraform, and Bicep
 - **Automatic Cleanup** with resource tracking and forced removal
+- **Analytics Dashboard** with execution statistics and success rates
+- **Cost Tracking** via Azure Cost Management API integration
+- **Webhook Notifications** for execution events (started, completed, failed)
 
 ## Quick Start
 
@@ -295,6 +298,82 @@ curl https://haymaker-fastapi-app.azurewebsites.net/api/metrics | jq
   "executions_completed": 5,
   "executions_failed": 0
 }
+```
+
+### Analytics Dashboard
+
+```bash
+# Get analytics for last 30 days (default)
+curl https://haymaker-fastapi-app.azurewebsites.net/api/analytics | jq
+
+# Get analytics for specific period (7d, 30d, 90d)
+curl "https://haymaker-fastapi-app.azurewebsites.net/api/analytics?period=7d" | jq
+```
+
+**Example Output**:
+```json
+{
+  "period": "30d",
+  "executions": {
+    "total": 120,
+    "succeeded": 115,
+    "failed": 5
+  },
+  "success_rate": 0.9583,
+  "avg_duration_hours": 8.2,
+  "top_scenarios": [
+    {"name": "compute-01-linux-vm-web-server", "count": 30, "success_rate": 1.0},
+    {"name": "databases-01-mysql-wordpress", "count": 28, "success_rate": 0.96}
+  ]
+}
+```
+
+### Cost Query
+
+```bash
+# Get cost summary for an execution
+EXEC_ID="3e598ac3-7b1b-46a6-8ddc-5986734e13fc"
+curl https://haymaker-fastapi-app.azurewebsites.net/api/executions/$EXEC_ID/cost | jq
+```
+
+**Note**: Azure Cost Management has ~24 hour delay before cost data becomes available.
+
+### Schedule Management
+
+Create custom execution schedules with cron expressions:
+
+```bash
+# Create a new schedule
+curl -X POST https://haymaker-fastapi-app.azurewebsites.net/api/schedules \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Weekday Morning Run",
+    "cron_expression": "0 9 * * 1-5",
+    "scenario_count": 10,
+    "enabled": true
+  }'
+
+# List all schedules
+curl https://haymaker-fastapi-app.azurewebsites.net/api/schedules | jq
+
+# Update a schedule
+curl -X PUT https://haymaker-fastapi-app.azurewebsites.net/api/schedules/{schedule_id} \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": false}'
+
+# Delete a schedule
+curl -X DELETE https://haymaker-fastapi-app.azurewebsites.net/api/schedules/{schedule_id}
+```
+
+### Webhook Notifications
+
+Configure webhooks to receive execution event notifications. Set the `WEBHOOK_URL` environment variable:
+
+```bash
+# Events sent to webhook:
+# - execution.started: When orchestration begins
+# - execution.completed: When orchestration finishes successfully
+# - execution.failed: When orchestration fails
 ```
 
 ## Documentation
