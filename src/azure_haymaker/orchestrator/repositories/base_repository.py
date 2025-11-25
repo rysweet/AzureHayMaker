@@ -38,7 +38,7 @@ class IRepository(ABC, Generic[T]):
         Raises:
             RepositoryError: If the operation fails (other than not found)
         """
-        pass
+        ...
 
     @abstractmethod
     async def create(self, resource: T) -> T:
@@ -54,7 +54,7 @@ class IRepository(ABC, Generic[T]):
             RepositoryError: If creation fails
             ValueError: If resource configuration is invalid
         """
-        pass
+        ...
 
     @abstractmethod
     async def delete(self, resource_id: str) -> bool:
@@ -69,7 +69,7 @@ class IRepository(ABC, Generic[T]):
         Raises:
             RepositoryError: If deletion fails (other than not found)
         """
-        pass
+        ...
 
     @abstractmethod
     async def exists(self, resource_id: str) -> bool:
@@ -84,7 +84,7 @@ class IRepository(ABC, Generic[T]):
         Raises:
             RepositoryError: If the check fails
         """
-        pass
+        ...
 
 
 class RepositoryError(Exception):
