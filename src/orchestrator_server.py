@@ -28,6 +28,11 @@ from azure_haymaker.orchestrator.container_manager import (
 from azure_haymaker.orchestrator.scenario_selector import select_scenarios
 from azure_haymaker.orchestrator.sp_manager import create_service_principal
 from azure_haymaker.orchestrator.validation import validate_environment
+from azure_haymaker.orchestrator.webhooks import (
+    notify_execution_completed,
+    notify_execution_failed,
+    notify_execution_started,
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -239,6 +244,13 @@ async def run_orchestration(run_id: str, skip_validation: bool = False):
         }
         logger.info(f"[{run_id}] Selected {len(scenarios)} scenarios")
 
+        # Send webhook notification for execution started
+        await notify_execution_started(
+            run_id=run_id,
+            scenarios=[s.scenario_name for s in scenarios],
+            started_at=execution_report["started_at"],
+        )
+
         # ========================================================================
         # PHASE 3: PROVISIONING
         # ========================================================================
@@ -437,11 +449,29 @@ async def run_orchestration(run_id: str, skip_validation: bool = False):
 
         logger.info(f"[{run_id}] Orchestration completed successfully")
 
+        # Calculate duration and send completion webhook
+        started = datetime.fromisoformat(execution_report["started_at"])
+        ended = datetime.fromisoformat(execution_report["ended_at"])
+        duration_hours = (ended - started).total_seconds() / 3600
+
+        await notify_execution_completed(
+            run_id=run_id,
+            duration_hours=round(duration_hours, 2),
+            scenarios_count=len(scenarios),
+        )
+
     except Exception as e:
         logger.error(f"[{run_id}] Orchestration failed: {e}", exc_info=True)
         execution_report["status"] = "failed"
         execution_report["error"] = str(e)
         execution_report["ended_at"] = datetime.now(UTC).isoformat()
+
+        # Send failure webhook notification
+        await notify_execution_failed(
+            run_id=run_id,
+            error=str(e),
+            failed_at=execution_report["ended_at"],
+        )
 
 
 # ==============================================================================
