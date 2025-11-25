@@ -8,8 +8,6 @@ import asyncio
 import logging
 from typing import Any
 
-from azure.identity import DefaultAzureCredential
-
 from azure_haymaker.models.config import OrchestratorConfig
 from azure_haymaker.models.scenario import ScenarioMetadata
 from azure_haymaker.models.service_principal import ServicePrincipalDetails
@@ -89,8 +87,9 @@ class ContainerDeployer:
 
         try:
             # Use explicit SP credentials like sp_manager.py
-            from azure.identity import ClientSecretCredential
             import os
+
+            from azure.identity import ClientSecretCredential
 
             credential = ClientSecretCredential(
                 tenant_id=os.getenv("AZURE_TENANT_ID"),
@@ -158,13 +157,12 @@ class ContainerDeployer:
             # Deploy container app using Azure CLI (SDK has persistent ManagedEnvironmentNotFound issues)
             # CLI proven to work in testing, SDK fails even with correct permissions and environment
             logger.info(f"Deploying container app {app_name} for scenario {scenario.scenario_name}")
-            logger.info(f"   Using environment: haymaker-fastapi-cae")
+            logger.info("   Using environment: haymaker-fastapi-cae")
             logger.info(f"   RG: {self.resource_group_name}")
 
-            import subprocess
-            import json as json_module
             import os
             import shlex
+            import subprocess
 
             # Security fix for issue #74: Avoid credential exposure in process listings
             # CLI arguments are visible in /proc/*/cmdline and ps output.
@@ -279,13 +277,13 @@ class ContainerDeployer:
         sanitized = scenario_name.lower().replace("_", "-")
         # Remove invalid characters
         sanitized = "".join(c for c in sanitized if c.isalnum() or c == "-")
-        # Limit length (max 32 chars for container app names per Azure requirements)
-        # Remove "-agent" suffix if needed to fit in 32 chars
-        if len(sanitized) <= 32:
-            return sanitized
-        else:
-            # Truncate to 32 chars
-            return sanitized[:32]
+        # Add -agent suffix and limit to 63 chars for Azure container app names
+        app_name = f"{sanitized}-agent"
+        if len(app_name) > 63:
+            # Truncate the sanitized part to fit suffix within 63 chars
+            max_base = 63 - len("-agent")
+            app_name = f"{sanitized[:max_base]}-agent"
+        return app_name
 
     def _build_container(self, app_name: str, sp: ServicePrincipalDetails) -> dict[str, Any]:
         """Build container configuration with resource limits and env vars.
