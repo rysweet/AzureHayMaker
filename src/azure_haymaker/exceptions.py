@@ -362,6 +362,33 @@ class CleanupError(HayMakerError):
         self.remaining_count = remaining_count
 
 
+# =============================================================================
+# Cost Query Errors
+# =============================================================================
+
+
+class CostQueryError(HayMakerError):
+    """Raised when cost query operations fail.
+
+    Examples:
+        - Azure Cost Management API failures
+        - Authentication failures for cost queries
+        - Invalid cost query parameters
+    """
+
+    def __init__(
+        self,
+        message: str,
+        run_id: str | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        details = details or {}
+        if run_id:
+            details["run_id"] = run_id
+        super().__init__(message, details)
+        self.run_id = run_id
+
+
 __all__ = [
     "HayMakerError",
     # Resource errors
@@ -391,4 +418,6 @@ __all__ = [
     # Orchestration errors
     "OrchestrationError",
     "CleanupError",
+    # Cost query errors
+    "CostQueryError",
 ]

@@ -23,6 +23,7 @@ dependencies = [
     "azure-storage-blob>=12.23.0",
     "azure-monitor-ingestion>=1.0.4",
     "azure-mgmt-resourcegraph>=8.0.0",
+    "azure-mgmt-costmanagement>=4.0.0",
     "msgraph-sdk>=1.0.0",
     "pydantic>=2.10.0",
     "pydantic-settings>=2.6.0",

@@ -25,6 +25,7 @@ from azure_haymaker.orchestrator.container_manager import (
     ContainerManager,
     deploy_container_app,
 )
+from azure_haymaker.orchestrator.cost_query import CostSummary, get_cost_summary
 from azure_haymaker.orchestrator.scenario_selector import select_scenarios
 from azure_haymaker.orchestrator.sp_manager import create_service_principal
 from azure_haymaker.orchestrator.validation import validate_environment
@@ -107,6 +108,45 @@ async def get_execution(execution_id: str):
     if execution_id not in executions:
         raise HTTPException(status_code=404, detail="Execution not found")
     return executions[execution_id]
+
+
+@app.get("/api/executions/{run_id}/cost", response_model=CostSummary)
+async def get_execution_cost(run_id: str):
+    """Get cost summary for an execution run.
+
+    Queries Azure Cost Management for costs associated with this run,
+    filtered by AzureHayMaker-managed=true and RunId={run_id} tags.
+
+    Note: Azure Cost Management has approximately 24 hours delay before
+    cost data becomes available. Recent runs may return empty or partial data.
+
+    Args:
+        run_id: Execution run ID
+
+    Returns:
+        CostSummary with cost breakdown by resource type and scenario
+
+    Raises:
+        HTTPException 404: If run_id is not found in executions
+        HTTPException 500: If cost query fails
+    """
+    # Verify the run exists
+    if run_id not in executions:
+        raise HTTPException(status_code=404, detail="Execution not found")
+
+    try:
+        config = await load_config()
+        cost_summary = await get_cost_summary(
+            subscription_id=config.target_subscription_id,
+            run_id=run_id,
+        )
+        return cost_summary
+    except Exception as e:
+        logger.error(f"Failed to get cost summary for run {run_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to query costs: {str(e)}",
+        ) from e
 
 
 @app.post("/api/execute")
