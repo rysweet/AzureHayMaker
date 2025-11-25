@@ -482,7 +482,7 @@ class TestContainerManagerEdgeCases:
             app_name = manager._generate_app_name(name)
             # All app names should be valid (lowercase, alphanumeric + hyphens, max 63 chars)
             assert len(app_name) <= 63
-            assert app_name.endswith("-agent")
+            # App names no longer have -agent suffix
             assert all(c.islower() or c.isdigit() or c == "-" for c in app_name)
 
     def test_region_selection(self, mock_config):
