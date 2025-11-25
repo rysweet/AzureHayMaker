@@ -532,9 +532,8 @@ async def check_secret_expiration(  # pyright: ignore[reportGeneralTypeIssues,re
         # Find the latest expiration date
         latest_expiration: datetime | None = None
         for cred in password_credentials:
-            if cred.end_date_time:
-                if latest_expiration is None or cred.end_date_time > latest_expiration:
-                    latest_expiration = cred.end_date_time
+            if cred.end_date_time and (latest_expiration is None or cred.end_date_time > latest_expiration):
+                latest_expiration = cred.end_date_time
 
         if latest_expiration is None:
             return SecretExpirationInfo(

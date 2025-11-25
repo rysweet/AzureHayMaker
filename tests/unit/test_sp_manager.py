@@ -97,13 +97,14 @@ class TestCreateServicePrincipal:
         mock_password_credential = MagicMock()
         mock_password_credential.secret_text = "test-secret-value"
 
-        # Configure mock chains - use AsyncMock for awaitable methods
+        # Configure mock chains - Graph SDK methods are async so need AsyncMock
         mock_graph_client.applications.post = AsyncMock(return_value=mock_app_result)
         mock_graph_client.service_principals.post = AsyncMock(return_value=mock_sp_result)
-        mock_graph_client.applications.by_application_id.return_value.get = AsyncMock(return_value=mock_app_result)
-        mock_graph_client.applications.by_application_id.return_value.add_password.post = AsyncMock(
-            return_value=mock_password_credential
-        )
+        # Mock the by_application_id() chain - needs both .get() for verification and .add_password.post()
+        mock_app_by_id = MagicMock()
+        mock_app_by_id.get = AsyncMock(return_value=mock_app_result)  # For app verification
+        mock_app_by_id.add_password.post = AsyncMock(return_value=mock_password_credential)
+        mock_graph_client.applications.by_application_id.return_value = mock_app_by_id
 
         # Mock Key Vault client
         mock_kv_client = AsyncMock(spec=SecretClient)
@@ -111,6 +112,12 @@ class TestCreateServicePrincipal:
         # Mock Azure authorization client
         mock_auth_client = MagicMock()
 
+        # Mock environment variables for credential initialization
+        mock_env = {
+            "AZURE_TENANT_ID": "test-tenant-id",
+            "AZURE_CLIENT_ID": "test-client-id",
+            "AZURE_CLIENT_SECRET": "test-client-secret",
+        }
         with (
             patch(
                 "azure_haymaker.orchestrator.sp_manager.GraphServiceClient",
@@ -122,6 +129,7 @@ class TestCreateServicePrincipal:
             ),
             patch("azure_haymaker.orchestrator.sp_manager.asyncio.sleep", new_callable=AsyncMock),
             patch("azure.identity.ClientSecretCredential"),
+            patch.dict("os.environ", mock_env),
         ):
             result = await create_service_principal(
                 scenario_name="test-scenario",
