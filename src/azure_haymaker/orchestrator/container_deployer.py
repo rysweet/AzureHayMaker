@@ -120,11 +120,14 @@ class ContainerDeployer:
             # Use the main dev environment (haymaker-dev-cae)
             container_env_id = f"/subscriptions/{self.subscription_id}/resourceGroups/{self.resource_group_name}/providers/Microsoft.App/managedEnvironments/haymaker-dev-cae"
 
+            # Per Azure Container Apps API: environmentId must be in properties dict
             container_app = {
                 "location": self._get_region(),
-                "managed_environment_id": container_env_id,  # Required: specify Container Apps Environment
-                "template": template,
-                "configuration": configuration,
+                "properties": {
+                    "environmentId": container_env_id,  # Field name per Azure API spec
+                    "template": template,
+                    "configuration": configuration,
+                },
                 "tags": {
                     "app": "azure-haymaker",
                     "scenario": scenario.scenario_name,
