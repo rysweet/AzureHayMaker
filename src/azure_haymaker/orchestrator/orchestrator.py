@@ -54,16 +54,6 @@ Related:
 """
 
 # Import shared FunctionApp instance
-from azure_haymaker.orchestrator.orchestrator_app import app
-
-# Import timer trigger
-from azure_haymaker.orchestrator.timer_trigger import haymaker_timer
-
-# Import main orchestration function
-from azure_haymaker.orchestrator.workflow_orchestrator import (
-    orchestrate_haymaker_run,
-)
-
 # Import all activity functions
 from azure_haymaker.orchestrator.activities.cleanup import (
     force_cleanup_activity,
@@ -84,6 +74,15 @@ from azure_haymaker.orchestrator.activities.selection import (
 )
 from azure_haymaker.orchestrator.activities.validation import (
     validate_environment_activity,
+)
+from azure_haymaker.orchestrator.orchestrator_app import app
+
+# Import timer trigger
+from azure_haymaker.orchestrator.timer_trigger import haymaker_timer
+
+# Import main orchestration function
+from azure_haymaker.orchestrator.workflow_orchestrator import (
+    orchestrate_haymaker_run,
 )
 
 # Re-export all public functions for backward compatibility
