@@ -56,6 +56,12 @@ dmypy.json
 # Azure
 .azure/
 
+# Secrets (SSH keys, certificates, etc)
+infra/secrets/
+*.pub
+*.pem
+*.key
+
 # Git worktrees
 worktrees/
 

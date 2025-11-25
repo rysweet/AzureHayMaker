@@ -380,6 +380,43 @@ az deployment sub create \
 - Test in dev environment first
 - Never hardcode secrets in templates
 
+### Security - SSH Key Management
+
+**CRITICAL**: Never commit SSH keys to version control.
+
+**Local Development**:
+```bash
+# Generate SSH key pair
+ssh-keygen -t rsa -b 4096 -C "haymaker-orchestrator" -f ~/.ssh/haymaker_id_rsa
+
+# Copy public key to secrets directory (gitignored)
+cp ~/.ssh/haymaker_id_rsa.pub infra/secrets/haymaker_vm.pub
+
+# Deploy using loadTextContent() from vm-dev.bicepparam
+az deployment group create \
+  --resource-group haymaker-dev-rg \
+  --template-file bicep/main-vm.bicep \
+  --parameters bicep/parameters/vm-dev.bicepparam
+```
+
+**Production Deployments**:
+```bash
+# Option 1: GitHub Secrets (CI/CD)
+az deployment group create \
+  --parameters sshPublicKey="${{ secrets.VM_SSH_PUBLIC_KEY }}"
+
+# Option 2: Key Vault
+az deployment group create \
+  --parameters sshPublicKey="$(az keyvault secret show --vault-name haymaker-prod-kv --name vm-ssh-public-key --query value -o tsv)"
+
+# Option 3: Environment Variable
+export HAYMAKER_SSH_PUBLIC_KEY=$(cat ~/.ssh/haymaker_id_rsa.pub)
+az deployment group create \
+  --parameters sshPublicKey="$HAYMAKER_SSH_PUBLIC_KEY"
+```
+
+See: [infra/secrets/README.md](secrets/README.md) for detailed security guidelines.
+
 ### Production
 
 - Use parameter files for configuration
