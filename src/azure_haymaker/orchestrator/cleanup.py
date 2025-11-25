@@ -61,7 +61,7 @@ def _query_azure_resources(
     from azure.mgmt.resourcegraph import ResourceGraphClient
     from azure.mgmt.resourcegraph.models import QueryRequest
 
-    credentials = DefaultAzureCredential()
+    credentials = get_credential()
     resource_graph_client = ResourceGraphClient(credentials)
 
     # Build KQL query for managed resources
