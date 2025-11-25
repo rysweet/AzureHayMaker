@@ -3,6 +3,15 @@
 [![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://rysweet.github.io/AzureHayMaker/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+<!-- VERSION_BADGES_START -->
+[![Latest Release](https://img.shields.io/badge/release-v0.1.0-green)](https://github.com/rysweet/AzureHayMaker/releases/tag/v0.1.0)
+[![Development](https://img.shields.io/badge/dev-main-orange)](https://github.com/rysweet/AzureHayMaker/tree/main)
+
+> **Version Links:**
+> - [Latest Stable Release (v0.1.0)](https://github.com/rysweet/AzureHayMaker/releases/tag/v0.1.0) - Recommended for production
+> - [Development Branch (main)](https://github.com/rysweet/AzureHayMaker/tree/main) - Latest features, may be unstable
+<!-- VERSION_BADGES_END -->
+
 > **[View Full Documentation](https://rysweet.github.io/AzureHayMaker/)** - Complete guides, API reference, and 50+ scenario docs
 
 ## What is it?
