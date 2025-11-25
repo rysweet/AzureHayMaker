@@ -147,7 +147,7 @@ class TestCreateServicePrincipal:
     async def test_create_service_principal_graph_api_failure(self):
         """Test handling of Microsoft Graph API failure."""
         mock_graph_client = MagicMock()
-        mock_graph_client.applications.post.side_effect = Exception("Graph API error")
+        mock_graph_client.applications.post = AsyncMock(side_effect=Exception("Graph API error"))
 
         mock_kv_client = AsyncMock(spec=SecretClient)
 
@@ -156,6 +156,7 @@ class TestCreateServicePrincipal:
                 "azure_haymaker.orchestrator.sp_manager.GraphServiceClient",
                 return_value=mock_graph_client,
             ),
+            patch("azure.identity.ClientSecretCredential"),
             pytest.raises(ServicePrincipalError, match="Graph API error"),
         ):
             await create_service_principal(
@@ -179,10 +180,12 @@ class TestCreateServicePrincipal:
         mock_password_credential = MagicMock()
         mock_password_credential.secret_text = "test-secret-value"
 
-        mock_graph_client.applications.post.return_value = mock_app_result
-        mock_graph_client.service_principals.post.return_value = mock_sp_result
-        mock_graph_client.applications.by_application_id().add_password.post.return_value = (
-            mock_password_credential
+        # Use AsyncMock for async methods
+        mock_graph_client.applications.post = AsyncMock(return_value=mock_app_result)
+        mock_graph_client.service_principals.post = AsyncMock(return_value=mock_sp_result)
+        mock_graph_client.applications.by_application_id.return_value.get = AsyncMock(return_value=mock_app_result)
+        mock_graph_client.applications.by_application_id.return_value.add_password.post = AsyncMock(
+            return_value=mock_password_credential
         )
 
         # Mock Key Vault client with failure
@@ -194,6 +197,7 @@ class TestCreateServicePrincipal:
                 "azure_haymaker.orchestrator.sp_manager.GraphServiceClient",
                 return_value=mock_graph_client,
             ),
+            patch("azure.identity.ClientSecretCredential"),
             pytest.raises(ServicePrincipalError, match="Key Vault error"),
         ):
             await create_service_principal(
@@ -217,10 +221,12 @@ class TestCreateServicePrincipal:
         mock_password_credential = MagicMock()
         mock_password_credential.secret_text = "test-secret-value"
 
-        mock_graph_client.applications.post.return_value = mock_app_result
-        mock_graph_client.service_principals.post.return_value = mock_sp_result
-        mock_graph_client.applications.by_application_id().add_password.post.return_value = (
-            mock_password_credential
+        # Use AsyncMock for async methods
+        mock_graph_client.applications.post = AsyncMock(return_value=mock_app_result)
+        mock_graph_client.service_principals.post = AsyncMock(return_value=mock_sp_result)
+        mock_graph_client.applications.by_application_id.return_value.get = AsyncMock(return_value=mock_app_result)
+        mock_graph_client.applications.by_application_id.return_value.add_password.post = AsyncMock(
+            return_value=mock_password_credential
         )
 
         mock_kv_client = AsyncMock(spec=SecretClient)
@@ -236,6 +242,7 @@ class TestCreateServicePrincipal:
                 return_value=mock_auth_client,
             ),
             patch("azure_haymaker.orchestrator.sp_manager.asyncio.sleep", new_callable=AsyncMock),
+            patch("azure.identity.ClientSecretCredential"),
         ):
             await create_service_principal(
                 scenario_name="test-scenario",
