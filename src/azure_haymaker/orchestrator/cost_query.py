@@ -10,7 +10,6 @@ becomes available, so recent runs may return empty or partial data.
 import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any
 
 from azure.core.exceptions import (
     ClientAuthenticationError,
