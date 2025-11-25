@@ -1,6 +1,6 @@
 """Service principal models for Azure HayMaker."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from enum import Enum
 
 from pydantic import BaseModel, Field, computed_field
@@ -116,6 +116,11 @@ class ServicePrincipal(BaseModel):
         default=None, description="Resource group scope (for security)"
     )
 
+    # Default rotation threshold for this model
+    secret_rotation_threshold_days: int = Field(
+        default=7, description="Days before expiration to trigger rotation warning"
+    )
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def secret_expiration_status(self) -> SecretExpirationStatus:
@@ -127,9 +132,8 @@ class ServicePrincipal(BaseModel):
         if now >= self.secret_expires_at:
             return SecretExpirationStatus.EXPIRED
 
-        # Default to 7 days threshold for expiring soon
         days_until_expiry = (self.secret_expires_at - now).days
-        if days_until_expiry <= 7:
+        if days_until_expiry <= self.secret_rotation_threshold_days:
             return SecretExpirationStatus.EXPIRING_SOON
 
         return SecretExpirationStatus.VALID
@@ -143,24 +147,12 @@ class ServicePrincipal(BaseModel):
         now = datetime.now(UTC)
         return max(0, (self.secret_expires_at - now).days)
 
-    def needs_rotation(self, threshold_days: int = 7) -> bool:
-        """Check if the secret needs to be rotated.
-
-        Args:
-            threshold_days: Days before expiration to trigger rotation
-
-        Returns:
-            True if secret is expired or expiring within threshold
-        """
-        if self.secret_expires_at is None:
-            return False
-
-        now = datetime.now(UTC)
-        if now >= self.secret_expires_at:
-            return True
-
-        days_until_expiry = (self.secret_expires_at - now).days
-        return days_until_expiry <= threshold_days
+    def needs_rotation(self) -> bool:
+        """Check if the secret needs to be rotated."""
+        return self.secret_expiration_status in (
+            SecretExpirationStatus.EXPIRING_SOON,
+            SecretExpirationStatus.EXPIRED,
+        )
 
     class Config:
         """Pydantic configuration."""
