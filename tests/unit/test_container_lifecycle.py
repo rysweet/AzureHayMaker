@@ -55,6 +55,7 @@ def test_container_lifecycle_init_missing_params():
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip(reason="Requires azure-mgmt-appcontainers package")
 async def test_delete_happy_path():
     """Test successful container app deletion."""
     with patch("azure_haymaker.orchestrator.container_lifecycle.ContainerAppsAPIClient") as mock_client:
