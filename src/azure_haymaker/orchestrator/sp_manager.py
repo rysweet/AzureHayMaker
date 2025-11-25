@@ -124,9 +124,8 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
         # Initialize Microsoft Graph client with explicit service principal credentials
         # Use ClientSecretCredential instead of DefaultAzureCredential to ensure
         # we use the SP credentials from environment variables (AZURE_CLIENT_ID/SECRET)
-        import os
-
         from azure.identity import ClientSecretCredential
+        import os
 
         tenant_id = os.getenv("AZURE_TENANT_ID")
         client_id = os.getenv("AZURE_CLIENT_ID")
@@ -135,7 +134,9 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
         logger.info(f"Creating SP for {scenario_name} using client_id={client_id[:8]}...")
 
         credential = ClientSecretCredential(
-            tenant_id=tenant_id, client_id=client_id, client_secret=client_secret
+            tenant_id=tenant_id,
+            client_id=client_id,
+            client_secret=client_secret
         )
         graph_client = GraphServiceClient(credential)
 
@@ -149,9 +150,7 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
             app = await graph_client.applications.post(app_request_body)
         except Exception as e:
             logger.error(f"Graph API application creation failed: {type(e).__name__}: {str(e)}")
-            raise ServicePrincipalError(
-                f"Graph API create app failed: {type(e).__name__}: {e}"
-            ) from e
+            raise ServicePrincipalError(f"Graph API create app failed: {type(e).__name__}: {e}") from e
 
         if not app:
             raise ServicePrincipalError("Failed to create application registration")
@@ -171,15 +170,11 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
                     break
             except Exception as e:
                 if attempt < max_retries - 1:
-                    wait_time = 2**attempt  # Exponential backoff: 1, 2, 4, 8, 16 seconds
-                    logger.warning(
-                        f"Application not yet propagated (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s: {e}"
-                    )
+                    wait_time = 2 ** attempt  # Exponential backoff: 1, 2, 4, 8, 16 seconds
+                    logger.warning(f"Application not yet propagated (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s: {e}")
                     await asyncio.sleep(wait_time)
                 else:
-                    raise ServicePrincipalError(
-                        f"Application failed to propagate after {max_retries} attempts"
-                    ) from e
+                    raise ServicePrincipalError(f"Application failed to propagate after {max_retries} attempts") from e
 
         # Create service principal with retry (handles eventual consistency)
         sp_request_body = ServicePrincipal()
@@ -195,15 +190,11 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
                 break
             except Exception as e:
                 if attempt < max_retries - 1:
-                    wait_time = 2**attempt
-                    logger.warning(
-                        f"SP creation failed (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s: {e}"
-                    )
+                    wait_time = 2 ** attempt
+                    logger.warning(f"SP creation failed (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s: {e}")
                     await asyncio.sleep(wait_time)
                 else:
-                    raise ServicePrincipalError(
-                        f"Failed to create SP after {max_retries} attempts: {e}"
-                    ) from e
+                    raise ServicePrincipalError(f"Failed to create SP after {max_retries} attempts: {e}") from e
 
         if not sp:
             raise ServicePrincipalError("Failed to create service principal")
@@ -225,22 +216,18 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
             try:
                 # Graph SDK async method - await directly
                 # Note: by_application_id() expects the application's object ID (app.id), not appId
-                password_result = await graph_client.applications.by_application_id(
-                    app.id
-                ).add_password.post(password_credential_request)
+                password_result = await graph_client.applications.by_application_id(app.id).add_password.post(
+                    password_credential_request
+                )
                 logger.info(f"Password added successfully after {attempt + 1} attempts")
                 break
             except Exception as e:
                 if attempt < max_retries - 1:
-                    wait_time = 2**attempt
-                    logger.warning(
-                        f"Password addition failed (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s: {e}"
-                    )
+                    wait_time = 2 ** attempt
+                    logger.warning(f"Password addition failed (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s: {e}")
                     await asyncio.sleep(wait_time)
                 else:
-                    raise ServicePrincipalError(
-                        f"Failed to add password after {max_retries} attempts: {e}"
-                    ) from e
+                    raise ServicePrincipalError(f"Failed to add password after {max_retries} attempts: {e}") from e
 
         if not password_result:
             raise ServicePrincipalError("Failed to generate service principal secret")
