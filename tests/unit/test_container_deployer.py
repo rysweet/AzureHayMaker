@@ -65,14 +65,12 @@ def mock_scenario():
 @pytest.fixture
 def mock_sp():
     """Create a sample service principal."""
-    from datetime import datetime, UTC
     return ServicePrincipalDetails(
-        sp_name="test-sp",
         client_id="sp-client-id",
-        principal_id="sp-principal-id",
+        client_secret="sp-secret",
+        object_id="sp-object-id",
         secret_reference="sp-secret-ref",
-        created_at=datetime.now(UTC),
-        scenario_name="test-scenario",
+        display_name="test-sp",
     )
 
 
