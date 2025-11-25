@@ -120,6 +120,7 @@ class TestCreateServicePrincipal:
                 return_value=mock_auth_client,
             ),
             patch("azure_haymaker.orchestrator.sp_manager.asyncio.sleep", new_callable=AsyncMock),
+            patch("azure.identity.ClientSecretCredential"),
         ):
             result = await create_service_principal(
                 scenario_name="test-scenario",
