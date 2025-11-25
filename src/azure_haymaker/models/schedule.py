@@ -37,7 +37,7 @@ class Schedule(BaseModel):
     )
     cron_expression: str = Field(
         ...,
-        description="Cron expression for scheduling (6 fields: second minute hour day month weekday)",
+        description="Cron expression for scheduling (5 or 6 fields supported)",
     )
     scenarios: list[str] | None = Field(
         default=None,
@@ -93,7 +93,7 @@ class ScheduleCreate(BaseModel):
     )
     cron_expression: str = Field(
         ...,
-        description="Cron expression for scheduling (6 fields: second minute hour day month weekday)",
+        description="Cron expression for scheduling (5 or 6 fields supported)",
     )
     scenarios: list[str] | None = Field(
         default=None,
@@ -119,6 +119,54 @@ class ScheduleCreate(BaseModel):
                 "cron_expression": "0 0 0,6,12,18 * * *",
                 "scenario_count": 5,
                 "enabled": True,
+            }
+        }
+
+
+class ScheduleUpdate(BaseModel):
+    """Request model for updating an existing schedule.
+
+    All fields are optional to allow partial updates.
+
+    Example:
+        >>> update_req = ScheduleUpdate(
+        ...     name="Updated Name",
+        ...     enabled=False,
+        ... )
+    """
+
+    name: str | None = Field(
+        default=None,
+        description="Human-readable schedule name",
+        min_length=1,
+        max_length=100,
+    )
+    cron_expression: str | None = Field(
+        default=None,
+        description="Cron expression for scheduling (5 or 6 fields supported)",
+    )
+    scenarios: list[str] | None = Field(
+        default=None,
+        description="Specific scenarios to run (None = keep existing)",
+    )
+    scenario_count: int | None = Field(
+        default=None,
+        description="Number of scenarios to run when using random selection",
+        ge=1,
+        le=30,
+    )
+    enabled: bool | None = Field(
+        default=None,
+        description="Whether the schedule is active",
+    )
+
+    class Config:
+        """Pydantic configuration."""
+
+        json_schema_extra = {
+            "example": {
+                "name": "Updated Schedule Name",
+                "enabled": False,
             }
         }
 

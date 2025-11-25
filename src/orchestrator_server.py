@@ -31,7 +31,12 @@ from azure_haymaker.models.execution import (
     ExecutionCounts,
     ScenarioStats,
 )
-from azure_haymaker.models.schedule import Schedule, ScheduleCreate, ScheduleResponse
+from azure_haymaker.models.schedule import (
+    Schedule,
+    ScheduleCreate,
+    ScheduleResponse,
+    ScheduleUpdate,
+)
 from azure_haymaker.orchestrator.cleanup import (
     force_delete_resources,
     query_managed_resources,
@@ -100,7 +105,9 @@ def _validate_cron_expression(cron_expr: str) -> bool:
     """Validate a cron expression using croniter.
 
     Args:
-        cron_expr: Cron expression string (6 fields for APScheduler)
+        cron_expr: Cron expression string (5 or 6 fields supported).
+                   6-field format: second minute hour day month weekday
+                   5-field format: minute hour day month weekday (seconds default to 0)
 
     Returns:
         True if valid, raises ValueError otherwise
@@ -795,6 +802,79 @@ async def get_schedule(schedule_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to get schedule: {e}") from e
 
 
+@app.put("/api/schedules/{schedule_id}", response_model=ScheduleResponse)
+async def update_schedule(schedule_id: str, request: ScheduleUpdate):
+    """Update an existing schedule.
+
+    Allows partial updates - only provided fields will be modified.
+    If the cron_expression is changed, the APScheduler job will be re-scheduled.
+
+    Args:
+        schedule_id: Unique schedule identifier
+        request: Schedule update request with optional fields
+
+    Returns:
+        Updated schedule with next run time
+
+    Raises:
+        HTTPException: 400 if cron expression is invalid, 404 if not found
+    """
+    try:
+        table_client = _get_schedule_table_client()
+
+        # Get existing schedule
+        try:
+            entity = table_client.get_entity(
+                partition_key=SCHEDULE_PARTITION_KEY,
+                row_key=schedule_id,
+            )
+        except ResourceNotFoundError as e:
+            raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}") from e
+
+        schedule = _entity_to_schedule(entity)
+
+        # Track if cron expression changes (need to re-schedule job)
+        cron_changed = False
+
+        # Apply partial updates
+        if request.name is not None:
+            schedule.name = request.name
+        if request.cron_expression is not None:
+            _validate_cron_expression(request.cron_expression)
+            cron_changed = schedule.cron_expression != request.cron_expression
+            schedule.cron_expression = request.cron_expression
+        if request.scenarios is not None:
+            schedule.scenarios = request.scenarios
+        if request.scenario_count is not None:
+            schedule.scenario_count = request.scenario_count
+        if request.enabled is not None:
+            cron_changed = cron_changed or (schedule.enabled != request.enabled)
+            schedule.enabled = request.enabled
+
+        # Update in Table Storage
+        updated_entity = _schedule_to_entity(schedule)
+        table_client.update_entity(entity=updated_entity, mode="replace")
+
+        # Re-schedule APScheduler job if cron or enabled state changed
+        if cron_changed:
+            _add_scheduler_job(schedule)
+
+        logger.info(f"Updated schedule: {schedule.id} - {schedule.name}")
+        return _schedule_to_response(schedule)
+
+    except ValueError as e:
+        logger.warning(f"Invalid schedule update request: {e}")
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except HTTPException:
+        raise
+    except RuntimeError as e:
+        logger.error(f"Storage not configured: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Failed to update schedule: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to update schedule: {e}") from e
+
+
 @app.delete("/api/schedules/{schedule_id}", status_code=204)
 async def delete_schedule(schedule_id: str):
     """Delete a schedule.
@@ -1146,8 +1226,6 @@ async def run_orchestration(
             )
             container_client = blob_service_client.get_container_client("execution-reports")
             blob_client = container_client.get_blob_client(f"{run_id}/report.json")
-
-            import json
 
             await blob_client.upload_blob(
                 json.dumps(execution_report, indent=2),
