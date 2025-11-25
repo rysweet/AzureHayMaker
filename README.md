@@ -4,11 +4,11 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 <!-- VERSION_BADGES_START -->
-[![Latest Release](https://img.shields.io/badge/release-v0.1.0-green)](https://github.com/rysweet/AzureHayMaker/releases/tag/v0.1.0)
+[![Latest Release](https://img.shields.io/github/v/release/rysweet/AzureHayMaker?label=release)](https://github.com/rysweet/AzureHayMaker/releases/latest)
 [![Development](https://img.shields.io/badge/dev-main-orange)](https://github.com/rysweet/AzureHayMaker/tree/main)
 
 > **Version Links:**
-> - [Latest Stable Release (v0.1.0)](https://github.com/rysweet/AzureHayMaker/releases/tag/v0.1.0) - Recommended for production
+> - [Latest Stable Release](https://github.com/rysweet/AzureHayMaker/releases/latest) - Recommended for production
 > - [Development Branch (main)](https://github.com/rysweet/AzureHayMaker/tree/main) - Latest features, may be unstable
 <!-- VERSION_BADGES_END -->
 
