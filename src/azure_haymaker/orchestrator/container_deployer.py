@@ -126,16 +126,18 @@ class ContainerDeployer:
             )
 
             # Get the environment to verify it exists and get its ID
+            # Use haymaker-fastapi-cae (same as existing haymaker-fastapi-orch container)
             try:
                 env = await asyncio.to_thread(
                     env_client.managed_environments.get,
                     resource_group_name=self.resource_group_name,
-                    environment_name="haymaker-dev-yc4hkcb2vvnwg-cae"
+                    environment_name="haymaker-fastapi-cae"
                 )
                 container_env_id = env.id
-                logger.info(f"Using Container Apps Environment: {container_env_id}")
+                logger.info(f"✅ Environment lookup succeeded: {container_env_id}")
+                logger.info(f"   Name: {env.name}, State: {env.provisioning_state}, Location: {env.location}")
             except Exception as env_error:
-                logger.error(f"Failed to get environment: {env_error}")
+                logger.error(f"❌ Failed to get environment: {env_error}")
                 raise ContainerAppError(f"Container Apps Environment not accessible: {env_error}") from env_error
 
             # Per Azure Container Apps API: environmentId must be in properties dict
@@ -155,6 +157,9 @@ class ContainerDeployer:
 
             # Deploy container app
             logger.info(f"Deploying container app {app_name} for scenario {scenario.scenario_name}")
+            logger.info(f"   Using environment ID: {container_env_id}")
+            logger.info(f"   Location: {container_app['location']}")
+            logger.info(f"   RG: {self.resource_group_name}")
 
             poller = await asyncio.to_thread(
                 client.container_apps.begin_create_or_update,
