@@ -79,12 +79,10 @@ class TestServicePrincipalDetails:
         assert details.created_at == "2025-11-14T12:00:00Z"
 
 
-@pytest.mark.skip(reason="Requires complex msgraph SDK async mocking - fix in separate PR")
 class TestCreateServicePrincipal:
     """Test service principal creation."""
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Requires complex msgraph SDK mocking - fix in separate PR")
     async def test_create_service_principal_success(self):
         """Test successful service principal creation with role assignment."""
         # Mock Microsoft Graph client
@@ -99,15 +97,12 @@ class TestCreateServicePrincipal:
         mock_password_credential = MagicMock()
         mock_password_credential.secret_text = "test-secret-value"
 
-        # Configure mock chains with proper async handling
-        mock_graph_client.applications.post = AsyncMock(return_value=mock_app_result)
-        mock_graph_client.service_principals.post = AsyncMock(return_value=mock_sp_result)
-
-        # Setup by_application_id chain with async methods
-        mock_by_app = MagicMock()
-        mock_by_app.get = AsyncMock(return_value=mock_app_result)
-        mock_by_app.add_password.post = AsyncMock(return_value=mock_password_credential)
-        mock_graph_client.applications.by_application_id.return_value = mock_by_app
+        # Configure mock chains
+        mock_graph_client.applications.post.return_value = mock_app_result
+        mock_graph_client.service_principals.post.return_value = mock_sp_result
+        mock_graph_client.applications.by_application_id().add_password.post.return_value = (
+            mock_password_credential
+        )
 
         # Mock Key Vault client
         mock_kv_client = AsyncMock(spec=SecretClient)
