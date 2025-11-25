@@ -45,11 +45,22 @@ cp .env.example .env
 pytest
 ```
 
-### 4. Run Service
+### 4. Deploy and Run Orchestrator
 
+See [DEPLOYMENT_SETUP.md](docs/DEPLOYMENT_SETUP.md) for complete deployment guide.
+
+**Quick Start**:
 ```bash
-# TBD - under development
-# python -m azure_haymaker.orchestrator
+# Build Docker image
+cd src
+docker build -f Dockerfile.orchestrator -t haymakerorchacr.azurecr.io/haymaker-orchestrator:latest .
+
+# Push to ACR
+az acr login --name haymakerorchacr
+docker push haymakerorchacr.azurecr.io/haymaker-orchestrator:latest
+
+# Orchestrator runs automatically in Azure App Service
+# Access at: https://haymaker-fastapi-app.azurewebsites.net
 ```
 
 ## Configuration
@@ -101,8 +112,180 @@ The application loads configuration in this order:
 
 Environment variables are NOT used in production to avoid accidental secret exposure.
 
+## Using the Orchestrator API
+
+### Health Check
+
+```bash
+curl https://haymaker-fastapi-app.azurewebsites.net/
+```
+
+**Example Output**:
+```json
+{"status":"healthy","service":"azure-haymaker-orchestrator","timestamp":"2025-11-25T04:52:18.754691+00:00"}
+```
+
+### List Available Scenarios
+
+```bash
+curl https://haymaker-fastapi-app.azurewebsites.net/api/scenarios
+```
+
+**Example Output**:
+```json
+{
+  "scenarios": [
+    {
+      "scenario_name": "compute-01-linux-vm-web-server",
+      "technology_area": "Compute",
+      "scenario_doc_path": "/docs/scenarios/compute-01-linux-vm-web-server.md"
+    },
+    // ... 49 more scenarios
+  ]
+}
+```
+
+### Execute Scenarios
+
+**Single Scenario**:
+```bash
+curl -X POST https://haymaker-fastapi-app.azurewebsites.net/api/execute \
+  -H "Content-Type: application/json" \
+  -d '{"scenarios":["compute-01-linux-vm-web-server"],"duration_hours":1}'
+```
+
+**Example Output**:
+```json
+{
+  "execution_id": "3e598ac3-7b1b-46a6-8ddc-5986734e13fc",
+  "status": "started",
+  "started_at": "2025-11-25T04:52:29.217706+00:00"
+}
+```
+
+**Multiple Scenarios (Parallel)**:
+```bash
+curl -X POST https://haymaker-fastapi-app.azurewebsites.net/api/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "scenarios": [
+      "databases-01-mysql-wordpress",
+      "security-01-key-vault-secrets",
+      "ai-ml-01-cognitive-services-vision",
+      "networking-01-virtual-network",
+      "webapps-01-static-website"
+    ],
+    "duration_hours": 1
+  }'
+```
+
+### Monitor Execution
+
+```bash
+# Get execution status
+EXEC_ID="3e598ac3-7b1b-46a6-8ddc-5986734e13fc"
+curl https://haymaker-fastapi-app.azurewebsites.net/api/executions/$EXEC_ID | jq
+```
+
+**Example Output**:
+```json
+{
+  "run_id": "3e598ac3-7b1b-46a6-8ddc-5986734e13fc",
+  "started_at": "2025-11-25T04:52:29.217706+00:00",
+  "status": "running",
+  "phases": {
+    "validation": {"status": "skipped"},
+    "selection": {
+      "status": "completed",
+      "scenario_count": 5,
+      "scenarios": ["compute-01-linux-vm-web-server", ...]
+    },
+    "provisioning": {
+      "status": "completed",
+      "service_principals": {
+        "requested": 5,
+        "created": 5,
+        "failed": 0
+      },
+      "container_apps": {
+        "requested": 5,
+        "deployed": 5,
+        "failed": 0
+      }
+    }
+  }
+}
+```
+
+### View Production Logs
+
+**App Service Logs**:
+```bash
+# Stream live logs
+az webapp log tail \
+  --name haymaker-fastapi-app \
+  --resource-group haymaker-dev-rg
+
+# Download logs
+az webapp log download \
+  --name haymaker-fastapi-app \
+  --resource-group haymaker-dev-rg \
+  --log-file haymaker-logs.zip
+```
+
+**Container App Logs**:
+```bash
+# List running containers
+az containerapp list \
+  --resource-group haymaker-dev-rg \
+  --query '[?properties.runningStatus==`Running`].name' \
+  -o table
+
+# View specific container logs
+az containerapp logs show \
+  --name compute-01-linux-vm-web-server \
+  --resource-group haymaker-dev-rg \
+  --follow
+```
+
+**Application Insights Queries**:
+```kusto
+// View orchestrator health
+requests
+| where cloud_RoleName == "haymaker-fastapi-app"
+| where name == "GET /"
+| where timestamp > ago(1h)
+| summarize
+    HealthChecks = count(),
+    Successes = countif(resultCode == "200")
+| extend SuccessRate = (Successes * 100.0) / HealthChecks
+
+// Track scenario executions
+traces
+| where message contains "Orchestration completed successfully"
+| where timestamp > ago(7d)
+| summarize count() by bin(timestamp, 1d)
+```
+
+### Check Metrics
+
+```bash
+curl https://haymaker-fastapi-app.azurewebsites.net/api/metrics | jq
+```
+
+**Example Output**:
+```json
+{
+  "executions_total": 7,
+  "executions_running": 2,
+  "executions_completed": 5,
+  "executions_failed": 0
+}
+```
+
 ## Documentation
 
+- **[Deployment Setup](docs/DEPLOYMENT_SETUP.md)** - Complete deployment guide with all requirements
 - **[Project Requirements](specs/requirements.md)** - Detailed specifications and success criteria
 - **[Initial Prompt](specs/initial-prompt.md)** - Original project conception
 - **[Scenarios](docs/scenarios/)** - 50 operational scenarios with full automation

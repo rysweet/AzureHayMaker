@@ -88,7 +88,16 @@ class ContainerDeployer:
         app_name = self._generate_app_name(scenario.scenario_name)
 
         try:
-            credential = DefaultAzureCredential()
+            # Use explicit SP credentials like sp_manager.py
+            from azure.identity import ClientSecretCredential
+            import os
+
+            credential = ClientSecretCredential(
+                tenant_id=os.getenv("AZURE_TENANT_ID"),
+                client_id=os.getenv("AZURE_CLIENT_ID"),
+                client_secret=os.getenv("AZURE_CLIENT_SECRET")
+            )
+
             # Lazy import to avoid loading uninstalled package during testing
             from azure.mgmt.appcontainers import ContainerAppsAPIClient
 
@@ -107,10 +116,38 @@ class ContainerDeployer:
             configuration = self._build_configuration(sp)
 
             # Build complete Container App as dict
+            # Get Container Apps Environment ID (required for deployment)
+            # Query the environment dynamically to get its current ID
+            from azure.mgmt.appcontainers import ContainerAppsAPIClient
+
+            env_client = ContainerAppsAPIClient(
+                credential=credential,
+                subscription_id=self.subscription_id
+            )
+
+            # Get the environment to verify it exists and get its ID
+            # Use haymaker-fastapi-cae (same as existing haymaker-fastapi-orch container)
+            try:
+                env = await asyncio.to_thread(
+                    env_client.managed_environments.get,
+                    resource_group_name=self.resource_group_name,
+                    environment_name="haymaker-fastapi-cae"
+                )
+                container_env_id = env.id
+                logger.info(f"✅ Environment lookup succeeded: {container_env_id}")
+                logger.info(f"   Name: {env.name}, State: {env.provisioning_state}, Location: {env.location}")
+            except Exception as env_error:
+                logger.error(f"❌ Failed to get environment: {env_error}")
+                raise ContainerAppError(f"Container Apps Environment not accessible: {env_error}") from env_error
+
+            # Per Azure Container Apps API: environmentId must be in properties dict
             container_app = {
                 "location": self._get_region(),
-                "template": template,
-                "configuration": configuration,
+                "properties": {
+                    "environmentId": container_env_id,  # Use environment ID retrieved from Azure
+                    "template": template,
+                    "configuration": configuration,
+                },
                 "tags": {
                     "app": "azure-haymaker",
                     "scenario": scenario.scenario_name,
@@ -118,20 +155,75 @@ class ContainerDeployer:
                 },
             }
 
-            # Deploy container app
+            # Deploy container app using Azure CLI (SDK has persistent ManagedEnvironmentNotFound issues)
+            # CLI proven to work in testing, SDK fails even with correct permissions and environment
             logger.info(f"Deploying container app {app_name} for scenario {scenario.scenario_name}")
+            logger.info(f"   Using environment: haymaker-fastapi-cae")
+            logger.info(f"   RG: {self.resource_group_name}")
 
-            poller = await asyncio.to_thread(
-                client.container_apps.begin_create_or_update,
-                resource_group_name=self.resource_group_name,
-                container_app_name=app_name,
-                container_app_envelope=container_app,
+            import subprocess
+            import json as json_module
+            import os
+
+            # Authenticate Azure CLI using SP credentials from environment
+            login_cmd = [
+                "az", "login", "--service-principal",
+                "--username", os.getenv("AZURE_CLIENT_ID"),
+                "--password", os.getenv("AZURE_CLIENT_SECRET"),
+                "--tenant", os.getenv("AZURE_TENANT_ID")
+            ]
+
+            login_result = await asyncio.to_thread(subprocess.run, login_cmd, capture_output=True, text=True)
+            if login_result.returncode != 0:
+                logger.warning(f"CLI login warning (may already be logged in): {login_result.stderr}")
+
+            # Build container app using Azure CLI
+            # Use valid CPU/memory combo: max is 4 CPU + 8Gi per Azure Container Apps limits
+            # Get ACR credentials for registry authentication
+            acr_creds = subprocess.run(
+                ["az", "acr", "credential", "show", "--name", "haymakerorchacr", "-o", "json"],
+                capture_output=True, text=True
             )
+            import json as json_mod
+            acr_data = json_mod.loads(acr_creds.stdout)
+            acr_username = acr_data['username']
+            acr_password = acr_data['passwords'][0]['value']
 
-            result = await asyncio.to_thread(poller.result)
+            cli_command = [
+                "az", "containerapp", "create",
+                "--name", app_name,
+                "--resource-group", self.resource_group_name,
+                "--environment", "haymaker-fastapi-cae",
+                "--image", container['image'],
+                "--cpu", "2.0",
+                "--memory", "4.0Gi",
+                "--target-port", "80",
+                "--ingress", "internal",
+                "--min-replicas", "0",
+                "--max-replicas", "1",
+                "--registry-server", "haymakerorchacr.azurecr.io",
+                "--registry-username", acr_username,
+                "--registry-password", acr_password,
+                "--env-vars",
+                f"SCENARIO_NAME={scenario.scenario_name}",
+                f"AZURE_CLIENT_ID={sp.client_id}",
+                f"AZURE_TENANT_ID={self.config.target_tenant_id}",
+                "--query", "properties.latestRevisionFqdn",
+                "-o", "tsv"
+            ]
 
-            logger.info(f"Container app {app_name} deployed successfully: {result.id}")
-            return result.id
+            result = await asyncio.to_thread(subprocess.run, cli_command, capture_output=True, text=True)
+
+            if result.returncode != 0:
+                error_msg = result.stderr or result.stdout
+                logger.error(f"CLI deployment failed: {error_msg}")
+                raise ContainerAppError(f"Failed to deploy via CLI: {error_msg}")
+
+            fqdn = result.stdout.strip()
+            deployed_id = f"/subscriptions/{self.subscription_id}/resourceGroups/{self.resource_group_name}/providers/Microsoft.App/containerApps/{app_name}"
+            logger.info(f"✅ Container app {app_name} deployed via CLI: {deployed_id}")
+            logger.info(f"   FQDN: {fqdn}")
+            return deployed_id
 
         except Exception as e:
             logger.error(f"Failed to deploy container app {app_name}: {e}")
@@ -154,9 +246,13 @@ class ContainerDeployer:
         sanitized = scenario_name.lower().replace("_", "-")
         # Remove invalid characters
         sanitized = "".join(c for c in sanitized if c.isalnum() or c == "-")
-        # Limit length (max 63 chars for container app names)
-        app_name = f"{sanitized}-agent"[:63]
-        return app_name
+        # Limit length (max 32 chars for container app names per Azure requirements)
+        # Remove "-agent" suffix if needed to fit in 32 chars
+        if len(sanitized) <= 32:
+            return sanitized
+        else:
+            # Truncate to 32 chars
+            return sanitized[:32]
 
     def _build_container(self, app_name: str, sp: ServicePrincipalDetails) -> dict[str, Any]:
         """Build container configuration with resource limits and env vars.
