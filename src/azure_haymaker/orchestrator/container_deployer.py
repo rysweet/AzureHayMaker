@@ -117,8 +117,8 @@ class ContainerDeployer:
 
             # Build complete Container App as dict
             # Get Container Apps Environment ID (required for deployment)
-            # Use the main dev environment (haymaker-dev-cae)
-            container_env_id = f"/subscriptions/{self.subscription_id}/resourceGroups/{self.resource_group_name}/providers/Microsoft.App/managedEnvironments/haymaker-dev-cae"
+            # Use the working dev environment (haymaker-dev-yc4hkcb2vvnwg-cae)
+            container_env_id = f"/subscriptions/{self.subscription_id}/resourceGroups/{self.resource_group_name}/providers/Microsoft.App/managedEnvironments/haymaker-dev-yc4hkcb2vvnwg-cae"
 
             # Per Azure Container Apps API: environmentId must be in properties dict
             container_app = {

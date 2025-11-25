@@ -97,7 +97,7 @@ async def validate_anthropic_api(config: OrchestratorConfig) -> ValidationResult
 
         # Make minimal test request
         await client.messages.create(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-sonnet-4-20250514",
             max_tokens=10,
             messages=[{"role": "user", "content": "Hello"}],
         )
@@ -105,7 +105,7 @@ async def validate_anthropic_api(config: OrchestratorConfig) -> ValidationResult
         return ValidationResult(
             check_name="anthropic_api",
             passed=True,
-            details={"model": "claude-3-5-sonnet-20241022"},
+            details={"model": "claude-sonnet-4-20250514"},
         )
 
     except Exception as e:
