@@ -486,6 +486,8 @@ async def check_secret_expiration(  # pyright: ignore[reportGeneralTypeIssues,re
         ServicePrincipalError: If checking fails
     """
     try:
+        from azure.identity import DefaultAzureCredential
+
         credential = DefaultAzureCredential()
         graph_client = GraphServiceClient(credential)
 
