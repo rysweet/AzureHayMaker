@@ -223,3 +223,36 @@ class ExecutionRecord(BaseModel):
         """Pydantic configuration."""
 
         use_enum_values = True
+
+
+# ==============================================================================
+# ANALYTICS MODELS
+# ==============================================================================
+
+
+class ScenarioStats(BaseModel):
+    """Statistics for a single scenario."""
+
+    name: str = Field(..., description="Scenario name")
+    count: int = Field(..., description="Execution count")
+    success_rate: float = Field(..., description="Success rate (0.0-1.0)")
+
+
+class ExecutionCounts(BaseModel):
+    """Execution counts by status."""
+
+    total: int = Field(..., description="Total executions")
+    succeeded: int = Field(..., description="Successful executions")
+    failed: int = Field(..., description="Failed executions")
+
+
+class AnalyticsSummary(BaseModel):
+    """Analytics summary for dashboard display."""
+
+    period: str = Field(..., description="Time period (e.g., '7d', '30d', '90d')")
+    executions: ExecutionCounts = Field(..., description="Execution counts by status")
+    success_rate: float = Field(..., description="Overall success rate (0.0-1.0)")
+    avg_duration_hours: float = Field(..., description="Average execution duration in hours")
+    top_scenarios: list[ScenarioStats] = Field(
+        default_factory=list, description="Top 10 scenarios by execution count"
+    )
