@@ -97,14 +97,6 @@ class ContainerDeployer:
                 client_secret=os.getenv("AZURE_CLIENT_SECRET")
             )
 
-            # Lazy import to avoid loading uninstalled package during testing
-            from azure.mgmt.appcontainers import ContainerAppsAPIClient
-
-            client = ContainerAppsAPIClient(
-                credential=credential,
-                subscription_id=self.subscription_id,
-            )
-
             # Build container configuration
             container = self._build_container(app_name, sp)
 
@@ -140,7 +132,8 @@ class ContainerDeployer:
                 raise ContainerAppError(f"Container Apps Environment not accessible: {env_error}") from env_error
 
             # Per Azure Container Apps API: environmentId must be in properties dict
-            container_app = {
+            # Note: This dict documents the expected structure; actual deployment uses CLI
+            _container_app = {
                 "location": self._get_region(),
                 "properties": {
                     "environmentId": container_env_id,  # Use environment ID retrieved from Azure

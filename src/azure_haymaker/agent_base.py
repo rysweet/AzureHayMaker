@@ -155,11 +155,11 @@ class AgentBase(ABC):
         if self._auto_mode is None:
             try:
                 from amplihack.launcher.auto_mode import AutoMode
-            except ImportError:
+            except ImportError as e:
                 logger.error("amplihack package not found")
                 raise ImportError(
                     "amplihack package not found. Install with: pip install amplihack"
-                )
+                ) from e
 
             self._auto_mode = AutoMode(
                 sdk=self.config.sdk,
