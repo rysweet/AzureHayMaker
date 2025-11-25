@@ -1,0 +1,9 @@
+{
+  "shared_agents": [
+    {
+      "name": "tester",
+      "path": "../../../../_shared/tester.md",
+      "description": "Shared agent - see _shared/README.md for details"
+    }
+  ]
+}

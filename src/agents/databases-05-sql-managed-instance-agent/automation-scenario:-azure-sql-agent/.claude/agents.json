@@ -1,0 +1,9 @@
+{
+  "shared_agents": [
+    {
+      "name": "monitor",
+      "path": "../../../../_shared/monitor.md",
+      "description": "Shared agent - see _shared/README.md for details"
+    }
+  ]
+}

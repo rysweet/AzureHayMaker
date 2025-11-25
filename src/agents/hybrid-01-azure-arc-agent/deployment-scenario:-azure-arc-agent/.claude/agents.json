@@ -1,0 +1,14 @@
+{
+  "shared_agents": [
+    {
+      "name": "documenter",
+      "path": "../../../../_shared/documenter.md",
+      "description": "Shared agent - see _shared/README.md for details"
+    },
+    {
+      "name": "monitor",
+      "path": "../../../../_shared/monitor.md",
+      "description": "Shared agent - see _shared/README.md for details"
+    }
+  ]
+}
