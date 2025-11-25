@@ -1,0 +1,727 @@
+// Azure HayMaker Custom Styles
+// Modern, clean documentation styling inspired by Azure design language
+
+// ============================================================================
+// Color Variables - Azure-inspired palette
+// ============================================================================
+
+// Light mode colors
+$azure-blue: #0078d4;
+$azure-blue-dark: #005a9e;
+$azure-blue-light: #50a5f1;
+$azure-purple: #5c2d91;
+$azure-purple-light: #8764b8;
+$azure-green: #107c10;
+$azure-orange: #ff8c00;
+$azure-red: #d13438;
+
+// Modern gradients
+$gradient-primary: linear-gradient(135deg, #0078d4 0%, #5c2d91 100%);
+$gradient-secondary: linear-gradient(135deg, #50a5f1 0%, #8764b8 100%);
+$gradient-dark: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+
+// ============================================================================
+// Typography Enhancements
+// ============================================================================
+
+body {
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.7;
+  letter-spacing: -0.01em;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.site-title {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+// ============================================================================
+// Header Styling
+// ============================================================================
+
+.site-header {
+  background: $gradient-primary;
+  border-bottom: none;
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+
+  .site-title {
+    color: white !important;
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .site-logo {
+    filter: brightness(0) invert(1);
+  }
+}
+
+// Make aux links white on gradient header
+.aux-nav {
+  a {
+    color: rgba(255, 255, 255, 0.9) !important;
+    font-weight: 500;
+
+    &:hover {
+      color: white !important;
+      text-decoration: underline;
+    }
+  }
+}
+
+// ============================================================================
+// Navigation Sidebar
+// ============================================================================
+
+.site-nav {
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border-right: 1px solid #e2e8f0;
+
+  .nav-list-link {
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    margin: 2px 8px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(0, 120, 212, 0.08);
+      color: $azure-blue;
+      transform: translateX(4px);
+    }
+
+    &.active {
+      background: rgba(0, 120, 212, 0.12);
+      color: $azure-blue;
+      font-weight: 600;
+      border-left: 3px solid $azure-blue;
+    }
+  }
+
+  .nav-list-expander {
+    color: $azure-blue;
+  }
+}
+
+// ============================================================================
+// Content Area
+// ============================================================================
+
+.main-content {
+  padding: 2.5rem;
+  max-width: 900px;
+
+  h1:first-child {
+    font-size: 2.5rem;
+    background: $gradient-primary;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.5rem;
+  }
+
+  // Subtitle styling
+  .fs-6 {
+    font-size: 1.25rem !important;
+    color: #64748b;
+    margin-bottom: 2rem;
+  }
+}
+
+// ============================================================================
+// Cards and Boxes
+// ============================================================================
+
+.card {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+    border-color: $azure-blue-light;
+  }
+
+  h3, h4 {
+    margin-top: 0;
+    color: $azure-blue-dark;
+  }
+}
+
+// Feature cards grid
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+
+.feature-card {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  padding: 2rem;
+  text-align: center;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 20px 60px rgba(0, 120, 212, 0.15);
+    transform: translateY(-4px);
+    border-color: $azure-blue;
+  }
+
+  .feature-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    display: block;
+  }
+
+  h3 {
+    color: $azure-blue-dark;
+    margin-bottom: 0.5rem;
+  }
+
+  p {
+    color: #64748b;
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+}
+
+// ============================================================================
+// Hero Section
+// ============================================================================
+
+.hero {
+  background: $gradient-primary;
+  color: white;
+  padding: 4rem 2rem;
+  margin: -2.5rem -2.5rem 2rem -2.5rem;
+  text-align: center;
+  border-radius: 0 0 24px 24px;
+
+  h1 {
+    font-size: 3rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    background: none;
+    -webkit-text-fill-color: white;
+    color: white;
+  }
+
+  p {
+    font-size: 1.25rem;
+    opacity: 0.9;
+    max-width: 600px;
+    margin: 0 auto 2rem;
+  }
+
+  .hero-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+}
+
+// ============================================================================
+// Buttons
+// ============================================================================
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+
+  &-primary {
+    background: white;
+    color: $azure-blue;
+
+    &:hover {
+      background: #f0f9ff;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+  }
+
+  &-secondary {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.25);
+      border-color: white;
+      transform: translateY(-2px);
+    }
+  }
+
+  &-outline {
+    background: transparent;
+    color: $azure-blue;
+    border: 2px solid $azure-blue;
+
+    &:hover {
+      background: $azure-blue;
+      color: white;
+    }
+  }
+}
+
+// ============================================================================
+// Tables
+// ============================================================================
+
+table {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  width: 100%;
+  margin: 1.5rem 0;
+
+  th {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    font-weight: 600;
+    color: #334155;
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 2px solid #e2e8f0;
+  }
+
+  td {
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  tr:hover {
+    background: #f8fafc;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+// ============================================================================
+// Code Blocks
+// ============================================================================
+
+pre, code {
+  font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+}
+
+pre {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+
+  &:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  }
+}
+
+code {
+  background: #f1f5f9;
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-size: 0.9em;
+  color: #be185d;
+}
+
+pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+// Copy button styling
+.copy-code-button {
+  background: $azure-blue;
+  color: white;
+  border-radius: 6px;
+  font-weight: 500;
+
+  &:hover {
+    background: $azure-blue-dark;
+  }
+}
+
+// ============================================================================
+// Callouts
+// ============================================================================
+
+.highlight, .note, .warning, .important {
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  margin: 1.5rem 0;
+  border-left: 4px solid;
+
+  p:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.note {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-left-color: $azure-blue;
+
+  &::before {
+    content: "💡 Note";
+    font-weight: 600;
+    color: $azure-blue-dark;
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+}
+
+.warning {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border-left-color: $azure-orange;
+
+  &::before {
+    content: "⚠️ Warning";
+    font-weight: 600;
+    color: #92400e;
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+}
+
+.important {
+  background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);
+  border-left-color: $azure-red;
+
+  &::before {
+    content: "🚨 Important";
+    font-weight: 600;
+    color: $azure-red;
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+}
+
+// ============================================================================
+// Badges and Labels
+// ============================================================================
+
+.label, .badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+
+  &-blue {
+    background: #dbeafe;
+    color: #1e40af;
+  }
+
+  &-green {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  &-purple {
+    background: #f3e8ff;
+    color: #6b21a8;
+  }
+
+  &-orange {
+    background: #fed7aa;
+    color: #9a3412;
+  }
+}
+
+// ============================================================================
+// Quick Links / Navigation Cards
+// ============================================================================
+
+.quick-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.quick-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  text-decoration: none;
+  color: #334155;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: white;
+    border-color: $azure-blue;
+    color: $azure-blue;
+    box-shadow: 0 4px 12px rgba(0, 120, 212, 0.1);
+    transform: translateX(4px);
+  }
+
+  .icon {
+    font-size: 1.5rem;
+  }
+
+  span {
+    font-weight: 500;
+  }
+}
+
+// ============================================================================
+// Stats/Metrics Display
+// ============================================================================
+
+.stats {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  margin: 2rem 0;
+  justify-content: center;
+}
+
+.stat {
+  text-align: center;
+  padding: 1.5rem;
+
+  .stat-value {
+    font-size: 3rem;
+    font-weight: 700;
+    background: $gradient-primary;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.2;
+  }
+
+  .stat-label {
+    font-size: 0.875rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+  }
+}
+
+// ============================================================================
+// Footer
+// ============================================================================
+
+.site-footer {
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border-top: 1px solid #e2e8f0;
+  padding: 2rem;
+
+  .footer-content {
+    max-width: 900px;
+    margin: 0 auto;
+    text-align: center;
+    color: #64748b;
+  }
+}
+
+// ============================================================================
+// Dark Mode Support
+// ============================================================================
+
+@media (prefers-color-scheme: dark) {
+  // Will be used when dark mode is selected
+}
+
+// Manual dark mode toggle
+[data-theme="dark"] {
+  --body-background-color: #0f172a;
+  --body-text-color: #e2e8f0;
+  --sidebar-color: #1e293b;
+  --code-background-color: #1e293b;
+
+  .site-nav {
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    border-right-color: #334155;
+
+    .nav-list-link {
+      color: #e2e8f0;
+
+      &:hover {
+        background: rgba(0, 120, 212, 0.15);
+      }
+
+      &.active {
+        background: rgba(0, 120, 212, 0.2);
+      }
+    }
+  }
+
+  .main-content {
+    background: #0f172a;
+
+    h1, h2, h3, h4, h5, h6 {
+      color: #f1f5f9;
+    }
+
+    p, li {
+      color: #cbd5e1;
+    }
+  }
+
+  .card, .feature-card {
+    background: #1e293b;
+    border-color: #334155;
+
+    h3, h4 {
+      color: $azure-blue-light;
+    }
+
+    p {
+      color: #94a3b8;
+    }
+  }
+
+  table {
+    border-color: #334155;
+
+    th {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      color: #e2e8f0;
+      border-bottom-color: #334155;
+    }
+
+    td {
+      border-bottom-color: #1e293b;
+      color: #cbd5e1;
+    }
+
+    tr:hover {
+      background: #1e293b;
+    }
+  }
+
+  pre {
+    border-color: #334155;
+  }
+
+  code {
+    background: #1e293b;
+    color: #f472b6;
+  }
+
+  .quick-link {
+    background: #1e293b;
+    border-color: #334155;
+    color: #e2e8f0;
+
+    &:hover {
+      background: #334155;
+    }
+  }
+
+  .site-footer {
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    border-top-color: #334155;
+  }
+}
+
+// ============================================================================
+// Responsive Adjustments
+// ============================================================================
+
+@media (max-width: 768px) {
+  .hero {
+    padding: 2rem 1rem;
+    margin: -1.5rem -1.5rem 1.5rem -1.5rem;
+
+    h1 {
+      font-size: 2rem;
+    }
+
+    p {
+      font-size: 1rem;
+    }
+
+    .hero-buttons {
+      flex-direction: column;
+      align-items: center;
+    }
+  }
+
+  .main-content {
+    padding: 1.5rem;
+
+    h1:first-child {
+      font-size: 1.75rem;
+    }
+  }
+
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats {
+    gap: 1rem;
+  }
+
+  .stat .stat-value {
+    font-size: 2rem;
+  }
+}
+
+// ============================================================================
+// Animation Utilities
+// ============================================================================
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+// ============================================================================
+// Search Styling
+// ============================================================================
+
+.search-input {
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+  padding: 0.75rem 1rem;
+  transition: all 0.2s ease;
+
+  &:focus {
+    border-color: $azure-blue;
+    box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
+    outline: none;
+  }
+}
+
+.search-results {
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e2e8f0;
+}
