@@ -4,29 +4,34 @@ Infrastructure as Code for Azure HayMaker using Azure Bicep.
 
 ## Overview
 
-This directory contains all infrastructure definitions for deploying Azure HayMaker across multiple environments.
+This directory contains all infrastructure definitions for deploying Azure HayMaker using Container Apps architecture.
 
 ```
 infra/
 ├── bicep/
-│   ├── main.bicep              # Root orchestration template
+│   ├── main.bicep              # Container Apps orchestration template
 │   ├── modules/                # Reusable Bicep modules
 │   │   ├── log-analytics.bicep
 │   │   ├── storage.bicep
 │   │   ├── servicebus.bicep
 │   │   ├── keyvault.bicep
 │   │   ├── cosmosdb.bicep
-│   │   ├── container-apps-env.bicep
+│   │   ├── containerapp-environment.bicep
 │   │   ├── container-registry.bicep
-│   │   └── function-app.bicep
-│   └── parameters/             # Environment-specific parameters
-│       ├── dev.bicepparam
-│       ├── staging.bicepparam
-│       └── prod.bicepparam
+│   │   └── orchestrator-containerapp.bicep
+│   ├── parameters/             # Environment-specific parameters
+│   │   ├── dev.bicepparam
+│   │   ├── staging.bicepparam
+│   │   └── prod.bicepparam
+│   └── archive/                # Archived templates (Function App, VM)
 └── README.md
 ```
 
 ## Architecture
+
+**Single Architecture: Container Apps with E16 Workload Profile (128GB RAM)**
+
+This infrastructure deploys all HayMaker components to Azure Container Apps, following ruthless simplicity principles. Previous architectures (Function App, VM-based) have been archived.
 
 ### Resources Deployed
 
@@ -36,10 +41,9 @@ infra/
 | Storage Account | Blob storage for logs, reports, state | storage.bicep |
 | Service Bus | Message queue for agent logs and requests | servicebus.bicep |
 | Key Vault | Secure secret storage | keyvault.bicep |
-| Cosmos DB | NoSQL database for metrics | cosmosdb.bicep |
-| Container Apps Environment | Agent container hosting | container-apps-env.bicep |
-| Container Registry | Private image registry | container-registry.bicep |
-| Function App | Orchestrator logic | function-app.bicep |
+| Container Apps Environment | E16 workload profile (128GB RAM) | containerapp-environment.bicep |
+| Orchestrator Container App | Main orchestration logic | orchestrator-containerapp.bicep |
+| Container Registry | Private image registry (created by workflow) | container-registry.bicep |
 
 ### Resource Naming Convention
 
@@ -229,56 +233,41 @@ Deploys Cosmos DB account with database and containers.
 - `metrics` - Execution metrics (partitioned by scenario_name)
 - `runs` - Run records (partitioned by run_id)
 
-### container-apps-env.bicep
+### containerapp-environment.bicep
 
-Deploys Container Apps Environment for agent containers.
+Deploys Container Apps Environment with E16 workload profile (128GB RAM).
 
 **Parameters**:
 - `environmentName`: Environment name
 - `logAnalyticsWorkspaceId`: Workspace resource ID
-- `logAnalyticsSharedKey`: Workspace shared key
+- `workloadProfiles`: Workload profile configurations (default: E16 with 1-3 instances)
 
 **Outputs**:
 - Environment ID and name
 - Default domain
-- Static IP
 
-### container-registry.bicep
+### orchestrator-containerapp.bicep
 
-Deploys Azure Container Registry for agent images.
-
-**Parameters**:
-- `registryName`: Globally unique name (alphanumeric only)
-- `sku`: Registry SKU (Basic, Standard, Premium)
-- `adminUserEnabled`: Enable admin user
-
-**Outputs**:
-- Registry ID, name, and login server
-- Admin username and password
-
-### function-app.bicep
-
-Deploys Function App with App Service Plan and Application Insights.
+Deploys orchestrator as a Container App with 128GB RAM allocation.
 
 **Parameters**:
-- `functionAppName`: Function App name
-- `appServicePlanName`: App Service Plan name
-- `storageConnectionString`: Storage connection string
+- `containerAppName`: Container App name
+- `environmentId`: Container Apps Environment ID
+- `containerImage`: Orchestrator container image
+- `containerRegistry`: ACR login server
 - `keyVaultUri`: Key Vault URI for secret references
-- `serviceBusConnectionString`: Service Bus connection string
-- `cosmosDbConnectionString`: Cosmos DB connection string
-- `environment`: Environment name
-- `pythonVersion`: Python runtime version (default: 3.13)
+- `serviceBusNamespace`: Service Bus namespace
+- `storageAccountName`: Storage account name
+- `simulationSize`: Simulation size (small, medium, large)
 
 **Outputs**:
-- Function App ID, name, and URL
+- Container App ID, name, and FQDN
 - Principal ID (managed identity)
-- Application Insights connection string
 
-**App Settings**:
-- All required environment variables
-- Key Vault secret references (using @Microsoft.KeyVault syntax)
-- Service connections (Service Bus, Cosmos DB, Storage)
+**Configuration**:
+- E16 workload profile (128GB RAM, 16 vCPU)
+- Managed identity for Key Vault access
+- Environment variables for all service connections
 
 ## Deployment Workflow
 
@@ -316,11 +305,8 @@ See: [Deployment Guide](../docs/DEPLOYMENT.md)
    az keyvault secret set --vault-name <kv-name> --name anthropic-api-key --value "<key>"
    ```
 
-5. **Deploy Function App**:
-   ```bash
-   cd ../src
-   func azure functionapp publish <function-app-name> --python
-   ```
+5. **Deploy Container App**:
+   Container images are built and deployed via GitHub Actions workflow. See [.github/workflows/deploy-containerapps.yml](../.github/workflows/deploy-containerapps.yml)
 
 ## Troubleshooting
 

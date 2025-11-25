@@ -1,102 +1,61 @@
-// Azure HayMaker Infrastructure - Main Template
-// Purpose: Orchestrates deployment of all Azure resources for HayMaker orchestrator
-//
-// NOTE: Deploy to existing resource group. Create RG first:
-// az group create --name haymaker-<env>-rg --location <region>
+// Azure HayMaker - Container Apps Architecture
+// Orchestrator on Container Apps with E16 workload profile (128GB RAM)
+// All automation via GitOps - Captain's requirement
 
 targetScope = 'resourceGroup'
 
-// Parameters
-@description('Environment name (dev, staging, prod)')
-@allowed([
-  'dev'
-  'staging'
-  'prod'
-])
-param environment string
+@description('Environment name (dev/staging/prod)')
+@allowed(['dev', 'staging', 'prod'])
+param environment string = 'dev'
 
-@description('Azure region for all resources')
-param location string = 'eastus'
-
-@description('Naming prefix for all resources')
-@minLength(3)
-@maxLength(10)
-param namingPrefix string = 'haymaker'
-
-@description('Azure AD tenant ID')
-param tenantId string = tenant().tenantId
-
-@description('Azure subscription ID')
-param subscriptionId string = subscription().subscriptionId
+@description('Location for all resources')
+param location string = resourceGroup().location
 
 @description('Admin object IDs for Key Vault access')
-param adminObjectIds array = []
+param adminObjectIds array
 
-@description('Client ID for GitHub OIDC authentication')
-param githubOidcClientId string = ''
+@description('GitHub OIDC client ID')
+param githubOidcClientId string
 
-// Variables
-@description('Deployment timestamp for unique resource names')
-param deploymentTimestamp string = utcNow('yyyyMMddHHmmss')
+@description('Orchestrator container image')
+param orchestratorImage string = 'haymakerorchacr.azurecr.io/haymaker-orchestrator:latest'
 
-var uniqueSuffix = uniqueString(subscription().id, namingPrefix, environment, deploymentTimestamp)
-var resourceGroupName = '${namingPrefix}-${environment}-${take(uniqueSuffix, 6)}-rg'
+@description('Agent container image')
+param agentImage string = 'azure-haymaker-agent:latest'
+
+@description('Simulation size')
+param simulationSize string = 'small'
+
+// Common tags
 var commonTags = {
   Environment: environment
-  ManagedBy: 'Bicep'
   Project: 'AzureHayMaker'
+  ManagedBy: 'Bicep'
   DeployedBy: 'GitHubActions'
+  Architecture: 'ContainerApps'
 }
 
-// Resource names with environment suffix and unique identifiers for globally unique resources
-var logAnalyticsName = '${namingPrefix}-${environment}-logs'
-var storageAccountName = toLower('${namingPrefix}${environment}${take(uniqueSuffix, 6)}')
-var serviceBusName = '${namingPrefix}-${environment}-${take(uniqueSuffix, 6)}-bus'
-var keyVaultName = '${namingPrefix}-${environment}-${take(uniqueSuffix, 6)}-kv'
-var cosmosDbName = '${namingPrefix}-${environment}-${take(uniqueSuffix, 6)}-cosmos'
-var containerAppsEnvName = '${namingPrefix}-${environment}-cae'
-var containerRegistryName = toLower('${namingPrefix}${environment}${take(uniqueSuffix, 6)}acr')
-var functionAppName = '${namingPrefix}-${environment}-${take(uniqueSuffix, 6)}-func'
-var appServicePlanName = '${namingPrefix}-${environment}-plan'
+// Generate unique suffix
+var uniqueSuffix = uniqueString(resourceGroup().id, environment)
 
-// Resource Group should be created before deploying this template
-// Example: az group create --name haymaker-dev-rg --location westus2
+// Resource names (keep under 32 chars for Container Apps)
+var containerAppEnvName = 'haymaker-${environment}-${uniqueSuffix}-cae'
+var orchestratorAppName = 'orch-${environment}-${substring(uniqueSuffix, 0, 10)}' // <32 chars
+var keyVaultName = 'haymaker-${environment}-${substring(uniqueSuffix, 0, 6)}-kv'
+var serviceBusName = 'haymaker-${environment}-${uniqueSuffix}-bus'
+var storageName = 'haymaker${environment}${substring(uniqueSuffix, 0, 8)}'
 
-// Log Analytics Workspace
-module logAnalytics 'modules/log-analytics.bicep' = {
-  name: 'logAnalytics-${uniqueSuffix}'
-  params: {
-    workspaceName: logAnalyticsName
-    location: location
-    tags: commonTags
-    retentionInDays: environment == 'prod' ? 90 : 30
-    sku: 'PerGB2018'
-  }
-}
+// Tenant and subscription
+var tenantId = tenant().tenantId
+var subscriptionId = subscription().subscriptionId
 
 // Storage Account
 module storage 'modules/storage.bicep' = {
   name: 'storage-${uniqueSuffix}'
   params: {
-    storageAccountName: storageAccountName
+    storageAccountName: storageName
     location: location
     tags: commonTags
-    sku: environment == 'prod' ? 'Standard_GRS' : 'Standard_LRS'
-    enableVersioning: environment == 'prod'
-    retentionDays: environment == 'prod' ? 30 : 7
-  }
-}
-
-// Service Bus
-module serviceBus 'modules/servicebus.bicep' = {
-  name: 'serviceBus-${uniqueSuffix}'
-  params: {
-    namespaceName: serviceBusName
-    location: location
-    tags: commonTags
-    sku: environment == 'prod' ? 'Standard' : 'Standard'
-    topicName: 'agent-logs'
-    queueName: 'execution-requests'
   }
 }
 
@@ -112,126 +71,96 @@ module keyVault 'modules/keyvault.bicep' = {
     enableSoftDelete: true
     softDeleteRetentionInDays: 7
     enablePurgeProtection: environment == 'prod'
-    publicNetworkAccess: environment != 'prod'  // Enable public access for dev/staging (GitHub Actions needs it)
+    publicNetworkAccess: true // Allow for GitHub Actions + Container Apps
   }
 }
 
-// Cosmos DB
-// Cosmos DB (Optional for dev - region capacity limitations)
-module cosmosDb 'modules/cosmosdb.bicep' = if (environment != 'dev') {
-  name: 'cosmosDb-${uniqueSuffix}'
+// Service Bus
+module serviceBus 'modules/servicebus.bicep' = {
+  name: 'serviceBus-${uniqueSuffix}'
   params: {
-    accountName: cosmosDbName
+    namespaceName: serviceBusName
     location: location
     tags: commonTags
-    databaseName: 'haymaker'
-    metricsContainerName: 'metrics'
-    runsContainerName: 'runs'
-    throughput: environment == 'prod' ? 400 : 0 // Serverless for staging
+    sku: environment == 'prod' ? 'Premium' : 'Standard'
   }
 }
 
-// Container Apps Environment
-module containerAppsEnv 'modules/container-apps-env.bicep' = {
+// Log Analytics
+module logAnalytics 'modules/log-analytics.bicep' = {
+  name: 'logAnalytics-${uniqueSuffix}'
+  params: {
+    workspaceName: 'haymaker-${environment}-${uniqueSuffix}-logs'
+    location: location
+    tags: commonTags
+    sku: 'PerGB2018'
+    retentionInDays: environment == 'prod' ? 90 : 30
+  }
+}
+
+// Note: ACR 'haymakerorchacr' created by GitHub Actions workflow
+// See .github/workflows/deploy-containerapps.yml - Build job creates ACR if needed
+
+// Container Apps Environment with E16 workload profile
+module containerAppsEnv 'modules/containerapp-environment.bicep' = {
   name: 'containerAppsEnv-${uniqueSuffix}'
   params: {
-    environmentName: containerAppsEnvName
+    environmentName: containerAppEnvName
     location: location
     tags: commonTags
     logAnalyticsWorkspaceId: logAnalytics.outputs.workspaceId
-    logAnalyticsSharedKey: logAnalytics.outputs.primarySharedKey
+    // E16 workload profile: 128GB RAM, 16 vCPU (same for dev and prod per Captain)
+    workloadProfiles: [
+      {
+        name: 'E16'
+        workloadProfileType: 'E16'
+        minimumCount: 1
+        maximumCount: environment == 'prod' ? 3 : 1
+      }
+    ]
   }
 }
 
-// Container Registry (Optional for dev - SKU limitations in some subscriptions)
-module containerRegistry 'modules/container-registry.bicep' = if (environment != 'dev') {
-  name: 'containerRegistry-${uniqueSuffix}'
+// Orchestrator Container App with 128GB RAM
+module orchestrator 'modules/orchestrator-containerapp.bicep' = {
+  name: 'orchestrator-${uniqueSuffix}'
   params: {
-    registryName: containerRegistryName
+    containerAppName: orchestratorAppName
     location: location
     tags: commonTags
-    sku: 'Premium'
-    adminUserEnabled: true
-  }
-}
-
-// Function App (depends on most other resources)
-module functionApp 'modules/function-app.bicep' = {
-  name: 'functionApp-${uniqueSuffix}'
-  params: {
-    functionAppName: functionAppName
-    appServicePlanName: appServicePlanName
-    location: location
-    tags: commonTags
-    storageConnectionString: storage.outputs.connectionString
-    appInsightsConnectionString: logAnalytics.outputs.workspaceId
+    environmentId: containerAppsEnv.outputs.environmentId
+    containerImage: orchestratorImage
+    containerRegistry: 'haymakerorchacr.azurecr.io' // ACR created by workflow
+    environment: environment
     keyVaultUri: keyVault.outputs.keyVaultUri
-    serviceBusConnectionString: serviceBus.outputs.connectionString
-    // SECURITY: Removed cosmosDbConnectionString - use Managed Identity instead
+    serviceBusNamespace: serviceBus.outputs.namespaceName
+    storageAccountName: storage.outputs.storageAccountName
+    cosmosDbEndpoint: ''
     tenantId: tenantId
     subscriptionId: subscriptionId
     clientId: githubOidcClientId
-    environment: environment
-    pythonVersion: '3.13'
-    // Additional parameters for orchestrator configuration
-    serviceBusNamespace: serviceBus.outputs.namespaceName
-    containerRegistryLoginServer: environment != 'dev' ? containerRegistry.outputs.loginServer : ''
-    containerImage: 'azure-haymaker-agent:latest'
-    simulationSize: 'small'
+    simulationSize: simulationSize
     logAnalyticsWorkspaceId: logAnalytics.outputs.workspaceId
-    resourceGroupName: resourceGroup().name
   }
 }
 
-// Grant Function App access to Key Vault (via module to match scope)
-module functionAppKeyVaultRole 'modules/role-assignment.bicep' = {
-  name: 'functionAppKeyVaultRole-${uniqueSuffix}'
+// Grant Orchestrator access to Key Vault
+module orchestratorKeyVaultRole 'modules/role-assignment.bicep' = {
+  name: 'orchestratorKeyVaultRole-${uniqueSuffix}'
   params: {
-    principalId: functionApp.outputs.principalId
+    principalId: orchestrator.outputs.principalId
     roleDefinitionId: '4633458b-17de-408a-b874-0445c86b69e6' // Key Vault Secrets User
-    principalType: 'ServicePrincipal'
   }
 }
 
-// Grant Function App access to Storage (via module to match scope)
-module functionAppStorageRole 'modules/role-assignment.bicep' = {
-  name: 'functionAppStorageRole-${uniqueSuffix}'
-  params: {
-    principalId: functionApp.outputs.principalId
-    roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' // Storage Blob Data Contributor
-    principalType: 'ServicePrincipal'
-  }
-}
-
-// Grant Function App access to Cosmos DB (via module to match scope) - only if Cosmos DB is deployed
-module functionAppCosmosRole 'modules/role-assignment.bicep' = if (environment != 'dev') {
-  name: 'functionAppCosmosRole-${uniqueSuffix}'
-  params: {
-    principalId: functionApp.outputs.principalId
-    roleDefinitionId: '00000000-0000-0000-0000-000000000002' // Cosmos DB Built-in Data Contributor
-    principalType: 'ServicePrincipal'
-  }
-}
+// Grant Orchestrator access to ACR (AcrPull)
+// Note: Role assignment created in workflow after ACR deployment
+// See: .github/workflows/deploy-containerapps.yml - "Grant ACR Pull Permission" step
 
 // Outputs
-output resourceGroupName string = resourceGroup().name
-output location string = resourceGroup().location
-output environment string = environment
-
-// Infrastructure outputs
-output logAnalyticsWorkspaceId string = logAnalytics.outputs.workspaceId
-output logAnalyticsCustomerId string = logAnalytics.outputs.customerId
-output storageAccountName string = storage.outputs.storageAccountName
-output serviceBusNamespace string = serviceBus.outputs.namespaceName
+output containerAppEnvName string = containerAppsEnv.outputs.environmentName
+output orchestratorName string = orchestrator.outputs.containerAppName
+output orchestratorFqdn string = orchestrator.outputs.fqdn
 output keyVaultName string = keyVault.outputs.keyVaultName
-output keyVaultUri string = keyVault.outputs.keyVaultUri
-output cosmosDbEndpoint string = environment != 'dev' ? cosmosDb.outputs.endpoint : ''
-output cosmosDbDatabaseName string = environment != 'dev' ? cosmosDb.outputs.databaseName : ''
-output containerAppsEnvironmentName string = containerAppsEnv.outputs.environmentName
-output containerRegistryName string = environment != 'dev' ? containerRegistry.outputs.registryName : ''
-output containerRegistryLoginServer string = environment != 'dev' ? containerRegistry.outputs.loginServer : ''
-
-// Function App outputs
-output functionAppName string = functionApp.outputs.functionAppName
-output functionAppUrl string = functionApp.outputs.functionAppUrl
-output functionAppPrincipalId string = functionApp.outputs.principalId
+output serviceBusName string = serviceBus.outputs.namespaceName
+output storageName string = storage.outputs.storageAccountName
