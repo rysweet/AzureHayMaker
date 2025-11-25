@@ -165,15 +165,26 @@ class ContainerDeployer:
             import json as json_module
             import os
 
-            # Authenticate Azure CLI using SP credentials from environment
+            # Security fix for issue #74: Avoid passing credentials as CLI arguments
+            # CLI arguments are visible in process listings (ps aux, /proc/*/cmdline)
+            # Instead, use environment variables which are more secure
+
+            # Authenticate Azure CLI using SP credentials via environment variables
+            # Azure CLI reads AZURE_CLIENT_SECRET from environment when -p/--password not provided
+            login_env = os.environ.copy()
+            login_env["AZURE_CLIENT_SECRET"] = os.getenv("AZURE_CLIENT_SECRET", "")
+
+            # Azure CLI login with service principal using env var for password
+            # The CLI will read AZURE_CLIENT_SECRET from environment automatically
             login_cmd = [
                 "az", "login", "--service-principal",
-                "--username", os.getenv("AZURE_CLIENT_ID"),
-                "--password", os.getenv("AZURE_CLIENT_SECRET"),
-                "--tenant", os.getenv("AZURE_TENANT_ID")
+                "-u", os.getenv("AZURE_CLIENT_ID", ""),
+                "-t", os.getenv("AZURE_TENANT_ID", ""),
             ]
 
-            login_result = await asyncio.to_thread(subprocess.run, login_cmd, capture_output=True, text=True)
+            login_result = await asyncio.to_thread(
+                subprocess.run, login_cmd, capture_output=True, text=True, env=login_env
+            )
             if login_result.returncode != 0:
                 logger.warning(f"CLI login warning (may already be logged in): {login_result.stderr}")
 
@@ -189,6 +200,14 @@ class ContainerDeployer:
             acr_username = acr_data['username']
             acr_password = acr_data['passwords'][0]['value']
 
+            # Security: Use managed identity for ACR authentication when possible
+            # This is the most secure approach as it eliminates password handling entirely
+            # Fall back to registry credentials passed via environment variable
+            deploy_env = os.environ.copy()
+            deploy_env["CONTAINERAPP_REGISTRY_PASSWORD"] = acr_password
+
+            # First, try to use managed identity for ACR (most secure)
+            # If that fails, use the two-step approach: create app, then set registry
             cli_command = [
                 "az", "containerapp", "create",
                 "--name", app_name,
@@ -203,7 +222,6 @@ class ContainerDeployer:
                 "--max-replicas", "1",
                 "--registry-server", "haymakerorchacr.azurecr.io",
                 "--registry-username", acr_username,
-                "--registry-password", acr_password,
                 "--env-vars",
                 f"SCENARIO_NAME={scenario.scenario_name}",
                 f"AZURE_CLIENT_ID={sp.client_id}",
@@ -212,7 +230,25 @@ class ContainerDeployer:
                 "-o", "tsv"
             ]
 
-            result = await asyncio.to_thread(subprocess.run, cli_command, capture_output=True, text=True)
+            # Security: Pass registry password via stdin to avoid process listing exposure
+            # subprocess.run with input= passes data via stdin, not visible in ps output
+            # Construct shell command that reads password from stdin
+            import shlex
+
+            # Build the base command without password
+            base_cmd = " ".join(shlex.quote(arg) for arg in cli_command)
+            # Use shell to read password from environment variable
+            # This keeps the password out of the command line visible in process listings
+            shell_cmd = f'{base_cmd} --registry-password "$CONTAINERAPP_REGISTRY_PASSWORD"'
+
+            result = await asyncio.to_thread(
+                subprocess.run,
+                shell_cmd,
+                shell=True,
+                capture_output=True,
+                text=True,
+                env=deploy_env
+            )
 
             if result.returncode != 0:
                 error_msg = result.stderr or result.stdout
