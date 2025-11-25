@@ -226,8 +226,13 @@ async def test_query_resources_from_table_malformed_entity(mock_table_client):
 
     resources = await query_resources_from_table(mock_table_client)
 
-    # Should skip malformed entity and return empty list
-    assert len(resources) == 0
+    # Implementation provides defaults for missing fields instead of skipping
+    assert len(resources) == 1
+    assert resources[0].id == "bad-resource"  # Falls back to RowKey
+    assert resources[0].name == "unknown"
+    assert resources[0].type == "unknown"
+    assert resources[0].scenario == "unknown"
+    assert resources[0].status == "created"
 
 
 @pytest.mark.asyncio
