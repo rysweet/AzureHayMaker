@@ -91,4 +91,4 @@ output namespaceName string = serviceBusNamespace.name
 output topicName string = agentLogsTopic.name
 output queueName string = executionRequestsQueue.name
 output endpoint string = serviceBusNamespace.properties.serviceBusEndpoint
-output connectionString string = listKeys('${serviceBusNamespace.id}/AuthorizationRules/RootManageSharedAccessKey', serviceBusNamespace.apiVersion).primaryConnectionString
+// SECURITY: Removed connectionString output - use Managed Identity instead

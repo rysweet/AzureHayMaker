@@ -1,0 +1,333 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.39.26.7824",
+      "templateHash": "9389122874869419760"
+    }
+  },
+  "parameters": {
+    "functionAppName": {
+      "type": "string",
+      "metadata": {
+        "description": "Function App name"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region"
+      }
+    },
+    "tags": {
+      "type": "object",
+      "defaultValue": {},
+      "metadata": {
+        "description": "Resource tags"
+      }
+    },
+    "appServicePlanName": {
+      "type": "string",
+      "metadata": {
+        "description": "App Service Plan name"
+      }
+    },
+    "storageConnectionString": {
+      "type": "securestring",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Storage account connection string - DEPRECATED: Use Managed Identity instead"
+      }
+    },
+    "appInsightsConnectionString": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Application Insights connection string"
+      }
+    },
+    "keyVaultUri": {
+      "type": "string",
+      "metadata": {
+        "description": "Key Vault URI for secret references"
+      }
+    },
+    "serviceBusConnectionString": {
+      "type": "securestring",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Service Bus connection string - DEPRECATED: Use Managed Identity instead"
+      }
+    },
+    "cosmosDbConnectionString": {
+      "type": "securestring",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Cosmos DB connection string - DEPRECATED: Use Managed Identity instead"
+      }
+    },
+    "tenantId": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure tenant ID"
+      }
+    },
+    "subscriptionId": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure subscription ID"
+      }
+    },
+    "clientId": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure client ID (managed identity)"
+      }
+    },
+    "environment": {
+      "type": "string",
+      "metadata": {
+        "description": "Environment name (dev/staging/prod)"
+      }
+    },
+    "pythonVersion": {
+      "type": "string",
+      "defaultValue": "3.11",
+      "metadata": {
+        "description": "Python version"
+      }
+    },
+    "serviceBusNamespace": {
+      "type": "string",
+      "metadata": {
+        "description": "Service Bus namespace name"
+      }
+    },
+    "containerRegistryLoginServer": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Container registry login server"
+      }
+    },
+    "containerImage": {
+      "type": "string",
+      "defaultValue": "azure-haymaker-agent:latest",
+      "metadata": {
+        "description": "Container image name"
+      }
+    },
+    "simulationSize": {
+      "type": "string",
+      "defaultValue": "small",
+      "metadata": {
+        "description": "Simulation size (small/medium/large)"
+      }
+    },
+    "logAnalyticsWorkspaceId": {
+      "type": "string",
+      "metadata": {
+        "description": "Log Analytics workspace ID"
+      }
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "metadata": {
+        "description": "Resource group name"
+      }
+    },
+    "storageAccountName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Storage account name for managed identity access"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2023-01-01",
+      "name": "[parameters('appServicePlanName')]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "sku": {
+        "name": "[if(equals(parameters('environment'), 'prod'), 'EP3', 'EP3')]",
+        "tier": "ElasticPremium",
+        "capacity": "[if(equals(parameters('environment'), 'prod'), 3, 1)]"
+      },
+      "kind": "linux",
+      "properties": {
+        "reserved": true
+      }
+    },
+    {
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2020-02-02",
+      "name": "[format('{0}-insights', parameters('functionAppName'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web",
+        "Request_Source": "rest",
+        "WorkspaceResourceId": null
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2023-01-01",
+      "name": "[parameters('functionAppName')]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "kind": "functionapp,linux",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('appServicePlanName'))]",
+        "httpsOnly": true,
+        "clientAffinityEnabled": false,
+        "siteConfig": {
+          "linuxFxVersion": "[format('PYTHON|{0}', parameters('pythonVersion'))]",
+          "appSettings": [
+            {
+              "name": "FUNCTIONS_WORKER_RUNTIME",
+              "value": "python"
+            },
+            {
+              "name": "FUNCTIONS_EXTENSION_VERSION",
+              "value": "~4"
+            },
+            {
+              "name": "AzureWebJobsStorage__accountName",
+              "value": "[parameters('storageAccountName')]"
+            },
+            {
+              "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+              "value": "[parameters('appInsightsConnectionString')]"
+            },
+            {
+              "name": "AZURE_FUNCTIONS_ENVIRONMENT",
+              "value": "[parameters('environment')]"
+            },
+            {
+              "name": "AZURE_TENANT_ID",
+              "value": "[parameters('tenantId')]"
+            },
+            {
+              "name": "AZURE_SUBSCRIPTION_ID",
+              "value": "[parameters('subscriptionId')]"
+            },
+            {
+              "name": "AZURE_CLIENT_ID",
+              "value": "[parameters('clientId')]"
+            },
+            {
+              "name": "KEY_VAULT_URL",
+              "value": "[parameters('keyVaultUri')]"
+            },
+            {
+              "name": "ServiceBusConnection__fullyQualifiedNamespace",
+              "value": "[format('{0}.servicebus.windows.net', parameters('serviceBusNamespace'))]"
+            },
+            {
+              "name": "COSMOSDB_ENDPOINT",
+              "value": ""
+            },
+            {
+              "name": "COSMOSDB_DATABASE",
+              "value": "haymaker"
+            },
+            {
+              "name": "STORAGE_ACCOUNT_NAME",
+              "value": "[parameters('storageAccountName')]"
+            },
+            {
+              "name": "TABLE_STORAGE_ACCOUNT_NAME",
+              "value": "[parameters('storageAccountName')]"
+            },
+            {
+              "name": "MAIN_SP_CLIENT_SECRET",
+              "value": "[format('@Microsoft.KeyVault(VaultName={0};SecretName=main-sp-client-secret)', split(parameters('keyVaultUri'), '.')[0])]"
+            },
+            {
+              "name": "ANTHROPIC_API_KEY",
+              "value": "[format('@Microsoft.KeyVault(VaultName={0};SecretName=anthropic-api-key)', split(parameters('keyVaultUri'), '.')[0])]"
+            },
+            {
+              "name": "LOG_ANALYTICS_WORKSPACE_KEY",
+              "value": "[format('@Microsoft.KeyVault(VaultName={0};SecretName=log-analytics-workspace-key)', split(parameters('keyVaultUri'), '.')[0])]"
+            },
+            {
+              "name": "SERVICE_BUS_NAMESPACE",
+              "value": "[parameters('serviceBusNamespace')]"
+            },
+            {
+              "name": "CONTAINER_REGISTRY",
+              "value": "[parameters('containerRegistryLoginServer')]"
+            },
+            {
+              "name": "CONTAINER_IMAGE",
+              "value": "[parameters('containerImage')]"
+            },
+            {
+              "name": "SIMULATION_SIZE",
+              "value": "[parameters('simulationSize')]"
+            },
+            {
+              "name": "LOG_ANALYTICS_WORKSPACE_ID",
+              "value": "[parameters('logAnalyticsWorkspaceId')]"
+            },
+            {
+              "name": "RESOURCE_GROUP_NAME",
+              "value": "[parameters('resourceGroupName')]"
+            },
+            {
+              "name": "SERVICE_BUS_TOPIC",
+              "value": "agent-logs"
+            }
+          ],
+          "cors": {
+            "allowedOrigins": [
+              "https://portal.azure.com"
+            ]
+          },
+          "ftpsState": "Disabled",
+          "minTlsVersion": "1.2"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', parameters('appServicePlanName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "functionAppId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Web/sites', parameters('functionAppName'))]"
+    },
+    "functionAppName": {
+      "type": "string",
+      "value": "[parameters('functionAppName')]"
+    },
+    "functionAppUrl": {
+      "type": "string",
+      "value": "[format('https://{0}', reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2023-01-01').defaultHostName)]"
+    },
+    "principalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2023-01-01', 'full').identity.principalId]"
+    },
+    "appInsightsInstrumentationKey": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Insights/components', format('{0}-insights', parameters('functionAppName'))), '2020-02-02').InstrumentationKey]"
+    },
+    "appInsightsConnectionString": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Insights/components', format('{0}-insights', parameters('functionAppName'))), '2020-02-02').ConnectionString]"
+    }
+  }
+}

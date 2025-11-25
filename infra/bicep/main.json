@@ -1,12 +1,11 @@
 {
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "languageVersion": "2.0",
   "contentVersion": "1.0.0.0",
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.35.1.17967",
-      "templateHash": "17071000981233879286"
+      "version": "0.39.26.7824",
+      "templateHash": "3427537147259820986"
     }
   },
   "parameters": {
@@ -92,10 +91,10 @@
     "functionAppName": "[format('{0}-{1}-{2}-func', parameters('namingPrefix'), parameters('environment'), take(variables('uniqueSuffix'), 6))]",
     "appServicePlanName": "[format('{0}-{1}-plan', parameters('namingPrefix'), parameters('environment'))]"
   },
-  "resources": {
-    "logAnalytics": {
+  "resources": [
+    {
       "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
+      "apiVersion": "2025-04-01",
       "name": "[format('logAnalytics-{0}', variables('uniqueSuffix'))]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -119,13 +118,12 @@
         },
         "template": {
           "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-          "languageVersion": "2.0",
           "contentVersion": "1.0.0.0",
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.35.1.17967",
-              "templateHash": "5530946079889920547"
+              "version": "0.39.26.7824",
+              "templateHash": "10274967478831756352"
             }
           },
           "parameters": {
@@ -173,8 +171,8 @@
               }
             }
           },
-          "resources": {
-            "logAnalyticsWorkspace": {
+          "resources": [
+            {
               "type": "Microsoft.OperationalInsights/workspaces",
               "apiVersion": "2023-09-01",
               "name": "[parameters('workspaceName')]",
@@ -192,7 +190,7 @@
                 "publicNetworkAccessForQuery": "Enabled"
               }
             }
-          },
+          ],
           "outputs": {
             "workspaceId": {
               "type": "string",
@@ -204,19 +202,19 @@
             },
             "customerId": {
               "type": "string",
-              "value": "[reference('logAnalyticsWorkspace').customerId]"
+              "value": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2023-09-01').customerId]"
             },
             "primarySharedKey": {
               "type": "string",
-              "value": "[listKeys('logAnalyticsWorkspace', '2023-09-01').primarySharedKey]"
+              "value": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2023-09-01').primarySharedKey]"
             }
           }
         }
       }
     },
-    "storage": {
+    {
       "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
+      "apiVersion": "2025-04-01",
       "name": "[format('storage-{0}', variables('uniqueSuffix'))]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -241,13 +239,12 @@
         },
         "template": {
           "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-          "languageVersion": "2.0",
           "contentVersion": "1.0.0.0",
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.35.1.17967",
-              "templateHash": "8159135503772857645"
+              "version": "0.39.26.7824",
+              "templateHash": "5827018684535339231"
             }
           },
           "parameters": {
@@ -304,8 +301,8 @@
               }
             }
           },
-          "resources": {
-            "storageAccount": {
+          "resources": [
+            {
               "type": "Microsoft.Storage/storageAccounts",
               "apiVersion": "2023-01-01",
               "name": "[parameters('storageAccountName')]",
@@ -337,7 +334,7 @@
                 }
               }
             },
-            "blobService": {
+            {
               "type": "Microsoft.Storage/storageAccounts/blobServices",
               "apiVersion": "2023-01-01",
               "name": "[format('{0}/{1}', parameters('storageAccountName'), 'default')]",
@@ -349,10 +346,10 @@
                 "isVersioningEnabled": "[parameters('enableVersioning')]"
               },
               "dependsOn": [
-                "storageAccount"
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
               ]
             },
-            "logsContainer": {
+            {
               "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
               "apiVersion": "2023-01-01",
               "name": "[format('{0}/{1}/{2}', parameters('storageAccountName'), 'default', 'logs')]",
@@ -360,10 +357,10 @@
                 "publicAccess": "None"
               },
               "dependsOn": [
-                "blobService"
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]"
               ]
             },
-            "reportsContainer": {
+            {
               "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
               "apiVersion": "2023-01-01",
               "name": "[format('{0}/{1}/{2}', parameters('storageAccountName'), 'default', 'reports')]",
@@ -371,10 +368,10 @@
                 "publicAccess": "None"
               },
               "dependsOn": [
-                "blobService"
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]"
               ]
             },
-            "stateContainer": {
+            {
               "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
               "apiVersion": "2023-01-01",
               "name": "[format('{0}/{1}/{2}', parameters('storageAccountName'), 'default', 'state')]",
@@ -382,34 +379,34 @@
                 "publicAccess": "None"
               },
               "dependsOn": [
-                "blobService"
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]"
               ]
             },
-            "tableService": {
+            {
               "type": "Microsoft.Storage/storageAccounts/tableServices",
               "apiVersion": "2023-01-01",
               "name": "[format('{0}/{1}', parameters('storageAccountName'), 'default')]",
               "dependsOn": [
-                "storageAccount"
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
               ]
             },
-            "executionsTable": {
+            {
               "type": "Microsoft.Storage/storageAccounts/tableServices/tables",
               "apiVersion": "2023-01-01",
               "name": "[format('{0}/{1}/{2}', parameters('storageAccountName'), 'default', 'executions')]",
               "dependsOn": [
-                "tableService"
+                "[resourceId('Microsoft.Storage/storageAccounts/tableServices', parameters('storageAccountName'), 'default')]"
               ]
             },
-            "rateLimitsTable": {
+            {
               "type": "Microsoft.Storage/storageAccounts/tableServices/tables",
               "apiVersion": "2023-01-01",
               "name": "[format('{0}/{1}/{2}', parameters('storageAccountName'), 'default', 'ratelimits')]",
               "dependsOn": [
-                "tableService"
+                "[resourceId('Microsoft.Storage/storageAccounts/tableServices', parameters('storageAccountName'), 'default')]"
               ]
             }
-          },
+          ],
           "outputs": {
             "storageAccountId": {
               "type": "string",
@@ -421,19 +418,15 @@
             },
             "primaryEndpoints": {
               "type": "object",
-              "value": "[reference('storageAccount').primaryEndpoints]"
-            },
-            "connectionString": {
-              "type": "string",
-              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', parameters('storageAccountName'), listKeys('storageAccount', '2023-01-01').keys[0].value, environment().suffixes.storage)]"
+              "value": "[reference(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2023-01-01').primaryEndpoints]"
             }
           }
         }
       }
     },
-    "serviceBus": {
+    {
       "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
+      "apiVersion": "2025-04-01",
       "name": "[format('serviceBus-{0}', variables('uniqueSuffix'))]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -460,13 +453,12 @@
         },
         "template": {
           "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-          "languageVersion": "2.0",
           "contentVersion": "1.0.0.0",
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.35.1.17967",
-              "templateHash": "13567463626903100957"
+              "version": "0.39.26.7824",
+              "templateHash": "17504212687988936958"
             }
           },
           "parameters": {
@@ -517,8 +509,8 @@
               }
             }
           },
-          "resources": {
-            "serviceBusNamespace": {
+          "resources": [
+            {
               "type": "Microsoft.ServiceBus/namespaces",
               "apiVersion": "2022-10-01-preview",
               "name": "[parameters('namespaceName')]",
@@ -535,7 +527,7 @@
                 "zoneRedundant": "[if(equals(parameters('sku'), 'Premium'), true(), false())]"
               }
             },
-            "agentLogsTopic": {
+            {
               "type": "Microsoft.ServiceBus/namespaces/topics",
               "apiVersion": "2022-10-01-preview",
               "name": "[format('{0}/{1}', parameters('namespaceName'), parameters('topicName'))]",
@@ -548,10 +540,10 @@
                 "status": "Active"
               },
               "dependsOn": [
-                "serviceBusNamespace"
+                "[resourceId('Microsoft.ServiceBus/namespaces', parameters('namespaceName'))]"
               ]
             },
-            "logProcessingSubscription": {
+            {
               "type": "Microsoft.ServiceBus/namespaces/topics/subscriptions",
               "apiVersion": "2022-10-01-preview",
               "name": "[format('{0}/{1}/{2}', parameters('namespaceName'), parameters('topicName'), 'log-processor')]",
@@ -564,10 +556,10 @@
                 "enableBatchedOperations": true
               },
               "dependsOn": [
-                "agentLogsTopic"
+                "[resourceId('Microsoft.ServiceBus/namespaces/topics', parameters('namespaceName'), parameters('topicName'))]"
               ]
             },
-            "executionRequestsQueue": {
+            {
               "type": "Microsoft.ServiceBus/namespaces/queues",
               "apiVersion": "2022-10-01-preview",
               "name": "[format('{0}/{1}', parameters('namespaceName'), parameters('queueName'))]",
@@ -582,10 +574,10 @@
                 "enableBatchedOperations": true
               },
               "dependsOn": [
-                "serviceBusNamespace"
+                "[resourceId('Microsoft.ServiceBus/namespaces', parameters('namespaceName'))]"
               ]
             }
-          },
+          ],
           "outputs": {
             "namespaceId": {
               "type": "string",
@@ -605,19 +597,15 @@
             },
             "endpoint": {
               "type": "string",
-              "value": "[reference('serviceBusNamespace').serviceBusEndpoint]"
-            },
-            "connectionString": {
-              "type": "string",
-              "value": "[listKeys(format('{0}/AuthorizationRules/RootManageSharedAccessKey', resourceId('Microsoft.ServiceBus/namespaces', parameters('namespaceName'))), '2022-10-01-preview').primaryConnectionString]"
+              "value": "[reference(resourceId('Microsoft.ServiceBus/namespaces', parameters('namespaceName')), '2022-10-01-preview').serviceBusEndpoint]"
             }
           }
         }
       }
     },
-    "keyVault": {
+    {
       "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
+      "apiVersion": "2025-04-01",
       "name": "[format('keyVault-{0}', variables('uniqueSuffix'))]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -659,8 +647,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.35.1.17967",
-              "templateHash": "14431015508011725666"
+              "version": "0.39.26.7824",
+              "templateHash": "5687331237238434866"
             }
           },
           "parameters": {
@@ -824,10 +812,10 @@
         }
       }
     },
-    "cosmosDb": {
+    {
       "condition": "[not(equals(parameters('environment'), 'dev'))]",
       "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
+      "apiVersion": "2025-04-01",
       "name": "[format('cosmosDb-{0}', variables('uniqueSuffix'))]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -861,8 +849,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.35.1.17967",
-              "templateHash": "9547274271518949746"
+              "version": "0.39.26.7824",
+              "templateHash": "13771842593130070517"
             }
           },
           "parameters": {
@@ -1107,9 +1095,9 @@
         }
       }
     },
-    "containerAppsEnv": {
+    {
       "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
+      "apiVersion": "2025-04-01",
       "name": "[format('containerAppsEnv-{0}', variables('uniqueSuffix'))]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -1127,10 +1115,10 @@
             "value": "[variables('commonTags')]"
           },
           "logAnalyticsWorkspaceId": {
-            "value": "[reference('logAnalytics').outputs.workspaceId.value]"
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('logAnalytics-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.workspaceId.value]"
           },
           "logAnalyticsSharedKey": {
-            "value": "[reference('logAnalytics').outputs.primarySharedKey.value]"
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('logAnalytics-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.primarySharedKey.value]"
           }
         },
         "template": {
@@ -1139,8 +1127,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.35.1.17967",
-              "templateHash": "5597320430624729911"
+              "version": "0.39.26.7824",
+              "templateHash": "4111641001556966648"
             }
           },
           "parameters": {
@@ -1223,13 +1211,13 @@
         }
       },
       "dependsOn": [
-        "logAnalytics"
+        "[resourceId('Microsoft.Resources/deployments', format('logAnalytics-{0}', variables('uniqueSuffix')))]"
       ]
     },
-    "containerRegistry": {
+    {
       "condition": "[not(equals(parameters('environment'), 'dev'))]",
       "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
+      "apiVersion": "2025-04-01",
       "name": "[format('containerRegistry-{0}', variables('uniqueSuffix'))]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -1250,18 +1238,17 @@
             "value": "Premium"
           },
           "adminUserEnabled": {
-            "value": true
+            "value": false
           }
         },
         "template": {
           "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-          "languageVersion": "2.0",
           "contentVersion": "1.0.0.0",
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.35.1.17967",
-              "templateHash": "4745987538266462100"
+              "version": "0.39.26.7824",
+              "templateHash": "10261600459253760580"
             }
           },
           "parameters": {
@@ -1301,14 +1288,14 @@
             },
             "adminUserEnabled": {
               "type": "bool",
-              "defaultValue": true,
+              "defaultValue": false,
               "metadata": {
                 "description": "Enable admin user"
               }
             }
           },
-          "resources": {
-            "containerRegistry": {
+          "resources": [
+            {
               "type": "Microsoft.ContainerRegistry/registries",
               "apiVersion": "2023-07-01",
               "name": "[parameters('registryName')]",
@@ -1339,7 +1326,7 @@
                 "dataEndpointEnabled": false
               }
             }
-          },
+          ],
           "outputs": {
             "registryId": {
               "type": "string",
@@ -1351,23 +1338,15 @@
             },
             "loginServer": {
               "type": "string",
-              "value": "[reference('containerRegistry').loginServer]"
-            },
-            "adminUsername": {
-              "type": "string",
-              "value": "[listCredentials('containerRegistry', '2023-07-01').username]"
-            },
-            "adminPassword": {
-              "type": "string",
-              "value": "[listCredentials('containerRegistry', '2023-07-01').passwords[0].value]"
+              "value": "[reference(resourceId('Microsoft.ContainerRegistry/registries', parameters('registryName')), '2023-07-01').loginServer]"
             }
           }
         }
       }
     },
-    "functionApp": {
+    {
       "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
+      "apiVersion": "2025-04-01",
       "name": "[format('functionApp-{0}', variables('uniqueSuffix'))]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -1387,17 +1366,14 @@
           "tags": {
             "value": "[variables('commonTags')]"
           },
-          "storageConnectionString": {
-            "value": "[reference('storage').outputs.connectionString.value]"
+          "storageAccountName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('storage-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.storageAccountName.value]"
           },
           "appInsightsConnectionString": {
-            "value": "[reference('logAnalytics').outputs.workspaceId.value]"
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('logAnalytics-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.workspaceId.value]"
           },
           "keyVaultUri": {
-            "value": "[reference('keyVault').outputs.keyVaultUri.value]"
-          },
-          "serviceBusConnectionString": {
-            "value": "[reference('serviceBus').outputs.connectionString.value]"
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('keyVault-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.keyVaultUri.value]"
           },
           "tenantId": {
             "value": "[parameters('tenantId')]"
@@ -1415,9 +1391,9 @@
             "value": "3.13"
           },
           "serviceBusNamespace": {
-            "value": "[reference('serviceBus').outputs.namespaceName.value]"
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('serviceBus-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.namespaceName.value]"
           },
-          "containerRegistryLoginServer": "[if(not(equals(parameters('environment'), 'dev')), createObject('value', reference('containerRegistry').outputs.loginServer.value), createObject('value', ''))]",
+          "containerRegistryLoginServer": "[if(not(equals(parameters('environment'), 'dev')), createObject('value', reference(resourceId('Microsoft.Resources/deployments', format('containerRegistry-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.loginServer.value), createObject('value', ''))]",
           "containerImage": {
             "value": "azure-haymaker-agent:latest"
           },
@@ -1425,7 +1401,7 @@
             "value": "small"
           },
           "logAnalyticsWorkspaceId": {
-            "value": "[reference('logAnalytics').outputs.workspaceId.value]"
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('logAnalytics-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.workspaceId.value]"
           },
           "resourceGroupName": {
             "value": "[resourceGroup().name]"
@@ -1437,8 +1413,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.35.1.17967",
-              "templateHash": "4199942471249241481"
+              "version": "0.39.26.7824",
+              "templateHash": "8610821552378615791"
             }
           },
           "parameters": {
@@ -1468,12 +1444,6 @@
                 "description": "App Service Plan name"
               }
             },
-            "storageConnectionString": {
-              "type": "securestring",
-              "metadata": {
-                "description": "Storage account connection string"
-              }
-            },
             "appInsightsConnectionString": {
               "type": "securestring",
               "metadata": {
@@ -1484,19 +1454,6 @@
               "type": "string",
               "metadata": {
                 "description": "Key Vault URI for secret references"
-              }
-            },
-            "serviceBusConnectionString": {
-              "type": "securestring",
-              "metadata": {
-                "description": "Service Bus connection string"
-              }
-            },
-            "cosmosDbConnectionString": {
-              "type": "securestring",
-              "defaultValue": "",
-              "metadata": {
-                "description": "Cosmos DB connection string - DEPRECATED: Use Managed Identity instead"
               }
             },
             "tenantId": {
@@ -1568,6 +1525,13 @@
               "metadata": {
                 "description": "Resource group name"
               }
+            },
+            "storageAccountName": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Storage account name for managed identity access"
+              }
             }
           },
           "resources": [
@@ -1626,8 +1590,8 @@
                       "value": "~4"
                     },
                     {
-                      "name": "AzureWebJobsStorage",
-                      "value": "[parameters('storageConnectionString')]"
+                      "name": "AzureWebJobsStorage__accountName",
+                      "value": "[parameters('storageAccountName')]"
                     },
                     {
                       "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
@@ -1654,12 +1618,8 @@
                       "value": "[parameters('keyVaultUri')]"
                     },
                     {
-                      "name": "ServiceBusConnection",
-                      "value": "[parameters('serviceBusConnectionString')]"
-                    },
-                    {
-                      "name": "CosmosDbConnection",
-                      "value": "[parameters('cosmosDbConnectionString')]"
+                      "name": "ServiceBusConnection__fullyQualifiedNamespace",
+                      "value": "[format('{0}.servicebus.windows.net', parameters('serviceBusNamespace'))]"
                     },
                     {
                       "name": "COSMOSDB_ENDPOINT",
@@ -1671,11 +1631,11 @@
                     },
                     {
                       "name": "STORAGE_ACCOUNT_NAME",
-                      "value": "[split(split(parameters('storageConnectionString'), ';')[1], '=')[1]]"
+                      "value": "[parameters('storageAccountName')]"
                     },
                     {
                       "name": "TABLE_STORAGE_ACCOUNT_NAME",
-                      "value": "[split(split(parameters('storageConnectionString'), ';')[1], '=')[1]]"
+                      "value": "[parameters('storageAccountName')]"
                     },
                     {
                       "name": "MAIN_SP_CLIENT_SECRET",
@@ -1761,16 +1721,16 @@
         }
       },
       "dependsOn": [
-        "containerRegistry",
-        "keyVault",
-        "logAnalytics",
-        "serviceBus",
-        "storage"
+        "[resourceId('Microsoft.Resources/deployments', format('containerRegistry-{0}', variables('uniqueSuffix')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('keyVault-{0}', variables('uniqueSuffix')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('logAnalytics-{0}', variables('uniqueSuffix')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('serviceBus-{0}', variables('uniqueSuffix')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('storage-{0}', variables('uniqueSuffix')))]"
       ]
     },
-    "functionAppKeyVaultRole": {
+    {
       "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
+      "apiVersion": "2025-04-01",
       "name": "[format('functionAppKeyVaultRole-{0}', variables('uniqueSuffix'))]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -1779,7 +1739,7 @@
         "mode": "Incremental",
         "parameters": {
           "principalId": {
-            "value": "[reference('functionApp').outputs.principalId.value]"
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('functionApp-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.principalId.value]"
           },
           "roleDefinitionId": {
             "value": "4633458b-17de-408a-b874-0445c86b69e6"
@@ -1794,8 +1754,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.35.1.17967",
-              "templateHash": "11417151874665992677"
+              "version": "0.39.26.7824",
+              "templateHash": "16029173958968724898"
             }
           },
           "parameters": {
@@ -1849,12 +1809,12 @@
         }
       },
       "dependsOn": [
-        "functionApp"
+        "[resourceId('Microsoft.Resources/deployments', format('functionApp-{0}', variables('uniqueSuffix')))]"
       ]
     },
-    "functionAppStorageRole": {
+    {
       "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
+      "apiVersion": "2025-04-01",
       "name": "[format('functionAppStorageRole-{0}', variables('uniqueSuffix'))]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -1863,7 +1823,7 @@
         "mode": "Incremental",
         "parameters": {
           "principalId": {
-            "value": "[reference('functionApp').outputs.principalId.value]"
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('functionApp-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.principalId.value]"
           },
           "roleDefinitionId": {
             "value": "ba92f5b4-2d11-453d-a403-e96b0029c9fe"
@@ -1878,8 +1838,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.35.1.17967",
-              "templateHash": "11417151874665992677"
+              "version": "0.39.26.7824",
+              "templateHash": "16029173958968724898"
             }
           },
           "parameters": {
@@ -1933,13 +1893,350 @@
         }
       },
       "dependsOn": [
-        "functionApp"
+        "[resourceId('Microsoft.Resources/deployments', format('functionApp-{0}', variables('uniqueSuffix')))]"
       ]
     },
-    "functionAppCosmosRole": {
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('functionAppStorageTableRole-{0}', variables('uniqueSuffix'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "principalId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('functionApp-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.principalId.value]"
+          },
+          "roleDefinitionId": {
+            "value": "0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3"
+          },
+          "principalType": {
+            "value": "ServicePrincipal"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.39.26.7824",
+              "templateHash": "16029173958968724898"
+            }
+          },
+          "parameters": {
+            "principalId": {
+              "type": "string",
+              "metadata": {
+                "description": "Principal ID (object ID)"
+              }
+            },
+            "roleDefinitionId": {
+              "type": "string",
+              "metadata": {
+                "description": "Role definition ID (GUID)"
+              }
+            },
+            "principalType": {
+              "type": "string",
+              "defaultValue": "ServicePrincipal",
+              "allowedValues": [
+                "ServicePrincipal",
+                "User",
+                "Group"
+              ],
+              "metadata": {
+                "description": "Principal type"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "name": "[guid(resourceGroup().id, parameters('principalId'), parameters('roleDefinitionId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', parameters('roleDefinitionId'))]",
+                "principalId": "[parameters('principalId')]",
+                "principalType": "[parameters('principalType')]"
+              }
+            }
+          ],
+          "outputs": {
+            "roleAssignmentId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Authorization/roleAssignments', guid(resourceGroup().id, parameters('principalId'), parameters('roleDefinitionId')))]"
+            },
+            "roleAssignmentName": {
+              "type": "string",
+              "value": "[guid(resourceGroup().id, parameters('principalId'), parameters('roleDefinitionId'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('functionApp-{0}', variables('uniqueSuffix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('functionAppStorageQueueRole-{0}', variables('uniqueSuffix'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "principalId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('functionApp-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.principalId.value]"
+          },
+          "roleDefinitionId": {
+            "value": "974c5e8b-45b9-4653-ba55-5f855dd0fb88"
+          },
+          "principalType": {
+            "value": "ServicePrincipal"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.39.26.7824",
+              "templateHash": "16029173958968724898"
+            }
+          },
+          "parameters": {
+            "principalId": {
+              "type": "string",
+              "metadata": {
+                "description": "Principal ID (object ID)"
+              }
+            },
+            "roleDefinitionId": {
+              "type": "string",
+              "metadata": {
+                "description": "Role definition ID (GUID)"
+              }
+            },
+            "principalType": {
+              "type": "string",
+              "defaultValue": "ServicePrincipal",
+              "allowedValues": [
+                "ServicePrincipal",
+                "User",
+                "Group"
+              ],
+              "metadata": {
+                "description": "Principal type"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "name": "[guid(resourceGroup().id, parameters('principalId'), parameters('roleDefinitionId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', parameters('roleDefinitionId'))]",
+                "principalId": "[parameters('principalId')]",
+                "principalType": "[parameters('principalType')]"
+              }
+            }
+          ],
+          "outputs": {
+            "roleAssignmentId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Authorization/roleAssignments', guid(resourceGroup().id, parameters('principalId'), parameters('roleDefinitionId')))]"
+            },
+            "roleAssignmentName": {
+              "type": "string",
+              "value": "[guid(resourceGroup().id, parameters('principalId'), parameters('roleDefinitionId'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('functionApp-{0}', variables('uniqueSuffix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('functionAppServiceBusRole-{0}', variables('uniqueSuffix'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "principalId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('functionApp-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.principalId.value]"
+          },
+          "roleDefinitionId": {
+            "value": "090c5cfd-751d-490a-894a-3ce6f1109419"
+          },
+          "principalType": {
+            "value": "ServicePrincipal"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.39.26.7824",
+              "templateHash": "16029173958968724898"
+            }
+          },
+          "parameters": {
+            "principalId": {
+              "type": "string",
+              "metadata": {
+                "description": "Principal ID (object ID)"
+              }
+            },
+            "roleDefinitionId": {
+              "type": "string",
+              "metadata": {
+                "description": "Role definition ID (GUID)"
+              }
+            },
+            "principalType": {
+              "type": "string",
+              "defaultValue": "ServicePrincipal",
+              "allowedValues": [
+                "ServicePrincipal",
+                "User",
+                "Group"
+              ],
+              "metadata": {
+                "description": "Principal type"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "name": "[guid(resourceGroup().id, parameters('principalId'), parameters('roleDefinitionId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', parameters('roleDefinitionId'))]",
+                "principalId": "[parameters('principalId')]",
+                "principalType": "[parameters('principalType')]"
+              }
+            }
+          ],
+          "outputs": {
+            "roleAssignmentId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Authorization/roleAssignments', guid(resourceGroup().id, parameters('principalId'), parameters('roleDefinitionId')))]"
+            },
+            "roleAssignmentName": {
+              "type": "string",
+              "value": "[guid(resourceGroup().id, parameters('principalId'), parameters('roleDefinitionId'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('functionApp-{0}', variables('uniqueSuffix')))]"
+      ]
+    },
+    {
       "condition": "[not(equals(parameters('environment'), 'dev'))]",
       "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
+      "apiVersion": "2025-04-01",
+      "name": "[format('functionAppAcrRole-{0}', variables('uniqueSuffix'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "principalId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('functionApp-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.principalId.value]"
+          },
+          "roleDefinitionId": {
+            "value": "7f951dda-4ed3-4680-a7ca-43fe172d538d"
+          },
+          "principalType": {
+            "value": "ServicePrincipal"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.39.26.7824",
+              "templateHash": "16029173958968724898"
+            }
+          },
+          "parameters": {
+            "principalId": {
+              "type": "string",
+              "metadata": {
+                "description": "Principal ID (object ID)"
+              }
+            },
+            "roleDefinitionId": {
+              "type": "string",
+              "metadata": {
+                "description": "Role definition ID (GUID)"
+              }
+            },
+            "principalType": {
+              "type": "string",
+              "defaultValue": "ServicePrincipal",
+              "allowedValues": [
+                "ServicePrincipal",
+                "User",
+                "Group"
+              ],
+              "metadata": {
+                "description": "Principal type"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "name": "[guid(resourceGroup().id, parameters('principalId'), parameters('roleDefinitionId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', parameters('roleDefinitionId'))]",
+                "principalId": "[parameters('principalId')]",
+                "principalType": "[parameters('principalType')]"
+              }
+            }
+          ],
+          "outputs": {
+            "roleAssignmentId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Authorization/roleAssignments', guid(resourceGroup().id, parameters('principalId'), parameters('roleDefinitionId')))]"
+            },
+            "roleAssignmentName": {
+              "type": "string",
+              "value": "[guid(resourceGroup().id, parameters('principalId'), parameters('roleDefinitionId'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('functionApp-{0}', variables('uniqueSuffix')))]"
+      ]
+    },
+    {
+      "condition": "[not(equals(parameters('environment'), 'dev'))]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
       "name": "[format('functionAppCosmosRole-{0}', variables('uniqueSuffix'))]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -1948,7 +2245,7 @@
         "mode": "Incremental",
         "parameters": {
           "principalId": {
-            "value": "[reference('functionApp').outputs.principalId.value]"
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('functionApp-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.principalId.value]"
           },
           "roleDefinitionId": {
             "value": "00000000-0000-0000-0000-000000000002"
@@ -1963,8 +2260,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.35.1.17967",
-              "templateHash": "11417151874665992677"
+              "version": "0.39.26.7824",
+              "templateHash": "16029173958968724898"
             }
           },
           "parameters": {
@@ -2018,10 +2315,10 @@
         }
       },
       "dependsOn": [
-        "functionApp"
+        "[resourceId('Microsoft.Resources/deployments', format('functionApp-{0}', variables('uniqueSuffix')))]"
       ]
     }
-  },
+  ],
   "outputs": {
     "resourceGroupName": {
       "type": "string",
@@ -2037,59 +2334,59 @@
     },
     "logAnalyticsWorkspaceId": {
       "type": "string",
-      "value": "[reference('logAnalytics').outputs.workspaceId.value]"
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('logAnalytics-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.workspaceId.value]"
     },
     "logAnalyticsCustomerId": {
       "type": "string",
-      "value": "[reference('logAnalytics').outputs.customerId.value]"
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('logAnalytics-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.customerId.value]"
     },
     "storageAccountName": {
       "type": "string",
-      "value": "[reference('storage').outputs.storageAccountName.value]"
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('storage-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.storageAccountName.value]"
     },
     "serviceBusNamespace": {
       "type": "string",
-      "value": "[reference('serviceBus').outputs.namespaceName.value]"
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('serviceBus-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.namespaceName.value]"
     },
     "keyVaultName": {
       "type": "string",
-      "value": "[reference('keyVault').outputs.keyVaultName.value]"
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('keyVault-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.keyVaultName.value]"
     },
     "keyVaultUri": {
       "type": "string",
-      "value": "[reference('keyVault').outputs.keyVaultUri.value]"
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('keyVault-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.keyVaultUri.value]"
     },
     "cosmosDbEndpoint": {
       "type": "string",
-      "value": "[if(not(equals(parameters('environment'), 'dev')), reference('cosmosDb').outputs.endpoint.value, '')]"
+      "value": "[if(not(equals(parameters('environment'), 'dev')), reference(resourceId('Microsoft.Resources/deployments', format('cosmosDb-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.endpoint.value, '')]"
     },
     "cosmosDbDatabaseName": {
       "type": "string",
-      "value": "[if(not(equals(parameters('environment'), 'dev')), reference('cosmosDb').outputs.databaseName.value, '')]"
+      "value": "[if(not(equals(parameters('environment'), 'dev')), reference(resourceId('Microsoft.Resources/deployments', format('cosmosDb-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.databaseName.value, '')]"
     },
     "containerAppsEnvironmentName": {
       "type": "string",
-      "value": "[reference('containerAppsEnv').outputs.environmentName.value]"
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('containerAppsEnv-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.environmentName.value]"
     },
     "containerRegistryName": {
       "type": "string",
-      "value": "[if(not(equals(parameters('environment'), 'dev')), reference('containerRegistry').outputs.registryName.value, '')]"
+      "value": "[if(not(equals(parameters('environment'), 'dev')), reference(resourceId('Microsoft.Resources/deployments', format('containerRegistry-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.registryName.value, '')]"
     },
     "containerRegistryLoginServer": {
       "type": "string",
-      "value": "[if(not(equals(parameters('environment'), 'dev')), reference('containerRegistry').outputs.loginServer.value, '')]"
+      "value": "[if(not(equals(parameters('environment'), 'dev')), reference(resourceId('Microsoft.Resources/deployments', format('containerRegistry-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.loginServer.value, '')]"
     },
     "functionAppName": {
       "type": "string",
-      "value": "[reference('functionApp').outputs.functionAppName.value]"
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('functionApp-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.functionAppName.value]"
     },
     "functionAppUrl": {
       "type": "string",
-      "value": "[reference('functionApp').outputs.functionAppUrl.value]"
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('functionApp-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.functionAppUrl.value]"
     },
     "functionAppPrincipalId": {
       "type": "string",
-      "value": "[reference('functionApp').outputs.principalId.value]"
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('functionApp-{0}', variables('uniqueSuffix'))), '2025-04-01').outputs.principalId.value]"
     }
   }
 }

@@ -151,7 +151,7 @@ module containerRegistry 'modules/container-registry.bicep' = if (environment !=
     location: location
     tags: commonTags
     sku: 'Premium'
-    adminUserEnabled: true
+    adminUserEnabled: false
   }
 }
 
@@ -163,11 +163,11 @@ module functionApp 'modules/function-app.bicep' = {
     appServicePlanName: appServicePlanName
     location: location
     tags: commonTags
-    storageConnectionString: storage.outputs.connectionString
+    // SECURITY: Using managed identity instead of connection strings
+    storageAccountName: storage.outputs.storageAccountName
     appInsightsConnectionString: logAnalytics.outputs.workspaceId
     keyVaultUri: keyVault.outputs.keyVaultUri
-    serviceBusConnectionString: serviceBus.outputs.connectionString
-    // SECURITY: Removed cosmosDbConnectionString - use Managed Identity instead
+    // SECURITY: Removed connection strings - use Managed Identity instead
     tenantId: tenantId
     subscriptionId: subscriptionId
     clientId: githubOidcClientId
@@ -199,6 +199,46 @@ module functionAppStorageRole 'modules/role-assignment.bicep' = {
   params: {
     principalId: functionApp.outputs.principalId
     roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' // Storage Blob Data Contributor
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Grant Function App access to Storage Tables (via module to match scope)
+module functionAppStorageTableRole 'modules/role-assignment.bicep' = {
+  name: 'functionAppStorageTableRole-${uniqueSuffix}'
+  params: {
+    principalId: functionApp.outputs.principalId
+    roleDefinitionId: '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3' // Storage Table Data Contributor
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Grant Function App access to Storage Queue (via module to match scope)
+module functionAppStorageQueueRole 'modules/role-assignment.bicep' = {
+  name: 'functionAppStorageQueueRole-${uniqueSuffix}'
+  params: {
+    principalId: functionApp.outputs.principalId
+    roleDefinitionId: '974c5e8b-45b9-4653-ba55-5f855dd0fb88' // Storage Queue Data Contributor
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Grant Function App access to Service Bus (via module to match scope)
+module functionAppServiceBusRole 'modules/role-assignment.bicep' = {
+  name: 'functionAppServiceBusRole-${uniqueSuffix}'
+  params: {
+    principalId: functionApp.outputs.principalId
+    roleDefinitionId: '090c5cfd-751d-490a-894a-3ce6f1109419' // Azure Service Bus Data Owner
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Grant Function App access to ACR (via module to match scope) - only if ACR is deployed
+module functionAppAcrRole 'modules/role-assignment.bicep' = if (environment != 'dev') {
+  name: 'functionAppAcrRole-${uniqueSuffix}'
+  params: {
+    principalId: functionApp.outputs.principalId
+    roleDefinitionId: '7f951dda-4ed3-4680-a7ca-43fe172d538d' // AcrPull
     principalType: 'ServicePrincipal'
   }
 }

@@ -13,24 +13,12 @@ param tags object = {}
 @description('App Service Plan name')
 param appServicePlanName string
 
-@description('Storage account connection string')
-@secure()
-param storageConnectionString string
-
 @description('Application Insights connection string')
 @secure()
 param appInsightsConnectionString string
 
 @description('Key Vault URI for secret references')
 param keyVaultUri string
-
-@description('Service Bus connection string')
-@secure()
-param serviceBusConnectionString string
-
-@description('Cosmos DB connection string - DEPRECATED: Use Managed Identity instead')
-@secure()
-param cosmosDbConnectionString string = ''
 
 @description('Azure tenant ID')
 param tenantId string
@@ -64,6 +52,9 @@ param logAnalyticsWorkspaceId string
 
 @description('Resource group name')
 param resourceGroupName string
+
+@description('Storage account name for managed identity access')
+param storageAccountName string = ''
 
 // App Service Plan
 // Note: Using Standard (S1) for dev - most subscriptions have this quota
@@ -120,8 +111,8 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
           value: '~4'
         }
         {
-          name: 'AzureWebJobsStorage'
-          value: storageConnectionString
+          name: 'AzureWebJobsStorage__accountName'
+          value: storageAccountName
         }
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
@@ -149,16 +140,13 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
           name: 'KEY_VAULT_URL'
           value: keyVaultUri
         }
-        // Service Bus
+        // Service Bus (use Managed Identity via ServiceBusConnection__fullyQualifiedNamespace)
         {
-          name: 'ServiceBusConnection'
-          value: serviceBusConnectionString
+          name: 'ServiceBusConnection__fullyQualifiedNamespace'
+          value: '${serviceBusNamespace}.servicebus.windows.net'
         }
-        // Cosmos DB (optional for dev - will be empty string if not deployed)
-        {
-          name: 'CosmosDbConnection'
-          value: cosmosDbConnectionString
-        }
+        // Cosmos DB (optional for dev - use Managed Identity)
+        // Removed CosmosDbConnection - use COSMOSDB_ENDPOINT with Managed Identity instead
         {
           name: 'COSMOSDB_ENDPOINT'
           value: ''  // Optional - use Managed Identity when available
@@ -170,11 +158,11 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         // Storage accounts
         {
           name: 'STORAGE_ACCOUNT_NAME'
-          value: split(split(storageConnectionString, ';')[1], '=')[1]
+          value: storageAccountName
         }
         {
           name: 'TABLE_STORAGE_ACCOUNT_NAME'
-          value: split(split(storageConnectionString, ';')[1], '=')[1]
+          value: storageAccountName
         }
         // Secrets from Key Vault (referenced)
         {
