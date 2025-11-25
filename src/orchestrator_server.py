@@ -7,9 +7,11 @@ that can run anywhere - locally, Docker, or Azure Container Apps.
 """
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
+import random
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
@@ -17,14 +19,23 @@ from typing import Any, Literal
 from uuid import uuid4
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+from azure.core.exceptions import ResourceNotFoundError
 from azure.data.tables import TableServiceClient
 from azure.identity import DefaultAzureCredential
+from croniter import croniter
 from fastapi import FastAPI, HTTPException, Query
 
 from azure_haymaker.models.execution import (
     AnalyticsSummary,
     ExecutionCounts,
     ScenarioStats,
+)
+from azure_haymaker.models.schedule import (
+    Schedule,
+    ScheduleCreate,
+    ScheduleResponse,
+    ScheduleUpdate,
 )
 from azure_haymaker.orchestrator.cleanup import (
     force_delete_resources,
@@ -55,6 +66,289 @@ scheduler = AsyncIOScheduler()
 # Track running executions
 executions: dict[str, dict[str, Any]] = {}
 
+# Schedule table client (initialized on startup)
+_schedule_table_client = None
+SCHEDULE_TABLE_NAME = "Schedules"
+SCHEDULE_PARTITION_KEY = "schedule"
+
+
+def _get_schedule_table_client():
+    """Get or create the schedule table client.
+
+    Returns:
+        TableClient for schedule storage
+
+    Raises:
+        RuntimeError: If table storage is not configured
+    """
+    global _schedule_table_client
+    if _schedule_table_client is None:
+        table_storage_account = os.getenv("TABLE_STORAGE_ACCOUNT_NAME")
+        if not table_storage_account:
+            raise RuntimeError(
+                "TABLE_STORAGE_ACCOUNT_NAME environment variable not set. "
+                "Schedule storage requires Azure Table Storage configuration."
+            )
+        account_url = f"https://{table_storage_account}.table.core.windows.net"
+        credential = DefaultAzureCredential()
+        table_service = TableServiceClient(endpoint=account_url, credential=credential)
+        # Create table if not exists
+        try:
+            table_service.create_table_if_not_exists(SCHEDULE_TABLE_NAME)
+        except Exception as e:
+            logger.warning(f"Could not ensure table exists: {e}")
+        _schedule_table_client = table_service.get_table_client(SCHEDULE_TABLE_NAME)
+    return _schedule_table_client
+
+
+def _validate_cron_expression(cron_expr: str) -> bool:
+    """Validate a cron expression using croniter.
+
+    Args:
+        cron_expr: Cron expression string (5 or 6 fields supported).
+                   6-field format: second minute hour day month weekday
+                   5-field format: minute hour day month weekday (seconds default to 0)
+
+    Returns:
+        True if valid, raises ValueError otherwise
+
+    Raises:
+        ValueError: If the cron expression is invalid
+    """
+    try:
+        # APScheduler uses 6-field cron (second minute hour day month weekday)
+        # croniter uses 5-field by default, so we need to handle this
+        parts = cron_expr.strip().split()
+        if len(parts) == 6:
+            # Remove seconds field for croniter validation
+            five_field_cron = " ".join(parts[1:])
+        elif len(parts) == 5:
+            five_field_cron = cron_expr
+        else:
+            raise ValueError(f"Invalid cron expression: expected 5 or 6 fields, got {len(parts)}")
+        # Validate with croniter
+        croniter(five_field_cron)
+        return True
+    except (KeyError, ValueError) as e:
+        raise ValueError(f"Invalid cron expression '{cron_expr}': {e}") from e
+
+
+def _schedule_to_entity(schedule: Schedule) -> dict[str, Any]:
+    """Convert Schedule model to Table Storage entity.
+
+    Args:
+        schedule: Schedule model instance
+
+    Returns:
+        Dictionary suitable for Table Storage
+    """
+    return {
+        "PartitionKey": SCHEDULE_PARTITION_KEY,
+        "RowKey": schedule.id,
+        "Name": schedule.name,
+        "CronExpression": schedule.cron_expression,
+        "Scenarios": json.dumps(schedule.scenarios) if schedule.scenarios else None,
+        "ScenarioCount": schedule.scenario_count,
+        "Enabled": schedule.enabled,
+        "CreatedAt": schedule.created_at.isoformat(),
+    }
+
+
+def _entity_to_schedule(entity: dict[str, Any]) -> Schedule:
+    """Convert Table Storage entity to Schedule model.
+
+    Args:
+        entity: Table Storage entity dictionary
+
+    Returns:
+        Schedule model instance
+    """
+    scenarios_json = entity.get("Scenarios")
+    scenarios = json.loads(scenarios_json) if scenarios_json else None
+
+    created_at_str = entity.get("CreatedAt", "")
+    if created_at_str:
+        created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+    else:
+        created_at = datetime.now(UTC)
+
+    return Schedule(
+        id=entity["RowKey"],
+        name=entity["Name"],
+        cron_expression=entity["CronExpression"],
+        scenarios=scenarios,
+        scenario_count=entity.get("ScenarioCount", 5),
+        enabled=entity.get("Enabled", True),
+        created_at=created_at,
+    )
+
+
+def _get_next_run_time(cron_expr: str) -> str | None:
+    """Get the next run time for a cron expression.
+
+    Args:
+        cron_expr: Cron expression string
+
+    Returns:
+        ISO format string of next run time, or None if invalid
+    """
+    try:
+        parts = cron_expr.strip().split()
+        five_field_cron = " ".join(parts[1:]) if len(parts) == 6 else cron_expr
+        cron = croniter(five_field_cron, datetime.now(UTC))
+        next_time = cron.get_next(datetime)
+        return next_time.isoformat()
+    except Exception:
+        return None
+
+
+def _schedule_to_response(schedule: Schedule) -> ScheduleResponse:
+    """Convert Schedule model to ScheduleResponse with next run time.
+
+    Args:
+        schedule: Schedule model instance
+
+    Returns:
+        ScheduleResponse with computed next_run field
+    """
+    next_run = _get_next_run_time(schedule.cron_expression) if schedule.enabled else None
+    return ScheduleResponse(
+        id=schedule.id,
+        name=schedule.name,
+        cron_expression=schedule.cron_expression,
+        scenarios=schedule.scenarios,
+        scenario_count=schedule.scenario_count,
+        enabled=schedule.enabled,
+        created_at=schedule.created_at,
+        next_run=next_run,
+    )
+
+
+async def _run_scheduled_job(schedule_id: str) -> None:
+    """Execute orchestration for a specific schedule.
+
+    Args:
+        schedule_id: ID of the schedule triggering this run
+    """
+    logger.info(f"Schedule {schedule_id} triggered orchestration")
+    try:
+        # Load schedule to get parameters
+        table_client = _get_schedule_table_client()
+        entity = table_client.get_entity(
+            partition_key=SCHEDULE_PARTITION_KEY,
+            row_key=schedule_id,
+        )
+        schedule = _entity_to_schedule(entity)
+
+        if not schedule.enabled:
+            logger.info(f"Schedule {schedule_id} is disabled, skipping")
+            return
+
+        run_id = str(uuid4())
+        logger.info(
+            f"Starting scheduled orchestration: run_id={run_id}, "
+            f"schedule={schedule.name}, scenarios={schedule.scenarios}, "
+            f"scenario_count={schedule.scenario_count}"
+        )
+
+        # Run orchestration with schedule parameters
+        await run_orchestration(
+            run_id=run_id,
+            skip_validation=False,
+            scenario_names=schedule.scenarios,
+            scenario_count=schedule.scenario_count,
+        )
+
+    except ResourceNotFoundError:
+        logger.error(f"Schedule {schedule_id} not found, removing job")
+        with contextlib.suppress(Exception):
+            scheduler.remove_job(f"schedule_{schedule_id}")
+    except Exception as e:
+        logger.error(f"Failed to run scheduled job {schedule_id}: {e}", exc_info=True)
+
+
+def _add_scheduler_job(schedule: Schedule) -> None:
+    """Add or update APScheduler job for a schedule.
+
+    Args:
+        schedule: Schedule model instance
+    """
+    job_id = f"schedule_{schedule.id}"
+
+    # Remove existing job if present
+    with contextlib.suppress(Exception):
+        scheduler.remove_job(job_id)
+
+    if not schedule.enabled:
+        logger.info(f"Schedule {schedule.id} is disabled, not adding job")
+        return
+
+    try:
+        # Parse cron expression (APScheduler uses 6 fields)
+        parts = schedule.cron_expression.strip().split()
+        if len(parts) == 6:
+            second, minute, hour, day, month, day_of_week = parts
+        elif len(parts) == 5:
+            second = "0"
+            minute, hour, day, month, day_of_week = parts
+        else:
+            logger.error(f"Invalid cron expression for schedule {schedule.id}")
+            return
+
+        trigger = CronTrigger(
+            second=second,
+            minute=minute,
+            hour=hour,
+            day=day,
+            month=month,
+            day_of_week=day_of_week,
+        )
+
+        scheduler.add_job(
+            _run_scheduled_job,
+            trigger,
+            args=[schedule.id],
+            id=job_id,
+            name=f"Schedule: {schedule.name}",
+            replace_existing=True,
+        )
+        logger.info(f"Added scheduler job for schedule {schedule.id}: {schedule.name}")
+    except Exception as e:
+        logger.error(f"Failed to add scheduler job for {schedule.id}: {e}")
+
+
+def _remove_scheduler_job(schedule_id: str) -> None:
+    """Remove APScheduler job for a schedule.
+
+    Args:
+        schedule_id: Schedule ID
+    """
+    job_id = f"schedule_{schedule_id}"
+    try:
+        scheduler.remove_job(job_id)
+        logger.info(f"Removed scheduler job: {job_id}")
+    except Exception as e:
+        logger.debug(f"Job {job_id} not found or already removed: {e}")
+
+
+async def _load_schedules_on_startup() -> None:
+    """Load all enabled schedules from storage and add to scheduler."""
+    try:
+        table_client = _get_schedule_table_client()
+        query = f"PartitionKey eq '{SCHEDULE_PARTITION_KEY}'"
+
+        for entity in table_client.query_entities(query_filter=query):
+            try:
+                schedule = _entity_to_schedule(entity)
+                if schedule.enabled:
+                    _add_scheduler_job(schedule)
+            except Exception as e:
+                logger.warning(f"Failed to load schedule {entity.get('RowKey')}: {e}")
+
+        logger.info("Loaded schedules from storage")
+    except Exception as e:
+        logger.warning(f"Could not load schedules from storage: {e}")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -62,14 +356,17 @@ async def lifespan(app: FastAPI):
     logger.info("Starting orchestrator server")
     scheduler.start()
 
-    # Schedule orchestration runs: 4x daily (00:00, 06:00, 12:00, 18:00 UTC)
+    # Schedule default orchestration runs: 4x daily (00:00, 06:00, 12:00, 18:00 UTC)
     scheduler.add_job(
         run_scheduled_orchestration,
         "cron",
         hour="0,6,12,18",
         id="haymaker_orchestration",
     )
-    logger.info("Scheduled orchestration runs: 00:00, 06:00, 12:00, 18:00 UTC")
+    logger.info("Scheduled default orchestration runs: 00:00, 06:00, 12:00, 18:00 UTC")
+
+    # Load user-defined schedules from storage
+    await _load_schedules_on_startup()
 
     yield
 
@@ -300,9 +597,7 @@ async def get_analytics(
                 completed_at_str = entity.get("CompletedAt")
                 if created_at_str and completed_at_str:
                     try:
-                        created_at = datetime.fromisoformat(
-                            created_at_str.replace("Z", "+00:00")
-                        )
+                        created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
                         completed_at = datetime.fromisoformat(
                             completed_at_str.replace("Z", "+00:00")
                         )
@@ -342,9 +637,7 @@ async def get_analytics(
             )
 
         # Calculate success rate
-        success_rate = (
-            succeeded_executions / total_executions if total_executions > 0 else 0.0
-        )
+        success_rate = succeeded_executions / total_executions if total_executions > 0 else 0.0
 
         # Calculate average duration
         avg_duration = total_duration_hours / duration_count if duration_count > 0 else 0.0
@@ -356,9 +649,7 @@ async def get_analytics(
                     name=name,
                     count=stats["count"],
                     success_rate=(
-                        stats["succeeded"] / stats["count"]
-                        if stats["count"] > 0
-                        else 0.0
+                        stats["succeeded"] / stats["count"] if stats["count"] > 0 else 0.0
                     ),
                 )
                 for name, stats in scenario_stats.items()
@@ -385,6 +676,246 @@ async def get_analytics(
 
 
 # ==============================================================================
+# SCHEDULE API ENDPOINTS
+# ==============================================================================
+
+
+@app.post("/api/schedules", response_model=ScheduleResponse, status_code=201)
+async def create_schedule(request: ScheduleCreate):
+    """Create a new execution schedule.
+
+    Creates a schedule that will trigger orchestration runs based on a cron expression.
+    The schedule is persisted to Azure Table Storage and an APScheduler job is created.
+
+    Args:
+        request: Schedule creation request with name, cron expression, and options
+
+    Returns:
+        Created schedule with generated ID and next run time
+
+    Raises:
+        HTTPException: 400 if cron expression is invalid, 500 on storage errors
+    """
+    try:
+        # Validate cron expression
+        _validate_cron_expression(request.cron_expression)
+
+        # Create schedule model
+        schedule = Schedule(
+            name=request.name,
+            cron_expression=request.cron_expression,
+            scenarios=request.scenarios,
+            scenario_count=request.scenario_count,
+            enabled=request.enabled,
+        )
+
+        # Persist to Table Storage
+        table_client = _get_schedule_table_client()
+        entity = _schedule_to_entity(schedule)
+        table_client.create_entity(entity=entity)
+
+        # Add to APScheduler if enabled
+        if schedule.enabled:
+            _add_scheduler_job(schedule)
+
+        logger.info(f"Created schedule: {schedule.id} - {schedule.name}")
+        return _schedule_to_response(schedule)
+
+    except ValueError as e:
+        logger.warning(f"Invalid schedule request: {e}")
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except RuntimeError as e:
+        logger.error(f"Storage not configured: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Failed to create schedule: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to create schedule: {e}") from e
+
+
+@app.get("/api/schedules", response_model=list[ScheduleResponse])
+async def list_schedules():
+    """List all execution schedules.
+
+    Returns:
+        List of all schedules with their current status and next run times
+    """
+    try:
+        table_client = _get_schedule_table_client()
+        query = f"PartitionKey eq '{SCHEDULE_PARTITION_KEY}'"
+
+        schedules = []
+        for entity in table_client.query_entities(query_filter=query):
+            try:
+                schedule = _entity_to_schedule(entity)
+                schedules.append(_schedule_to_response(schedule))
+            except Exception as e:
+                logger.warning(f"Failed to parse schedule entity: {e}")
+                continue
+
+        # Sort by created_at descending
+        schedules.sort(key=lambda s: s.created_at, reverse=True)
+        return schedules
+
+    except RuntimeError as e:
+        logger.error(f"Storage not configured: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Failed to list schedules: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to list schedules: {e}") from e
+
+
+@app.get("/api/schedules/{schedule_id}", response_model=ScheduleResponse)
+async def get_schedule(schedule_id: str):
+    """Get a specific schedule by ID.
+
+    Args:
+        schedule_id: Unique schedule identifier
+
+    Returns:
+        Schedule details with next run time
+
+    Raises:
+        HTTPException: 404 if schedule not found
+    """
+    try:
+        table_client = _get_schedule_table_client()
+        entity = table_client.get_entity(
+            partition_key=SCHEDULE_PARTITION_KEY,
+            row_key=schedule_id,
+        )
+        schedule = _entity_to_schedule(entity)
+        return _schedule_to_response(schedule)
+
+    except ResourceNotFoundError as e:
+        raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}") from e
+    except RuntimeError as e:
+        logger.error(f"Storage not configured: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Failed to get schedule: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get schedule: {e}") from e
+
+
+@app.put("/api/schedules/{schedule_id}", response_model=ScheduleResponse)
+async def update_schedule(schedule_id: str, request: ScheduleUpdate):
+    """Update an existing schedule.
+
+    Allows partial updates - only provided fields will be modified.
+    If the cron_expression is changed, the APScheduler job will be re-scheduled.
+
+    Args:
+        schedule_id: Unique schedule identifier
+        request: Schedule update request with optional fields
+
+    Returns:
+        Updated schedule with next run time
+
+    Raises:
+        HTTPException: 400 if cron expression is invalid, 404 if not found
+    """
+    try:
+        table_client = _get_schedule_table_client()
+
+        # Get existing schedule
+        try:
+            entity = table_client.get_entity(
+                partition_key=SCHEDULE_PARTITION_KEY,
+                row_key=schedule_id,
+            )
+        except ResourceNotFoundError as e:
+            raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}") from e
+
+        schedule = _entity_to_schedule(entity)
+
+        # Track if cron expression changes (need to re-schedule job)
+        cron_changed = False
+
+        # Apply partial updates
+        if request.name is not None:
+            schedule.name = request.name
+        if request.cron_expression is not None:
+            _validate_cron_expression(request.cron_expression)
+            cron_changed = schedule.cron_expression != request.cron_expression
+            schedule.cron_expression = request.cron_expression
+        if request.scenarios is not None:
+            schedule.scenarios = request.scenarios
+        if request.scenario_count is not None:
+            schedule.scenario_count = request.scenario_count
+        if request.enabled is not None:
+            cron_changed = cron_changed or (schedule.enabled != request.enabled)
+            schedule.enabled = request.enabled
+
+        # Update in Table Storage
+        updated_entity = _schedule_to_entity(schedule)
+        table_client.update_entity(entity=updated_entity, mode="replace")
+
+        # Re-schedule APScheduler job if cron or enabled state changed
+        if cron_changed:
+            _add_scheduler_job(schedule)
+
+        logger.info(f"Updated schedule: {schedule.id} - {schedule.name}")
+        return _schedule_to_response(schedule)
+
+    except ValueError as e:
+        logger.warning(f"Invalid schedule update request: {e}")
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except HTTPException:
+        raise
+    except RuntimeError as e:
+        logger.error(f"Storage not configured: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Failed to update schedule: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to update schedule: {e}") from e
+
+
+@app.delete("/api/schedules/{schedule_id}", status_code=204)
+async def delete_schedule(schedule_id: str):
+    """Delete a schedule.
+
+    Removes the schedule from storage and cancels any pending APScheduler jobs.
+
+    Args:
+        schedule_id: Unique schedule identifier
+
+    Raises:
+        HTTPException: 404 if schedule not found
+    """
+    try:
+        table_client = _get_schedule_table_client()
+
+        # Verify schedule exists
+        try:
+            table_client.get_entity(
+                partition_key=SCHEDULE_PARTITION_KEY,
+                row_key=schedule_id,
+            )
+        except ResourceNotFoundError as e:
+            raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}") from e
+
+        # Remove from APScheduler
+        _remove_scheduler_job(schedule_id)
+
+        # Delete from Table Storage
+        table_client.delete_entity(
+            partition_key=SCHEDULE_PARTITION_KEY,
+            row_key=schedule_id,
+        )
+
+        logger.info(f"Deleted schedule: {schedule_id}")
+        return None
+
+    except HTTPException:
+        raise
+    except RuntimeError as e:
+        logger.error(f"Storage not configured: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Failed to delete schedule: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to delete schedule: {e}") from e
+
+
+# ==============================================================================
 # ORCHESTRATION LOGIC
 # ==============================================================================
 
@@ -396,8 +927,19 @@ async def run_scheduled_orchestration():
     await run_orchestration(run_id)
 
 
-async def run_orchestration(run_id: str, skip_validation: bool = False):
+async def run_orchestration(
+    run_id: str,
+    skip_validation: bool = False,
+    scenario_names: list[str] | None = None,
+    scenario_count: int | None = None,
+):
     """Main orchestration workflow.
+
+    Args:
+        run_id: Unique execution run ID
+        skip_validation: Skip environment validation (for testing)
+        scenario_names: Specific scenarios to run (None = random selection)
+        scenario_count: Number of scenarios to select (overrides config)
 
     Phases:
     1. Validation: Verify environment
@@ -450,7 +992,28 @@ async def run_orchestration(run_id: str, skip_validation: bool = False):
         # PHASE 2: SCENARIO SELECTION
         # ========================================================================
         logger.info(f"[{run_id}] Phase 2: Scenario Selection")
-        scenarios = select_scenarios(config.simulation_size)
+
+        # Use schedule-provided scenarios or select based on config
+        if scenario_names:
+            # Filter to specific scenarios requested by schedule
+            from azure_haymaker.models.config import SimulationSize
+
+            all_scenarios = select_scenarios(SimulationSize.LARGE)  # Get all available
+            scenarios = [s for s in all_scenarios if s.scenario_name in scenario_names]
+            if not scenarios:
+                logger.error(f"[{run_id}] No matching scenarios found for: {scenario_names}")
+                execution_report["status"] = "failed"
+                execution_report["failure_reason"] = "no_matching_scenarios"
+                return
+        else:
+            # Random selection based on scenario_count or config
+            if scenario_count:
+                from azure_haymaker.models.config import SimulationSize
+
+                all_scenarios = select_scenarios(SimulationSize.LARGE)
+                scenarios = random.sample(all_scenarios, min(scenario_count, len(all_scenarios)))
+            else:
+                scenarios = select_scenarios(config.simulation_size)
 
         if not scenarios:
             logger.error(f"[{run_id}] No scenarios selected")
@@ -527,7 +1090,9 @@ async def run_orchestration(run_id: str, skip_validation: bool = False):
                 error_msg = f"{type(result).__name__}: {str(result)}"
                 logger.warning(f"[{run_id}] Container deployment failed: {error_msg}")
                 failed_containers.append(successful_sps[i][0].scenario_name)
-                container_errors.append({"scenario": successful_sps[i][0].scenario_name, "error": error_msg})
+                container_errors.append(
+                    {"scenario": successful_sps[i][0].scenario_name, "error": error_msg}
+                )
             else:
                 successful_containers.append(result)
 
@@ -596,7 +1161,7 @@ async def run_orchestration(run_id: str, skip_validation: bool = False):
             )
 
             logger.info(
-                f"[{run_id}] Status check {check_num+1}/32: "
+                f"[{run_id}] Status check {check_num + 1}/32: "
                 f"running={running_count}, completed={completed_count}, failed={failed_count}"
             )
 
@@ -655,8 +1220,6 @@ async def run_orchestration(run_id: str, skip_validation: bool = False):
             )
             container_client = blob_service_client.get_container_client("execution-reports")
             blob_client = container_client.get_blob_client(f"{run_id}/report.json")
-
-            import json
 
             await blob_client.upload_blob(
                 json.dumps(execution_report, indent=2),

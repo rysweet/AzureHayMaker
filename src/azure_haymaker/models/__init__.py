@@ -25,6 +25,11 @@ from azure_haymaker.models.scenario import (
     ScenarioMetadata,
     ScenarioStatus,
 )
+from azure_haymaker.models.schedule import (
+    Schedule,
+    ScheduleCreate,
+    ScheduleResponse,
+)
 from azure_haymaker.models.service_principal import (
     ServicePrincipal,
     ServicePrincipalDetails,
@@ -53,6 +58,10 @@ __all__ = [
     # Scenario models
     "ScenarioMetadata",
     "ScenarioStatus",
+    # Schedule models
+    "Schedule",
+    "ScheduleCreate",
+    "ScheduleResponse",
     # Service Principal models
     "ServicePrincipal",
     "ServicePrincipalDetails",
