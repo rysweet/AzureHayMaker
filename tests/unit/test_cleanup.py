@@ -377,7 +377,7 @@ class TestForceDeleteResources:
                 "azure_haymaker.orchestrator.cleanup.ResourceManagementClient",
                 return_value=mock_resource_client,
             ),
-            patch("azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"),
+            patch("azure_haymaker.orchestrator.cleanup.get_credential"),
         ):
             result = await force_delete_resources(resources, subscription_id="sub-12345")
 
@@ -488,7 +488,7 @@ class TestForceDeleteResources:
                 "azure_haymaker.orchestrator.cleanup.ResourceManagementClient",
                 return_value=mock_resource_client,
             ),
-            patch("azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"),
+            patch("azure_haymaker.orchestrator.cleanup.get_credential"),
         ):
             result = await force_delete_resources(resources, subscription_id="sub-12345")
 
@@ -521,7 +521,7 @@ class TestForceDeleteResources:
                 "azure_haymaker.orchestrator.cleanup.ResourceManagementClient",
                 return_value=mock_resource_client,
             ),
-            patch("azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"),
+            patch("azure_haymaker.orchestrator.cleanup.get_credential"),
         ):
             result = await force_delete_resources(resources, subscription_id="sub-12345")
 
@@ -556,7 +556,7 @@ class TestForceDeleteResources:
                 "azure_haymaker.orchestrator.cleanup.ResourceManagementClient",
                 return_value=mock_resource_client,
             ),
-            patch("azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"),
+            patch("azure_haymaker.orchestrator.cleanup.get_credential"),
         ):
             result = await force_delete_resources(resources, subscription_id="sub-12345")
 
@@ -605,7 +605,7 @@ class TestForceDeleteResources:
                 "azure_haymaker.orchestrator.cleanup.GraphServiceClient",
                 return_value=mock_graph_client,
             ),
-            patch("azure_haymaker.orchestrator.cleanup.DefaultAzureCredential"),
+            patch("azure_haymaker.orchestrator.cleanup.get_credential"),
         ):
             result = await force_delete_resources(
                 [], sp_details=sp_details, kv_client=mock_kv_client, subscription_id="sub-12345"
