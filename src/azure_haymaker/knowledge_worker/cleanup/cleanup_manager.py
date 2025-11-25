@@ -513,17 +513,28 @@ class KnowledgeWorkerCleanupManager:
     async def _delete_container_app(self, container_id: str) -> bool:
         """Delete Azure Container App.
 
+        NOTE: Requires container_client to be provided at initialization.
+        Without a configured Container Apps client, this operation will
+        be skipped and logged as a warning.
+
         Args:
             container_id: Container App resource ID
 
         Returns:
-            True if deleted successfully
+            True if deleted successfully, False if skipped or failed
         """
         try:
-            # Would use Container Apps SDK or ARM client
-            if self.container_client:
-                # Implementation would depend on the specific client
-                pass
+            if not self.container_client:
+                logger.warning(
+                    f"Container app deletion skipped (no client configured): {container_id}"
+                )
+                return False  # Honestly report that deletion was not performed
+
+            # Use Container Apps SDK to delete
+            await self.container_client.container_apps.begin_delete(
+                resource_group_name=self._extract_resource_group(container_id),
+                container_app_name=self._extract_container_name(container_id),
+            )
             logger.info(f"Deleted container app: {container_id}")
             return True
         except Exception as e:
@@ -532,24 +543,45 @@ class KnowledgeWorkerCleanupManager:
             logger.error(f"Failed to delete container app {container_id}: {e}")
             return False
 
+    def _extract_resource_group(self, resource_id: str) -> str:
+        """Extract resource group name from Azure resource ID."""
+        parts = resource_id.split("/")
+        try:
+            rg_index = parts.index("resourceGroups") + 1
+            return parts[rg_index]
+        except (ValueError, IndexError):
+            return ""
+
+    def _extract_container_name(self, resource_id: str) -> str:
+        """Extract container app name from Azure resource ID."""
+        parts = resource_id.split("/")
+        return parts[-1] if parts else ""
+
     async def _delete_transport_rule(self, rule_name: str) -> bool:
         """Delete Exchange transport rule.
+
+        NOTE: Exchange transport rules require Exchange Online PowerShell
+        or Security & Compliance Center API integration. This operation
+        logs a warning and returns False until integrated.
+
+        TODO: Implement using one of:
+        - Exchange Online PowerShell module
+        - Microsoft Graph Security API
+        - Security & Compliance Center API
 
         Args:
             rule_name: Transport rule name
 
         Returns:
-            True if deleted successfully
+            True if deleted successfully, False if not implemented
         """
-        try:
-            # Would use Exchange Online PowerShell or API
-            logger.info(f"Deleted transport rule: {rule_name}")
-            return True
-        except Exception as e:
-            if "not found" in str(e).lower():
-                return True
-            logger.error(f"Failed to delete transport rule {rule_name}: {e}")
-            return False
+        # Transport rule deletion requires Exchange Online PowerShell integration
+        # which is not yet implemented. Log warning and report honestly.
+        logger.warning(
+            f"Transport rule deletion not yet implemented: {rule_name}. "
+            "Manual cleanup via Exchange Admin Center may be required."
+        )
+        return False  # Honestly report that deletion was not performed
 
     async def _delete_sharepoint_site(self, site_id: str) -> bool:
         """Delete SharePoint site.
