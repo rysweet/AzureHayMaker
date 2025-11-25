@@ -9,12 +9,16 @@ Tests cover:
 - Error handling and deployment failures
 
 Testing approach:
-- Mock Azure Container Apps SDK
+- Mock Azure Container Apps SDK using sys.modules patching
+- The ContainerAppsAPIClient is imported inside the deploy method (lazy import)
+- We need to patch at azure.mgmt.appcontainers level, not at the module level
 - Test configuration validation at boundaries
 - Focus on deployment workflow and error cases
 """
 
-from unittest.mock import AsyncMock, Mock, patch
+import sys
+from contextlib import contextmanager
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -25,6 +29,21 @@ from azure_haymaker.orchestrator.container_deployer import (
     ContainerAppError,
     ContainerDeployer,
 )
+
+
+@contextmanager
+def mock_container_apps_sdk(mock_client_instance):
+    """Context manager to mock the azure.mgmt.appcontainers module for lazy imports.
+
+    The ContainerAppsAPIClient is imported inside the async deploy method, so we need to
+    patch sys.modules to intercept the import.
+    """
+    mock_module = MagicMock()
+    mock_module.ContainerAppsAPIClient = MagicMock(return_value=mock_client_instance)
+
+    with patch.dict(sys.modules, {"azure.mgmt.appcontainers": mock_module}):
+        yield
+
 
 # ==============================================================================
 # FIXTURES
@@ -224,9 +243,21 @@ def test_build_configuration(mock_config, mock_sp):
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Requires azure-mgmt-appcontainers package")
 async def test_deploy_happy_path(mock_config, mock_scenario, mock_sp):
     """Test successful container app deployment."""
+    # Set up mock client instance BEFORE the context manager
+    mock_env = Mock()
+    mock_env.id = "/subscriptions/sub-123/resourceGroups/haymaker-rg/providers/Microsoft.App/managedEnvironments/haymaker-fastapi-cae"
+    mock_env.name = "haymaker-fastapi-cae"
+    mock_env.provisioning_state = "Succeeded"
+    mock_env.location = "eastus"
+
+    mock_managed_environments = Mock()
+    mock_managed_environments.get = Mock(return_value=mock_env)
+
+    mock_client_instance = Mock()
+    mock_client_instance.managed_environments = mock_managed_environments
+
     with patch.dict(
         "os.environ",
         {
@@ -236,26 +267,14 @@ async def test_deploy_happy_path(mock_config, mock_scenario, mock_sp):
         },
     ):
         with patch("subprocess.run") as mock_run:
-            # Mock successful CLI login
+            # Mock successful CLI operations
             mock_run.side_effect = [
                 Mock(returncode=0, stdout="", stderr=""),  # az login
                 Mock(returncode=0, stdout='{"username": "acr", "passwords": [{"value": "pw"}]}', stderr=""),  # ACR creds
                 Mock(returncode=0, stdout="test-fqdn.azurecontainerapps.io\n", stderr=""),  # az containerapp create
             ]
 
-            with patch("azure.mgmt.appcontainers.ContainerAppsAPIClient") as mock_client:
-                # Mock environment lookup
-                mock_env = Mock()
-                mock_env.id = "/subscriptions/sub-123/resourceGroups/haymaker-rg/providers/Microsoft.App/managedEnvironments/haymaker-fastapi-cae"
-                mock_env.name = "haymaker-fastapi-cae"
-                mock_env.provisioning_state = "Succeeded"
-                mock_env.location = "eastus"
-
-                mock_env_client = Mock()
-                mock_env_client.managed_environments = Mock()
-                mock_env_client.managed_environments.get = Mock(return_value=mock_env)
-                mock_client.return_value = mock_env_client
-
+            with mock_container_apps_sdk(mock_client_instance):
                 deployer = ContainerDeployer(mock_config)
                 resource_id = await deployer.deploy(mock_scenario, mock_sp)
 
@@ -264,29 +283,43 @@ async def test_deploy_happy_path(mock_config, mock_scenario, mock_sp):
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Requires azure-mgmt-appcontainers package")
 async def test_deploy_invalid_scenario(mock_config, mock_sp):
     """Test error when scenario is invalid."""
-    deployer = ContainerDeployer(mock_config)
+    # Set up minimal mock client instance
+    mock_client_instance = Mock()
 
-    with pytest.raises(ValueError, match="Valid scenario"):
-        await deployer.deploy(None, mock_sp)
+    with mock_container_apps_sdk(mock_client_instance):
+        deployer = ContainerDeployer(mock_config)
+
+        with pytest.raises(ValueError, match="Valid scenario"):
+            await deployer.deploy(None, mock_sp)
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Requires azure-mgmt-appcontainers package")
 async def test_deploy_invalid_sp(mock_config, mock_scenario):
     """Test error when service principal is invalid."""
-    deployer = ContainerDeployer(mock_config)
+    # Set up minimal mock client instance
+    mock_client_instance = Mock()
 
-    with pytest.raises(ValueError, match="Valid service principal"):
-        await deployer.deploy(mock_scenario, None)
+    with mock_container_apps_sdk(mock_client_instance):
+        deployer = ContainerDeployer(mock_config)
+
+        with pytest.raises(ValueError, match="Valid service principal"):
+            await deployer.deploy(mock_scenario, None)
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Requires azure-mgmt-appcontainers package")
 async def test_deploy_environment_not_found(mock_config, mock_scenario, mock_sp):
     """Test error when Container Apps environment doesn't exist."""
+    # Set up mock client instance that raises error on environment lookup
+    mock_managed_environments = Mock()
+    mock_managed_environments.get = Mock(
+        side_effect=Exception("Environment not found")
+    )
+
+    mock_client_instance = Mock()
+    mock_client_instance.managed_environments = mock_managed_environments
+
     with patch.dict(
         "os.environ",
         {
@@ -295,14 +328,7 @@ async def test_deploy_environment_not_found(mock_config, mock_scenario, mock_sp)
             "AZURE_CLIENT_SECRET": "secret-123",
         },
     ):
-        with patch("azure.mgmt.appcontainers.ContainerAppsAPIClient") as mock_client:
-            mock_env_client = Mock()
-            mock_env_client.managed_environments = Mock()
-            mock_env_client.managed_environments.get = Mock(
-                side_effect=Exception("Environment not found")
-            )
-            mock_client.return_value = mock_env_client
-
+        with mock_container_apps_sdk(mock_client_instance):
             deployer = ContainerDeployer(mock_config)
 
             with pytest.raises(ContainerAppError, match="Container Apps Environment not accessible"):
@@ -310,9 +336,21 @@ async def test_deploy_environment_not_found(mock_config, mock_scenario, mock_sp)
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Requires azure-mgmt-appcontainers package")
 async def test_deploy_cli_failure(mock_config, mock_scenario, mock_sp):
     """Test error handling when Azure CLI deployment fails."""
+    # Set up mock client instance with successful environment lookup
+    mock_env = Mock()
+    mock_env.id = "/subscriptions/sub-123/resourceGroups/rg/providers/Microsoft.App/managedEnvironments/env"
+    mock_env.name = "haymaker-fastapi-cae"
+    mock_env.provisioning_state = "Succeeded"
+    mock_env.location = "eastus"
+
+    mock_managed_environments = Mock()
+    mock_managed_environments.get = Mock(return_value=mock_env)
+
+    mock_client_instance = Mock()
+    mock_client_instance.managed_environments = mock_managed_environments
+
     with patch.dict(
         "os.environ",
         {
@@ -329,18 +367,7 @@ async def test_deploy_cli_failure(mock_config, mock_scenario, mock_sp):
                 Mock(returncode=1, stdout="", stderr="Deployment failed: quota exceeded"),  # Failed deployment
             ]
 
-            with patch("azure.mgmt.appcontainers.ContainerAppsAPIClient") as mock_client:
-                mock_env = Mock()
-                mock_env.id = "/subscriptions/sub-123/resourceGroups/rg/providers/Microsoft.App/managedEnvironments/env"
-                mock_env.name = "haymaker-fastapi-cae"
-                mock_env.provisioning_state = "Succeeded"
-                mock_env.location = "eastus"
-
-                mock_env_client = Mock()
-                mock_env_client.managed_environments = Mock()
-                mock_env_client.managed_environments.get = Mock(return_value=mock_env)
-                mock_client.return_value = mock_env_client
-
+            with mock_container_apps_sdk(mock_client_instance):
                 deployer = ContainerDeployer(mock_config)
 
                 with pytest.raises(ContainerAppError, match="Failed to deploy via CLI"):

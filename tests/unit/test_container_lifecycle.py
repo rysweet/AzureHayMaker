@@ -12,7 +12,9 @@ Testing approach:
 - Test deletion workflow and error cases
 """
 
-from unittest.mock import AsyncMock, Mock, patch
+import sys
+from contextlib import contextmanager
+from unittest.mock import AsyncMock, Mock, MagicMock, patch
 
 import pytest
 from azure.core.exceptions import ResourceNotFoundError
@@ -22,6 +24,16 @@ from azure_haymaker.orchestrator.container_lifecycle import (
     ContainerLifecycle,
     delete_container_app,
 )
+
+
+@contextmanager
+def mock_container_apps_sdk(mock_client_instance):
+    """Context manager to mock the azure.mgmt.appcontainers module for lazy imports."""
+    mock_module = MagicMock()
+    mock_module.ContainerAppsAPIClient = MagicMock(return_value=mock_client_instance)
+
+    with patch.dict(sys.modules, {"azure.mgmt.appcontainers": mock_module}):
+        yield
 
 
 # ==============================================================================
@@ -55,20 +67,18 @@ def test_container_lifecycle_init_missing_params():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Requires azure-mgmt-appcontainers package")
 async def test_delete_happy_path():
     """Test successful container app deletion."""
-    with patch("azure_haymaker.orchestrator.container_lifecycle.ContainerAppsAPIClient") as mock_client:
-        mock_poller = Mock()
-        mock_poller.result = Mock(return_value=None)
+    mock_poller = Mock()
+    mock_poller.result = Mock(return_value=None)
 
-        mock_container_apps = Mock()
-        mock_container_apps.begin_delete = Mock(return_value=mock_poller)
+    mock_container_apps = Mock()
+    mock_container_apps.begin_delete = Mock(return_value=mock_poller)
 
-        mock_client_instance = Mock()
-        mock_client_instance.container_apps = mock_container_apps
-        mock_client.return_value = mock_client_instance
+    mock_client_instance = Mock()
+    mock_client_instance.container_apps = mock_container_apps
 
+    with mock_container_apps_sdk(mock_client_instance):
         lifecycle = ContainerLifecycle("test-rg", "sub-123")
         result = await lifecycle.delete("test-app")
 
@@ -77,27 +87,27 @@ async def test_delete_happy_path():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Requires azure-mgmt-appcontainers package")
 async def test_delete_empty_app_name():
     """Test error when app_name is empty."""
-    lifecycle = ContainerLifecycle("test-rg", "sub-123")
+    mock_client_instance = Mock()
 
-    with pytest.raises(ValueError, match="App name is required"):
-        await lifecycle.delete("")
+    with mock_container_apps_sdk(mock_client_instance):
+        lifecycle = ContainerLifecycle("test-rg", "sub-123")
+
+        with pytest.raises(ValueError, match="App name is required"):
+            await lifecycle.delete("")
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Requires azure-mgmt-appcontainers package")
 async def test_delete_not_found():
     """Test deletion when container app doesn't exist."""
-    with patch("azure_haymaker.orchestrator.container_lifecycle.ContainerAppsAPIClient") as mock_client:
-        mock_container_apps = Mock()
-        mock_container_apps.begin_delete = Mock(side_effect=ResourceNotFoundError("Not found"))
+    mock_container_apps = Mock()
+    mock_container_apps.begin_delete = Mock(side_effect=ResourceNotFoundError("Not found"))
 
-        mock_client_instance = Mock()
-        mock_client_instance.container_apps = mock_container_apps
-        mock_client.return_value = mock_client_instance
+    mock_client_instance = Mock()
+    mock_client_instance.container_apps = mock_container_apps
 
+    with mock_container_apps_sdk(mock_client_instance):
         lifecycle = ContainerLifecycle("test-rg", "sub-123")
         result = await lifecycle.delete("nonexistent-app")
 
@@ -105,17 +115,15 @@ async def test_delete_not_found():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Requires azure-mgmt-appcontainers package")
 async def test_delete_api_error():
     """Test error handling when API call fails."""
-    with patch("azure_haymaker.orchestrator.container_lifecycle.ContainerAppsAPIClient") as mock_client:
-        mock_container_apps = Mock()
-        mock_container_apps.begin_delete = Mock(side_effect=Exception("API error"))
+    mock_container_apps = Mock()
+    mock_container_apps.begin_delete = Mock(side_effect=Exception("API error"))
 
-        mock_client_instance = Mock()
-        mock_client_instance.container_apps = mock_container_apps
-        mock_client.return_value = mock_client_instance
+    mock_client_instance = Mock()
+    mock_client_instance.container_apps = mock_container_apps
 
+    with mock_container_apps_sdk(mock_client_instance):
         lifecycle = ContainerLifecycle("test-rg", "sub-123")
 
         with pytest.raises(ContainerAppError, match="Failed to delete container app"):
@@ -128,34 +136,34 @@ async def test_delete_api_error():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Requires azure-mgmt-appcontainers package")
 async def test_delete_container_app_standalone_happy_path():
     """Test standalone delete_container_app function."""
-    with patch("azure_haymaker.orchestrator.container_lifecycle.ContainerAppsAPIClient") as mock_client:
-        mock_poller = Mock()
-        mock_poller.result = Mock(return_value=None)
+    mock_poller = Mock()
+    mock_poller.result = Mock(return_value=None)
 
-        mock_container_apps = Mock()
-        mock_container_apps.begin_delete = Mock(return_value=mock_poller)
+    mock_container_apps = Mock()
+    mock_container_apps.begin_delete = Mock(return_value=mock_poller)
 
-        mock_client_instance = Mock()
-        mock_client_instance.container_apps = mock_container_apps
-        mock_client.return_value = mock_client_instance
+    mock_client_instance = Mock()
+    mock_client_instance.container_apps = mock_container_apps
 
+    with mock_container_apps_sdk(mock_client_instance):
         result = await delete_container_app("test-app", "test-rg", "sub-123")
 
         assert result is True
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Requires azure-mgmt-appcontainers package")
 async def test_delete_container_app_standalone_missing_params():
     """Test standalone function with missing parameters."""
-    with pytest.raises(ValueError, match="app_name, resource_group_name, and subscription_id are required"):
-        await delete_container_app("", "test-rg", "sub-123")
+    mock_client_instance = Mock()
 
-    with pytest.raises(ValueError, match="app_name, resource_group_name, and subscription_id are required"):
-        await delete_container_app("test-app", "", "sub-123")
+    with mock_container_apps_sdk(mock_client_instance):
+        with pytest.raises(ValueError, match="app_name, resource_group_name, and subscription_id are required"):
+            await delete_container_app("", "test-rg", "sub-123")
 
-    with pytest.raises(ValueError, match="app_name, resource_group_name, and subscription_id are required"):
-        await delete_container_app("test-app", "test-rg", "")
+        with pytest.raises(ValueError, match="app_name, resource_group_name, and subscription_id are required"):
+            await delete_container_app("test-app", "", "sub-123")
+
+        with pytest.raises(ValueError, match="app_name, resource_group_name, and subscription_id are required"):
+            await delete_container_app("test-app", "test-rg", "")
