@@ -18,6 +18,7 @@ from azure.core.exceptions import (
     ResourceNotFoundError,
     ServiceRequestError,
 )
+from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 from azure.mgmt.resource import ResourceManagementClient
 from kiota_abstractions.api_error import APIError
