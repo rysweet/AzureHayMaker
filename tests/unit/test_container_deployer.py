@@ -240,7 +240,7 @@ async def test_deploy_happy_path(mock_config, mock_scenario, mock_sp):
                 Mock(returncode=0, stdout="test-fqdn.azurecontainerapps.io\n", stderr=""),  # az containerapp create
             ]
 
-            with patch("azure_haymaker.orchestrator.container_deployer.ContainerAppsAPIClient") as mock_client:
+            with patch("azure.mgmt.appcontainers.ContainerAppsAPIClient") as mock_client:
                 # Mock environment lookup
                 mock_env = Mock()
                 mock_env.id = "/subscriptions/sub-123/resourceGroups/haymaker-rg/providers/Microsoft.App/managedEnvironments/haymaker-fastapi-cae"
@@ -289,7 +289,7 @@ async def test_deploy_environment_not_found(mock_config, mock_scenario, mock_sp)
             "AZURE_CLIENT_SECRET": "secret-123",
         },
     ):
-        with patch("azure_haymaker.orchestrator.container_deployer.ContainerAppsAPIClient") as mock_client:
+        with patch("azure.mgmt.appcontainers.ContainerAppsAPIClient") as mock_client:
             mock_env_client = Mock()
             mock_env_client.managed_environments = Mock()
             mock_env_client.managed_environments.get = Mock(
@@ -322,7 +322,7 @@ async def test_deploy_cli_failure(mock_config, mock_scenario, mock_sp):
                 Mock(returncode=1, stdout="", stderr="Deployment failed: quota exceeded"),  # Failed deployment
             ]
 
-            with patch("azure_haymaker.orchestrator.container_deployer.ContainerAppsAPIClient") as mock_client:
+            with patch("azure.mgmt.appcontainers.ContainerAppsAPIClient") as mock_client:
                 mock_env = Mock()
                 mock_env.id = "/subscriptions/sub-123/resourceGroups/rg/providers/Microsoft.App/managedEnvironments/env"
                 mock_env.name = "haymaker-fastapi-cae"
