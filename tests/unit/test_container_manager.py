@@ -330,14 +330,6 @@ class TestDeployContainerAppFunction:
     """Test the standalone deploy_container_app function."""
 
     @pytest.mark.asyncio
-    async def test_deploy_container_app_basic_validation(self, mock_config, mock_scenario, mock_sp):
-        """Test deploy function validates inputs."""
-        # Valid inputs should not raise immediately
-        # (The actual deploy would be mocked in integration tests)
-        assert mock_scenario.scenario_name
-        assert mock_sp.client_id
-
-    @pytest.mark.asyncio
     async def test_deploy_container_app_invalid_scenario(self, mock_config, mock_sp):
         """Test deploy rejects invalid scenario."""
         invalid_scenario = ScenarioMetadata(

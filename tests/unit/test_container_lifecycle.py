@@ -14,7 +14,7 @@ Testing approach:
 
 import sys
 from contextlib import contextmanager
-from unittest.mock import AsyncMock, Mock, MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from azure.core.exceptions import ResourceNotFoundError
