@@ -79,7 +79,7 @@ class TestServicePrincipalDetails:
         assert details.created_at == "2025-11-14T12:00:00Z"
 
 
-@pytest.mark.skip(reason='Requires complex msgraph SDK async mocking - fix in separate PR')
+@pytest.mark.skip(reason="Requires complex msgraph SDK async mocking - fix in separate PR")
 class TestCreateServicePrincipal:
     """Test service principal creation."""
 
@@ -102,7 +102,7 @@ class TestCreateServicePrincipal:
         # Configure mock chains with proper async handling
         mock_graph_client.applications.post = AsyncMock(return_value=mock_app_result)
         mock_graph_client.service_principals.post = AsyncMock(return_value=mock_sp_result)
-        
+
         # Setup by_application_id chain with async methods
         mock_by_app = MagicMock()
         mock_by_app.get = AsyncMock(return_value=mock_app_result)
