@@ -18,8 +18,6 @@ Common issues and solutions for Azure HayMaker.
 
 ---
 
----
-
 ## Issue: Function App Container Crashes (Exit Code 134)
 
 **Symptom**: Container crashes 7-60 seconds after startup with SIGABRT

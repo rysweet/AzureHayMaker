@@ -22,16 +22,22 @@ Complete REST API documentation for Azure HayMaker orchestrator service.
 
 ## Overview
 
-The Azure HayMaker orchestrator provides a REST API for managing scenario execution, monitoring status, and querying metrics.
+The Azure HayMaker orchestrator provides a REST API for managing scenario execution, monitoring status, and querying metrics. The API is implemented in [orchestrator_server.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/orchestrator_server.py).
 
 **Base URL**: `https://haymaker-fastapi-app.azurewebsites.net`
+
+**Source Files**:
+- [orchestrator_server.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/orchestrator_server.py) - Main FastAPI application
+- [execute_api.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/execute_api.py) - Execution endpoints
+- [metrics_api.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/metrics_api.py) - Metrics endpoints
+- [monitoring_api.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/monitoring_api.py) - Monitoring endpoints
 
 ## Authentication
 
 Currently, the API does not require authentication for read operations. Write operations (execute, cleanup) may require API key authentication in production deployments.
 
 {: .note }
-> Future versions will support Azure AD authentication with OAuth 2.0 bearer tokens.
+> For production deployments, configure Azure AD authentication on the Container App or Function App hosting the API.
 
 ---
 
@@ -397,4 +403,11 @@ console.log(`Execution started: ${execution.execution_id}`);
 - [CLI Guide](/AzureHayMaker/cli/) - Command-line interface for API operations
 - [Scenarios](/AzureHayMaker/scenarios/) - Available scenarios for execution
 - [Architecture](/AzureHayMaker/architecture/) - System design and data flow
-- [Source Code](https://github.com/rysweet/AzureHayMaker/blob/main/src/orchestrator_server.py) - View the API implementation
+
+## Source Code References
+
+- [orchestrator_server.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/orchestrator_server.py) - Main FastAPI application
+- [execute_api.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/execute_api.py) - Execution API implementation
+- [execution_tracker.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/execution_tracker.py) - Status tracking
+- [rate_limiter.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/rate_limiter.py) - Rate limiting implementation
+- [API tests](https://github.com/rysweet/AzureHayMaker/tree/main/tests/unit) - Unit tests for API endpoints

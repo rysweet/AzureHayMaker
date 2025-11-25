@@ -1,6 +1,16 @@
-# Contributing to Azure HayMaker
+---
+layout: default
+title: Contributing
+nav_order: 10
+description: "How to contribute to Azure HayMaker"
+permalink: /contributing/
+---
 
-**Thank you for your interest in contributing!**
+# Contributing to Azure HayMaker
+{: .no_toc }
+
+Thank you for your interest in contributing!
+{: .fs-6 .fw-300 }
 
 ---
 

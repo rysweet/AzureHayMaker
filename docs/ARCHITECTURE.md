@@ -22,15 +22,6 @@ System architecture and design documentation for Azure HayMaker.
 ---
 
 ## Overview
-- [System Architecture](#system-architecture)
-- [Component Specifications](#component-specifications)
-- [Implementation Status](#implementation-status)
-- [Design Decisions](#design-decisions)
-- [Security Architecture](#security-architecture)
-- [Data Flow](#data-flow)
-- [Deployment Model](#deployment-model)
-
-## Overview
 
 Azure HayMaker is an orchestration service that generates benign telemetry to simulate ordinary Azure tenant operations. The system executes multiple concurrent scenarios, each managed by an autonomous goal-seeking agent operating with dedicated credentials in isolated container environments.
 
@@ -101,14 +92,26 @@ graph TB
 Azure HayMaker is designed around five primary components:
 
 1. **Orchestrator Service** (Azure Functions) - Schedules and coordinates scenario execution, manages service principal lifecycle, and enforces cleanup policies
+   - [orchestrator_server.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/orchestrator_server.py) - Main orchestrator application
+   - [workflow_orchestrator.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/workflow_orchestrator.py) - Workflow coordination
+   - [timer_trigger.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/timer_trigger.py) - Scheduled execution
 
 2. **Agent Containers** (Azure Container Apps) - Execute individual scenarios in isolated environments and generate operational telemetry
+   - [container_manager.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/container_manager.py) - Container lifecycle management
+   - [container_deployer.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/container_deployer.py) - Container deployment
+   - [Agent implementations](https://github.com/rysweet/AzureHayMaker/tree/main/src/agents) - Scenario-specific agents
 
 3. **Event Bus** (Azure Service Bus) - Collects logs from all agents and provides audit trail
+   - [event_bus.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/event_bus.py) - Event bus implementation
+   - [servicebus.bicep](https://github.com/rysweet/AzureHayMaker/blob/main/infra/bicep/modules/servicebus.bicep) - Service Bus infrastructure
 
 4. **Configuration Store** (Azure Key Vault) - Securely stores credentials and configuration
+   - [keyvault.bicep](https://github.com/rysweet/AzureHayMaker/blob/main/infra/bicep/modules/keyvault.bicep) - Key Vault infrastructure
+   - [config.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/config.py) - Configuration management
 
 5. **Scenario Repository** (Filesystem/Git) - Currently implemented with 50+ documented scenarios, template for creating new scenarios, and reference architectures
+   - [Scenario documents](https://github.com/rysweet/AzureHayMaker/tree/main/docs/scenarios) - All scenario documentation
+   - [scenario_selector.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/scenario_selector.py) - Scenario selection logic
 
 ### Architectural Layers
 
@@ -191,13 +194,13 @@ docs/scenarios/
 **Total**: 50 scenarios implemented
 
 **Example Scenarios**:
-- `compute-03-app-service-python.md` - Flask web app on App Service
-- `security-01-key-vault-secrets.md` - Secret management with Key Vault
-- `containers-02-aks-cluster.md` - Kubernetes cluster deployment
-- `databases-02-cosmos-db.md` - NoSQL database operations
-- `ai-ml-03-azure-openai.md` - OpenAI service integration
+- [compute-03-app-service-python.md](https://github.com/rysweet/AzureHayMaker/blob/main/docs/scenarios/compute-03-app-service-python.md) - Flask web app on App Service
+- [security-01-key-vault-secrets.md](https://github.com/rysweet/AzureHayMaker/blob/main/docs/scenarios/security-01-key-vault-secrets.md) - Secret management with Key Vault
+- [containers-02-aks-cluster.md](https://github.com/rysweet/AzureHayMaker/blob/main/docs/scenarios/containers-02-aks-cluster.md) - Kubernetes cluster deployment
+- [databases-02-cosmos-db.md](https://github.com/rysweet/AzureHayMaker/blob/main/docs/scenarios/databases-02-cosmos-db.md) - NoSQL database operations
+- [ai-ml-03-azure-openai.md](https://github.com/rysweet/AzureHayMaker/blob/main/docs/scenarios/ai-ml-03-azure-openai.md) - OpenAI service integration
 
-**See**: [SCENARIO_MANAGEMENT.md](SCENARIO_MANAGEMENT.md) for detailed scenario documentation.
+**See**: [Scenario Management Guide](/AzureHayMaker/scenarios/) for detailed scenario documentation.
 
 ## Design Decisions
 
@@ -706,10 +709,10 @@ Query execution status.
 ### Implementation Details
 
 **Key Modules**:
-- `execute_api.py`: HTTP trigger functions for API endpoints
-- `execute_processor.py`: Service Bus queue processor
-- `execution_tracker.py`: Status tracking in Table Storage
-- `rate_limiter.py`: Token bucket rate limiter
+- [execute_api.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/execute_api.py): HTTP trigger functions for API endpoints
+- [execute_processor.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/execute_processor.py): Service Bus queue processor
+- [execution_tracker.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/execution_tracker.py): Status tracking in Table Storage
+- [rate_limiter.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/rate_limiter.py): Token bucket rate limiter
 
 **Storage**:
 - **Table Storage (Executions)**: Execution status records with history
@@ -722,11 +725,16 @@ Query execution status.
 ### Deployment Considerations
 
 The Azure HayMaker architecture is designed to use:
-- Azure Functions for orchestration scheduling
-- Azure Service Bus for logging infrastructure
-- Azure Key Vault for credential management
-- Azure Container Apps for isolated scenario execution
-- Tag-based resource tracking for cleanup verification
+- Azure Functions for orchestration scheduling - see [function_app.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/function_app.py)
+- Azure Service Bus for logging infrastructure - see [servicebus.bicep](https://github.com/rysweet/AzureHayMaker/blob/main/infra/bicep/modules/servicebus.bicep)
+- Azure Key Vault for credential management - see [keyvault.bicep](https://github.com/rysweet/AzureHayMaker/blob/main/infra/bicep/modules/keyvault.bicep)
+- Azure Container Apps for isolated scenario execution - see [container-apps-env.bicep](https://github.com/rysweet/AzureHayMaker/blob/main/infra/bicep/modules/container-apps-env.bicep)
+- Tag-based resource tracking for cleanup verification - see [cleanup.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/cleanup.py)
+
+**Infrastructure Templates**:
+- [main.bicep](https://github.com/rysweet/AzureHayMaker/blob/main/infra/bicep/main.bicep) - Main infrastructure template
+- [main-containerapps.bicep](https://github.com/rysweet/AzureHayMaker/blob/main/infra/bicep/main-containerapps.bicep) - Container Apps deployment
+- [GitHub Workflows](https://github.com/rysweet/AzureHayMaker/tree/main/.github/workflows) - CI/CD pipelines
 
 ---
 
@@ -943,7 +951,7 @@ Response:
 
 ## CLI Client
 
-Azure HayMaker provides a command-line interface for managing operations.
+Azure HayMaker provides a command-line interface for managing operations. See the [CLI source code](https://github.com/rysweet/AzureHayMaker/tree/main/cli/src/haymaker_cli) for implementation details.
 
 ### Installation
 
@@ -968,7 +976,7 @@ haymaker config set api-key your-api-key
 - `haymaker deploy --scenario <name>` - Deploy scenario on-demand
 - `haymaker cleanup` - Trigger cleanup
 
-For complete CLI documentation, see [CLI_GUIDE.md](CLI_GUIDE.md).
+For complete CLI documentation, see the [CLI Guide](/AzureHayMaker/cli/).
 
 ---
 
@@ -982,5 +990,20 @@ Azure HayMaker is designed as a robust, secure, and scalable orchestration servi
 4. **Observable Operations**: Comprehensive logging and monitoring at every level
 5. **Single Tenant Scope**: All operations constrained to one Azure subscription
 
-For scenario implementation details, see [SCENARIO_MANAGEMENT.md](SCENARIO_MANAGEMENT.md).
-For getting started with scenarios, see [GETTING_STARTED.md](GETTING_STARTED.md).
+For scenario implementation details, see the [Scenario Management Guide](/AzureHayMaker/scenarios/).
+For getting started with scenarios, see [Getting Started](/AzureHayMaker/getting-started/).
+
+## Source Code Quick Reference
+
+| Component | Source File |
+|:----------|:------------|
+| Orchestrator API | [orchestrator_server.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/orchestrator_server.py) |
+| Configuration | [config.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/config.py) |
+| Service Principal Manager | [sp_manager.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/sp_manager.py) |
+| Container Manager | [container_manager.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/container_manager.py) |
+| Scenario Selector | [scenario_selector.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/scenario_selector.py) |
+| Event Bus | [event_bus.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/event_bus.py) |
+| Cleanup | [cleanup.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/cleanup.py) |
+| Environment Config | [.env.example](https://github.com/rysweet/AzureHayMaker/blob/main/.env.example) |
+| Infrastructure | [infra/bicep/](https://github.com/rysweet/AzureHayMaker/tree/main/infra/bicep) |
+| CI/CD Workflows | [.github/workflows/](https://github.com/rysweet/AzureHayMaker/tree/main/.github/workflows) |

@@ -19,7 +19,7 @@ Comprehensive architecture documentation for understanding the system design.
 - [Container Apps Architecture](architecture/CONTAINER_APPS_ARCHITECTURE.md) - Container deployment details
 - [Container Manager Architecture](architecture/CONTAINER_MANAGER_ARCHITECTURE.md) - Container lifecycle management
 - [VM Architecture (128GB)](architecture/VM_128GB_ARCHITECTURE.md) - Large VM deployment guide
-- [Existing Architecture](ARCHITECTURE.md) - Legacy architecture documentation
+- [Core Architecture](ARCHITECTURE.md) - Core architecture documentation
 
 ## 💻 Implementation
 

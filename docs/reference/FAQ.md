@@ -18,8 +18,6 @@ Common questions and answers about Azure HayMaker.
 
 ---
 
----
-
 ## General
 
 ### Q: What is Azure HayMaker?

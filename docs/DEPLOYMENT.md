@@ -22,14 +22,6 @@ Complete guide for deploying Azure HayMaker infrastructure using GitOps and Azur
 ---
 
 ## Overview
-- [Prerequisites](#prerequisites)
-- [Initial Setup](#initial-setup)
-- [Deployment Process](#deployment-process)
-- [Environments](#environments)
-- [Troubleshooting](#troubleshooting)
-- [Rollback Procedures](#rollback-procedures)
-
-## Overview
 
 Azure HayMaker uses a fully automated GitOps deployment pipeline with:
 

@@ -18,9 +18,7 @@ Recommended practices for deploying and operating Azure HayMaker.
 
 ---
 
----
-
-## 🔒 Security Best Practices
+## Security Best Practices
 
 ### 1. Never Commit Secrets
 - ✅ Use .env for local (gitignored)

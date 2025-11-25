@@ -18,8 +18,6 @@ Key terms and definitions used throughout Azure HayMaker documentation.
 
 ---
 
----
-
 ## Project Terms
 
 **Azure HayMaker**: Orchestration service for generating benign Azure telemetry

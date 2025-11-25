@@ -21,14 +21,6 @@ Complete guide for using the Azure HayMaker command-line interface.
 ---
 
 ## Installation
-- [Configuration](#configuration)
-- [Authentication](#authentication)
-- [Commands](#commands)
-- [Output Formats](#output-formats)
-- [Examples](#examples)
-- [Troubleshooting](#troubleshooting)
-
-## Installation
 
 ### From PyPI (Recommended)
 
@@ -43,12 +35,16 @@ cd cli
 pip install -e .
 ```
 
+See the [CLI source code](https://github.com/rysweet/AzureHayMaker/tree/main/cli/src/haymaker_cli) for implementation details.
+
 ### Development Installation
 
 ```bash
 cd cli
 pip install -e ".[dev]"
 ```
+
+See [pyproject.toml](https://github.com/rysweet/AzureHayMaker/blob/main/cli/pyproject.toml) for development dependencies.
 
 ## Configuration
 
@@ -573,14 +569,27 @@ while true; do
 done
 ```
 
-## API Documentation
+## Related Documentation
 
 For detailed API documentation, see:
-- [API Reference](API.md)
-- [Architecture Documentation](ARCHITECTURE.md)
+- [API Reference](/AzureHayMaker/api/) - REST API endpoints and examples
+- [Architecture Documentation](/AzureHayMaker/architecture/) - System design and components
+- [Scenarios](/AzureHayMaker/scenarios/) - Available scenarios for execution
+
+## Source Code References
+
+| Component | Source File |
+|:----------|:------------|
+| CLI Entry Point | [main.py](https://github.com/rysweet/AzureHayMaker/blob/main/cli/src/haymaker_cli/main.py) |
+| API Client | [client.py](https://github.com/rysweet/AzureHayMaker/blob/main/cli/src/haymaker_cli/client.py) |
+| Configuration | [config.py](https://github.com/rysweet/AzureHayMaker/blob/main/cli/src/haymaker_cli/config.py) |
+| Authentication | [auth.py](https://github.com/rysweet/AzureHayMaker/blob/main/cli/src/haymaker_cli/auth.py) |
+| Output Formatters | [formatters.py](https://github.com/rysweet/AzureHayMaker/blob/main/cli/src/haymaker_cli/formatters.py) |
+| Orchestrator Commands | [orch/commands.py](https://github.com/rysweet/AzureHayMaker/blob/main/cli/src/haymaker_cli/orch/commands.py) |
+| CLI Tests | [tests/](https://github.com/rysweet/AzureHayMaker/tree/main/cli/tests) |
 
 ## Support
 
 For issues and questions:
-- GitHub Issues: https://github.com/azurehaymaker/azurehaymaker/issues
-- Documentation: https://github.com/azurehaymaker/azurehaymaker/tree/main/docs
+- GitHub Issues: https://github.com/rysweet/AzureHayMaker/issues
+- Documentation: https://github.com/rysweet/AzureHayMaker/tree/main/docs

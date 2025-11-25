@@ -21,11 +21,11 @@ Orchestration service that simulates realistic Azure tenant activity by deployin
 
 Azure HayMaker generates benign telemetry (the "Hay") in which to hide cybersecurity simulation red team signals (the needle in the haystack). It orchestrates realistic Azure operations through:
 
-- **50+ Azure Scenarios** across 10 technology areas (AI/ML, Analytics, Compute, Containers, Databases, etc.)
-- **Autonomous Agents** that self-manage deployments and troubleshoot issues using Claude AI
+- **50+ Azure Scenarios** across 10 technology areas (AI/ML, Analytics, Compute, Containers, Databases, etc.) - see [scenario docs](https://github.com/rysweet/AzureHayMaker/tree/main/docs/scenarios)
+- **Autonomous Agents** that self-manage deployments and troubleshoot issues using Claude AI - see [agent implementations](https://github.com/rysweet/AzureHayMaker/tree/main/src/agents)
 - **Scheduled Execution** (4x daily for different global regions in a follow-the-sun pattern)
-- **Complete Automation** using Azure CLI, Terraform, and Bicep
-- **Automatic Cleanup** with resource tracking and forced removal
+- **Complete Automation** using Azure CLI, Terraform, and Bicep - see [infrastructure templates](https://github.com/rysweet/AzureHayMaker/tree/main/infra/bicep)
+- **Automatic Cleanup** with resource tracking and forced removal - see [cleanup implementation](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/cleanup.py)
 
 ## Quick Navigation
 
@@ -37,7 +37,7 @@ Azure HayMaker generates benign telemetry (the "Hay") in which to hide cybersecu
 |:------|:------------|
 | [Quick Start](/AzureHayMaker/getting-started) | Get up and running in 30 minutes |
 | [Deployment Guide](/AzureHayMaker/deployment) | Deploy to Azure production |
-| [Configuration](/AzureHayMaker/configuration) | Configure environment and secrets |
+| [CLI Guide](/AzureHayMaker/cli/) | Configure and use the command-line interface |
 
 ### Core Documentation
 
@@ -60,6 +60,8 @@ Azure HayMaker generates benign telemetry (the "Hay") in which to hide cybersecu
 </div>
 
 ## Architecture Overview
+
+The orchestrator ([orchestrator_server.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/orchestrator_server.py)) coordinates scenario execution:
 
 ```
                     ┌─────────────────────────────────────────┐
@@ -138,10 +140,10 @@ Every component implements real functionality with no stubs, TODOs, or placehold
 
 ### Security First
 
-- Ephemeral service principals (created per execution, deleted after)
-- Secrets managed via Azure Key Vault
+- Ephemeral service principals (created per execution, deleted after) - see [sp_manager.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/sp_manager.py)
+- Secrets managed via Azure Key Vault - see [keyvault.bicep](https://github.com/rysweet/AzureHayMaker/blob/main/infra/bicep/modules/keyvault.bicep)
 - Least privilege access patterns
-- Comprehensive audit logging
+- Comprehensive audit logging - see [event_bus.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/event_bus.py)
 
 ## Contributing
 
