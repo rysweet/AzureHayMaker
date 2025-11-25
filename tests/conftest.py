@@ -32,7 +32,6 @@ from tests.fixtures.azure_mocks import (
     create_mock_table_client,
 )
 
-
 # Azure SDK Mock Fixtures
 
 

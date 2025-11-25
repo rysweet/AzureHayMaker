@@ -24,7 +24,7 @@ Common questions and answers about Azure HayMaker.
 **A**: Orchestration service that simulates Azure tenant activity using 50+ autonomous agents. Generates benign telemetry for testing and validation.
 
 ### Q: What was delivered in the 12-hour session?
-**A**: 
+**A**:
 - PowerPoint presentation (32 slides)
 - 5 critical improvements (100% complete)
 - Security fix (Key Vault consolidation)
@@ -47,7 +47,7 @@ Quick open: `./scripts/open-powerpoint.sh`
 ### Q: What's in the presentation?
 **A**:
 - Architecture overview (9 slides)
-- Deployment guide (8 slides)  
+- Deployment guide (8 slides)
 - CLI usage (8 slides)
 - Demo walkthrough (6 slides)
 - Closing (1 slide)
@@ -84,7 +84,7 @@ Should show: `@Microsoft.KeyVault(...)` not actual secrets
 **A**: 20+ deployment attempts during debugging created duplicate infrastructure. Each deployment left resources running.
 
 ### Q: How do I reduce costs?
-**A**: 
+**A**:
 ```bash
 ./scripts/cleanup-old-function-apps.sh  # Saves $1,533/month
 ```
@@ -104,7 +104,7 @@ See: `CRITICAL_COST_ALERT.md` for complete plan
 **A**: Function Apps max out at 14GB RAM. Azure SDK initialization needs 64GB RAM. VM provides necessary resources.
 
 ### Q: How do I deploy the VM?
-**A**: 
+**A**:
 ```bash
 ./deploy-vm-portal-guide.sh  # Step-by-step Portal instructions
 ```
@@ -119,7 +119,7 @@ OR follow `NEXT_STEPS.md`
 ## Documentation
 
 ### Q: Where do I start?
-**A**: 
+**A**:
 1. `START_HERE.md` - 5-minute overview
 2. `MASTER_TREASURE_MAP.md` - Complete guide
 3. `HANDOFF.md` - Handoff to next session
@@ -158,7 +158,7 @@ View: `gh pr view 11`
 ## Next Steps
 
 ### Q: What's left to do?
-**A**: 
+**A**:
 1. VM deployment (3 hours) - Optional
 2. Cost cleanup (5 min) - URGENT
 3. Full infrastructure cleanup (30 min) - After VM

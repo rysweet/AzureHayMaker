@@ -2283,7 +2283,7 @@ git merge-base HEAD origin/main
 
 ## 2025-11-25: Critical Lesson - Use Available Credentials
 
-**LESSON LEARNED**: When Azure CLI auth expires, DON'T wait for manual `az login`. 
+**LESSON LEARNED**: When Azure CLI auth expires, DON'T wait for manual `az login`.
 
 **Available credentials**:
 1. Service Principal credentials in `.env` file (AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID)

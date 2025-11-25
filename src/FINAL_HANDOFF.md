@@ -1,8 +1,8 @@
 # Azure HayMaker Orchestrator: Complete Investigation Report
 
-**Investigation Duration**: 16+ hours  
-**Deployment Attempts**: 14  
-**Final Status**: Code Complete, Platform Incompatibility Identified  
+**Investigation Duration**: 16+ hours
+**Deployment Attempts**: 14
+**Final Status**: Code Complete, Platform Incompatibility Identified
 
 ## Executive Summary
 
@@ -54,7 +54,7 @@ Successfully implemented all 17 Azure Functions for orchestrator but discovered 
 
 ### The Core Issue
 
-**Python layer works**: `app.get_functions()` correctly returns 17 Function objects  
+**Python layer works**: `app.get_functions()` correctly returns 17 Function objects
 **Runtime layer fails**: Azure Functions host reads "Custom" metadata and finds 0
 
 ### Evidence
@@ -138,7 +138,7 @@ FUNCTIONS_EXTENSION_VERSION = ~4
 - Unblocks CLI and agent testing
 - Can migrate back to Container Apps if Microsoft fixes platform
 
-### Medium Term  
+### Medium Term
 **V1 Programming Model**: Convert to function.json-based V1 model
 - Proven stable in Container Apps
 - Well-documented
@@ -175,10 +175,10 @@ FUNCTIONS_EXTENSION_VERSION = ~4
 
 After 14 deployment attempts and comprehensive investigation:
 
-**Code Quality**: ✅ Perfect (17/17 functions, 279/279 tests, all checks passing)  
-**Platform Support**: ❌ Azure Functions V4 Python V2 + Container Apps = Broken  
-**Evidence**: Overwhelming (local tests, Microsoft samples, multiple configs all fail)  
-**Solution**: Deploy to standard Azure Functions OR use V1 programming model  
+**Code Quality**: ✅ Perfect (17/17 functions, 279/279 tests, all checks passing)
+**Platform Support**: ❌ Azure Functions V4 Python V2 + Container Apps = Broken
+**Evidence**: Overwhelming (local tests, Microsoft samples, multiple configs all fail)
+**Solution**: Deploy to standard Azure Functions OR use V1 programming model
 
 The orchestrator code is **production-ready** - it just needs a **compatible runtime platform**.
 

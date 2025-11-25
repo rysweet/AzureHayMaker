@@ -144,7 +144,7 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
         client_id = os.getenv("AZURE_CLIENT_ID")
         client_secret = os.getenv("AZURE_CLIENT_SECRET")
 
-        logger.info(f"Creating SP for {scenario_name} using client_id={client_id[:8]}...")
+        logger.info(f"Creating SP for {scenario_name} using client_id={(client_id or '')[:8]}...")
 
         credential = ClientSecretCredential(
             tenant_id=tenant_id,

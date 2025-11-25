@@ -16,7 +16,7 @@
 
 ## What is it?
 
-Azure HayMaker is an orchestration service that simulates realistic Azure tenant activity by deploying and managing 50+ distinct operational scenarios using autonomous goal-seeking agents. Each agent performs a full lifecycle: deployment, 8-hour operation period, and cleanup, in a follow-the-sun rotation.  The goal is the creation of benign telemetry (Hay) in which to hide cybersecurity simulation red team signals (the needle in the haystack). 
+Azure HayMaker is an orchestration service that simulates realistic Azure tenant activity by deploying and managing 50+ distinct operational scenarios using autonomous goal-seeking agents. Each agent performs a full lifecycle: deployment, 8-hour operation period, and cleanup, in a follow-the-sun rotation.  The goal is the creation of benign telemetry (Hay) in which to hide cybersecurity simulation red team signals (the needle in the haystack).
 
 ## Key Features
 

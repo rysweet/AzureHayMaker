@@ -49,7 +49,7 @@ def test_function_count():
     missing_functions = expected_functions - discovered_functions
     extra_functions = discovered_functions - expected_functions
 
-    print(f"\nFunction Discovery Report:")
+    print("\nFunction Discovery Report:")
     print(f"Expected: {len(expected_functions)} functions")
     print(f"Discovered: {len(discovered_functions)} functions")
     print(f"Discovered functions: {sorted(discovered_functions)}")

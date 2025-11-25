@@ -270,13 +270,10 @@ class ContainerDeployer:
         sanitized = scenario_name.lower().replace("_", "-")
         # Remove invalid characters
         sanitized = "".join(c for c in sanitized if c.isalnum() or c == "-")
-        # Limit length (max 32 chars for container app names per Azure requirements)
-        # Remove "-agent" suffix if needed to fit in 32 chars
-        if len(sanitized) <= 32:
-            return sanitized
-        else:
-            # Truncate to 32 chars
-            return sanitized[:32]
+        # Limit length to 63 chars for Azure container app names
+        if len(sanitized) > 63:
+            sanitized = sanitized[:63]
+        return sanitized
 
     def _build_container(self, app_name: str, sp: ServicePrincipalDetails) -> dict[str, Any]:
         """Build container configuration with resource limits and env vars.
