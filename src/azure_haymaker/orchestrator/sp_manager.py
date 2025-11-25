@@ -28,9 +28,7 @@ from pydantic import BaseModel, Field
 from azure_haymaker.exceptions import (
     CredentialError,
     GraphAPIError,
-    KeyVaultError,
     SPCreationError,
-    SPDeletionError,
 )
 from azure_haymaker.utils.credentials import get_credential
 
