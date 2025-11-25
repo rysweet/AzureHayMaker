@@ -12,12 +12,22 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from azure.core.exceptions import ResourceNotFoundError
+from azure.core.exceptions import (
+    ClientAuthenticationError,
+    HttpResponseError,
+    ResourceNotFoundError,
+    ServiceRequestError,
+)
 from azure.keyvault.secrets import SecretClient
 from azure.mgmt.resource import ResourceManagementClient
+from kiota_abstractions.api_error import APIError
 from msgraph.graph_service_client import GraphServiceClient
 from pydantic import BaseModel, Field
 
+from azure_haymaker.exceptions import (
+    CleanupError,
+    CredentialError,
+)
 from azure_haymaker.models.resource import Resource, ResourceStatus
 from azure_haymaker.models.service_principal import ServicePrincipalDetails
 from azure_haymaker.utils.credentials import get_credential
@@ -163,9 +173,18 @@ async def query_managed_resources(subscription_id: str, run_id: str) -> list[Res
         )
         logger.info(f"Found {len(resources)} managed resources for run {run_id}")
         return resources
-    except Exception as e:
-        logger.error(f"Failed to query managed resources: {e}")
-        raise
+    except ClientAuthenticationError as e:
+        logger.error(f"Authentication failed querying managed resources: {e}")
+        raise CredentialError(
+            f"Authentication failed querying managed resources: {e}",
+            details={"run_id": run_id, "subscription_id": subscription_id},
+        ) from e
+    except HttpResponseError as e:
+        logger.error(f"HTTP error querying managed resources: {e}")
+        raise CleanupError(
+            f"Failed to query managed resources: {e}",
+            run_id=run_id,
+        ) from e
 
 
 async def verify_cleanup_complete(run_id: str) -> CleanupReport:
@@ -210,9 +229,18 @@ async def verify_cleanup_complete(run_id: str) -> CleanupReport:
             total_resources_deleted=0,
         )
 
-    except Exception as e:
-        logger.error(f"Failed to verify cleanup for run {run_id}: {e}")
-        raise
+    except ClientAuthenticationError as e:
+        logger.error(f"Authentication failed verifying cleanup for run {run_id}: {e}")
+        raise CredentialError(
+            f"Authentication failed verifying cleanup: {e}",
+            details={"run_id": run_id},
+        ) from e
+    except HttpResponseError as e:
+        logger.error(f"HTTP error verifying cleanup for run {run_id}: {e}")
+        raise CleanupError(
+            f"Failed to verify cleanup: {e}",
+            run_id=run_id,
+        ) from e
 
 
 async def force_delete_resources(
@@ -366,13 +394,13 @@ async def _delete_resource_with_retry(
                 deleted_at=datetime.now(UTC),
             )
 
-        except Exception as e:
+        except HttpResponseError as e:
             last_error = str(e)
             logger.warning(
                 f"Deletion attempt {attempts}/{max_retries} failed for {resource.resource_id}: {e}"
             )
 
-            # Check if error suggests dependency issue
+            # Check if error suggests dependency issue (retryable)
             error_msg = str(e).lower()
             if (
                 "conflict" in error_msg
@@ -386,9 +414,13 @@ async def _delete_resource_with_retry(
                     logger.info(f"Waiting {wait_seconds}s before retry...")
                     await asyncio.sleep(wait_seconds)
             else:
-                # Non-retryable error
+                # Non-retryable HTTP error
                 logger.error(f"Non-retryable error for resource {resource.resource_id}: {e}")
                 break
+        except ClientAuthenticationError as e:
+            last_error = str(e)
+            logger.error(f"Authentication failed deleting resource {resource.resource_id}: {e}")
+            break  # Auth errors are not retryable
 
     # All retries exhausted
     logger.error(
@@ -465,9 +497,13 @@ async def _delete_service_principals(  # pyright: ignore[reportGeneralTypeIssues
                 logger.info(f"Deleted Key Vault secret {sp.secret_reference}")
             except ResourceNotFoundError:
                 logger.warning(f"Key Vault secret {sp.secret_reference} not found")
+            except HttpResponseError as e:
+                logger.error(f"HTTP error deleting Key Vault secret {sp.secret_reference}: {e}")
 
-        except Exception as e:
+        except (APIError, HttpResponseError, ServiceRequestError) as e:
             logger.error(f"Failed to delete service principal {sp.sp_name}: {e}")
+        except ClientAuthenticationError as e:
+            logger.error(f"Authentication failed deleting service principal {sp.sp_name}: {e}")
 
     return deleted_sps
 

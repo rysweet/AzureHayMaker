@@ -10,7 +10,12 @@ import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from azure.core.exceptions import ResourceNotFoundError
+from azure.core.exceptions import (
+    ClientAuthenticationError,
+    HttpResponseError,
+    ResourceNotFoundError,
+    ServiceRequestError,
+)
 from azure.keyvault.secrets import SecretClient
 from azure.mgmt.authorization import AuthorizationManagementClient
 from kiota_abstractions.api_error import APIError
@@ -20,6 +25,11 @@ from msgraph.generated.models.service_principal import ServicePrincipal
 from msgraph.graph_service_client import GraphServiceClient
 from pydantic import BaseModel, Field
 
+from azure_haymaker.exceptions import (
+    CredentialError,
+    GraphAPIError,
+    SPCreationError,
+)
 from azure_haymaker.utils.credentials import get_credential
 
 logger = logging.getLogger(__name__)
