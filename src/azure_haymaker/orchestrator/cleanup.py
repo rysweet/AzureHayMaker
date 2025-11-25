@@ -13,7 +13,6 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 from azure.core.exceptions import ResourceNotFoundError
-from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 from azure.mgmt.resource import ResourceManagementClient
 from msgraph.graph_service_client import GraphServiceClient
@@ -21,6 +20,7 @@ from pydantic import BaseModel, Field
 
 from azure_haymaker.models.resource import Resource, ResourceStatus
 from azure_haymaker.models.service_principal import ServicePrincipalDetails
+from azure_haymaker.utils.credentials import get_credential
 
 # Lazy imports for optional dependencies used during actual Azure operations
 if TYPE_CHECKING:
@@ -262,7 +262,7 @@ async def force_delete_resources(
             idx = parts.index("subscriptions")
             subscription_id = parts[idx + 1] if idx + 1 < len(parts) else ""
 
-    credentials = DefaultAzureCredential()
+    credentials = get_credential()
     resource_client = ResourceManagementClient(credentials, subscription_id or "")
 
     deletions = []
@@ -416,7 +416,7 @@ async def _delete_service_principals(  # pyright: ignore[reportGeneralTypeIssues
     Returns:
         List of deleted service principal names
     """
-    credentials = DefaultAzureCredential()
+    credentials = get_credential()
     graph_client = GraphServiceClient(credentials)
 
     deleted_sps = []
