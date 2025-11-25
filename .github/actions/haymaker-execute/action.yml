@@ -1,0 +1,195 @@
+name: 'Azure HayMaker Execute'
+description: |
+  Execute Azure HayMaker scenarios for AI red team testing in CI/CD pipelines.
+
+  This action triggers scenario execution against an Azure HayMaker API endpoint
+  and optionally waits for completion, making it ideal for integration testing
+  and security validation workflows.
+
+  Usage Example:
+    - name: Run HayMaker Scenarios
+      uses: ./.github/actions/haymaker-execute
+      with:
+        api-url: ${{ secrets.HAYMAKER_API_URL }}
+        scenarios: '["jailbreak_basic", "prompt_injection"]'
+        duration: 5
+        wait-for-completion: true
+
+    - name: Check Results
+      run: |
+        echo "Execution ID: ${{ steps.haymaker.outputs.execution_id }}"
+        echo "Status: ${{ steps.haymaker.outputs.status }}"
+        echo "Report: ${{ steps.haymaker.outputs.report_url }}"
+
+inputs:
+  api-url:
+    description: 'Base URL of the Azure HayMaker API (e.g., https://haymaker.example.com)'
+    required: true
+  scenarios:
+    description: 'JSON array of scenario names to execute (e.g., ["jailbreak_basic", "prompt_injection"])'
+    required: true
+  duration:
+    description: 'Duration in minutes for scenario execution'
+    required: false
+    default: '1'
+  wait-for-completion:
+    description: 'Whether to wait for execution to complete before returning'
+    required: false
+    default: 'true'
+
+outputs:
+  execution_id:
+    description: 'The unique identifier for the execution'
+    value: ${{ steps.execute.outputs.execution_id }}
+  status:
+    description: 'Final status of the execution (running, completed, failed)'
+    value: ${{ steps.poll.outputs.status }}
+  report_url:
+    description: 'URL to the execution report'
+    value: ${{ steps.poll.outputs.report_url }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Validate inputs
+      shell: bash
+      run: |
+        if [[ -z "${{ inputs.api-url }}" ]]; then
+          echo "::error::api-url is required"
+          exit 1
+        fi
+        if [[ -z "${{ inputs.scenarios }}" ]]; then
+          echo "::error::scenarios is required"
+          exit 1
+        fi
+        # Validate scenarios is valid JSON array
+        if ! echo '${{ inputs.scenarios }}' | jq -e 'type == "array"' > /dev/null 2>&1; then
+          echo "::error::scenarios must be a valid JSON array"
+          exit 1
+        fi
+        echo "Inputs validated successfully"
+
+    - name: Execute scenarios
+      id: execute
+      shell: bash
+      run: |
+        API_URL="${{ inputs.api-url }}"
+        SCENARIOS='${{ inputs.scenarios }}'
+        DURATION="${{ inputs.duration }}"
+
+        # Remove trailing slash from API URL if present
+        API_URL="${API_URL%/}"
+
+        echo "Starting HayMaker execution..."
+        echo "API URL: ${API_URL}"
+        echo "Scenarios: ${SCENARIOS}"
+        echo "Duration: ${DURATION} minutes"
+
+        # Build request payload
+        PAYLOAD=$(jq -n \
+          --argjson scenarios "${SCENARIOS}" \
+          --arg duration "${DURATION}" \
+          '{scenarios: $scenarios, duration: ($duration | tonumber)}')
+
+        echo "Request payload: ${PAYLOAD}"
+
+        # Execute POST request
+        RESPONSE=$(curl -s -w "\n%{http_code}" \
+          -X POST \
+          -H "Content-Type: application/json" \
+          -d "${PAYLOAD}" \
+          "${API_URL}/api/execute")
+
+        # Extract HTTP status code (last line)
+        HTTP_CODE=$(echo "${RESPONSE}" | tail -n1)
+        # Extract response body (all but last line)
+        BODY=$(echo "${RESPONSE}" | sed '$d')
+
+        echo "HTTP Status: ${HTTP_CODE}"
+        echo "Response: ${BODY}"
+
+        if [[ "${HTTP_CODE}" -lt 200 || "${HTTP_CODE}" -ge 300 ]]; then
+          echo "::error::API request failed with status ${HTTP_CODE}: ${BODY}"
+          exit 1
+        fi
+
+        # Extract execution ID from response
+        EXECUTION_ID=$(echo "${BODY}" | jq -r '.execution_id // .id // empty')
+
+        if [[ -z "${EXECUTION_ID}" ]]; then
+          echo "::error::Failed to extract execution_id from response"
+          exit 1
+        fi
+
+        echo "Execution started with ID: ${EXECUTION_ID}"
+        echo "execution_id=${EXECUTION_ID}" >> $GITHUB_OUTPUT
+
+    - name: Poll for completion
+      id: poll
+      shell: bash
+      run: |
+        API_URL="${{ inputs.api-url }}"
+        API_URL="${API_URL%/}"
+        EXECUTION_ID="${{ steps.execute.outputs.execution_id }}"
+        WAIT_FOR_COMPLETION="${{ inputs.wait-for-completion }}"
+
+        # Default values
+        STATUS="running"
+        REPORT_URL=""
+
+        if [[ "${WAIT_FOR_COMPLETION}" != "true" ]]; then
+          echo "Skipping completion polling (wait-for-completion=false)"
+          echo "status=${STATUS}" >> $GITHUB_OUTPUT
+          echo "report_url=" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        echo "Polling for execution completion..."
+        MAX_ATTEMPTS=120  # 10 minutes with 5-second intervals
+        ATTEMPT=0
+
+        while [[ ${ATTEMPT} -lt ${MAX_ATTEMPTS} ]]; do
+          ATTEMPT=$((ATTEMPT + 1))
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X GET \
+            -H "Content-Type: application/json" \
+            "${API_URL}/api/executions/${EXECUTION_ID}")
+
+          HTTP_CODE=$(echo "${RESPONSE}" | tail -n1)
+          BODY=$(echo "${RESPONSE}" | sed '$d')
+
+          if [[ "${HTTP_CODE}" -lt 200 || "${HTTP_CODE}" -ge 300 ]]; then
+            echo "::warning::Poll request failed with status ${HTTP_CODE}, retrying..."
+            sleep 5
+            continue
+          fi
+
+          STATUS=$(echo "${BODY}" | jq -r '.status // "unknown"')
+          REPORT_URL=$(echo "${BODY}" | jq -r '.report_url // ""')
+
+          echo "Attempt ${ATTEMPT}/${MAX_ATTEMPTS}: Status = ${STATUS}"
+
+          if [[ "${STATUS}" == "completed" || "${STATUS}" == "failed" || "${STATUS}" == "error" ]]; then
+            echo "Execution finished with status: ${STATUS}"
+            break
+          fi
+
+          sleep 5
+        done
+
+        if [[ ${ATTEMPT} -ge ${MAX_ATTEMPTS} && "${STATUS}" == "running" ]]; then
+          echo "::warning::Polling timed out after ${MAX_ATTEMPTS} attempts"
+          STATUS="timeout"
+        fi
+
+        echo "status=${STATUS}" >> $GITHUB_OUTPUT
+        echo "report_url=${REPORT_URL}" >> $GITHUB_OUTPUT
+
+        # Set job status based on execution status
+        if [[ "${STATUS}" == "failed" || "${STATUS}" == "error" ]]; then
+          echo "::error::Execution failed with status: ${STATUS}"
+          exit 1
+        fi
+
+        echo "Execution completed successfully"
