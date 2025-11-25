@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Auto-Scaling VM Scale Set with Load Balancer"
+parent: "Compute"
+grand_parent: Scenarios
+nav_order: 5
+description: "Deploy an Azure Virtual Machine Scale Set with automatic scaling based on CPU utilization, fronted by an Azure Load Balancer."
+permalink: /scenarios/compute-05-vm-scale-set/
+---
+
 # Scenario: Auto-Scaling VM Scale Set with Load Balancer
 
 ## Technology Area

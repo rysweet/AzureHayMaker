@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Azure Machine Learning Workspace Setup"
+parent: "AI & Machine Learning"
+grand_parent: Scenarios
+nav_order: 4
+description: "Create and configure Azure Machine Learning workspace with compute resources, storage, and managed identity for ML experiments."
+permalink: /scenarios/ai-ml-04-ml-workspace/
+---
+
 # Scenario: Azure Machine Learning Workspace Setup
 
 ## Technology Area

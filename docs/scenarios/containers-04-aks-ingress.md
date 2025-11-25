@@ -1,3 +1,13 @@
+---
+layout: default
+title: "AKS with NGINX Ingress Controller"
+parent: "Containers"
+grand_parent: Scenarios
+nav_order: 4
+description: "Deploy AKS cluster with NGINX ingress controller for advanced routing, SSL/TLS termination, and hostname-based routing."
+permalink: /scenarios/containers-04-aks-ingress/
+---
+
 # Scenario: AKS with NGINX Ingress Controller
 
 ## Technology Area

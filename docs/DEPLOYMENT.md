@@ -1,10 +1,27 @@
+---
+layout: default
+title: Deployment
+nav_order: 4
+has_children: true
+description: "Deploy Azure HayMaker to production"
+permalink: /deployment/
+---
+
 # Azure HayMaker Deployment Guide
+{: .no_toc }
 
 Complete guide for deploying Azure HayMaker infrastructure using GitOps and Azure Bicep.
+{: .fs-6 .fw-300 }
 
 ## Table of Contents
+{: .no_toc .text-delta }
 
-- [Overview](#overview)
+1. TOC
+{:toc}
+
+---
+
+## Overview
 - [Prerequisites](#prerequisites)
 - [Initial Setup](#initial-setup)
 - [Deployment Process](#deployment-process)

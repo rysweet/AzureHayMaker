@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Role-Based Access Control (RBAC) Assignments"
+parent: "Identity"
+grand_parent: Scenarios
+nav_order: 2
+description: "Implement and manage role-based access control assignments across Azure resources with proper permission delegation."
+permalink: /scenarios/identity-02-rbac-assignments/
+---
+
 # Scenario: Role-Based Access Control (RBAC) Assignments
 
 ## Technology Area

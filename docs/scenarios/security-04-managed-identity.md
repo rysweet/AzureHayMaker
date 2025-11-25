@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Managed Identities for Azure Resources"
+parent: "Security"
+grand_parent: Scenarios
+nav_order: 4
+description: "Implement managed identities for Azure resources to enable credential-free authentication to Azure services."
+permalink: /scenarios/security-04-managed-identity/
+---
+
 # Scenario: Managed Identities for Azure Resources
 
 ## Technology Area

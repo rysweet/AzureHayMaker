@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Azure Arc for Hybrid Server Management"
+parent: "Hybrid + Multicloud"
+grand_parent: Scenarios
+nav_order: 1
+description: "Deploy Azure Arc to connect on-premises servers and cloud VMs into a unified management experience with policies."
+permalink: /scenarios/hybrid-01-azure-arc/
+---
+
 # Scenario: Azure Arc for Hybrid Server Management
 
 ## Technology Area

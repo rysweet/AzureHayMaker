@@ -1,5 +1,10 @@
 # Azure HayMaker
 
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://rysweet.github.io/AzureHayMaker/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+> **[View Full Documentation](https://rysweet.github.io/AzureHayMaker/)** - Complete guides, API reference, and 50+ scenario docs
+
 ## What is it?
 
 Azure HayMaker is an orchestration service that simulates realistic Azure tenant activity by deploying and managing 50+ distinct operational scenarios using autonomous goal-seeking agents. Each agent performs a full lifecycle: deployment, 8-hour operation period, and cleanup, in a follow-the-sun rotation.  The goal is the creation of benign telemetry (Hay) in which to hide cybersecurity simulation red team signals (the needle in the haystack). 

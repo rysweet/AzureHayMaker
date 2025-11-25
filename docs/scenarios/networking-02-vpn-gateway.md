@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Site-to-Site VPN Gateway Connection"
+parent: "Networking"
+grand_parent: Scenarios
+nav_order: 2
+description: "Deploy an Azure VPN Gateway configured for site-to-site VPN connectivity with IPsec and connection management."
+permalink: /scenarios/networking-02-vpn-gateway/
+---
+
 # Scenario: Site-to-Site VPN Gateway Connection
 
 ## Technology Area

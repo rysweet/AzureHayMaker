@@ -1,3 +1,13 @@
+---
+layout: default
+title: "ExpressRoute Private Connectivity"
+parent: "Hybrid + Multicloud"
+grand_parent: Scenarios
+nav_order: 4
+description: "Deploy Azure ExpressRoute to create a private, dedicated network connection between on-premises and Azure."
+permalink: /scenarios/hybrid-04-expressroute/
+---
+
 # Scenario: ExpressRoute Private Connectivity
 
 ## Technology Area

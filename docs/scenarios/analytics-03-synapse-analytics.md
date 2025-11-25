@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Azure Synapse Analytics Workspace for Big Data"
+parent: "Analytics"
+grand_parent: Scenarios
+nav_order: 3
+description: "Deploy Azure Synapse Analytics workspace with dedicated SQL pool, serverless SQL pool, and Spark pool for comprehensive data analytics."
+permalink: /scenarios/analytics-03-synapse-analytics/
+---
+
 # Scenario: Azure Synapse Analytics Workspace for Big Data
 
 ## Technology Area

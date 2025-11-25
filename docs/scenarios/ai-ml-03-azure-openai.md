@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Azure OpenAI Service Deployment"
+parent: "AI & Machine Learning"
+grand_parent: Scenarios
+nav_order: 3
+description: "Deploy Azure OpenAI Service with GPT model access, configure API endpoints, and demonstrate model inference operations."
+permalink: /scenarios/ai-ml-03-azure-openai/
+---
+
 # Scenario: Azure OpenAI Service Deployment
 
 ## Technology Area

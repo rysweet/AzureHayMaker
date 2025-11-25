@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Simple Linux VM Running Nginx Web Server"
+parent: "Compute"
+grand_parent: Scenarios
+nav_order: 1
+description: "Deploy a Linux virtual machine running Ubuntu with nginx web server, configure custom domain resolution, and manage through SSH."
+permalink: /scenarios/compute-01-linux-vm-web-server/
+---
+
 # Scenario: Simple Linux VM Running Nginx Web Server
 
 ## Technology Area

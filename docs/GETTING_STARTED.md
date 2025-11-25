@@ -1,6 +1,26 @@
+---
+layout: default
+title: Getting Started
+nav_order: 2
+description: "Get up and running with Azure HayMaker in 30 minutes"
+permalink: /getting-started/
+---
+
 # Getting Started with Azure HayMaker
+{: .no_toc }
+
+Get up and running with Azure HayMaker in approximately 30 minutes.
+{: .fs-6 .fw-300 }
 
 ## Table of Contents
+{: .no_toc .text-delta }
+
+1. TOC
+{:toc}
+
+---
+
+## Overview
 
 - [Quick Start (30 Minutes)](#quick-start-30-minutes)
 - [Prerequisites](#prerequisites)

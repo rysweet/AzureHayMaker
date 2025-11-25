@@ -1,6 +1,24 @@
-# Container Apps Architecture - Final Design
+---
+layout: default
+title: Container Apps
+parent: Architecture
+nav_order: 4
+description: "Azure Container Apps architecture for agent execution"
+permalink: /architecture/container-apps/
+---
 
-**Captain's Requirements Implemented**
+# Container Apps Architecture
+{: .no_toc }
+
+Architecture for Azure Container Apps deployment and agent execution.
+{: .fs-6 .fw-300 }
+
+1. TOC
+{:toc}
+
+---
+
+**Requirements Implemented**
 
 ---
 

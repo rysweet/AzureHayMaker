@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Azure Databricks Cluster for Machine Learning"
+parent: "Analytics"
+grand_parent: Scenarios
+nav_order: 4
+description: "Deploy Azure Databricks with an Apache Spark cluster for collaborative data science work and machine learning model training."
+permalink: /scenarios/analytics-04-databricks/
+---
+
 # Scenario: Azure Databricks Cluster for Machine Learning
 
 ## Technology Area

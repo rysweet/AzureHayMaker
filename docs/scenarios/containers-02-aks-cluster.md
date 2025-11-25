@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Azure Kubernetes Service (AKS) Cluster"
+parent: "Containers"
+grand_parent: Scenarios
+nav_order: 2
+description: "Deploy a managed Kubernetes cluster using Azure Kubernetes Service (AKS) with node pools, ingress controller, and autoscaling."
+permalink: /scenarios/containers-02-aks-cluster/
+---
+
 # Scenario: Azure Kubernetes Service (AKS) Cluster
 
 ## Technology Area

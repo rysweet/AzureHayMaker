@@ -1,6 +1,22 @@
-# Azure HayMaker - Best Practices
+---
+layout: default
+title: Best Practices
+parent: Reference
+nav_order: 4
+description: "Recommended practices for Azure HayMaker"
+permalink: /reference/best-practices/
+---
 
-**Learned from 107 commits of intensive development**
+# Best Practices
+{: .no_toc }
+
+Recommended practices for deploying and operating Azure HayMaker.
+{: .fs-6 .fw-300 }
+
+1. TOC
+{:toc}
+
+---
 
 ---
 

@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Azure Database for PostgreSQL"
+parent: "Databases"
+grand_parent: Scenarios
+nav_order: 3
+description: "Deploy Azure Database for PostgreSQL with flexible server, high availability, read replicas, and point-in-time restore."
+permalink: /scenarios/databases-03-postgresql/
+---
+
 # Scenario: Azure Database for PostgreSQL
 
 ## Technology Area

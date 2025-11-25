@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Real-Time Data Streaming with Azure Stream Analytics"
+parent: "Analytics"
+grand_parent: Scenarios
+nav_order: 2
+description: "Deploy Azure Stream Analytics to process real-time data streams from Event Hubs, perform windowed aggregations, and detect anomalies."
+permalink: /scenarios/analytics-02-realtime-streaming/
+---
+
 # Scenario: Real-Time Data Streaming with Azure Stream Analytics
 
 ## Technology Area

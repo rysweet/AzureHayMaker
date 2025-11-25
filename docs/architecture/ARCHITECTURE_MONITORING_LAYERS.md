@@ -1,4 +1,22 @@
-# Monitoring API - 3-Layer Architecture Design
+---
+layout: default
+title: Monitoring Layers
+parent: Architecture
+nav_order: 3
+description: "Monitoring API 3-layer architecture design"
+permalink: /architecture/monitoring/
+---
+
+# Monitoring API Architecture
+{: .no_toc }
+
+3-layer architecture design for the monitoring API.
+{: .fs-6 .fw-300 }
+
+1. TOC
+{:toc}
+
+---
 
 ## Executive Summary
 

@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Azure API Management Gateway"
+parent: "Web Apps"
+grand_parent: Scenarios
+nav_order: 5
+description: "Deploy Azure API Management to manage, protect, and monitor APIs with policies, rate limiting, and developer portal."
+permalink: /scenarios/webapps-05-api-management/
+---
+
 # Scenario: Azure API Management Gateway
 
 ## Technology Area

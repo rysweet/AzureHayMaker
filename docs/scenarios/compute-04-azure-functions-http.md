@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Serverless HTTP Triggers with Azure Functions"
+parent: "Compute"
+grand_parent: Scenarios
+nav_order: 4
+description: "Deploy Azure Functions with HTTP triggers to create serverless API endpoints that automatically scale based on demand."
+permalink: /scenarios/compute-04-azure-functions-http/
+---
+
 # Scenario: Serverless HTTP Triggers with Azure Functions
 
 ## Technology Area

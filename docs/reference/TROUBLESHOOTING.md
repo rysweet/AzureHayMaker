@@ -1,6 +1,22 @@
-# Azure HayMaker - Troubleshooting Guide
+---
+layout: default
+title: Troubleshooting
+parent: Reference
+nav_order: 2
+description: "Common issues and solutions for Azure HayMaker"
+permalink: /reference/troubleshooting/
+---
 
-**Common issues and solutions from 12-hour debugging session**
+# Troubleshooting Guide
+{: .no_toc }
+
+Common issues and solutions for Azure HayMaker.
+{: .fs-6 .fw-300 }
+
+1. TOC
+{:toc}
+
+---
 
 ---
 

@@ -1,10 +1,26 @@
+---
+layout: default
+title: CLI Guide
+nav_order: 6
+description: "Command-line interface for Azure HayMaker"
+permalink: /cli/
+---
+
 # Azure HayMaker CLI Guide
+{: .no_toc }
 
 Complete guide for using the Azure HayMaker command-line interface.
+{: .fs-6 .fw-300 }
 
 ## Table of Contents
+{: .no_toc .text-delta }
 
-- [Installation](#installation)
+1. TOC
+{:toc}
+
+---
+
+## Installation
 - [Configuration](#configuration)
 - [Authentication](#authentication)
 - [Commands](#commands)

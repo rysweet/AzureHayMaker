@@ -1,8 +1,27 @@
+---
+layout: default
+title: Scenarios
+nav_order: 5
+has_children: true
+description: "Azure HayMaker operational scenarios"
+permalink: /scenarios/
+---
+
 # Scenario Management Guide
+{: .no_toc }
+
+Azure HayMaker includes 50+ operational scenarios across 10 technology areas.
+{: .fs-6 .fw-300 }
 
 ## Table of Contents
+{: .no_toc .text-delta }
 
-- [Overview](#overview)
+1. TOC
+{:toc}
+
+---
+
+## Overview
 - [Scenario Structure](#scenario-structure)
 - [The Three-Phase Model](#the-three-phase-model)
 - [Creating New Scenarios](#creating-new-scenarios)

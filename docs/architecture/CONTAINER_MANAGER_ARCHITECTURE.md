@@ -1,4 +1,22 @@
-# Container Manager Class Extraction Architecture
+---
+layout: default
+title: Container Manager
+parent: Architecture
+nav_order: 5
+description: "Container Manager architecture and class extraction"
+permalink: /architecture/container-manager/
+---
+
+# Container Manager Architecture
+{: .no_toc }
+
+Architecture for the Container Manager component and class structure.
+{: .fs-6 .fw-300 }
+
+1. TOC
+{:toc}
+
+---
 
 ## Executive Summary
 

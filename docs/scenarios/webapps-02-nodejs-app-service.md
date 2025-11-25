@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Node.js Application on Azure App Service"
+parent: "Web Apps"
+grand_parent: Scenarios
+nav_order: 2
+description: "Deploy a Node.js application to Azure App Service with continuous deployment, environment configuration, and scaling."
+permalink: /scenarios/webapps-02-nodejs-app-service/
+---
+
 # Scenario: Node.js Application on Azure App Service
 
 ## Technology Area

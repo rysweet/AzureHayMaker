@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Azure Cosmos DB with SQL API"
+parent: "Databases"
+grand_parent: Scenarios
+nav_order: 2
+description: "Deploy Azure Cosmos DB with SQL API for globally distributed, low-latency access to document data with partitioning."
+permalink: /scenarios/databases-02-cosmos-db/
+---
+
 # Scenario: Azure Cosmos DB with SQL API
 
 ## Technology Area

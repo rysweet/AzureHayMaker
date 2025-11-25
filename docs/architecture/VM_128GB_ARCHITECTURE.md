@@ -1,6 +1,24 @@
-# 128GB VM Architecture - Final Design
+---
+layout: default
+title: VM Architecture
+parent: Architecture
+nav_order: 6
+description: "128GB VM architecture for orchestrator deployment"
+permalink: /architecture/vm/
+---
 
-**Captain's preferred specification implemented**
+# VM Architecture (128GB)
+{: .no_toc }
+
+Architecture design for large VM orchestrator deployment.
+{: .fs-6 .fw-300 }
+
+1. TOC
+{:toc}
+
+---
+
+**Specification Implemented**
 
 ---
 

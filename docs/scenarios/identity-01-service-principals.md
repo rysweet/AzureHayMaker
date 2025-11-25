@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Creating and Managing Service Principals"
+parent: "Identity"
+grand_parent: Scenarios
+nav_order: 1
+description: "Create and manage service principals for application authentication with credential management and role assignments."
+permalink: /scenarios/identity-01-service-principals/
+---
+
 # Scenario: Creating and Managing Service Principals
 
 ## Technology Area

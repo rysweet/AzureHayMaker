@@ -1,8 +1,27 @@
+---
+layout: default
+title: Architecture
+nav_order: 3
+has_children: true
+description: "Azure HayMaker system architecture and design"
+permalink: /architecture/
+---
+
 # Azure HayMaker Architecture
+{: .no_toc }
+
+System architecture and design documentation for Azure HayMaker.
+{: .fs-6 .fw-300 }
 
 ## Table of Contents
+{: .no_toc .text-delta }
 
-- [Overview](#overview)
+1. TOC
+{:toc}
+
+---
+
+## Overview
 - [System Architecture](#system-architecture)
 - [Component Specifications](#component-specifications)
 - [Implementation Status](#implementation-status)

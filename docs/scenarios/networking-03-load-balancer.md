@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Azure Load Balancer with Virtual Machines"
+parent: "Networking"
+grand_parent: Scenarios
+nav_order: 3
+description: "Deploy an Azure Load Balancer to distribute HTTP and HTTPS traffic across multiple backend virtual machines."
+permalink: /scenarios/networking-03-load-balancer/
+---
+
 # Scenario: Azure Load Balancer with Virtual Machines
 
 ## Technology Area

@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Multi-Container Application"
+parent: "Containers"
+grand_parent: Scenarios
+nav_order: 5
+description: "Deploy a complete multi-container application with frontend, REST API backend, and Redis cache using Docker Compose."
+permalink: /scenarios/containers-05-multi-container-app/
+---
+
 # Scenario: Multi-Container Application
 
 ## Technology Area

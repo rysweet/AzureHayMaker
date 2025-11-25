@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Entra ID Groups and Role Assignments"
+parent: "Security"
+grand_parent: Scenarios
+nav_order: 2
+description: "Create and manage Azure Entra ID groups with hierarchical organization and role-based access to Azure resources."
+permalink: /scenarios/security-02-entra-id-groups/
+---
+
 # Scenario: Entra ID Groups and Role Assignments
 
 ## Technology Area

@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Azure Key Vault for Secrets Management"
+parent: "Security"
+grand_parent: Scenarios
+nav_order: 1
+description: "Deploy Azure Key Vault to centrally manage application secrets including API keys, connection strings, and certificates."
+permalink: /scenarios/security-01-key-vault-secrets/
+---
+
 # Scenario: Azure Key Vault for Secrets Management
 
 ## Technology Area
