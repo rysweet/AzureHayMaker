@@ -163,6 +163,19 @@ class ContainerDeployer:
 
             import subprocess
             import json as json_module
+            import os
+
+            # Authenticate Azure CLI using SP credentials from environment
+            login_cmd = [
+                "az", "login", "--service-principal",
+                "--username", os.getenv("AZURE_CLIENT_ID"),
+                "--password", os.getenv("AZURE_CLIENT_SECRET"),
+                "--tenant", os.getenv("AZURE_TENANT_ID")
+            ]
+
+            login_result = await asyncio.to_thread(subprocess.run, login_cmd, capture_output=True, text=True)
+            if login_result.returncode != 0:
+                logger.warning(f"CLI login warning (may already be logged in): {login_result.stderr}")
 
             # Build container app using Azure CLI
             cli_command = [
