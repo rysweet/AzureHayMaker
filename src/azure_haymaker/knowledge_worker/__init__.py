@@ -17,15 +17,15 @@ from azure_haymaker.knowledge_worker.agent import (
     KnowledgeWorkerAgent,
     KnowledgeWorkerConfig,
 )
+from azure_haymaker.knowledge_worker.models.team import (
+    Team,
+    TeamConfig,
+)
 from azure_haymaker.knowledge_worker.models.worker import (
     EndpointType,
     WorkerConfig,
     WorkerIdentity,
     WorkerPersona,
-)
-from azure_haymaker.knowledge_worker.models.team import (
-    Team,
-    TeamConfig,
 )
 
 __all__ = [

@@ -13,8 +13,8 @@ Components tested:
 Reference: ARCHITECTURE.md Section 7 - Communication Safety Controls
 """
 
+
 import pytest
-from typing import Set
 
 # Import paths based on ARCHITECTURE.md specification
 # The CommunicationValidator should be in:

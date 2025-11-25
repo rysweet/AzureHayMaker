@@ -17,7 +17,7 @@
 
 ### Changed
 - Secret management: All environments now use Key Vault references
-- Cosmos DB: Made optional for dev environment  
+- Cosmos DB: Made optional for dev environment
 - Python version: Downgraded to 3.11 for stability
 - Key Vault firewall: Allow GitHub Actions access
 - RBAC propagation: Increased from 60s to 90s

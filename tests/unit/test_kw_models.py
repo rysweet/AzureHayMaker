@@ -12,7 +12,7 @@ These tests follow TDD - the models don't exist yet, so tests will fail initiall
 """
 
 import json
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -23,15 +23,15 @@ from pydantic import ValidationError
 
 # Note: These imports will fail until the modules are implemented
 try:
-    from azure_haymaker.knowledge_worker.models.worker import (
-        WorkerIdentity,
-        WorkerConfig,
-        WorkerPersona,
-        EndpointType,
-    )
     from azure_haymaker.knowledge_worker.models.team import (
         Team,
         TeamConfig,
+    )
+    from azure_haymaker.knowledge_worker.models.worker import (
+        EndpointType,
+        WorkerConfig,
+        WorkerIdentity,
+        WorkerPersona,
     )
     MODELS_AVAILABLE = True
 except ImportError:

@@ -26,7 +26,7 @@ Common issues and solutions for Azure HayMaker.
 
 **Attempted Solutions**:
 - ❌ Upgrade to P1V2 (3.5GB) - Still crashes
-- ❌ Upgrade to P3V2 (8GB) - Still crashes  
+- ❌ Upgrade to P3V2 (8GB) - Still crashes
 - ❌ Upgrade to EP3 (14GB) - Still crashes
 
 **Working Solution**: Deploy to VM with 64GB RAM
@@ -62,7 +62,7 @@ Common issues and solutions for Azure HayMaker.
 
 **Solution**: Make Cosmos DB configuration optional
 
-**Fix Applied**: 
+**Fix Applied**:
 - `src/azure_haymaker/orchestrator/config.py:142` - Use `_get_optional_env`
 - `infra/bicep/modules/function-app.bicep:144` - Add empty defaults
 
@@ -127,7 +127,7 @@ Run the automation script:
 
 Shows all deployed resources across:
 - Key Vaults
-- Service Bus  
+- Service Bus
 - Storage
 - Function Apps
 - VMs

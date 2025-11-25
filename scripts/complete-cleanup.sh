@@ -21,7 +21,7 @@ OLD_FA=$(az functionapp list -g $RG --query "[?!contains(name, '$KEEP')].name" -
 FA_COUNT=$(echo "$OLD_FA" | wc -l)
 echo "Function Apps: $FA_COUNT"
 
-# Key Vaults  
+# Key Vaults
 OLD_KV=$(az keyvault list -g $RG --query "[?!contains(name, '$KEEP')].name" -o tsv 2>/dev/null)
 KV_COUNT=$(echo "$OLD_KV" | wc -l)
 echo "Key Vaults: $KV_COUNT"

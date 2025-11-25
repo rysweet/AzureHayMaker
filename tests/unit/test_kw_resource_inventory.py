@@ -13,7 +13,7 @@ Reference: ARCHITECTURE.md Section 8 - Resource Tracking and Cleanup
 """
 
 import json
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 import pytest
 
@@ -22,9 +22,9 @@ import pytest
 
 try:
     from azure_haymaker.knowledge_worker.cleanup.cleanup_manager import (
-        KnowledgeWorkerResourceInventory,
-        KnowledgeWorkerCleanupManager,
         CleanupReport,
+        KnowledgeWorkerCleanupManager,
+        KnowledgeWorkerResourceInventory,
     )
     CLEANUP_AVAILABLE = True
 except ImportError:

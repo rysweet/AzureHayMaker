@@ -23,7 +23,6 @@ import pytest
 from azure.durable_functions.models import TaskBase
 from azure.durable_functions.testing import orchestrator_generator_wrapper
 
-
 # =============================================================================
 # FIXTURES
 # =============================================================================

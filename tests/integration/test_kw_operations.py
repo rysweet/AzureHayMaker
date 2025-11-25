@@ -13,25 +13,23 @@ without requiring actual M365 tenant access.
 Reference: ARCHITECTURE.md Section 5 - M365 Operations Module
 """
 
-import asyncio
-from datetime import datetime, UTC
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 # Import paths based on ARCHITECTURE.md specification
 try:
     from azure_haymaker.knowledge_worker.models.worker import (
+        EndpointType,
         WorkerIdentity,
         WorkerPersona,
-        EndpointType,
     )
+    from azure_haymaker.knowledge_worker.operations.base import M365OperationBase
+    from azure_haymaker.knowledge_worker.operations.calendar import CalendarOperations
+    from azure_haymaker.knowledge_worker.operations.documents import DocumentOperations
     from azure_haymaker.knowledge_worker.operations.email import EmailOperations
     from azure_haymaker.knowledge_worker.operations.teams import TeamsOperations
-    from azure_haymaker.knowledge_worker.operations.documents import DocumentOperations
-    from azure_haymaker.knowledge_worker.operations.calendar import CalendarOperations
-    from azure_haymaker.knowledge_worker.operations.base import M365OperationBase
     from azure_haymaker.knowledge_worker.safety.communication import (
         CommunicationValidator,
         ExternalRecipientError,

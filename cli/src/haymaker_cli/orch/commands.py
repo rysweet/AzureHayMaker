@@ -36,9 +36,7 @@ from haymaker_cli.orch.client import ContainerAppsClient
 from haymaker_cli.orch.config import load_orchestrator_config
 from haymaker_cli.orch.formatters import (
     format_container_app_status,
-    format_health_check_result,
     format_json,
-    format_logs,
     format_replicas,
     format_yaml,
 )
