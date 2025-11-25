@@ -202,7 +202,7 @@ async def test_query_agents_from_table_empty_results(mock_table_client):
 
 @pytest.mark.asyncio
 async def test_query_agents_from_table_malformed_entity(mock_table_client):
-    """Test handling of malformed entities (should skip and log warning)."""
+    """Test handling of malformed entities (uses default values for missing fields)."""
     malformed_entities = [
         {"PartitionKey": "agents", "RowKey": "bad-agent"}  # Missing required fields
     ]
@@ -210,8 +210,11 @@ async def test_query_agents_from_table_malformed_entity(mock_table_client):
 
     agents = await query_agents_from_table(mock_table_client)
 
-    # Should skip malformed entity and return empty list
-    assert len(agents) == 0
+    # Implementation provides defaults for missing fields
+    assert len(agents) == 1
+    assert agents[0].agent_id == "bad-agent"  # Falls back to RowKey
+    assert agents[0].scenario == "unknown"
+    assert agents[0].status == "unknown"
 
 
 @pytest.mark.asyncio
