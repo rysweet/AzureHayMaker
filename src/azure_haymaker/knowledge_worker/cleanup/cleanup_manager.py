@@ -6,7 +6,7 @@ all provisioned resources can be reliably deleted.
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -32,7 +32,7 @@ class CleanupReport(BaseModel):
 
     run_id: str = Field(..., description="HayMaker run ID")
     started_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="Cleanup start time",
     )
     completed_at: datetime | None = Field(default=None, description="Cleanup end time")
@@ -70,7 +70,7 @@ class CleanupReport(BaseModel):
 
     def complete(self) -> None:
         """Mark the cleanup as complete."""
-        self.completed_at = datetime.now(timezone.utc)
+        self.completed_at = datetime.now(UTC)
 
     @property
     def success_rate(self) -> float:
@@ -128,7 +128,7 @@ class KnowledgeWorkerResourceInventory:
         self.resources: dict[str, list[str]] = {
             resource_type: [] for resource_type in self.RESOURCE_TYPES
         }
-        self.created_at = datetime.now(timezone.utc)
+        self.created_at = datetime.now(UTC)
 
     def register(self, resource_type: str, resource_id: str) -> None:
         """Register a created resource.
@@ -139,7 +139,7 @@ class KnowledgeWorkerResourceInventory:
         """
         if resource_type not in self.resources:
             logger.warning(f"Unknown resource type: {resource_type}")
-            self.resources[resource_type] = []
+            return  # Ignore unknown resource types per architecture
 
         if resource_id not in self.resources[resource_type]:
             self.resources[resource_type].append(resource_id)
