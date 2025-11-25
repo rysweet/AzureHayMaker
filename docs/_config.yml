@@ -15,6 +15,11 @@ remote_theme: just-the-docs/just-the-docs@v0.10.0
 # Color scheme (supports: light, dark)
 color_scheme: light
 
+# Enable dark mode toggle
+color_scheme_toggle:
+  - light
+  - dark
+
 # Logo in the header
 logo: "/assets/images/azure-haymaker-logo.svg"
 

@@ -6,58 +6,105 @@ description: "Azure HayMaker - Orchestration service for simulating realistic Az
 permalink: /
 ---
 
-# Azure HayMaker Documentation
-{: .fs-9 }
+<div class="hero" markdown="0">
+  <h1>Azure HayMaker</h1>
+  <p>Generate realistic Azure tenant activity with 50+ autonomous scenarios across AI/ML, Compute, Containers, Databases, and more.</p>
+  <div class="hero-buttons">
+    <a href="/AzureHayMaker/getting-started" class="btn btn-primary">Get Started</a>
+    <a href="https://github.com/rysweet/AzureHayMaker" class="btn btn-secondary">View on GitHub</a>
+  </div>
+</div>
 
-Orchestration service that simulates realistic Azure tenant activity by deploying and managing 50+ distinct operational scenarios using autonomous goal-seeking agents.
-{: .fs-6 .fw-300 }
-
-[Get Started](/AzureHayMaker/getting-started){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
-[View on GitHub](https://github.com/rysweet/AzureHayMaker){: .btn .fs-5 .mb-4 .mb-md-0 }
+<div class="stats fade-in" markdown="0">
+  <div class="stat">
+    <div class="stat-value">50+</div>
+    <div class="stat-label">Scenarios</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">10</div>
+    <div class="stat-label">Categories</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">4x</div>
+    <div class="stat-label">Daily Runs</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">100%</div>
+    <div class="stat-label">Automated</div>
+  </div>
+</div>
 
 ---
 
 ## What is Azure HayMaker?
 
-Azure HayMaker generates benign telemetry (the "Hay") in which to hide cybersecurity simulation red team signals (the needle in the haystack). It orchestrates realistic Azure operations through:
+Azure HayMaker generates benign telemetry (the "Hay") in which to hide cybersecurity simulation red team signals (the needle in the haystack). It orchestrates realistic Azure operations through autonomous goal-seeking agents.
 
-- **50+ Azure Scenarios** across 10 technology areas (AI/ML, Analytics, Compute, Containers, Databases, etc.) - see [scenario docs](https://github.com/rysweet/AzureHayMaker/tree/main/docs/scenarios)
-- **Autonomous Agents** that self-manage deployments and troubleshoot issues using Claude AI - see [agent implementations](https://github.com/rysweet/AzureHayMaker/tree/main/src/agents)
-- **Scheduled Execution** (4x daily for different global regions in a follow-the-sun pattern)
-- **Complete Automation** using Azure CLI, Terraform, and Bicep - see [infrastructure templates](https://github.com/rysweet/AzureHayMaker/tree/main/infra/bicep)
-- **Automatic Cleanup** with resource tracking and forced removal - see [cleanup implementation](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/cleanup.py)
-
-## Quick Navigation
-
-<div class="code-example" markdown="1">
-
-### Getting Started
-
-| Guide | Description |
-|:------|:------------|
-| [Quick Start](/AzureHayMaker/getting-started) | Get up and running in 30 minutes |
-| [Deployment Guide](/AzureHayMaker/deployment) | Deploy to Azure production |
-| [CLI Guide](/AzureHayMaker/cli/) | Configure and use the command-line interface |
-
-### Core Documentation
-
-| Section | Description |
-|:--------|:------------|
-| [Architecture](/AzureHayMaker/architecture/) | System design and components |
-| [API Reference](/AzureHayMaker/api/) | REST API endpoints and examples |
-| [CLI Guide](/AzureHayMaker/cli/) | Command-line interface usage |
-| [Scenarios](/AzureHayMaker/scenarios/) | All 50 operational scenarios |
-
-### Reference
-
-| Resource | Description |
-|:---------|:------------|
-| [FAQ](/AzureHayMaker/reference/faq) | Frequently asked questions |
-| [Troubleshooting](/AzureHayMaker/reference/troubleshooting) | Common issues and solutions |
-| [Glossary](/AzureHayMaker/reference/glossary) | Terms and definitions |
-| [Best Practices](/AzureHayMaker/reference/best-practices) | Recommended patterns |
-
+<div class="feature-grid" markdown="0">
+  <div class="feature-card">
+    <span class="feature-icon">🤖</span>
+    <h3>Autonomous Agents</h3>
+    <p>Self-managing deployments powered by Claude AI that troubleshoot issues automatically.</p>
+  </div>
+  <div class="feature-card">
+    <span class="feature-icon">📊</span>
+    <h3>50+ Scenarios</h3>
+    <p>Comprehensive coverage across AI/ML, Compute, Containers, Databases, and more.</p>
+  </div>
+  <div class="feature-card">
+    <span class="feature-icon">🌍</span>
+    <h3>Follow-the-Sun</h3>
+    <p>4x daily execution across global regions for realistic activity patterns.</p>
+  </div>
+  <div class="feature-card">
+    <span class="feature-icon">🔒</span>
+    <h3>Security First</h3>
+    <p>Ephemeral service principals, Key Vault secrets, and least-privilege access.</p>
+  </div>
 </div>
+
+---
+
+## Quick Start
+
+<div class="quick-links" markdown="0">
+  <a href="/AzureHayMaker/getting-started" class="quick-link">
+    <span class="icon">🚀</span>
+    <span>Get Started</span>
+  </a>
+  <a href="/AzureHayMaker/deployment" class="quick-link">
+    <span class="icon">☁️</span>
+    <span>Deploy to Azure</span>
+  </a>
+  <a href="/AzureHayMaker/cli/" class="quick-link">
+    <span class="icon">💻</span>
+    <span>CLI Guide</span>
+  </a>
+  <a href="/AzureHayMaker/api/" class="quick-link">
+    <span class="icon">🔌</span>
+    <span>API Reference</span>
+  </a>
+</div>
+
+### API Quick Start
+
+```bash
+# Health check
+curl https://haymaker-fastapi-app.azurewebsites.net/
+
+# List available scenarios
+curl https://haymaker-fastapi-app.azurewebsites.net/api/scenarios
+
+# Execute a scenario
+curl -X POST https://haymaker-fastapi-app.azurewebsites.net/api/execute \
+  -H "Content-Type: application/json" \
+  -d '{"scenarios":["compute-01-linux-vm-web-server"],"duration_hours":1}'
+
+# Check execution status
+curl https://haymaker-fastapi-app.azurewebsites.net/api/executions/{execution_id}
+```
+
+---
 
 ## Architecture Overview
 
@@ -86,6 +133,10 @@ The orchestrator ([orchestrator_server.py](https://github.com/rysweet/AzureHayMa
                               └───────────────┘
 ```
 
+[View Full Architecture](/AzureHayMaker/architecture/){: .btn .btn-outline }
+
+---
+
 ## Scenario Categories
 
 Azure HayMaker includes 50 scenarios across 10 technology areas:
@@ -103,25 +154,9 @@ Azure HayMaker includes 50 scenarios across 10 technology areas:
 | [Security](/AzureHayMaker/scenarios/security/) | 5 | Key Vault, NSGs, Security Center |
 | [Web Apps](/AzureHayMaker/scenarios/webapps/) | 5 | Static Web Apps, App Service, API Management |
 
-## API Quick Start
+[Browse All Scenarios](/AzureHayMaker/scenarios/){: .btn .btn-outline }
 
-```bash
-# Health check
-curl https://haymaker-fastapi-app.azurewebsites.net/
-
-# List available scenarios
-curl https://haymaker-fastapi-app.azurewebsites.net/api/scenarios
-
-# Execute a scenario
-curl -X POST https://haymaker-fastapi-app.azurewebsites.net/api/execute \
-  -H "Content-Type: application/json" \
-  -d '{"scenarios":["compute-01-linux-vm-web-server"],"duration_hours":1}'
-
-# Check execution status
-curl https://haymaker-fastapi-app.azurewebsites.net/api/executions/{execution_id}
-```
-
-[View Full API Reference](/AzureHayMaker/api/){: .btn .btn-outline }
+---
 
 ## Key Features
 
@@ -145,6 +180,31 @@ Every component implements real functionality with no stubs, TODOs, or placehold
 - Least privilege access patterns
 - Comprehensive audit logging - see [event_bus.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/event_bus.py)
 
+---
+
+## Documentation
+
+<div class="quick-links" markdown="0">
+  <a href="/AzureHayMaker/architecture/" class="quick-link">
+    <span class="icon">🏗️</span>
+    <span>Architecture</span>
+  </a>
+  <a href="/AzureHayMaker/scenarios/" class="quick-link">
+    <span class="icon">📋</span>
+    <span>Scenarios</span>
+  </a>
+  <a href="/AzureHayMaker/reference/faq" class="quick-link">
+    <span class="icon">❓</span>
+    <span>FAQ</span>
+  </a>
+  <a href="/AzureHayMaker/reference/troubleshooting" class="quick-link">
+    <span class="icon">🔧</span>
+    <span>Troubleshooting</span>
+  </a>
+</div>
+
+---
+
 ## Contributing
 
 We welcome contributions! See the [Contributing Guide](/AzureHayMaker/contributing) for details on:
@@ -153,6 +213,8 @@ We welcome contributions! See the [Contributing Guide](/AzureHayMaker/contributi
 - Running tests
 - Submitting pull requests
 - Code style guidelines
+
+---
 
 ## License
 
