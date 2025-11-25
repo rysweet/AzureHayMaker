@@ -178,14 +178,15 @@ class ContainerDeployer:
                 logger.warning(f"CLI login warning (may already be logged in): {login_result.stderr}")
 
             # Build container app using Azure CLI
+            # Use valid CPU/memory combo: max is 4 CPU + 8Gi per Azure Container Apps limits
             cli_command = [
                 "az", "containerapp", "create",
                 "--name", app_name,
                 "--resource-group", self.resource_group_name,
                 "--environment", "haymaker-fastapi-cae",
                 "--image", container['image'],
-                "--cpu", str(container['resources']['cpu']),
-                "--memory", container['resources']['memory'],
+                "--cpu", "2.0",
+                "--memory", "4.0Gi",
                 "--target-port", "80",
                 "--ingress", "internal",
                 "--min-replicas", "0",
@@ -232,9 +233,13 @@ class ContainerDeployer:
         sanitized = scenario_name.lower().replace("_", "-")
         # Remove invalid characters
         sanitized = "".join(c for c in sanitized if c.isalnum() or c == "-")
-        # Limit length (max 63 chars for container app names)
-        app_name = f"{sanitized}-agent"[:63]
-        return app_name
+        # Limit length (max 32 chars for container app names per Azure requirements)
+        # Remove "-agent" suffix if needed to fit in 32 chars
+        if len(sanitized) <= 32:
+            return sanitized
+        else:
+            # Truncate to 32 chars
+            return sanitized[:32]
 
     def _build_container(self, app_name: str, sp: ServicePrincipalDetails) -> dict[str, Any]:
         """Build container configuration with resource limits and env vars.
