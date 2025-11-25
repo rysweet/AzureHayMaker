@@ -132,8 +132,8 @@ class ContainerDeployer:
                 raise ContainerAppError(f"Container Apps Environment not accessible: {env_error}") from env_error
 
             # Per Azure Container Apps API: environmentId must be in properties dict
-            # Note: This dict documents the expected structure; actual deployment uses CLI
-            _container_app = {
+            # Note: This dict documents the SDK structure but CLI is used for deployment
+            _container_app = {  # noqa: F841 - kept as documentation
                 "location": self._get_region(),
                 "properties": {
                     "environmentId": container_env_id,  # Use environment ID retrieved from Azure
