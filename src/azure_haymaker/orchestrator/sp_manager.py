@@ -11,10 +11,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from azure.core.exceptions import (
-    ClientAuthenticationError,
-    HttpResponseError,
     ResourceNotFoundError,
-    ServiceRequestError,
 )
 from azure.keyvault.secrets import SecretClient
 from azure.mgmt.authorization import AuthorizationManagementClient
@@ -25,11 +22,6 @@ from msgraph.generated.models.service_principal import ServicePrincipal
 from msgraph.graph_service_client import GraphServiceClient
 from pydantic import BaseModel, Field
 
-from azure_haymaker.exceptions import (
-    CredentialError,
-    GraphAPIError,
-    SPCreationError,
-)
 from azure_haymaker.utils.credentials import get_credential
 
 logger = logging.getLogger(__name__)
@@ -144,14 +136,15 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
         # Initialize Microsoft Graph client with explicit service principal credentials
         # Use ClientSecretCredential instead of DefaultAzureCredential to ensure
         # we use the SP credentials from environment variables (AZURE_CLIENT_ID/SECRET)
-        from azure.identity import ClientSecretCredential
         import os
+
+        from azure.identity import ClientSecretCredential
 
         tenant_id = os.getenv("AZURE_TENANT_ID")
         client_id = os.getenv("AZURE_CLIENT_ID")
         client_secret = os.getenv("AZURE_CLIENT_SECRET")
 
-        logger.info(f"Creating SP for {scenario_name} using client_id={client_id[:8]}...")
+        logger.info(f"Creating SP for {scenario_name} using client_id={(client_id or '')[:8]}...")
 
         credential = ClientSecretCredential(
             tenant_id=tenant_id,
@@ -597,8 +590,9 @@ async def rotate_service_principal_secret(  # pyright: ignore[reportGeneralTypeI
     secret_name = sp_name.replace("AzureHayMaker-", "scenario-sp-").replace("-admin", "-secret")
 
     try:
-        from azure.identity import ClientSecretCredential
         import os
+
+        from azure.identity import ClientSecretCredential
 
         tenant_id = os.getenv("AZURE_TENANT_ID")
         client_id = os.getenv("AZURE_CLIENT_ID")
