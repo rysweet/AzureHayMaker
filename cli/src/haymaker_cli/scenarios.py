@@ -1,10 +1,12 @@
 """Scenarios command group for HayMaker CLI."""
 
+import json
 import re
 from pathlib import Path
 from typing import NamedTuple
 
 import click
+import yaml
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.table import Table
@@ -210,7 +212,6 @@ def scenarios_list(ctx: click.Context, category: str | None):
         output_format = ctx.obj.get("format", "table") if ctx.obj else "table"
 
         if output_format == "json":
-            import json
             data = [
                 {
                     "name": s.name,
@@ -222,7 +223,6 @@ def scenarios_list(ctx: click.Context, category: str | None):
             ]
             click.echo(json.dumps(data, indent=2))
         elif output_format == "yaml":
-            import yaml
             data = [
                 {
                     "name": s.name,

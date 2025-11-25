@@ -1,5 +1,6 @@
 """Validate command for HayMaker CLI."""
 
+import json
 import os
 import subprocess
 import sys
@@ -115,6 +116,7 @@ def check_api_connectivity() -> CheckResult:
         # Make request to API root or health endpoint
         with httpx.Client(timeout=10.0) as client:
             # Try health endpoint first, fall back to root
+            response = None
             for endpoint in ["/api/v1/health", "/api/v1/status", "/"]:
                 try:
                     response = client.get(
@@ -125,6 +127,15 @@ def check_api_connectivity() -> CheckResult:
                         break
                 except httpx.RequestError:
                     continue
+
+            # Handle case where all endpoints failed
+            if response is None:
+                return CheckResult(
+                    name="API Connectivity",
+                    status=CheckStatus.FAIL,
+                    message="All API endpoints unreachable",
+                    details="Could not connect to any health endpoint",
+                )
 
             if response.status_code == 200:
                 return CheckResult(
@@ -227,7 +238,6 @@ def check_azure_cli() -> CheckResult:
             )
 
         # Parse account info
-        import json
         try:
             account = json.loads(account_result.stdout)
             subscription = account.get("name", "unknown")
@@ -429,7 +439,6 @@ def validate(ctx: click.Context, verbose: bool, output_json: bool):
             console.print(f" {format_status(result.status)}")
 
     if output_json:
-        import json
         output = {
             "results": [
                 {
