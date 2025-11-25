@@ -117,14 +117,32 @@ class ContainerDeployer:
 
             # Build complete Container App as dict
             # Get Container Apps Environment ID (required for deployment)
-            # Use the working dev environment (haymaker-dev-yc4hkcb2vvnwg-cae)
-            container_env_id = f"/subscriptions/{self.subscription_id}/resourceGroups/{self.resource_group_name}/providers/Microsoft.App/managedEnvironments/haymaker-dev-yc4hkcb2vvnwg-cae"
+            # Query the environment dynamically to get its current ID
+            from azure.mgmt.appcontainers import ContainerAppsAPIClient
+
+            env_client = ContainerAppsAPIClient(
+                credential=credential,
+                subscription_id=self.subscription_id
+            )
+
+            # Get the environment to verify it exists and get its ID
+            try:
+                env = await asyncio.to_thread(
+                    env_client.managed_environments.get,
+                    resource_group_name=self.resource_group_name,
+                    environment_name="haymaker-dev-yc4hkcb2vvnwg-cae"
+                )
+                container_env_id = env.id
+                logger.info(f"Using Container Apps Environment: {container_env_id}")
+            except Exception as env_error:
+                logger.error(f"Failed to get environment: {env_error}")
+                raise ContainerAppError(f"Container Apps Environment not accessible: {env_error}") from env_error
 
             # Per Azure Container Apps API: environmentId must be in properties dict
             container_app = {
                 "location": self._get_region(),
                 "properties": {
-                    "environmentId": container_env_id,  # Field name per Azure API spec
+                    "environmentId": container_env_id,  # Use environment ID retrieved from Azure
                     "template": template,
                     "configuration": configuration,
                 },
