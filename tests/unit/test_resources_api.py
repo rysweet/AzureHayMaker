@@ -374,7 +374,7 @@ async def test_list_resources_invalid_limit(mock_request):
         response = await list_resources(mock_request)
 
         assert response.status_code == 400
-        body = json.loads(response.body)
+        body = json.loads(response.get_body())
         assert "error" in body
 
 
@@ -385,7 +385,7 @@ async def test_list_resources_missing_config(mock_request):
         response = await list_resources(mock_request)
 
         assert response.status_code == 500
-        body = json.loads(response.body)
+        body = json.loads(response.get_body())
         assert "Resources storage not configured" in body["error"]
 
 
@@ -404,7 +404,7 @@ async def test_list_resources_storage_error(mock_request):
             response = await list_resources(mock_request)
 
             assert response.status_code == 500
-            body = json.loads(response.body)
+            body = json.loads(response.get_body())
             assert "error" in body
 
 
@@ -446,7 +446,7 @@ async def test_get_resource_happy_path(mock_request):
             response = await get_resource(mock_request)
 
             assert response.status_code == 200
-            body = json.loads(response.body)
+            body = json.loads(response.get_body())
             assert body["id"] == "resource-001"
             assert body["name"] == "test-vm"
             assert body["tags"]["environment"] == "test"
@@ -460,7 +460,7 @@ async def test_get_resource_missing_resource_id(mock_request):
     response = await get_resource(mock_request)
 
     assert response.status_code == 400
-    body = json.loads(response.body)
+    body = json.loads(response.get_body())
     assert "resource_id is required" in body["error"]
 
 
@@ -483,7 +483,7 @@ async def test_get_resource_not_found(mock_request):
             response = await get_resource(mock_request)
 
             assert response.status_code == 404
-            body = json.loads(response.body)
+            body = json.loads(response.get_body())
             assert "Resource not found" in body["error"]
 
 
@@ -496,7 +496,7 @@ async def test_get_resource_missing_config(mock_request):
         response = await get_resource(mock_request)
 
         assert response.status_code == 500
-        body = json.loads(response.body)
+        body = json.loads(response.get_body())
         assert "Resources storage not configured" in body["error"]
 
 
@@ -515,5 +515,5 @@ async def test_get_resource_storage_error(mock_request):
             response = await get_resource(mock_request)
 
             assert response.status_code == 500
-            body = json.loads(response.body)
+            body = json.loads(response.get_body())
             assert "error" in body
