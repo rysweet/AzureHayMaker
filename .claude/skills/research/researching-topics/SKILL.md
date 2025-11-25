@@ -1,5 +1,6 @@
 ---
 name: "Researching Topics"
+version: 1.0.0
 description: "Performs quick research using web search and synthesis when user asks about unfamiliar topics, new technologies, or needs current information. Activates on questions like 'how does X work', 'what is Y', or when encountering unknown concepts. For deep comprehensive research, suggests knowledge-builder command."
 allowed-tools: ["WebSearch", "WebFetch", "Read", "Write"]
 ---

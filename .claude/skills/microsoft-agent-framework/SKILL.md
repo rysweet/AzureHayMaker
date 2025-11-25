@@ -1,3 +1,9 @@
+---
+name: microsoft-agent-framework
+version: 0.1.0
+description: Comprehensive guide to Microsoft Agent Framework for building production AI agents with stateful conversations, multi-agent workflows, and enterprise features. Auto-activates when discussing agent frameworks, multi-agent systems, or Microsoft AI tooling.
+---
+
 # Microsoft Agent Framework Skill
 
 **Version**: 0.1.0-preview | **Last Updated**: 2025-11-15 | **Framework Version**: 0.1.0-preview

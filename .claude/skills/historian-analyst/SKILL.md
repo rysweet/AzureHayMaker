@@ -1,5 +1,6 @@
 ---
 name: historian-analyst
+version: 1.0.0
 description: |
   Analyzes events through historical lens using source analysis, comparative history, periodization,
   causation, continuity/change, and contextualiz

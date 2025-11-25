@@ -1,5 +1,6 @@
 ---
 name: "Architecting Solutions"
+version: 1.0.0
 description: "Analyzes problems and designs system architecture before implementation. Activates when user asks design questions, discusses architecture, or needs to break down complex features. Creates clear specifications following the brick philosophy of simple, modular, regeneratable components."
 ---
 
