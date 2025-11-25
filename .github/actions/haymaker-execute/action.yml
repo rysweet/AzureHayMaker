@@ -6,11 +6,15 @@ description: |
   and optionally waits for completion, making it ideal for integration testing
   and security validation workflows.
 
+  Requirements:
+    - jq must be installed on the runner (pre-installed on GitHub-hosted runners)
+
   Usage Example:
     - name: Run HayMaker Scenarios
       uses: ./.github/actions/haymaker-execute
       with:
         api-url: ${{ secrets.HAYMAKER_API_URL }}
+        api-key: ${{ secrets.HAYMAKER_API_KEY }}
         scenarios: '["jailbreak_basic", "prompt_injection"]'
         duration: 5
         wait-for-completion: true
@@ -25,11 +29,15 @@ inputs:
   api-url:
     description: 'Base URL of the Azure HayMaker API (e.g., https://haymaker.example.com)'
     required: true
+  api-key:
+    description: 'API key for authentication (x-functions-key header)'
+    required: false
+    default: ''
   scenarios:
     description: 'JSON array of scenario names to execute (e.g., ["jailbreak_basic", "prompt_injection"])'
     required: true
   duration:
-    description: 'Duration in minutes for scenario execution'
+    description: 'Duration in hours for scenario execution'
     required: false
     default: '1'
   wait-for-completion:
@@ -53,17 +61,20 @@ runs:
   steps:
     - name: Validate inputs
       shell: bash
+      env:
+        API_URL: ${{ inputs.api-url }}
+        SCENARIOS: ${{ inputs.scenarios }}
       run: |
-        if [[ -z "${{ inputs.api-url }}" ]]; then
+        if [[ -z "${API_URL}" ]]; then
           echo "::error::api-url is required"
           exit 1
         fi
-        if [[ -z "${{ inputs.scenarios }}" ]]; then
+        if [[ -z "${SCENARIOS}" ]]; then
           echo "::error::scenarios is required"
           exit 1
         fi
         # Validate scenarios is valid JSON array
-        if ! echo '${{ inputs.scenarios }}' | jq -e 'type == "array"' > /dev/null 2>&1; then
+        if ! echo "${SCENARIOS}" | jq -e 'type == "array"' > /dev/null 2>&1; then
           echo "::error::scenarios must be a valid JSON array"
           exit 1
         fi
@@ -72,33 +83,36 @@ runs:
     - name: Execute scenarios
       id: execute
       shell: bash
+      env:
+        API_URL: ${{ inputs.api-url }}
+        API_KEY: ${{ inputs.api-key }}
+        SCENARIOS: ${{ inputs.scenarios }}
+        DURATION: ${{ inputs.duration }}
       run: |
-        API_URL="${{ inputs.api-url }}"
-        SCENARIOS='${{ inputs.scenarios }}'
-        DURATION="${{ inputs.duration }}"
-
         # Remove trailing slash from API URL if present
         API_URL="${API_URL%/}"
 
         echo "Starting HayMaker execution..."
         echo "API URL: ${API_URL}"
         echo "Scenarios: ${SCENARIOS}"
-        echo "Duration: ${DURATION} minutes"
+        echo "Duration: ${DURATION} hours"
 
         # Build request payload
         PAYLOAD=$(jq -n \
           --argjson scenarios "${SCENARIOS}" \
           --arg duration "${DURATION}" \
-          '{scenarios: $scenarios, duration: ($duration | tonumber)}')
+          '{scenarios: $scenarios, duration_hours: ($duration | tonumber)}')
 
         echo "Request payload: ${PAYLOAD}"
 
+        # Build curl command with optional auth header
+        CURL_OPTS=(-s -w "\n%{http_code}" -X POST -H "Content-Type: application/json" -d "${PAYLOAD}")
+        if [[ -n "${API_KEY}" ]]; then
+          CURL_OPTS+=(-H "x-functions-key: ${API_KEY}")
+        fi
+
         # Execute POST request
-        RESPONSE=$(curl -s -w "\n%{http_code}" \
-          -X POST \
-          -H "Content-Type: application/json" \
-          -d "${PAYLOAD}" \
-          "${API_URL}/api/execute")
+        RESPONSE=$(curl "${CURL_OPTS[@]}" "${API_URL}/api/execute")
 
         # Extract HTTP status code (last line)
         HTTP_CODE=$(echo "${RESPONSE}" | tail -n1)
@@ -127,11 +141,14 @@ runs:
     - name: Poll for completion
       id: poll
       shell: bash
+      env:
+        API_URL: ${{ inputs.api-url }}
+        API_KEY: ${{ inputs.api-key }}
+        EXECUTION_ID: ${{ steps.execute.outputs.execution_id }}
+        WAIT_FOR_COMPLETION: ${{ inputs.wait-for-completion }}
       run: |
-        API_URL="${{ inputs.api-url }}"
+        # Remove trailing slash from API URL if present
         API_URL="${API_URL%/}"
-        EXECUTION_ID="${{ steps.execute.outputs.execution_id }}"
-        WAIT_FOR_COMPLETION="${{ inputs.wait-for-completion }}"
 
         # Default values
         STATUS="running"
@@ -148,13 +165,16 @@ runs:
         MAX_ATTEMPTS=120  # 10 minutes with 5-second intervals
         ATTEMPT=0
 
+        # Build curl options with optional auth header
+        CURL_OPTS=(-s -w "\n%{http_code}" -X GET -H "Content-Type: application/json")
+        if [[ -n "${API_KEY}" ]]; then
+          CURL_OPTS+=(-H "x-functions-key: ${API_KEY}")
+        fi
+
         while [[ ${ATTEMPT} -lt ${MAX_ATTEMPTS} ]]; do
           ATTEMPT=$((ATTEMPT + 1))
 
-          RESPONSE=$(curl -s -w "\n%{http_code}" \
-            -X GET \
-            -H "Content-Type: application/json" \
-            "${API_URL}/api/executions/${EXECUTION_ID}")
+          RESPONSE=$(curl "${CURL_OPTS[@]}" "${API_URL}/api/executions/${EXECUTION_ID}")
 
           HTTP_CODE=$(echo "${RESPONSE}" | tail -n1)
           BODY=$(echo "${RESPONSE}" | sed '$d')
