@@ -8,8 +8,6 @@ import asyncio
 import logging
 from typing import Any
 
-from azure.identity import DefaultAzureCredential
-
 from azure_haymaker.models.config import OrchestratorConfig
 from azure_haymaker.models.scenario import ScenarioMetadata
 from azure_haymaker.models.service_principal import ServicePrincipalDetails
@@ -89,21 +87,14 @@ class ContainerDeployer:
 
         try:
             # Use explicit SP credentials like sp_manager.py
-            from azure.identity import ClientSecretCredential
             import os
+
+            from azure.identity import ClientSecretCredential
 
             credential = ClientSecretCredential(
                 tenant_id=os.getenv("AZURE_TENANT_ID"),
                 client_id=os.getenv("AZURE_CLIENT_ID"),
                 client_secret=os.getenv("AZURE_CLIENT_SECRET")
-            )
-
-            # Lazy import to avoid loading uninstalled package during testing
-            from azure.mgmt.appcontainers import ContainerAppsAPIClient
-
-            client = ContainerAppsAPIClient(
-                credential=credential,
-                subscription_id=self.subscription_id,
             )
 
             # Build container configuration
@@ -141,7 +132,8 @@ class ContainerDeployer:
                 raise ContainerAppError(f"Container Apps Environment not accessible: {env_error}") from env_error
 
             # Per Azure Container Apps API: environmentId must be in properties dict
-            container_app = {
+            # Note: This dict documents the SDK structure but CLI is used for deployment
+            _container_app = {  # noqa: F841 - kept as documentation
                 "location": self._get_region(),
                 "properties": {
                     "environmentId": container_env_id,  # Use environment ID retrieved from Azure
@@ -158,13 +150,12 @@ class ContainerDeployer:
             # Deploy container app using Azure CLI (SDK has persistent ManagedEnvironmentNotFound issues)
             # CLI proven to work in testing, SDK fails even with correct permissions and environment
             logger.info(f"Deploying container app {app_name} for scenario {scenario.scenario_name}")
-            logger.info(f"   Using environment: haymaker-fastapi-cae")
+            logger.info("   Using environment: haymaker-fastapi-cae")
             logger.info(f"   RG: {self.resource_group_name}")
 
-            import subprocess
-            import json as json_module
             import os
             import shlex
+            import subprocess
 
             # Security fix for issue #74: Avoid credential exposure in process listings
             # CLI arguments are visible in /proc/*/cmdline and ps output.

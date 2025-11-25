@@ -37,13 +37,10 @@ from azure_haymaker.exceptions import (
     ContainerDeploymentError,
     CredentialError,
     HayMakerError,
-    OrchestrationError,
     SPCreationError,
     ValidationError,
 )
-
 from azure_haymaker.models.scenario import ScenarioMetadata
-from azure_haymaker.utils.credentials import get_credential
 from azure_haymaker.orchestrator.cleanup import (
     force_delete_resources,
     query_managed_resources,
@@ -58,6 +55,7 @@ from azure_haymaker.orchestrator.sp_manager import (
     create_service_principal,
 )
 from azure_haymaker.orchestrator.validation import validate_environment
+from azure_haymaker.utils.credentials import get_credential
 
 logger = logging.getLogger(__name__)
 
@@ -584,7 +582,7 @@ async def select_scenarios_activity(input_data: Any) -> dict[str, Any]:
     except ConfigurationError as e:
         logger.error(f"Activity: select_scenarios - Configuration error: {str(e)}", exc_info=True)
         return {"scenarios": [], "error": str(e), "error_type": "ConfigurationError"}
-    except (IOError, OSError) as e:
+    except OSError as e:
         logger.error(f"Activity: select_scenarios - IO error reading scenarios: {str(e)}", exc_info=True)
         return {"scenarios": [], "error": str(e), "error_type": "IOError"}
 

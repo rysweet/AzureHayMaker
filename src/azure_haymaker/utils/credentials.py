@@ -20,7 +20,6 @@ Usage:
 
 import logging
 import threading
-from typing import Optional
 
 from azure.identity import DefaultAzureCredential
 from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCredential
@@ -46,8 +45,8 @@ class AzureCredentialFactory:
         >>> async_client = AsyncBlobServiceClient(account_url, credential=async_credential)
     """
 
-    _credential: Optional[DefaultAzureCredential] = None
-    _async_credential: Optional[AsyncDefaultAzureCredential] = None
+    _credential: DefaultAzureCredential | None = None
+    _async_credential: AsyncDefaultAzureCredential | None = None
     _credential_lock: threading.Lock = threading.Lock()
 
     @classmethod

@@ -159,7 +159,7 @@ class AgentBase(ABC):
                 logger.error("amplihack package not found")
                 raise ImportError(
                     "amplihack package not found. Install with: pip install amplihack"
-                )
+                ) from None
 
             self._auto_mode = AutoMode(
                 sdk=self.config.sdk,

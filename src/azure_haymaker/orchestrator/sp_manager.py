@@ -11,10 +11,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from azure.core.exceptions import (
-    ClientAuthenticationError,
-    HttpResponseError,
     ResourceNotFoundError,
-    ServiceRequestError,
 )
 from azure.keyvault.secrets import SecretClient
 from azure.mgmt.authorization import AuthorizationManagementClient
@@ -25,11 +22,6 @@ from msgraph.generated.models.service_principal import ServicePrincipal
 from msgraph.graph_service_client import GraphServiceClient
 from pydantic import BaseModel, Field
 
-from azure_haymaker.exceptions import (
-    CredentialError,
-    GraphAPIError,
-    SPCreationError,
-)
 from azure_haymaker.utils.credentials import get_credential
 
 logger = logging.getLogger(__name__)
@@ -144,8 +136,9 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
         # Initialize Microsoft Graph client with explicit service principal credentials
         # Use ClientSecretCredential instead of DefaultAzureCredential to ensure
         # we use the SP credentials from environment variables (AZURE_CLIENT_ID/SECRET)
-        from azure.identity import ClientSecretCredential
         import os
+
+        from azure.identity import ClientSecretCredential
 
         tenant_id = os.getenv("AZURE_TENANT_ID")
         client_id = os.getenv("AZURE_CLIENT_ID")
@@ -493,7 +486,7 @@ async def check_secret_expiration(  # pyright: ignore[reportGeneralTypeIssues,re
         ServicePrincipalError: If checking fails
     """
     try:
-        credential = DefaultAzureCredential()
+        credential = get_credential()
         graph_client = GraphServiceClient(credential)
 
         # Find the application by display name
@@ -537,9 +530,10 @@ async def check_secret_expiration(  # pyright: ignore[reportGeneralTypeIssues,re
         # Find the latest expiration date
         latest_expiration: datetime | None = None
         for cred in password_credentials:
-            if cred.end_date_time:
-                if latest_expiration is None or cred.end_date_time > latest_expiration:
-                    latest_expiration = cred.end_date_time
+            if cred.end_date_time and (
+                latest_expiration is None or cred.end_date_time > latest_expiration
+            ):
+                latest_expiration = cred.end_date_time
 
         if latest_expiration is None:
             return SecretExpirationInfo(
@@ -597,8 +591,9 @@ async def rotate_service_principal_secret(  # pyright: ignore[reportGeneralTypeI
     secret_name = sp_name.replace("AzureHayMaker-", "scenario-sp-").replace("-admin", "-secret")
 
     try:
-        from azure.identity import ClientSecretCredential
         import os
+
+        from azure.identity import ClientSecretCredential
 
         tenant_id = os.getenv("AZURE_TENANT_ID")
         client_id = os.getenv("AZURE_CLIENT_ID")
