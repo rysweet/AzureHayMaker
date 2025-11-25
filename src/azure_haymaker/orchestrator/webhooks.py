@@ -14,17 +14,110 @@ Event Types:
     - execution.failed: Fired when an orchestration run fails
 """
 
+import ipaddress
 import logging
 import os
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
 logger = logging.getLogger(__name__)
 
+
+class WebhookValidationError(Exception):
+    """Raised when webhook URL validation fails."""
+
+    pass
+
 # Default timeout for webhook requests (5 seconds)
 WEBHOOK_TIMEOUT = 5.0
+
+# Private IP ranges that may indicate SSRF attempts
+_PRIVATE_IP_RANGES = [
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("169.254.0.0/16"),
+    ipaddress.ip_network("::1/128"),
+    ipaddress.ip_network("fc00::/7"),
+    ipaddress.ip_network("fe80::/10"),
+]
+
+
+def _is_private_ip(hostname: str) -> bool:
+    """Check if hostname resolves to a private IP address.
+
+    Args:
+        hostname: The hostname or IP address to check.
+
+    Returns:
+        True if the hostname is or resolves to a private IP, False otherwise.
+    """
+    try:
+        ip = ipaddress.ip_address(hostname)
+        return any(ip in network for network in _PRIVATE_IP_RANGES)
+    except ValueError:
+        # Not a valid IP address - it's a hostname, allow it
+        # (DNS resolution would require network access which we avoid here)
+        return False
+
+
+def validate_webhook_url(url: str, block_private_ips: bool = True) -> str:
+    """Validate webhook URL for security (SSRF mitigation).
+
+    This function validates that the webhook URL uses an allowed scheme
+    and optionally blocks URLs pointing to private IP ranges.
+
+    Security Note:
+        This validation provides defense-in-depth against SSRF attacks.
+        For production use, consider additional measures such as:
+        - Using an allowlist of permitted webhook domains
+        - Running webhook requests through a proxy
+        - Network-level controls to prevent internal access
+
+    Args:
+        url: The webhook URL to validate.
+        block_private_ips: If True, reject URLs with private IP addresses.
+            Defaults to True for security.
+
+    Returns:
+        The validated URL (unchanged).
+
+    Raises:
+        WebhookValidationError: If the URL fails validation.
+
+    Example:
+        >>> validate_webhook_url("https://example.com/webhook")
+        'https://example.com/webhook'
+        >>> validate_webhook_url("http://192.168.1.1/hook")  # doctest: +IGNORE_EXCEPTION_DETAIL
+        Traceback (most recent call last):
+        WebhookValidationError: ...
+    """
+    try:
+        parsed = urlparse(url)
+    except Exception as e:
+        raise WebhookValidationError(f"Invalid URL format: {e}") from e
+
+    # Check scheme
+    if parsed.scheme not in ("http", "https"):
+        raise WebhookValidationError(
+            f"Invalid URL scheme '{parsed.scheme}': only http and https are allowed"
+        )
+
+    # Check hostname exists
+    if not parsed.hostname:
+        raise WebhookValidationError("URL must include a hostname")
+
+    # Check for private IPs if enabled
+    if block_private_ips and _is_private_ip(parsed.hostname):
+        raise WebhookValidationError(
+            f"Private IP addresses are not allowed: {parsed.hostname}"
+        )
+
+    return url
 
 
 def get_webhook_url() -> str | None:
@@ -32,7 +125,12 @@ def get_webhook_url() -> str | None:
     return os.getenv("HAYMAKER_WEBHOOK_URL")
 
 
-async def send_webhook(url: str | None, event_type: str, data: dict[str, Any]) -> bool:
+async def send_webhook(
+    url: str | None,
+    event_type: str,
+    data: dict[str, Any],
+    validate_url: bool = True,
+) -> bool:
     """Fire-and-forget webhook notification.
 
     Sends a POST request to the configured webhook URL with event data.
@@ -43,6 +141,7 @@ async def send_webhook(url: str | None, event_type: str, data: dict[str, Any]) -
         url: Webhook URL to POST to. If None or empty, returns True immediately.
         event_type: Type of event (e.g., "execution.started", "execution.completed")
         data: Event-specific data to include in the payload
+        validate_url: If True, validate URL for SSRF protection. Defaults to True.
 
     Returns:
         True if successful or no webhook configured, False if the request failed.
@@ -57,6 +156,14 @@ async def send_webhook(url: str | None, event_type: str, data: dict[str, Any]) -
     """
     if not url:
         return True  # No webhook configured - silently skip
+
+    # Validate URL for security (SSRF mitigation)
+    if validate_url:
+        try:
+            validate_webhook_url(url)
+        except WebhookValidationError as e:
+            logger.error(f"Webhook URL validation failed ({type(e).__name__}): {e}")
+            return False
 
     payload = {
         "event": event_type,
@@ -73,10 +180,10 @@ async def send_webhook(url: str | None, event_type: str, data: dict[str, Any]) -
             logger.warning(f"Webhook failed: {response.status_code}")
             return False
     except httpx.TimeoutException:
-        logger.error(f"Webhook timeout for {event_type}")
+        logger.error(f"Webhook timeout ({type(httpx.TimeoutException).__name__}) for {event_type}")
         return False
     except Exception as e:
-        logger.error(f"Webhook error: {e}")
+        logger.error(f"Webhook error ({type(e).__name__}): {e}")
         return False
 
 
