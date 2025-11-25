@@ -14,7 +14,7 @@ Uses Azure Durable Functions testing utilities (orchestrator_generator_wrapper).
 Issue: #79 - Add Test Coverage for Workflow Orchestrator
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import MagicMock, Mock
 from uuid import uuid4
@@ -160,9 +160,6 @@ def create_mock_context(
     # Track current time for timer simulation
     current_time = datetime.now(UTC)
 
-    def get_current_time():
-        return current_time
-
     context.current_utc_datetime = property(lambda self: current_time)
 
     # Track call counts for activities called multiple times
@@ -213,7 +210,6 @@ def run_orchestration(
     run_id: str,
     started_at: str,
     activity_results: dict[str, Any],
-    advance_hours: float = 9.0,
 ) -> dict[str, Any]:
     """Run the workflow orchestrator with mocked context.
 
@@ -221,7 +217,6 @@ def run_orchestration(
         run_id: Unique run identifier
         started_at: ISO timestamp for run start
         activity_results: Dictionary mapping activity names to results
-        advance_hours: Hours to advance time for monitoring phase (default 9)
 
     Returns:
         The execution report dictionary returned by the orchestrator
