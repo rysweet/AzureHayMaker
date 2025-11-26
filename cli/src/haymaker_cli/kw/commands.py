@@ -48,10 +48,97 @@ def kw():
     that generate M365 telemetry (email, Teams, documents, calendar).
 
     Examples:
+        haymaker kw init
         haymaker kw status
         haymaker kw test --persona engineering
         haymaker kw list-personas
     """
+
+
+@kw.command()
+@click.option(
+    "--tenant-id",
+    help="Azure tenant ID (auto-detected if not provided)",
+)
+@click.option(
+    "--app-name",
+    default="haymaker-knowledge-worker",
+    help="Display name for the app registration",
+)
+@click.option(
+    "--reuse-existing/--no-reuse-existing",
+    default=True,
+    help="Reuse existing app registration if found",
+)
+@click.option(
+    "--save-config",
+    type=click.Path(),
+    help="Save configuration to file",
+)
+@click.pass_context
+def init(
+    ctx: click.Context,
+    tenant_id: str | None,
+    app_name: str,
+    reuse_existing: bool,
+    save_config: str | None,
+):
+    """Initialize Knowledge Worker infrastructure.
+
+    Creates and configures the Azure Entra app registration required
+    for Knowledge Worker operations (M365 email, Teams, documents, etc.).
+
+    Requires Azure CLI to be logged in with appropriate permissions
+    (Application Administrator or Global Administrator).
+
+    After running this command, you must grant admin consent using the
+    provided URL.
+
+    Examples:
+        haymaker kw init
+        haymaker kw init --tenant-id abc123-...
+        haymaker kw init --save-config kw_config.env
+    """
+    try:
+        from azure_haymaker.knowledge_worker.infrastructure import setup_kw_app
+
+        console.print("[cyan]Setting up Knowledge Worker infrastructure...[/cyan]")
+
+        config = setup_kw_app(
+            tenant_id=tenant_id,
+            app_name=app_name,
+            reuse_existing=reuse_existing,
+        )
+
+        console.print(f"\n[green]App registration created successfully![/green]")
+        console.print(f"  App ID: {config.app_id}")
+        console.print(f"  Tenant ID: {config.tenant_id}")
+        console.print(f"  Service Principal: {config.sp_id}")
+
+        console.print(f"\n[yellow]IMPORTANT: Admin consent required![/yellow]")
+        console.print(f"Open this URL in a browser and sign in as tenant admin:")
+        console.print(f"\n  {config.admin_consent_url}\n")
+
+        if save_config:
+            with open(save_config, "w") as f:
+                f.write(config.to_env_string())
+            console.print(f"[green]Configuration saved to: {save_config}[/green]")
+        else:
+            console.print("[cyan]Configuration (add to .env file):[/cyan]")
+            console.print(config.to_env_string())
+
+    except ImportError as e:
+        console.print(f"[red]KW infrastructure module not available:[/red] {e}")
+        sys.exit(1)
+    except RuntimeError as e:
+        console.print(f"[red]Setup failed:[/red] {e}")
+        console.print("[dim]Make sure you're logged in to Azure CLI with 'az login'[/dim]")
+        sys.exit(1)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        import traceback
+        console.print(f"[dim]{traceback.format_exc()}[/dim]")
+        sys.exit(1)
 
 
 @kw.command()
