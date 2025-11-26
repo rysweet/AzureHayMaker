@@ -357,11 +357,12 @@ class TestTeamsTelemetry:
         """Test get_teams_messages_for_worker returns TeamsEvidence list."""
         now = datetime.now(UTC)
 
-        # Mock: 3 Teams messages
+        # Mock: 3 Teams messages from the worker
+        # Use worker's entra_object_id as sender to pass the filter
         mock_messages = [
-            mock_teams_response("Great work on the feature!", "user1", now),
-            mock_teams_response("Can you review this PR?", "user2", now),
-            mock_teams_response("Meeting in 10 minutes", "user3", now),
+            mock_teams_response("Great work on the feature!", worker_identity.entra_object_id, now),
+            mock_teams_response("Can you review this PR?", worker_identity.entra_object_id, now),
+            mock_teams_response("Meeting in 10 minutes", worker_identity.entra_object_id, now),
         ]
 
         mock_result = MagicMock()
@@ -369,9 +370,9 @@ class TestTeamsTelemetry:
 
         # Mock Teams channel messages
         team_id = worker_identity.team_ids[0]
-        mock_graph_client.graph.teams.by_team_id.return_value.channels.by_channel_id.return_value.messages.get = (
-            AsyncMock(return_value=mock_result)
-        )
+        mock_channel_item = MagicMock()
+        mock_channel_item.messages.get = AsyncMock(return_value=mock_result)
+        mock_graph_client.graph.teams.by_team_id.return_value.channels.by_channel_id.return_value = mock_channel_item
 
         result = await telemetry_collector.get_teams_messages_for_worker(
             worker=worker_identity, team_id=team_id, channel_id="general"
@@ -399,13 +400,18 @@ class TestTeamsTelemetry:
 
         team_id = worker_identity.team_ids[0]
 
-        # Collect from both channels
-        async def mock_get_for_channel(channel_id: str):
-            if channel_id == "general":
-                return mock_result1
-            elif channel_id == "random":
-                return mock_result2
-            return MagicMock(value=[])
+        # Set up mock to return different results based on channel_id
+        call_count = [0]
+
+        async def mock_get_messages(*args, **kwargs):
+            result = mock_result1 if call_count[0] == 0 else mock_result2
+            call_count[0] += 1
+            return result
+
+        # Mock Teams channel messages with AsyncMock
+        mock_channel_item = MagicMock()
+        mock_channel_item.messages.get = AsyncMock(side_effect=mock_get_messages)
+        mock_graph_client.graph.teams.by_team_id.return_value.channels.by_channel_id.return_value = mock_channel_item
 
         result_general = await telemetry_collector.get_teams_messages_for_worker(
             worker=worker_identity, team_id=team_id, channel_id="general"

@@ -95,15 +95,30 @@ class TestLicenseAssignment:
         """
         # Mock GraphServiceClient
         mock_client = Mock()
-        mock_assign_license = AsyncMock()
-        mock_client.users.by_user_id.return_value.assign_license.post = mock_assign_license
+
+        # Mock subscribed SKUs query
+        mock_sku = Mock()
+        mock_sku.sku_part_number = "SPE_E5"
+        mock_sku.sku_id = UUID("06ebc4ee-1bb5-47dd-8120-11324bc54e06")
+        mock_sku.prepaid_units = Mock()
+        mock_sku.prepaid_units.enabled = 10
+        mock_sku.consumed_units = 5
+
+        mock_skus_response = Mock()
+        mock_skus_response.value = [mock_sku]
+        mock_client.subscribed_skus.get = AsyncMock(return_value=mock_skus_response)
+
+        # Mock license assignment
+        mock_user_item = Mock()
+        mock_user_item.assign_license.post = AsyncMock()
+        mock_client.users.by_user_id.return_value = mock_user_item
 
         manager = EntraUserManager(mock_client, "run-123", "test.onmicrosoft.com")
         result = await manager.assign_license("user-id-123")
 
         assert result is True
         mock_client.users.by_user_id.assert_called_once_with("user-id-123")
-        mock_assign_license.assert_called_once()
+        mock_user_item.assign_license.post.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_assign_license_with_custom_sku(self):
@@ -147,9 +162,22 @@ class TestLicenseAssignment:
             nonlocal captured_body
             captured_body = body
 
-        mock_client.users.by_user_id.return_value.assign_license.post = AsyncMock(
-            side_effect=capture_body
-        )
+        # Mock subscribed SKUs query
+        mock_sku = Mock()
+        mock_sku.sku_part_number = "SPE_E5"
+        mock_sku.sku_id = UUID("06ebc4ee-1bb5-47dd-8120-11324bc54e06")
+        mock_sku.prepaid_units = Mock()
+        mock_sku.prepaid_units.enabled = 10
+        mock_sku.consumed_units = 5
+
+        mock_skus_response = Mock()
+        mock_skus_response.value = [mock_sku]
+        mock_client.subscribed_skus.get = AsyncMock(return_value=mock_skus_response)
+
+        # Mock license assignment
+        mock_user_item = Mock()
+        mock_user_item.assign_license.post = AsyncMock(side_effect=capture_body)
+        mock_client.users.by_user_id.return_value = mock_user_item
 
         manager = EntraUserManager(mock_client, "run-123", "test.onmicrosoft.com")
         await manager.assign_license("user-id-123")
@@ -188,9 +216,23 @@ class TestLicenseAssignment:
 
         mock_client = Mock()
         error_msg = "Insufficient licenses in tenant"
-        mock_client.users.by_user_id.return_value.assign_license.post = AsyncMock(
-            side_effect=Exception(error_msg)
-        )
+
+        # Mock subscribed SKUs query
+        mock_sku = Mock()
+        mock_sku.sku_part_number = "SPE_E5"
+        mock_sku.sku_id = UUID("06ebc4ee-1bb5-47dd-8120-11324bc54e06")
+        mock_sku.prepaid_units = Mock()
+        mock_sku.prepaid_units.enabled = 10
+        mock_sku.consumed_units = 5
+
+        mock_skus_response = Mock()
+        mock_skus_response.value = [mock_sku]
+        mock_client.subscribed_skus.get = AsyncMock(return_value=mock_skus_response)
+
+        # Mock license assignment failure
+        mock_user_item = Mock()
+        mock_user_item.assign_license.post = AsyncMock(side_effect=Exception(error_msg))
+        mock_client.users.by_user_id.return_value = mock_user_item
 
         with caplog.at_level(logging.WARNING):
             manager = EntraUserManager(mock_client, "run-123", "test.onmicrosoft.com")
@@ -213,9 +255,23 @@ class TestLicenseAssignment:
         mock_created_user.id = "new-user-id"
         mock_client.users.post = AsyncMock(return_value=mock_created_user)
 
-        # Mock license assignment
-        mock_assign_license = AsyncMock(return_value=None)
-        mock_client.users.by_user_id.return_value.assign_license.post = mock_assign_license
+        # Mock subscribed SKUs query
+        mock_sku = Mock()
+        mock_sku.sku_part_number = "SPE_E5"
+        mock_sku.sku_id = UUID("06ebc4ee-1bb5-47dd-8120-11324bc54e06")
+        mock_sku.prepaid_units = Mock()
+        mock_sku.prepaid_units.enabled = 10
+        mock_sku.consumed_units = 5
+
+        mock_skus_response = Mock()
+        mock_skus_response.value = [mock_sku]
+        mock_client.subscribed_skus.get = AsyncMock(return_value=mock_skus_response)
+
+        # Mock user update (patch) and license assignment
+        mock_user_item = Mock()
+        mock_user_item.patch = AsyncMock()
+        mock_user_item.assign_license.post = AsyncMock(return_value=None)
+        mock_client.users.by_user_id.return_value = mock_user_item
 
         manager = EntraUserManager(mock_client, "run-123", "test.onmicrosoft.com")
 
@@ -231,8 +287,8 @@ class TestLicenseAssignment:
         assert identity.entra_object_id == "new-user-id"
 
         # Verify license assignment was attempted
-        mock_client.users.by_user_id.assert_called_once_with("new-user-id")
-        mock_assign_license.assert_called_once()
+        assert mock_client.users.by_user_id.call_count == 2  # Called for patch and license
+        mock_user_item.assign_license.post.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_license_failure_does_not_prevent_user_creation(self):
@@ -248,10 +304,23 @@ class TestLicenseAssignment:
         mock_created_user.id = "new-user-id"
         mock_client.users.post = AsyncMock(return_value=mock_created_user)
 
-        # Mock license assignment failure
-        mock_client.users.by_user_id.return_value.assign_license.post = AsyncMock(
-            side_effect=Exception("License failure")
-        )
+        # Mock subscribed SKUs query
+        mock_sku = Mock()
+        mock_sku.sku_part_number = "SPE_E5"
+        mock_sku.sku_id = UUID("06ebc4ee-1bb5-47dd-8120-11324bc54e06")
+        mock_sku.prepaid_units = Mock()
+        mock_sku.prepaid_units.enabled = 10
+        mock_sku.consumed_units = 5
+
+        mock_skus_response = Mock()
+        mock_skus_response.value = [mock_sku]
+        mock_client.subscribed_skus.get = AsyncMock(return_value=mock_skus_response)
+
+        # Mock user update (patch) and license assignment failure
+        mock_user_item = Mock()
+        mock_user_item.patch = AsyncMock()
+        mock_user_item.assign_license.post = AsyncMock(side_effect=Exception("License failure"))
+        mock_client.users.by_user_id.return_value = mock_user_item
 
         manager = EntraUserManager(mock_client, "run-123", "test.onmicrosoft.com")
 
