@@ -1,0 +1,453 @@
+"""Knowledge Worker Orchestrator for coordinating worker deployments.
+
+The orchestrator manages the full lifecycle of knowledge worker simulations:
+1. Setup - Create security groups, transport rules
+2. Provision - Create Entra users and endpoints
+3. Execute - Run worker activities
+4. Cleanup - Remove all created resources
+
+Example:
+    >>> orchestrator = KnowledgeWorkerOrchestrator(config)
+    >>> run_id = await orchestrator.start_deployment(deployment_config)
+    >>> await orchestrator.wait_for_completion(run_id)
+    >>> await orchestrator.cleanup(run_id)
+"""
+
+import asyncio
+import logging
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from enum import Enum
+from typing import Any
+from uuid import uuid4
+
+from azure_haymaker.knowledge_worker.agent import (
+    KnowledgeWorkerAgent,
+    KnowledgeWorkerConfig,
+)
+from azure_haymaker.knowledge_worker.cleanup import KnowledgeWorkerResourceInventory
+from azure_haymaker.knowledge_worker.models.worker import (
+    WorkerConfig,
+    WorkerIdentity,
+    WorkerPersona,
+)
+
+logger = logging.getLogger(__name__)
+
+
+class DeploymentPhase(str, Enum):
+    """Phases of a knowledge worker deployment."""
+
+    INITIALIZING = "initializing"
+    SETUP = "setup"
+    PROVISIONING = "provisioning"
+    EXECUTING = "executing"
+    STOPPING = "stopping"
+    CLEANUP = "cleanup"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class DeploymentStatus(str, Enum):
+    """Status of a deployment."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+@dataclass
+class DeploymentConfig:
+    """Configuration for a knowledge worker deployment.
+
+    Attributes:
+        name: Deployment name
+        total_workers: Total number of workers to deploy
+        departments: Department configurations
+        duration_hours: How long to run activities
+        tenant_domain: M365 tenant domain
+        m365_app_id: M365 application client ID (optional)
+    """
+
+    name: str = "kw-deployment"
+    total_workers: int = 10
+    departments: dict[str, dict[str, Any]] = field(default_factory=dict)
+    duration_hours: int = 8
+    tenant_domain: str = ""
+    m365_app_id: str = ""
+
+    def __post_init__(self) -> None:
+        """Set default departments if not provided."""
+        if not self.departments:
+            # Default: 10 engineering workers
+            self.departments = {
+                "engineering": {
+                    "count": self.total_workers,
+                    "endpoint_type": "cli_container",
+                    "activity": {
+                        "email_per_hour": 4,
+                        "teams_messages_per_hour": 15,
+                        "documents_per_day": 5,
+                        "meetings_per_day": 4,
+                    },
+                }
+            }
+
+
+@dataclass
+class DeploymentState:
+    """State of a knowledge worker deployment.
+
+    Attributes:
+        run_id: Unique deployment identifier
+        config: Deployment configuration
+        phase: Current deployment phase
+        status: Overall deployment status
+        workers: List of deployed workers
+        inventory: Resource inventory for cleanup
+        started_at: When deployment started
+        completed_at: When deployment completed
+        error: Error message if failed
+    """
+
+    run_id: str
+    config: DeploymentConfig
+    phase: DeploymentPhase = DeploymentPhase.INITIALIZING
+    status: DeploymentStatus = DeploymentStatus.PENDING
+    workers: list[KnowledgeWorkerAgent] = field(default_factory=list)
+    inventory: KnowledgeWorkerResourceInventory | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    error: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert state to dictionary for serialization."""
+        return {
+            "run_id": self.run_id,
+            "name": self.config.name,
+            "phase": self.phase.value,
+            "status": self.status.value,
+            "worker_count": len(self.workers),
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "error": self.error,
+        }
+
+
+class KnowledgeWorkerOrchestrator:
+    """Orchestrates knowledge worker deployments.
+
+    Manages the full lifecycle of knowledge worker simulations including
+    worker provisioning, activity execution, and cleanup.
+
+    Example:
+        >>> config = DeploymentConfig(
+        ...     name="test-deployment",
+        ...     total_workers=5,
+        ...     tenant_domain="test.onmicrosoft.com",
+        ... )
+        >>> orchestrator = KnowledgeWorkerOrchestrator()
+        >>> run_id = await orchestrator.create_deployment(config)
+        >>> await orchestrator.start_deployment(run_id)
+    """
+
+    def __init__(self) -> None:
+        """Initialize the orchestrator."""
+        self._deployments: dict[str, DeploymentState] = {}
+        self._worker_tasks: dict[str, list[asyncio.Task]] = {}
+
+    def create_deployment(self, config: DeploymentConfig) -> str:
+        """Create a new deployment.
+
+        Args:
+            config: Deployment configuration
+
+        Returns:
+            Run ID for the deployment
+        """
+        run_id = f"kw-{uuid4().hex[:8]}"
+
+        state = DeploymentState(
+            run_id=run_id,
+            config=config,
+            inventory=KnowledgeWorkerResourceInventory(run_id),
+        )
+
+        self._deployments[run_id] = state
+        logger.info(f"Created deployment {run_id}: {config.name}")
+
+        return run_id
+
+    def get_deployment(self, run_id: str) -> DeploymentState | None:
+        """Get deployment state by run ID.
+
+        Args:
+            run_id: Deployment run ID
+
+        Returns:
+            DeploymentState or None if not found
+        """
+        return self._deployments.get(run_id)
+
+    def list_deployments(self) -> list[dict[str, Any]]:
+        """List all deployments.
+
+        Returns:
+            List of deployment state dictionaries
+        """
+        return [state.to_dict() for state in self._deployments.values()]
+
+    async def start_deployment(self, run_id: str) -> bool:
+        """Start a deployment.
+
+        Runs through all deployment phases:
+        1. Setup - Create security infrastructure
+        2. Provision - Create workers
+        3. Execute - Start worker activities
+
+        Args:
+            run_id: Deployment run ID
+
+        Returns:
+            True if started successfully
+        """
+        state = self._deployments.get(run_id)
+        if not state:
+            logger.error(f"Deployment not found: {run_id}")
+            return False
+
+        if state.status == DeploymentStatus.RUNNING:
+            logger.warning(f"Deployment already running: {run_id}")
+            return False
+
+        try:
+            state.status = DeploymentStatus.RUNNING
+            state.started_at = datetime.now(timezone.utc)
+
+            # Phase 1: Setup
+            await self._phase_setup(state)
+
+            # Phase 2: Provision
+            await self._phase_provision(state)
+
+            # Phase 3: Execute (starts async)
+            await self._phase_execute(state)
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Deployment failed: {run_id}: {e}")
+            state.status = DeploymentStatus.FAILED
+            state.phase = DeploymentPhase.FAILED
+            state.error = str(e)
+            return False
+
+    async def stop_deployment(self, run_id: str) -> bool:
+        """Stop a running deployment.
+
+        Args:
+            run_id: Deployment run ID
+
+        Returns:
+            True if stopped successfully
+        """
+        state = self._deployments.get(run_id)
+        if not state:
+            logger.error(f"Deployment not found: {run_id}")
+            return False
+
+        state.phase = DeploymentPhase.STOPPING
+        logger.info(f"Stopping deployment: {run_id}")
+
+        # Cancel worker tasks
+        tasks = self._worker_tasks.get(run_id, [])
+        for task in tasks:
+            task.cancel()
+
+        # Wait for tasks to complete
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+        state.phase = DeploymentPhase.COMPLETED
+        state.status = DeploymentStatus.COMPLETED
+        state.completed_at = datetime.now(timezone.utc)
+
+        logger.info(f"Deployment stopped: {run_id}")
+        return True
+
+    async def cleanup_deployment(self, run_id: str) -> bool:
+        """Clean up deployment resources.
+
+        Args:
+            run_id: Deployment run ID
+
+        Returns:
+            True if cleanup successful
+        """
+        state = self._deployments.get(run_id)
+        if not state:
+            logger.error(f"Deployment not found: {run_id}")
+            return False
+
+        state.phase = DeploymentPhase.CLEANUP
+        logger.info(f"Cleaning up deployment: {run_id}")
+
+        # In a full implementation, this would:
+        # 1. Stop containers
+        # 2. Delete Cloud PCs
+        # 3. Remove transport rules
+        # 4. Delete groups
+        # 5. Delete users
+
+        # For now, just clear local state
+        state.workers.clear()
+
+        state.phase = DeploymentPhase.COMPLETED
+        logger.info(f"Deployment cleanup complete: {run_id}")
+
+        return True
+
+    async def _phase_setup(self, state: DeploymentState) -> None:
+        """Setup phase: Create security infrastructure.
+
+        Args:
+            state: Deployment state
+        """
+        state.phase = DeploymentPhase.SETUP
+        logger.info(f"[{state.run_id}] Starting setup phase")
+
+        # In a full implementation, this would:
+        # 1. Create security group for all workers
+        # 2. Create transport rules to block external email
+        # 3. Configure app permissions
+
+        # For now, just log
+        logger.info(f"[{state.run_id}] Setup phase complete (simulated)")
+
+    async def _phase_provision(self, state: DeploymentState) -> None:
+        """Provision phase: Create workers.
+
+        Args:
+            state: Deployment state
+        """
+        state.phase = DeploymentPhase.PROVISIONING
+        logger.info(f"[{state.run_id}] Starting provisioning phase")
+
+        # Create workers based on department config
+        worker_index = 0
+        for dept, dept_config in state.config.departments.items():
+            count = dept_config.get("count", 5)
+            activity = dept_config.get("activity", {})
+
+            for i in range(count):
+                worker_id = f"{state.run_id}-{dept[:4]}-{i:03d}"
+
+                # Map department to persona
+                try:
+                    persona = WorkerPersona(dept.lower())
+                except ValueError:
+                    persona = WorkerPersona.ENGINEERING
+
+                # Create worker config
+                worker_config = KnowledgeWorkerConfig(
+                    worker_id=worker_id,
+                    display_name=f"Worker {worker_index + 1}",
+                    department=dept,
+                    persona=persona.value,
+                    tenant_domain=state.config.tenant_domain,
+                    m365_app_id=state.config.m365_app_id,
+                )
+
+                # Create activity config
+                activity_config = WorkerConfig(
+                    email_per_hour=activity.get("email_per_hour", 5),
+                    teams_messages_per_hour=activity.get("teams_messages_per_hour", 10),
+                    documents_per_day=activity.get("documents_per_day", 3),
+                    meetings_per_day=activity.get("meetings_per_day", 4),
+                )
+
+                # Create agent
+                agent = KnowledgeWorkerAgent(
+                    worker_config=worker_config,
+                    activity_config=activity_config,
+                )
+
+                state.workers.append(agent)
+                worker_index += 1
+
+                logger.debug(f"Created worker: {worker_id}")
+
+        logger.info(
+            f"[{state.run_id}] Provisioning complete: "
+            f"{len(state.workers)} workers created"
+        )
+
+    async def _phase_execute(self, state: DeploymentState) -> None:
+        """Execute phase: Start worker activities.
+
+        Args:
+            state: Deployment state
+        """
+        state.phase = DeploymentPhase.EXECUTING
+        logger.info(f"[{state.run_id}] Starting execution phase")
+
+        # In a full implementation, this would start async tasks for each worker
+        # For now, just set state to executing
+
+        # Create worker tasks (simulated - no actual M365 connection)
+        tasks = []
+        for worker in state.workers:
+            task = asyncio.create_task(
+                self._run_worker_simulation(worker, state.config.duration_hours)
+            )
+            tasks.append(task)
+
+        self._worker_tasks[state.run_id] = tasks
+
+        logger.info(
+            f"[{state.run_id}] Started {len(tasks)} worker tasks "
+            f"(duration: {state.config.duration_hours}h)"
+        )
+
+    async def _run_worker_simulation(
+        self,
+        worker: KnowledgeWorkerAgent,
+        duration_hours: int,
+    ) -> None:
+        """Simulate worker activity (no actual M365 connection).
+
+        Args:
+            worker: Worker agent
+            duration_hours: How long to run
+        """
+        worker_id = worker.worker_config.worker_id
+
+        try:
+            logger.debug(f"Worker {worker_id} starting simulation")
+
+            # In a full implementation, this would:
+            # 1. Call worker.on_start() to initialize M365 client
+            # 2. Run activity scheduler for duration_hours
+            # 3. Call worker.on_cleanup()
+
+            # For simulation, just wait briefly
+            await asyncio.sleep(1)  # Brief simulation
+
+            logger.debug(f"Worker {worker_id} completed simulation")
+
+        except asyncio.CancelledError:
+            logger.info(f"Worker {worker_id} cancelled")
+            raise
+        except Exception as e:
+            logger.error(f"Worker {worker_id} error: {e}")
+
+
+__all__ = [
+    "DeploymentConfig",
+    "DeploymentPhase",
+    "DeploymentState",
+    "DeploymentStatus",
+    "KnowledgeWorkerOrchestrator",
+]

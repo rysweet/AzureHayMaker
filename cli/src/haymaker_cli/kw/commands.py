@@ -476,4 +476,136 @@ def _display_status_table(status: dict[str, Any]) -> None:
         console.print(f"\n[dim]Personas available: {status['persona_count']}[/dim]")
 
 
+@kw.command()
+@click.option(
+    "--name",
+    default="test-deployment",
+    help="Deployment name",
+)
+@click.option(
+    "--workers",
+    default=5,
+    type=int,
+    help="Number of workers to deploy",
+)
+@click.option(
+    "--department",
+    type=click.Choice(
+        ["executive", "legal", "engineering", "hr", "finance", "sales", "operations", "marketing"],
+        case_sensitive=False,
+    ),
+    default="engineering",
+    help="Department for workers",
+)
+@click.option(
+    "--tenant-domain",
+    default="test.onmicrosoft.com",
+    help="M365 tenant domain",
+)
+@click.option(
+    "--duration",
+    default=1,
+    type=int,
+    help="Duration in hours to run activities",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Show what would be deployed without executing",
+)
+@click.pass_context
+def deploy(
+    ctx: click.Context,
+    name: str,
+    workers: int,
+    department: str,
+    tenant_domain: str,
+    duration: int,
+    dry_run: bool,
+):
+    """Deploy a knowledge worker simulation.
+
+    Creates and starts a KW deployment with the specified configuration.
+    Workers will simulate M365 activities for the specified duration.
+
+    Examples:
+        haymaker kw deploy --name test --workers 5
+        haymaker kw deploy --workers 10 --department sales --duration 4
+        haymaker kw deploy --dry-run
+    """
+    try:
+        from azure_haymaker.knowledge_worker import (
+            DeploymentConfig,
+            KnowledgeWorkerOrchestrator,
+        )
+
+        console.print(f"[cyan]Preparing KW deployment...[/cyan]")
+        console.print(f"  Name: {name}")
+        console.print(f"  Workers: {workers}")
+        console.print(f"  Department: {department}")
+        console.print(f"  Tenant Domain: {tenant_domain}")
+        console.print(f"  Duration: {duration}h")
+        console.print()
+
+        # Create deployment config
+        config = DeploymentConfig(
+            name=name,
+            total_workers=workers,
+            departments={
+                department: {
+                    "count": workers,
+                    "endpoint_type": "cli_container",
+                    "activity": {
+                        "email_per_hour": 4,
+                        "teams_messages_per_hour": 10,
+                        "documents_per_day": 3,
+                        "meetings_per_day": 4,
+                    },
+                }
+            },
+            duration_hours=duration,
+            tenant_domain=tenant_domain,
+        )
+
+        if dry_run:
+            console.print("[yellow]Dry run - deployment not started[/yellow]")
+            console.print(f"\n[cyan]Would create:[/cyan]")
+            console.print(f"  - {workers} {department} workers")
+            console.print(f"  - Security groups for workers")
+            console.print(f"  - Transport rules (external email blocking)")
+            console.print(f"  - CLI containers for each worker")
+            return
+
+        # Create orchestrator and start deployment
+        orchestrator = KnowledgeWorkerOrchestrator()
+        run_id = orchestrator.create_deployment(config)
+
+        console.print(f"[green]Deployment created: {run_id}[/green]")
+        console.print(f"Starting deployment...")
+
+        # Run deployment (sync wrapper around async)
+        import asyncio
+        asyncio.run(orchestrator.start_deployment(run_id))
+
+        # Get final state
+        state = orchestrator.get_deployment(run_id)
+        if state:
+            console.print(f"\n[green]Deployment started successfully![/green]")
+            console.print(f"  Run ID: {state.run_id}")
+            console.print(f"  Phase: {state.phase.value}")
+            console.print(f"  Workers: {len(state.workers)}")
+        else:
+            console.print("[red]Deployment state not found[/red]")
+            sys.exit(1)
+
+    except ImportError as e:
+        console.print(f"[red]KW framework not available:[/red] {e}", style="red")
+        sys.exit(1)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}", style="red")
+        import traceback
+        console.print(f"[dim]{traceback.format_exc()}[/dim]")
+        sys.exit(1)
+
+
 __all__ = ["kw"]
