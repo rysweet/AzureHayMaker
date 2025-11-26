@@ -695,4 +695,230 @@ def deploy(
         sys.exit(1)
 
 
+@kw.command("e2e-test")
+@click.option(
+    "--app-id",
+    envvar="KW_APP_ID",
+    help="Azure app (client) ID (or KW_APP_ID env var)",
+)
+@click.option(
+    "--client-secret",
+    envvar="KW_CLIENT_SECRET",
+    help="Client secret (or KW_CLIENT_SECRET env var)",
+)
+@click.option(
+    "--tenant-id",
+    envvar="KW_TENANT_ID",
+    help="Azure tenant ID (or KW_TENANT_ID env var)",
+)
+@click.option(
+    "--sender",
+    help="Email sender (user with mailbox)",
+)
+@click.option(
+    "--recipient",
+    help="Email recipient (user with mailbox)",
+)
+@click.option(
+    "--test-email/--no-test-email",
+    default=True,
+    help="Test email operations",
+)
+@click.option(
+    "--test-calendar/--no-test-calendar",
+    default=True,
+    help="Test calendar operations",
+)
+@click.option(
+    "--test-groups/--no-test-groups",
+    default=True,
+    help="Test groups operations",
+)
+@click.pass_context
+def e2e_test(
+    ctx: click.Context,
+    app_id: str | None,
+    client_secret: str | None,
+    tenant_id: str | None,
+    sender: str | None,
+    recipient: str | None,
+    test_email: bool,
+    test_calendar: bool,
+    test_groups: bool,
+):
+    """Run E2E tests against real Azure tenant.
+
+    Validates actual Graph API operations using the configured
+    KW app registration credentials.
+
+    Requires KW_APP_ID, KW_CLIENT_SECRET, and KW_TENANT_ID
+    environment variables or command-line options.
+
+    Examples:
+        haymaker kw e2e-test
+        haymaker kw e2e-test --sender user1@tenant.com --recipient user2@tenant.com
+        haymaker kw e2e-test --no-test-email  # Skip email test
+    """
+    import asyncio
+
+    if not app_id or not client_secret or not tenant_id:
+        console.print("[red]Error:[/red] Missing credentials")
+        console.print("Set KW_APP_ID, KW_CLIENT_SECRET, and KW_TENANT_ID environment variables")
+        console.print("Or provide --app-id, --client-secret, and --tenant-id options")
+        sys.exit(1)
+
+    async def run_tests():
+        from azure.identity import ClientSecretCredential
+        from msgraph import GraphServiceClient
+
+        results = []
+
+        console.print("[cyan]Running E2E tests against Azure tenant...[/cyan]")
+        console.print(f"  Tenant ID: {tenant_id}")
+        console.print(f"  App ID: {app_id}")
+        console.print()
+
+        # Create credential and client
+        credential = ClientSecretCredential(
+            tenant_id=tenant_id,
+            client_id=app_id,
+            client_secret=client_secret,
+        )
+        client = GraphServiceClient(credential)
+
+        # Test 1: List users
+        console.print("[cyan]Test 1:[/cyan] List tenant users...")
+        try:
+            users = await client.users.get()
+            user_count = len(users.value) if users and users.value else 0
+            console.print(f"  [green]PASS[/green] - Found {user_count} users")
+            results.append({"test": "List Users", "status": "PASS", "details": f"{user_count} users"})
+        except Exception as e:
+            console.print(f"  [red]FAIL[/red] - {e}")
+            results.append({"test": "List Users", "status": "FAIL", "details": str(e)})
+
+        # Test 2: Email operations
+        if test_email:
+            console.print("[cyan]Test 2:[/cyan] Email operations...")
+            if sender and recipient:
+                try:
+                    from msgraph.generated.models.message import Message
+                    from msgraph.generated.models.item_body import ItemBody
+                    from msgraph.generated.models.body_type import BodyType
+                    from msgraph.generated.models.recipient import Recipient
+                    from msgraph.generated.models.email_address import EmailAddress
+                    from msgraph.generated.users.item.send_mail.send_mail_post_request_body import SendMailPostRequestBody
+                    from datetime import datetime
+
+                    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+                    message = Message(
+                        subject=f"[HayMaker E2E Test] {timestamp}",
+                        body=ItemBody(
+                            content_type=BodyType.Text,
+                            content=f"Automated E2E test email - {timestamp}"
+                        ),
+                        to_recipients=[Recipient(email_address=EmailAddress(address=recipient))]
+                    )
+                    request = SendMailPostRequestBody(message=message, save_to_sent_items=True)
+                    await client.users.by_user_id(sender).send_mail.post(request)
+                    console.print(f"  [green]PASS[/green] - Email sent from {sender} to {recipient}")
+                    results.append({"test": "Send Email", "status": "PASS", "details": f"{sender} -> {recipient}"})
+                except Exception as e:
+                    console.print(f"  [red]FAIL[/red] - {e}")
+                    results.append({"test": "Send Email", "status": "FAIL", "details": str(e)})
+            else:
+                # Find users with mailboxes
+                console.print("  Finding users with mailboxes...")
+                mailbox_users = []
+                if users and users.value:
+                    for user in users.value[:10]:
+                        try:
+                            msgs = await client.users.by_user_id(user.user_principal_name).messages.get()
+                            if msgs is not None:
+                                mailbox_users.append(user.user_principal_name)
+                                if len(mailbox_users) >= 2:
+                                    break
+                        except Exception:
+                            pass
+
+                if len(mailbox_users) >= 2:
+                    console.print(f"  [green]PASS[/green] - Found mailbox users: {mailbox_users}")
+                    results.append({"test": "Email Access", "status": "PASS", "details": f"Found {len(mailbox_users)} mailbox users"})
+                else:
+                    console.print(f"  [yellow]SKIP[/yellow] - Insufficient mailbox users (need --sender and --recipient)")
+                    results.append({"test": "Email Access", "status": "SKIP", "details": "No mailbox users found"})
+
+        # Test 3: Calendar operations
+        if test_calendar and sender:
+            console.print("[cyan]Test 3:[/cyan] Calendar operations...")
+            try:
+                from msgraph.generated.models.event import Event
+                from msgraph.generated.models.item_body import ItemBody
+                from msgraph.generated.models.body_type import BodyType
+                from msgraph.generated.models.date_time_time_zone import DateTimeTimeZone
+                from datetime import datetime, timedelta
+
+                now = datetime.utcnow()
+                start = now + timedelta(days=1)
+                end = start + timedelta(hours=1)
+
+                event = Event(
+                    subject=f"[HayMaker E2E Test] {now.strftime('%H:%M')}",
+                    body=ItemBody(content_type=BodyType.Text, content="E2E test event"),
+                    start=DateTimeTimeZone(date_time=start.strftime("%Y-%m-%dT%H:%M:%S"), time_zone="UTC"),
+                    end=DateTimeTimeZone(date_time=end.strftime("%Y-%m-%dT%H:%M:%S"), time_zone="UTC"),
+                )
+                result = await client.users.by_user_id(sender).calendar.events.post(event)
+                console.print(f"  [green]PASS[/green] - Created calendar event: {result.subject}")
+                results.append({"test": "Create Calendar Event", "status": "PASS", "details": result.id})
+            except Exception as e:
+                console.print(f"  [red]FAIL[/red] - {e}")
+                results.append({"test": "Create Calendar Event", "status": "FAIL", "details": str(e)})
+        elif test_calendar:
+            console.print("[cyan]Test 3:[/cyan] Calendar operations...")
+            console.print("  [yellow]SKIP[/yellow] - Need --sender to test calendar")
+            results.append({"test": "Calendar", "status": "SKIP", "details": "No sender specified"})
+
+        # Test 4: Groups operations
+        if test_groups:
+            console.print("[cyan]Test 4:[/cyan] Groups operations...")
+            try:
+                groups = await client.groups.get()
+                group_count = len(groups.value) if groups and groups.value else 0
+                console.print(f"  [green]PASS[/green] - Found {group_count} groups")
+                results.append({"test": "List Groups", "status": "PASS", "details": f"{group_count} groups"})
+            except Exception as e:
+                console.print(f"  [red]FAIL[/red] - {e}")
+                results.append({"test": "List Groups", "status": "FAIL", "details": str(e)})
+
+        # Summary
+        console.print()
+        pass_count = sum(1 for r in results if r["status"] == "PASS")
+        fail_count = sum(1 for r in results if r["status"] == "FAIL")
+        skip_count = sum(1 for r in results if r["status"] == "SKIP")
+
+        table = Table(title="E2E Test Results")
+        table.add_column("Test", style="cyan")
+        table.add_column("Status")
+        table.add_column("Details", max_width=50)
+
+        for r in results:
+            status_style = {"PASS": "green", "FAIL": "red", "SKIP": "yellow"}.get(r["status"], "white")
+            table.add_row(r["test"], f"[{status_style}]{r['status']}[/{status_style}]", r["details"][:50])
+
+        console.print(table)
+        console.print(f"\n[cyan]Summary:[/cyan] {pass_count} PASS, {fail_count} FAIL, {skip_count} SKIP")
+
+        if fail_count > 0:
+            sys.exit(1)
+
+    try:
+        asyncio.run(run_tests())
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        import traceback
+        console.print(f"[dim]{traceback.format_exc()}[/dim]")
+        sys.exit(1)
+
+
 __all__ = ["kw"]
