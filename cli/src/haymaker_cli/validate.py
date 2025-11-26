@@ -117,7 +117,7 @@ def check_api_connectivity() -> CheckResult:
         with httpx.Client(timeout=10.0) as client:
             # Try health endpoint first, fall back to root
             response = None
-            for endpoint in ["/api/v1/health", "/api/v1/status", "/"]:
+            for endpoint in ["/api/health", "/api/status", "/"]:
                 try:
                     response = client.get(
                         f"{config.endpoint}{endpoint}",

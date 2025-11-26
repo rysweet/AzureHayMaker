@@ -15,7 +15,7 @@ import random
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from uuid import uuid4
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -24,7 +24,7 @@ from azure.core.exceptions import ResourceNotFoundError
 from azure.data.tables import TableServiceClient
 from azure.identity import DefaultAzureCredential
 from croniter import croniter
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query
 
 from azure_haymaker.models.execution import (
     AnalyticsSummary,
@@ -37,6 +37,7 @@ from azure_haymaker.models.schedule import (
     ScheduleResponse,
     ScheduleUpdate,
 )
+from azure_haymaker.orchestrator.auth import require_auth
 from azure_haymaker.orchestrator.cleanup import (
     force_delete_resources,
     query_managed_resources,
@@ -59,6 +60,9 @@ from azure_haymaker.orchestrator.webhooks import (
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Auth dependency type alias (module-level singleton to satisfy B008)
+AuthDep = Annotated[dict, Depends(require_auth)]
 
 # Global scheduler
 scheduler = AsyncIOScheduler()
@@ -393,8 +397,8 @@ async def health():
 
 
 @app.get("/api/metrics")
-async def metrics():
-    """Get execution metrics."""
+async def metrics(_: AuthDep):
+    """Get execution metrics. Requires authentication."""
     return {
         "executions_total": len(executions),
         "executions_running": len([e for e in executions.values() if e["status"] == "running"]),
@@ -404,21 +408,21 @@ async def metrics():
 
 
 @app.get("/api/executions")
-async def list_executions():
-    """List all executions."""
+async def list_executions(_: AuthDep):
+    """List all executions. Requires authentication."""
     return {"executions": list(executions.values())}
 
 
 @app.get("/api/executions/{execution_id}")
-async def get_execution(execution_id: str):
-    """Get execution details."""
+async def get_execution(execution_id: str, _: AuthDep):
+    """Get execution details. Requires authentication."""
     if execution_id not in executions:
         raise HTTPException(status_code=404, detail="Execution not found")
     return executions[execution_id]
 
 
 @app.get("/api/executions/{run_id}/cost", response_model=CostSummary)
-async def get_execution_cost(run_id: str):
+async def get_execution_cost(run_id: str, _: AuthDep):
     """Get cost summary for an execution run.
 
     Queries Azure Cost Management for costs associated with this run,
@@ -457,8 +461,8 @@ async def get_execution_cost(run_id: str):
 
 
 @app.post("/api/execute")
-async def execute(request: dict[str, Any] | None = None):
-    """Manually trigger an orchestration run."""
+async def execute(_: AuthDep, request: dict[str, Any] | None = None):
+    """Manually trigger an orchestration run. Requires authentication."""
     run_id = str(uuid4())
     skip_validation = request.get("skip_validation", False) if request else False
     logger.info(f"Manual execution triggered: run_id={run_id}, skip_validation={skip_validation}")
@@ -474,8 +478,8 @@ async def execute(request: dict[str, Any] | None = None):
 
 
 @app.post("/api/validate")
-async def validate():
-    """Validate environment configuration."""
+async def validate(_: AuthDep):
+    """Validate environment configuration. Requires authentication."""
     try:
         config = await load_config()
         result = await validate_environment(config)
@@ -489,8 +493,8 @@ async def validate():
 
 
 @app.get("/api/scenarios")
-async def list_scenarios():
-    """List available scenarios (small simulation size)."""
+async def list_scenarios(_: AuthDep):
+    """List available scenarios (small simulation size). Requires authentication."""
     try:
         from azure_haymaker.models.config import SimulationSize
 
@@ -512,12 +516,13 @@ async def list_scenarios():
 
 @app.get("/api/analytics", response_model=AnalyticsSummary)
 async def get_analytics(
+    _: AuthDep,
     period: Literal["7d", "30d", "90d"] = Query(
         default="30d",
         description="Time period for analytics (7d, 30d, or 90d)",
     ),
 ) -> AnalyticsSummary:
-    """Get analytics summary for the dashboard.
+    """Get analytics summary for the dashboard. Requires authentication.
 
     Queries Table Storage for execution history and aggregates statistics
     for the specified time period.
@@ -681,8 +686,8 @@ async def get_analytics(
 
 
 @app.post("/api/schedules", response_model=ScheduleResponse, status_code=201)
-async def create_schedule(request: ScheduleCreate):
-    """Create a new execution schedule.
+async def create_schedule(request: ScheduleCreate, _: AuthDep):
+    """Create a new execution schedule. Requires authentication.
 
     Creates a schedule that will trigger orchestration runs based on a cron expression.
     The schedule is persisted to Azure Table Storage and an APScheduler job is created.
@@ -733,8 +738,8 @@ async def create_schedule(request: ScheduleCreate):
 
 
 @app.get("/api/schedules", response_model=list[ScheduleResponse])
-async def list_schedules():
-    """List all execution schedules.
+async def list_schedules(_: AuthDep):
+    """List all execution schedules. Requires authentication.
 
     Returns:
         List of all schedules with their current status and next run times
@@ -765,8 +770,8 @@ async def list_schedules():
 
 
 @app.get("/api/schedules/{schedule_id}", response_model=ScheduleResponse)
-async def get_schedule(schedule_id: str):
-    """Get a specific schedule by ID.
+async def get_schedule(schedule_id: str, _: AuthDep):
+    """Get a specific schedule by ID. Requires authentication.
 
     Args:
         schedule_id: Unique schedule identifier
@@ -797,8 +802,8 @@ async def get_schedule(schedule_id: str):
 
 
 @app.put("/api/schedules/{schedule_id}", response_model=ScheduleResponse)
-async def update_schedule(schedule_id: str, request: ScheduleUpdate):
-    """Update an existing schedule.
+async def update_schedule(schedule_id: str, request: ScheduleUpdate, _: AuthDep):
+    """Update an existing schedule. Requires authentication.
 
     Allows partial updates - only provided fields will be modified.
     If the cron_expression is changed, the APScheduler job will be re-scheduled.
@@ -870,8 +875,8 @@ async def update_schedule(schedule_id: str, request: ScheduleUpdate):
 
 
 @app.delete("/api/schedules/{schedule_id}", status_code=204)
-async def delete_schedule(schedule_id: str):
-    """Delete a schedule.
+async def delete_schedule(schedule_id: str, _: AuthDep):
+    """Delete a schedule. Requires authentication.
 
     Removes the schedule from storage and cancels any pending APScheduler jobs.
 
