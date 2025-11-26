@@ -240,21 +240,30 @@ class EntraUserManager:
 
         Returns:
             Secure password string meeting complexity requirements
+
+        Note:
+            Password is generated for Entra ID compliance. In live_mode,
+            the app uses application-level delegation (not per-user auth)
+            so workers don't need to authenticate with these passwords.
         """
         # Ensure password has required complexity
         chars = string.ascii_letters + string.digits + "!@#$%^&*"
-        password = "".join(secrets.choice(chars) for _ in range(self.PASSWORD_LENGTH))
 
-        # Ensure at least one of each required type
-        password = (
-            secrets.choice(string.ascii_uppercase)
-            + secrets.choice(string.ascii_lowercase)
-            + secrets.choice(string.digits)
-            + secrets.choice("!@#$%^&*")
-            + password[4:]
-        )
+        # Generate base password
+        password_chars = [secrets.choice(chars) for _ in range(self.PASSWORD_LENGTH - 4)]
 
-        return password
+        # Add at least one of each required type
+        password_chars.extend([
+            secrets.choice(string.ascii_uppercase),
+            secrets.choice(string.ascii_lowercase),
+            secrets.choice(string.digits),
+            secrets.choice("!@#$%^&*"),
+        ])
+
+        # Shuffle to avoid predictable pattern at specific positions
+        secrets.SystemRandom().shuffle(password_chars)
+
+        return "".join(password_chars)
 
     def _persona_from_department(self, department: str) -> WorkerPersona:
         """Map department name to persona enum.

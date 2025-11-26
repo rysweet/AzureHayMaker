@@ -23,8 +23,9 @@ Example:
 
 import asyncio
 import logging
+import random
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -642,9 +643,6 @@ class KnowledgeWorkerOrchestrator:
             worker: Worker agent with initialized M365 client
             duration_hours: How long to run (in hours)
         """
-        import random
-        from datetime import UTC, datetime, timedelta
-
         worker_id = worker.worker_config.worker_id
         config = worker.activity_config
 
