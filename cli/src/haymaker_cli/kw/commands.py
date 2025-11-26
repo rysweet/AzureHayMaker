@@ -735,7 +735,6 @@ def deploy(
 
         # Run deployment (sync wrapper around async)
         import asyncio
-
         asyncio.run(orchestrator.start_deployment(run_id))
 
         # Get final state
@@ -1093,4 +1092,6 @@ def telemetry_report(run_id: str, format: str, output: str | None):
     asyncio.run(collect())
 
 
+=======
+>>>>>>> a54d8a5 (feat: Add KnowledgeWorkerOrchestrator and deploy command)
 __all__ = ["kw"]
