@@ -41,6 +41,7 @@ class EntraUserManager:
     NAMING_PATTERN = "kw-{run_id}-{dept}-{index:03d}"
     PASSWORD_LENGTH = 24
     RATE_LIMIT_DELAY = 0.1  # 10 requests per second
+    DEFAULT_E5_SKU_ID = "06ebc4ee-1bb5-47dd-8120-11324bc54e06"  # Microsoft 365 E5
 
     def __init__(
         self,
@@ -146,14 +147,19 @@ class EntraUserManager:
 
         Args:
             user_id: Entra object ID of the user
-            sku_id: License SKU ID (defaults to E5)
+            sku_id: License SKU ID (defaults to DEFAULT_E5_SKU_ID)
 
         Returns:
             True if license assigned successfully, False otherwise
 
         Note:
-            E5 SKU: 06ebc4ee-1bb5-47dd-8120-11324bc54e06
+            Default SKU: Microsoft 365 E5 (DEFAULT_E5_SKU_ID constant)
             License assignment failures are logged but don't fail provisioning.
+
+        Example:
+            >>> manager = EntraUserManager(graph_client, "run-123", "test.onmicrosoft.com")
+            >>> success = await manager.assign_license("user-object-id")
+            >>> # Returns True if E5 license assigned, False on failure
         """
         from uuid import UUID
 
@@ -164,7 +170,7 @@ class EntraUserManager:
 
         # Default to E5 license
         if sku_id is None:
-            sku_id = "06ebc4ee-1bb5-47dd-8120-11324bc54e06"  # Microsoft 365 E5
+            sku_id = self.DEFAULT_E5_SKU_ID
 
         try:
             # Convert string UUID to UUID object
