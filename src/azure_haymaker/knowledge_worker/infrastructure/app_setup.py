@@ -191,7 +191,8 @@ class KWAppSetup:
                 "--query", "[0].appId",
             ])
             return result if isinstance(result, str) else None
-        except RuntimeError:
+        except RuntimeError as e:
+            logger.debug(f"App '{self.app_name}' not found or error checking: {e}")
             return None
 
     def create_app(self) -> str:
@@ -246,8 +247,8 @@ class KWAppSetup:
                 "--query", "id",
             ])
             return result if isinstance(result, str) else str(result)
-        except RuntimeError:
-            pass
+        except RuntimeError as e:
+            logger.debug(f"Service principal not found for {app_id}, creating... ({e})")
 
         # Create SP
         result = self._run_az_command([
