@@ -51,10 +51,57 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture
 def mock_graph_client():
-    """Fixture: Mock Microsoft Graph API client."""
+    """Fixture: Mock Microsoft Graph API client.
+
+    Properly sets up AsyncMock for all async methods to support the fluent
+    SDK pattern used by Microsoft Graph Python SDK.
+    """
     client = MagicMock()
-    client.device_management = MagicMock()
-    client.device_management.virtual_endpoint = MagicMock()
+
+    # Setup device_management.virtual_endpoint methods
+    client.device_management.virtual_endpoint.provisioning_policies.get = AsyncMock(
+        return_value=MagicMock(value=[])
+    )
+    client.device_management.virtual_endpoint.provisioning_policies.post = AsyncMock()
+    client.device_management.virtual_endpoint.provisioning_policies.by_cloud_pc_provisioning_policy_id = (
+        MagicMock(
+            return_value=MagicMock(
+                assignments=MagicMock(
+                    post=AsyncMock(),
+                    get=AsyncMock(return_value=MagicMock(value=[])),
+                ),
+                delete=AsyncMock(),
+            )
+        )
+    )
+    client.device_management.virtual_endpoint.cloud_p_cs.get = AsyncMock(
+        return_value=MagicMock(value=[])
+    )
+    client.device_management.virtual_endpoint.cloud_p_cs.post = AsyncMock()
+    client.device_management.virtual_endpoint.cloud_p_cs.by_cloud_pc_id = MagicMock(
+        return_value=MagicMock(
+            get=AsyncMock(),
+            patch=AsyncMock(),
+            delete=AsyncMock(),
+        )
+    )
+
+    # Setup groups methods with fluent pattern support
+    client.groups.get = AsyncMock(return_value=MagicMock(value=[]))
+    client.groups.post = AsyncMock()
+
+    # Setup by_group_id fluent pattern
+    def create_group_by_id_mock(group_id):
+        group_resource = MagicMock()
+        group_resource.members = MagicMock()
+        group_resource.members.get = AsyncMock(return_value=MagicMock(value=[]))
+        group_resource.members.post = AsyncMock()
+        group_resource.members.ref = MagicMock()
+        group_resource.members.ref.post = AsyncMock()
+        return group_resource
+
+    client.groups.by_group_id = MagicMock(side_effect=create_group_by_id_mock)
+
     return client
 
 
@@ -316,7 +363,7 @@ class TestStatusMonitoring:
 
     @pytest.mark.asyncio
     async def test_wait_for_provisioning_handles_api_errors(
-        self, cloud_pc_manager, worker_identity, mock_graph_client
+        self, cloud_pc_manager, worker_identity, mock_graph_client, monkeypatch
     ):
         """Test wait_for_provisioning handles transient Graph API errors."""
         # Mock: API errors followed by success
@@ -338,8 +385,14 @@ class TestStatusMonitoring:
             side_effect=side_effect
         )
 
+        # Mock sleep to avoid long test delays
+        async def mock_sleep(delay):
+            pass
+
+        monkeypatch.setattr(asyncio, "sleep", mock_sleep)
+
         result = await cloud_pc_manager.wait_for_provisioning(
-            worker=worker_identity, timeout_minutes=1
+            worker=worker_identity, timeout_minutes=5
         )
 
         assert result is True
@@ -475,13 +528,13 @@ class TestCloudPCCleanup:
         mock_pc1.id = "pc-001"
         mock_pc1.display_name = f"kw-{run_id[:8]}-worker1"
         mock_pc1.status = "provisioned"
-        mock_pc1.user_principal_name = f"worker1@tenant.onmicrosoft.com"
+        mock_pc1.user_principal_name = f"kw-{run_id[:8]}-worker1@tenant.onmicrosoft.com"
 
         mock_pc2 = MagicMock()
         mock_pc2.id = "pc-002"
         mock_pc2.display_name = f"kw-{run_id[:8]}-worker2"
         mock_pc2.status = "provisioned"
-        mock_pc2.user_principal_name = f"worker2@tenant.onmicrosoft.com"
+        mock_pc2.user_principal_name = f"kw-{run_id[:8]}-worker2@tenant.onmicrosoft.com"
 
         # PC from different run (should be filtered out)
         mock_pc3 = MagicMock()

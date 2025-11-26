@@ -55,13 +55,62 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture
 def mock_graph_client():
-    """Fixture: Mock Microsoft Graph API client for integration testing."""
+    """Fixture: Mock Microsoft Graph API client for integration testing.
+
+    Properly sets up AsyncMock for all async methods to support the fluent
+    SDK pattern used by Microsoft Graph Python SDK.
+    """
     client = MagicMock()
-    client.device_management = MagicMock()
-    client.device_management.virtual_endpoint = MagicMock()
+
+    # Setup device_management.virtual_endpoint methods
+    client.device_management.virtual_endpoint.provisioning_policies.get = AsyncMock(
+        return_value=MagicMock(value=[])
+    )
+    client.device_management.virtual_endpoint.provisioning_policies.post = AsyncMock()
+    client.device_management.virtual_endpoint.provisioning_policies.by_cloud_pc_provisioning_policy_id = (
+        MagicMock(
+            return_value=MagicMock(
+                assignments=MagicMock(
+                    post=AsyncMock(),
+                    get=AsyncMock(return_value=MagicMock(value=[])),
+                ),
+                delete=AsyncMock(),
+            )
+        )
+    )
+    client.device_management.virtual_endpoint.cloud_p_cs.get = AsyncMock(
+        return_value=MagicMock(value=[])
+    )
+    client.device_management.virtual_endpoint.cloud_p_cs.post = AsyncMock()
+    client.device_management.virtual_endpoint.cloud_p_cs.by_cloud_pc_id = MagicMock(
+        return_value=MagicMock(
+            get=AsyncMock(),
+            patch=AsyncMock(),
+            delete=AsyncMock(),
+        )
+    )
+
+    # Setup groups methods with fluent pattern support
+    client.groups.get = AsyncMock(return_value=MagicMock(value=[]))
+    client.groups.post = AsyncMock()
+
+    # Setup by_group_id fluent pattern
+    def create_group_by_id_mock(group_id):
+        group_resource = MagicMock()
+        group_resource.members = MagicMock()
+        group_resource.members.get = AsyncMock(return_value=MagicMock(value=[]))
+        group_resource.members.post = AsyncMock()
+        group_resource.members.ref = MagicMock()
+        group_resource.members.ref.post = AsyncMock()
+        return group_resource
+
+    client.groups.by_group_id = MagicMock(side_effect=create_group_by_id_mock)
+
+    # Setup graph.users and graph.teams for telemetry
     client.graph = MagicMock()
     client.graph.users = MagicMock()
     client.graph.teams = MagicMock()
+
     return client
 
 
