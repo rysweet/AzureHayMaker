@@ -26,7 +26,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from azure_haymaker.knowledge_worker.agent import (
@@ -38,6 +38,12 @@ from azure_haymaker.knowledge_worker.models.worker import (
     WorkerConfig,
     WorkerPersona,
 )
+from azure_haymaker.knowledge_worker.worker_registry import WorkerRegistry
+
+if TYPE_CHECKING:
+    from msgraph.graph_service_client import GraphServiceClient
+
+    from azure_haymaker.knowledge_worker.identity.user_manager import EntraUserManager
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +82,13 @@ class DeploymentConfig:
         duration_hours: How long to run activities
         tenant_domain: M365 tenant domain
         m365_app_id: M365 application client ID (optional)
-        real_m365: If True, execute real M365 operations (requires credentials)
+        live_mode: If True, execute real M365 operations against tenant
+
+    Note:
+        live_mode requires the following environment variables:
+        - KW_TENANT_ID: Azure AD tenant ID
+        - KW_APP_ID: Application (client) ID with Graph permissions
+        - KW_CLIENT_SECRET: Client secret for application
     """
 
     name: str = "kw-deployment"
@@ -85,7 +97,7 @@ class DeploymentConfig:
     duration_hours: int = 8
     tenant_domain: str = ""
     m365_app_id: str = ""
-    real_m365: bool = False
+    live_mode: bool = False
 
     def __post_init__(self) -> None:
         """Set default departments if not provided."""
@@ -151,21 +163,34 @@ class KnowledgeWorkerOrchestrator:
     Manages the full lifecycle of knowledge worker simulations including
     worker provisioning, activity execution, and cleanup.
 
+    When live_mode is enabled, the orchestrator:
+    - Creates real Entra users via EntraUserManager
+    - Registers all workers in WorkerRegistry for cross-worker communication
+    - Distributes allowed recipients to all worker agents
+
     Example:
         >>> config = DeploymentConfig(
         ...     name="test-deployment",
         ...     total_workers=5,
         ...     tenant_domain="test.onmicrosoft.com",
+        ...     live_mode=True,
         ... )
-        >>> orchestrator = KnowledgeWorkerOrchestrator()
+        >>> orchestrator = KnowledgeWorkerOrchestrator(graph_client)
         >>> run_id = await orchestrator.create_deployment(config)
         >>> await orchestrator.start_deployment(run_id)
     """
 
-    def __init__(self) -> None:
-        """Initialize the orchestrator."""
+    def __init__(self, graph_client: "GraphServiceClient | None" = None) -> None:
+        """Initialize the orchestrator.
+
+        Args:
+            graph_client: Microsoft Graph API client (required for live_mode)
+        """
+        self._graph_client = graph_client
         self._deployments: dict[str, DeploymentState] = {}
         self._worker_tasks: dict[str, list[asyncio.Task]] = {}
+        self._user_manager: EntraUserManager | None = None
+        self._worker_registry: WorkerRegistry | None = None
 
     def create_deployment(self, config: DeploymentConfig) -> str:
         """Create a new deployment.
@@ -338,13 +363,30 @@ class KnowledgeWorkerOrchestrator:
     async def _phase_provision(self, state: DeploymentState) -> None:
         """Provision phase: Create workers.
 
+        In live_mode, creates real Entra users and registers them in WorkerRegistry.
+        In simulation mode, creates local worker agents only.
+
         Args:
             state: Deployment state
         """
         state.phase = DeploymentPhase.PROVISIONING
         logger.info(f"[{state.run_id}] Starting provisioning phase")
 
-        # Create workers based on department config
+        if state.config.live_mode:
+            await self._provision_live_mode_users(state)
+        else:
+            await self._provision_simulated_users(state)
+
+        logger.info(f"[{state.run_id}] Provisioning complete: {len(state.workers)} workers created")
+
+    async def _provision_simulated_users(self, state: DeploymentState) -> None:
+        """Provision simulated workers (no Entra user creation).
+
+        Creates local worker agents without real Entra identities.
+
+        Args:
+            state: Deployment state
+        """
         worker_index = 0
         for dept, dept_config in state.config.departments.items():
             count = dept_config.get("count", 5)
@@ -386,9 +428,112 @@ class KnowledgeWorkerOrchestrator:
                 state.workers.append(agent)
                 worker_index += 1
 
-                logger.debug(f"Created worker: {worker_id}")
+                logger.debug(f"Created simulated worker: {worker_id}")
 
-        logger.info(f"[{state.run_id}] Provisioning complete: {len(state.workers)} workers created")
+    async def _provision_live_mode_users(self, state: DeploymentState) -> None:
+        """Provision real Entra users for live M365 operations.
+
+        Creates actual Entra users via Graph API, registers them in the
+        WorkerRegistry, and distributes allowed recipients to all workers.
+
+        Args:
+            state: Deployment state
+
+        Raises:
+            ValueError: If graph_client not provided or tenant_domain not set
+        """
+        if not self._graph_client:
+            raise ValueError(
+                "graph_client is required for live_mode. "
+                "Pass GraphServiceClient to KnowledgeWorkerOrchestrator.__init__()"
+            )
+
+        if not state.config.tenant_domain:
+            raise ValueError("tenant_domain is required for live_mode")
+
+        # Import here to avoid circular imports and optional dependency issues
+        from azure_haymaker.knowledge_worker.identity.user_manager import (
+            EntraUserManager,
+        )
+
+        # Initialize user manager
+        self._user_manager = EntraUserManager(
+            graph_client=self._graph_client,
+            run_id=state.run_id,
+            tenant_domain=state.config.tenant_domain,
+        )
+
+        # Initialize worker registry
+        self._worker_registry = WorkerRegistry(run_id=state.run_id)
+
+        logger.info(f"[{state.run_id}] Provisioning Entra users in live_mode")
+
+        for dept, dept_config in state.config.departments.items():
+            count = dept_config.get("count", 5)
+            activity = dept_config.get("activity", {})
+
+            for i in range(count):
+                display_name = f"KW {dept.title()} {i + 1}"
+
+                # Map department to persona
+                try:
+                    persona = WorkerPersona(dept.lower())
+                except ValueError:
+                    persona = WorkerPersona.ENGINEERING
+
+                # Provision real Entra user
+                identity = await self._user_manager.provision_worker(
+                    department=dept,
+                    index=i,
+                    display_name=display_name,
+                    persona=persona,
+                )
+
+                # Register in inventory for cleanup
+                if state.inventory:
+                    state.inventory.register("entra_users", identity.entra_object_id)
+
+                # Register in worker registry
+                self._worker_registry.register(identity)
+
+                # Create worker config using provisioned identity
+                worker_config = KnowledgeWorkerConfig(
+                    worker_id=identity.worker_id,
+                    display_name=identity.display_name,
+                    department=dept,
+                    persona=persona.value,
+                    tenant_domain=state.config.tenant_domain,
+                    m365_app_id=state.config.m365_app_id,
+                )
+
+                # Create activity config
+                activity_config = WorkerConfig(
+                    email_per_hour=activity.get("email_per_hour", 5),
+                    teams_messages_per_hour=activity.get("teams_messages_per_hour", 10),
+                    documents_per_day=activity.get("documents_per_day", 3),
+                    meetings_per_day=activity.get("meetings_per_day", 4),
+                )
+
+                # Create agent with pre-provisioned identity
+                agent = KnowledgeWorkerAgent(
+                    worker_config=worker_config,
+                    worker_identity=identity,
+                    activity_config=activity_config,
+                )
+
+                state.workers.append(agent)
+
+                logger.info(f"Provisioned Entra user: {identity.user_principal_name}")
+
+        # Distribute allowed recipients to all workers
+        all_upns = self._worker_registry.get_all_upns()
+        for worker in state.workers:
+            worker.add_allowed_recipients(all_upns)
+
+        logger.info(
+            f"[{state.run_id}] Distributed {len(all_upns)} allowed recipients to "
+            f"{len(state.workers)} workers"
+        )
 
     async def _phase_execute(self, state: DeploymentState) -> None:
         """Execute phase: Start worker activities.
@@ -399,15 +544,15 @@ class KnowledgeWorkerOrchestrator:
         state.phase = DeploymentPhase.EXECUTING
         logger.info(f"[{state.run_id}] Starting execution phase")
 
-        mode = "real M365" if state.config.real_m365 else "simulation"
+        mode = "live M365" if state.config.live_mode else "simulation"
         logger.info(f"[{state.run_id}] Mode: {mode}")
 
         # Create worker tasks
         tasks = []
         for worker in state.workers:
-            if state.config.real_m365:
+            if state.config.live_mode:
                 task = asyncio.create_task(
-                    self._run_worker_real_m365(worker, state.config.duration_hours)
+                    self._run_worker_live_mode(worker, state.config.duration_hours)
                 )
             else:
                 task = asyncio.create_task(
@@ -449,12 +594,12 @@ class KnowledgeWorkerOrchestrator:
         except Exception as e:
             logger.error(f"Worker {worker_id} error: {e}")
 
-    async def _run_worker_real_m365(
+    async def _run_worker_live_mode(
         self,
         worker: KnowledgeWorkerAgent,
         duration_hours: int,
     ) -> None:
-        """Run worker with real M365 operations.
+        """Run worker with live M365 operations.
 
         Args:
             worker: Worker agent
@@ -463,7 +608,7 @@ class KnowledgeWorkerOrchestrator:
         worker_id = worker.worker_config.worker_id
 
         try:
-            logger.info(f"Worker {worker_id} starting real M365 operations")
+            logger.info(f"Worker {worker_id} starting live M365 operations")
 
             # Initialize the worker (creates M365 client)
             worker.on_start()
@@ -474,7 +619,7 @@ class KnowledgeWorkerOrchestrator:
             # Cleanup
             worker.on_cleanup(0)
 
-            logger.info(f"Worker {worker_id} completed real M365 operations")
+            logger.info(f"Worker {worker_id} completed live M365 operations")
 
         except asyncio.CancelledError:
             logger.info(f"Worker {worker_id} cancelled")

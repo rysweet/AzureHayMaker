@@ -10,6 +10,9 @@ import string
 from collections.abc import AsyncIterator
 from typing import Any
 
+from msgraph.generated.models.password_profile import PasswordProfile
+from msgraph.generated.models.user import User
+
 from azure_haymaker.knowledge_worker.models.worker import (
     WorkerIdentity,
     WorkerPersona,
@@ -96,22 +99,24 @@ class EntraUserManager:
             persona = self._persona_from_department(department)
 
         try:
-            # Create user via Graph API
-            user_data = {
-                "accountEnabled": True,
-                "displayName": display_name,
-                "mailNickname": username,
-                "userPrincipalName": upn,
-                "passwordProfile": {
-                    "forceChangePasswordNextSignIn": False,
-                    "password": password,
-                },
-                "department": department,
-                "jobTitle": f"Knowledge Worker ({persona.value})",
-                "usageLocation": "US",  # Required for license assignment
-            }
+            # Create user via Graph API using proper SDK models
+            password_profile = PasswordProfile(
+                force_change_password_next_sign_in=False,
+                password=password,
+            )
 
-            created_user = await self.graph_client.users.post(body=user_data)
+            user = User(
+                account_enabled=True,
+                display_name=display_name,
+                mail_nickname=username,
+                user_principal_name=upn,
+                password_profile=password_profile,
+                department=department,
+                job_title=f"Knowledge Worker ({persona.value})",
+                usage_location="US",  # Required for license assignment
+            )
+
+            created_user = await self.graph_client.users.post(body=user)
 
             logger.info(f"Provisioned worker: {username} ({display_name})")
 
