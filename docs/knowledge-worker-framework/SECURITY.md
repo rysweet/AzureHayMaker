@@ -128,6 +128,7 @@ The Knowledge Worker framework requires these **Application permissions**:
 | `User.ReadWrite.All` | Application | Create and manage Entra users |
 | `Mail.Send` | Application | Send emails on behalf of users |
 | `Calendars.ReadWrite` | Application | Create calendar events |
+| `Organization.Read.All` | Application | Read license assignments and SKU information |
 
 ### Granting Permissions
 
@@ -152,6 +153,12 @@ az ad app permission add \
   --id $APP_ID \
   --api $GRAPH_API \
   --api-permissions ef54d2bf-783f-4e0f-bca1-3210c0444d99=Role
+
+# Add Organization.Read.All (to read license assignments)
+az ad app permission add \
+  --id $APP_ID \
+  --api $GRAPH_API \
+  --api-permissions 5b567255-7703-4780-807c-7be8301ae99b=Role
 
 # Grant admin consent
 az ad app permission admin-consent --id $APP_ID

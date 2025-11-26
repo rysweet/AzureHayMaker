@@ -41,7 +41,6 @@ class EntraUserManager:
     NAMING_PATTERN = "kw-{run_id}-{dept}-{index:03d}"
     PASSWORD_LENGTH = 24
     RATE_LIMIT_DELAY = 0.1  # 10 requests per second
-    DEFAULT_E5_SKU_ID = "06ebc4ee-1bb5-47dd-8120-11324bc54e06"  # Microsoft 365 E5
 
     def __init__(
         self,
@@ -121,6 +120,13 @@ class EntraUserManager:
 
             logger.info(f"Provisioned worker: {username} ({display_name})")
 
+            # Ensure usage location is set (required for license assignment)
+            # Graph API sometimes doesn't return all fields on POST, so update explicitly
+            if created_user.id:
+                update_user = User(usage_location="US", account_enabled=True)
+                await self.graph_client.users.by_user_id(created_user.id).patch(body=update_user)
+                logger.debug(f"Set usage location for {username}")
+
             # Assign E5 license
             if created_user.id:
                 await self.assign_license(created_user.id)
@@ -138,6 +144,54 @@ class EntraUserManager:
             logger.error(f"Failed to provision worker {username}: {e}")
             raise
 
+    async def get_available_e5_sku(self) -> str | None:
+        """Query tenant for available E5 license SKU.
+
+        Returns:
+            SKU ID of first available E5 license, or None if not found
+
+        Note:
+            Searches for SKUs with "E5" in the part number and available units.
+            Different tenants have different E5 variants:
+            - SPE_E5 (standard)
+            - SPE_E5_NOPSTNCONF (without PSTN)
+            - ENTERPRISEPREMIUM
+            etc.
+        """
+        try:
+            skus = await self.graph_client.subscribed_skus.get()
+
+            if not skus or not skus.value:
+                logger.warning("No subscribed SKUs found in tenant")
+                return None
+
+            # Find E5 license with available units
+            for sku in skus.value:
+                sku_name = sku.sku_part_number or ""
+                if "E5" in sku_name.upper():
+                    enabled = sku.prepaid_units.enabled if sku.prepaid_units else 0
+                    consumed = sku.consumed_units or 0
+                    available = enabled - consumed
+
+                    if available > 0:
+                        logger.info(
+                            f"Found E5 license: {sku_name} "
+                            f"({available} available, SKU: {sku.sku_id})"
+                        )
+                        return str(sku.sku_id)
+                    else:
+                        logger.warning(
+                            f"Found E5 license {sku_name} but no units available "
+                            f"({consumed}/{enabled} consumed)"
+                        )
+
+            logger.warning("No E5 licenses with available units found")
+            return None
+
+        except Exception as e:
+            logger.error(f"Failed to query subscribed SKUs: {e}")
+            return None
+
     async def assign_license(
         self,
         user_id: str,
@@ -147,13 +201,13 @@ class EntraUserManager:
 
         Args:
             user_id: Entra object ID of the user
-            sku_id: License SKU ID (defaults to DEFAULT_E5_SKU_ID)
+            sku_id: License SKU ID (queries tenant for E5 if not provided)
 
         Returns:
             True if license assigned successfully, False otherwise
 
         Note:
-            Default SKU: Microsoft 365 E5 (DEFAULT_E5_SKU_ID constant)
+            If sku_id is not provided, queries the tenant for available E5 licenses.
             License assignment failures are logged but don't fail provisioning.
 
         Example:
@@ -168,9 +222,15 @@ class EntraUserManager:
             AssignLicensePostRequestBody,
         )
 
-        # Default to E5 license
+        # Query tenant for E5 license if not provided
         if sku_id is None:
-            sku_id = self.DEFAULT_E5_SKU_ID
+            sku_id = await self.get_available_e5_sku()
+            if sku_id is None:
+                logger.warning(
+                    "No E5 licenses available in tenant. "
+                    "User created but will not have mailbox access."
+                )
+                return False
 
         try:
             # Convert string UUID to UUID object

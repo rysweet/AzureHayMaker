@@ -328,15 +328,19 @@ class KnowledgeWorkerAgent(AgentBase):
 
         Queries Entra to build the list of internal recipients
         that this worker is allowed to communicate with.
+
+        Note:
+            If orchestrator has already populated allowed_recipients,
+            this method preserves them and updates the validator.
         """
         # In a full implementation, this would query:
         # 1. All workers in the same run
         # 2. Team shared mailboxes
         # 3. Distribution groups
 
-        # For now, start with an empty set that gets populated
-        # as the orchestrator provisions workers
-        self._allowed_recipients = set()
+        # Don't reset if orchestrator already populated recipients
+        if not self._allowed_recipients:
+            self._allowed_recipients = set()
 
         if self._validator:
             self._validator.allowed_upns = self._allowed_recipients
