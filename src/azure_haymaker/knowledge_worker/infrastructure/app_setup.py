@@ -174,7 +174,7 @@ class KWAppSetup:
         except RuntimeError:
             raise RuntimeError(
                 "Not logged in to Azure CLI. Run 'az login' first."
-            )
+            ) from None
 
     def check_existing_app(self) -> str | None:
         """Check if app already exists.

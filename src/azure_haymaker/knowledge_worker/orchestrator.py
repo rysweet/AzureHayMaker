@@ -16,7 +16,7 @@ Example:
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import uuid4
@@ -28,7 +28,6 @@ from azure_haymaker.knowledge_worker.agent import (
 from azure_haymaker.knowledge_worker.cleanup import KnowledgeWorkerResourceInventory
 from azure_haymaker.knowledge_worker.models.worker import (
     WorkerConfig,
-    WorkerIdentity,
     WorkerPersona,
 )
 
@@ -224,7 +223,7 @@ class KnowledgeWorkerOrchestrator:
 
         try:
             state.status = DeploymentStatus.RUNNING
-            state.started_at = datetime.now(timezone.utc)
+            state.started_at = datetime.now(UTC)
 
             # Phase 1: Setup
             await self._phase_setup(state)
@@ -272,7 +271,7 @@ class KnowledgeWorkerOrchestrator:
 
         state.phase = DeploymentPhase.COMPLETED
         state.status = DeploymentStatus.COMPLETED
-        state.completed_at = datetime.now(timezone.utc)
+        state.completed_at = datetime.now(UTC)
 
         logger.info(f"Deployment stopped: {run_id}")
         return True
