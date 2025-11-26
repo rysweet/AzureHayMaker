@@ -1,0 +1,50 @@
+graph LR
+    subgraph "Phase 1: Setup"
+        S1[Create App<br/>Registration]
+        S2[Configure<br/>Permissions]
+        S3[Create Security<br/>Group]
+        S1 --> S2 --> S3
+    end
+    
+    subgraph "Phase 2: Provision"
+        P1[Create Entra<br/>Users]
+        P2[Assign E5<br/>Licenses]
+        P3[Register in<br/>WorkerRegistry]
+        P1 --> P2 --> P3
+    end
+    
+    subgraph "Phase 3: Execute"
+        E1[Initialize<br/>Workers]
+        E2[Generate M365<br/>Activities]
+        E3[Send Emails]
+        E4[Create Events]
+        E1 --> E2
+        E2 --> E3
+        E2 --> E4
+    end
+    
+    subgraph "Phase 4: Cleanup"
+        C1[Stop<br/>Workers]
+        C2[Delete<br/>Users]
+        C3[Remove<br/>Groups]
+        C1 --> C2 --> C3
+    end
+    
+    S3 --> P1
+    P3 --> E1
+    E4 --> C1
+    E3 --> C1
+    
+    style S1 fill:#50E6FF,stroke:#0078D4,stroke-width:2px
+    style S2 fill:#50E6FF,stroke:#0078D4,stroke-width:2px
+    style S3 fill:#50E6FF,stroke:#0078D4,stroke-width:2px
+    style P1 fill:#7FBA00,stroke:#498205,stroke-width:2px
+    style P2 fill:#7FBA00,stroke:#498205,stroke-width:2px
+    style P3 fill:#7FBA00,stroke:#498205,stroke-width:2px
+    style E1 fill:#0078D4,stroke:#004578,stroke-width:2px,color:#fff
+    style E2 fill:#0078D4,stroke:#004578,stroke-width:2px,color:#fff
+    style E3 fill:#0078D4,stroke:#004578,stroke-width:2px,color:#fff
+    style E4 fill:#0078D4,stroke:#004578,stroke-width:2px,color:#fff
+    style C1 fill:#E81123,stroke:#A80000,stroke-width:2px,color:#fff
+    style C2 fill:#E81123,stroke:#A80000,stroke-width:2px,color:#fff
+    style C3 fill:#E81123,stroke:#A80000,stroke-width:2px,color:#fff
