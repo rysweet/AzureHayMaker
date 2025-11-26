@@ -110,21 +110,32 @@ def init(
             reuse_existing=reuse_existing,
         )
 
-        console.print(f"\n[green]App registration created successfully![/green]")
+        console.print("\n[green]App registration created successfully![/green]")
         console.print(f"  App ID: {config.app_id}")
         console.print(f"  Tenant ID: {config.tenant_id}")
         console.print(f"  Service Principal: {config.sp_id}")
 
-        console.print(f"\n[yellow]IMPORTANT: Admin consent required![/yellow]")
-        console.print(f"Open this URL in a browser and sign in as tenant admin:")
+        console.print("\n[yellow]IMPORTANT: Admin consent required![/yellow]")
+        console.print("Open this URL in a browser and sign in as tenant admin:")
         console.print(f"\n  {config.admin_consent_url}\n")
 
+        # Security warning
+        console.print("\n[yellow]⚠️  SECURITY WARNING:[/yellow]")
+        console.print("[yellow]The client secret is sensitive. Store it securely:[/yellow]")
+        console.print("[dim]  - Use Azure Key Vault in production[/dim]")
+        console.print("[dim]  - Never commit secrets to source control[/dim]")
+        console.print("[dim]  - Rotate secrets regularly[/dim]")
+
         if save_config:
+            import os
             with open(save_config, "w") as f:
                 f.write(config.to_env_string())
-            console.print(f"[green]Configuration saved to: {save_config}[/green]")
+            # Set restrictive permissions on config file
+            os.chmod(save_config, 0o600)
+            console.print(f"\n[green]Configuration saved to: {save_config}[/green]")
+            console.print("[dim]File permissions set to owner-only (600)[/dim]")
         else:
-            console.print("[cyan]Configuration (add to .env file):[/cyan]")
+            console.print("\n[cyan]Configuration (add to .env file):[/cyan]")
             console.print(config.to_env_string())
 
     except ImportError as e:
@@ -307,7 +318,7 @@ def test(
             KnowledgeWorkerConfig,
         )
 
-        console.print(f"[cyan]Creating test KW agent...[/cyan]")
+        console.print("[cyan]Creating test KW agent...[/cyan]")
         console.print(f"  Worker ID: {worker_id}")
         console.print(f"  Display Name: {display_name}")
         console.print(f"  Persona: {persona}")
@@ -323,7 +334,7 @@ def test(
             tenant_domain=tenant_domain,
         )
 
-        console.print(f"[green]Config created successfully![/green]")
+        console.print("[green]Config created successfully![/green]")
         console.print(f"  name: {config.name}")
         console.print(f"  goal: {config.goal}")
 
@@ -334,18 +345,18 @@ def test(
         # Create agent
         agent = KnowledgeWorkerAgent(worker_config=config)
 
-        console.print(f"\n[green]Agent created successfully![/green]")
+        console.print("\n[green]Agent created successfully![/green]")
         console.print(f"  Worker Identity: {agent.worker_identity.worker_id}")
         console.print(f"  Persona: {agent.worker_identity.persona.value}")
         console.print(f"  Endpoint Type: {agent.worker_identity.endpoint_type.value}")
 
         # Get stats (without starting - no M365 connection)
         stats = agent.get_worker_stats()
-        console.print(f"\n[cyan]Agent Stats:[/cyan]")
+        console.print("\n[cyan]Agent Stats:[/cyan]")
         for key, value in stats.items():
             console.print(f"  {key}: {value}")
 
-        console.print(f"\n[green]KW framework test passed![/green]")
+        console.print("\n[green]KW framework test passed![/green]")
 
     except ImportError as e:
         console.print(f"[red]KW framework not available:[/red] {e}", style="red")
@@ -382,9 +393,9 @@ def check(ctx: click.Context, output_format: str):
     try:
         checks = []
 
-        # Check core imports
+        # Check core imports - imports are the test, not the usage
         try:
-            from azure_haymaker.knowledge_worker import (
+            from azure_haymaker.knowledge_worker import (  # noqa: F401
                 KnowledgeWorkerAgent,
                 KnowledgeWorkerConfig,
             )
@@ -392,35 +403,35 @@ def check(ctx: click.Context, output_format: str):
         except ImportError as e:
             checks.append({"name": "KW Agent", "status": "FAIL", "details": str(e)})
 
-        # Check models
+        # Check models - imports are the test, not the usage
         try:
-            from azure_haymaker.knowledge_worker.models import (
-                WorkerIdentity,
-                WorkerPersona,
+            from azure_haymaker.knowledge_worker.models import (  # noqa: F401
                 EndpointType,
-                WorkerConfig,
                 Team,
                 TeamConfig,
+                WorkerConfig,
+                WorkerIdentity,
+                WorkerPersona,
             )
             checks.append({"name": "KW Models", "status": "OK", "details": "All models available"})
         except ImportError as e:
             checks.append({"name": "KW Models", "status": "FAIL", "details": str(e)})
 
-        # Check operations
+        # Check operations - imports are the test, not the usage
         try:
-            from azure_haymaker.knowledge_worker.operations import (
+            from azure_haymaker.knowledge_worker.operations import (  # noqa: F401
+                CalendarOperations,
+                DocumentOperations,
                 EmailOperations,
                 TeamsOperations,
-                DocumentOperations,
-                CalendarOperations,
             )
             checks.append({"name": "KW Operations", "status": "OK", "details": "All operations available"})
         except ImportError as e:
             checks.append({"name": "KW Operations", "status": "FAIL", "details": str(e)})
 
-        # Check validators
+        # Check validators - imports are the test, not the usage
         try:
-            from azure_haymaker.knowledge_worker.operations.validators import (
+            from azure_haymaker.knowledge_worker.operations.validators import (  # noqa: F401
                 CommunicationValidator,
                 ExternalRecipientError,
             )
@@ -428,20 +439,20 @@ def check(ctx: click.Context, output_format: str):
         except ImportError as e:
             checks.append({"name": "KW Validators", "status": "FAIL", "details": str(e)})
 
-        # Check identity modules
+        # Check identity modules - imports are the test, not the usage
         try:
-            from azure_haymaker.knowledge_worker.identity import (
-                EntraUserManager,
+            from azure_haymaker.knowledge_worker.identity import (  # noqa: F401
                 EntraGroupManager,
+                EntraUserManager,
                 TransportRuleManager,
             )
             checks.append({"name": "KW Identity", "status": "OK", "details": "Identity modules available"})
         except ImportError as e:
             checks.append({"name": "KW Identity", "status": "FAIL", "details": str(e)})
 
-        # Check endpoints
+        # Check endpoints - imports are the test, not the usage
         try:
-            from azure_haymaker.knowledge_worker.endpoints import (
+            from azure_haymaker.knowledge_worker.endpoints import (  # noqa: F401
                 EndpointManager,
                 M365CLIContainerManager,
                 Windows365CloudPCManager,
@@ -450,9 +461,9 @@ def check(ctx: click.Context, output_format: str):
         except ImportError as e:
             checks.append({"name": "KW Endpoints", "status": "FAIL", "details": str(e)})
 
-        # Check cleanup
+        # Check cleanup - imports are the test, not the usage
         try:
-            from azure_haymaker.knowledge_worker.cleanup import (
+            from azure_haymaker.knowledge_worker.cleanup import (  # noqa: F401
                 KnowledgeWorkerCleanupManager,
                 KnowledgeWorkerResourceInventory,
             )
@@ -502,8 +513,9 @@ def _check_framework_status() -> dict[str, Any]:
         "configuration": {},
     }
 
+    # Import checks - imports test availability, not usage
     try:
-        from azure_haymaker.knowledge_worker import (
+        from azure_haymaker.knowledge_worker import (  # noqa: F401
             KnowledgeWorkerAgent,
             KnowledgeWorkerConfig,
         )
@@ -522,13 +534,15 @@ def _check_framework_status() -> dict[str, Any]:
         status["modules"]["models"] = False
 
     try:
-        from azure_haymaker.knowledge_worker.operations import EmailOperations
+        from azure_haymaker.knowledge_worker.operations import EmailOperations  # noqa: F401
         status["modules"]["operations"] = True
     except ImportError:
         status["modules"]["operations"] = False
 
     try:
-        from azure_haymaker.knowledge_worker.operations.validators import CommunicationValidator
+        from azure_haymaker.knowledge_worker.operations.validators import (
+            CommunicationValidator,  # noqa: F401
+        )
         status["modules"]["validators"] = True
     except ImportError:
         status["modules"]["validators"] = False
@@ -626,7 +640,7 @@ def deploy(
             KnowledgeWorkerOrchestrator,
         )
 
-        console.print(f"[cyan]Preparing KW deployment...[/cyan]")
+        console.print("[cyan]Preparing KW deployment...[/cyan]")
         console.print(f"  Name: {name}")
         console.print(f"  Workers: {workers}")
         console.print(f"  Department: {department}")
@@ -656,11 +670,11 @@ def deploy(
 
         if dry_run:
             console.print("[yellow]Dry run - deployment not started[/yellow]")
-            console.print(f"\n[cyan]Would create:[/cyan]")
+            console.print("\n[cyan]Would create:[/cyan]")
             console.print(f"  - {workers} {department} workers")
-            console.print(f"  - Security groups for workers")
-            console.print(f"  - Transport rules (external email blocking)")
-            console.print(f"  - CLI containers for each worker")
+            console.print("  - Security groups for workers")
+            console.print("  - Transport rules (external email blocking)")
+            console.print("  - CLI containers for each worker")
             return
 
         # Create orchestrator and start deployment
@@ -668,7 +682,7 @@ def deploy(
         run_id = orchestrator.create_deployment(config)
 
         console.print(f"[green]Deployment created: {run_id}[/green]")
-        console.print(f"Starting deployment...")
+        console.print("Starting deployment...")
 
         # Run deployment (sync wrapper around async)
         import asyncio
@@ -677,7 +691,7 @@ def deploy(
         # Get final state
         state = orchestrator.get_deployment(run_id)
         if state:
-            console.print(f"\n[green]Deployment started successfully![/green]")
+            console.print("\n[green]Deployment started successfully![/green]")
             console.print(f"  Run ID: {state.run_id}")
             console.print(f"  Phase: {state.phase.value}")
             console.print(f"  Workers: {len(state.workers)}")
@@ -802,15 +816,18 @@ def e2e_test(
             console.print("[cyan]Test 2:[/cyan] Email operations...")
             if sender and recipient:
                 try:
-                    from msgraph.generated.models.message import Message
-                    from msgraph.generated.models.item_body import ItemBody
-                    from msgraph.generated.models.body_type import BodyType
-                    from msgraph.generated.models.recipient import Recipient
-                    from msgraph.generated.models.email_address import EmailAddress
-                    from msgraph.generated.users.item.send_mail.send_mail_post_request_body import SendMailPostRequestBody
-                    from datetime import datetime
+                    from datetime import UTC, datetime
 
-                    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+                    from msgraph.generated.models.body_type import BodyType
+                    from msgraph.generated.models.email_address import EmailAddress
+                    from msgraph.generated.models.item_body import ItemBody
+                    from msgraph.generated.models.message import Message
+                    from msgraph.generated.models.recipient import Recipient
+                    from msgraph.generated.users.item.send_mail.send_mail_post_request_body import (
+                        SendMailPostRequestBody,
+                    )
+
+                    timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
                     message = Message(
                         subject=f"[HayMaker E2E Test] {timestamp}",
                         body=ItemBody(
@@ -838,27 +855,32 @@ def e2e_test(
                                 mailbox_users.append(user.user_principal_name)
                                 if len(mailbox_users) >= 2:
                                     break
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            # Expected: MailboxNotEnabledForRESTAPI for users without Exchange license
+                            # Skip users without mailboxes silently
+                            if "MailboxNotEnabledForRESTAPI" not in str(e):
+                                # Log unexpected errors for debugging
+                                console.print(f"  [dim]Warning: {user.user_principal_name}: {str(e)[:50]}[/dim]")
 
                 if len(mailbox_users) >= 2:
                     console.print(f"  [green]PASS[/green] - Found mailbox users: {mailbox_users}")
                     results.append({"test": "Email Access", "status": "PASS", "details": f"Found {len(mailbox_users)} mailbox users"})
                 else:
-                    console.print(f"  [yellow]SKIP[/yellow] - Insufficient mailbox users (need --sender and --recipient)")
+                    console.print("  [yellow]SKIP[/yellow] - Insufficient mailbox users (need --sender and --recipient)")
                     results.append({"test": "Email Access", "status": "SKIP", "details": "No mailbox users found"})
 
         # Test 3: Calendar operations
         if test_calendar and sender:
             console.print("[cyan]Test 3:[/cyan] Calendar operations...")
             try:
-                from msgraph.generated.models.event import Event
-                from msgraph.generated.models.item_body import ItemBody
+                from datetime import UTC, datetime, timedelta
+
                 from msgraph.generated.models.body_type import BodyType
                 from msgraph.generated.models.date_time_time_zone import DateTimeTimeZone
-                from datetime import datetime, timedelta
+                from msgraph.generated.models.event import Event
+                from msgraph.generated.models.item_body import ItemBody
 
-                now = datetime.utcnow()
+                now = datetime.now(UTC)
                 start = now + timedelta(days=1)
                 end = start + timedelta(hours=1)
 

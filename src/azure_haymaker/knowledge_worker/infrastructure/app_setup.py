@@ -157,6 +157,8 @@ class KWAppSetup:
             logger.error(f"Azure CLI error: {e.stderr}")
             raise RuntimeError(f"Azure CLI command failed: {e.stderr}") from e
         except json.JSONDecodeError:
+            # Some az commands return empty output (e.g., permission add)
+            logger.debug("Empty or non-JSON response from Azure CLI")
             return {}
 
     def _get_tenant_id(self) -> str:

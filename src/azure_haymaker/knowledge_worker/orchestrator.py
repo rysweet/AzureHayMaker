@@ -6,6 +6,14 @@ The orchestrator manages the full lifecycle of knowledge worker simulations:
 3. Execute - Run worker activities
 4. Cleanup - Remove all created resources
 
+NOTE: This is a LOCAL SIMULATION orchestrator. It demonstrates the deployment
+lifecycle but does not create actual Azure resources. For production use:
+- Integrate with EntraUserManager for real user provisioning
+- Connect to actual M365 endpoints via Graph API
+- Implement proper Azure resource cleanup
+
+The e2e-test CLI command validates real Graph API connectivity separately.
+
 Example:
     >>> orchestrator = KnowledgeWorkerOrchestrator(config)
     >>> run_id = await orchestrator.start_deployment(deployment_config)
