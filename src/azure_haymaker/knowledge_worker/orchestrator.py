@@ -519,7 +519,7 @@ class KnowledgeWorkerOrchestrator:
 
                 if activity_type == "email":
                     # Generate and send email to a random allowed recipient
-                    recipients = list(worker._allowed_recipients)
+                    recipients = worker.get_allowed_recipients()
                     if recipients:
                         to = [random.choice(recipients)]
                         subject = f"Activity {activity_count + 1} from {worker_id}"

@@ -5,8 +5,7 @@ using client secret credentials from environment variables.
 """
 
 import os
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
 
 from azure.identity import ClientSecretCredential
 from msgraph.graph_service_client import GraphServiceClient
@@ -19,12 +18,12 @@ class M365ClientConfig:
     Attributes:
         tenant_id: Azure AD tenant ID
         client_id: Application (client) ID
-        client_secret: Client secret value
+        client_secret: Client secret value (hidden from repr to prevent logging)
     """
 
     tenant_id: str
     client_id: str
-    client_secret: str
+    client_secret: str = field(repr=False)  # Prevent accidental logging
 
     @classmethod
     def from_env(cls) -> "M365ClientConfig":
@@ -81,7 +80,7 @@ class M365Client:
         self._graph_client = graph_client
 
     @property
-    def graph(self) -> Any:
+    def graph(self) -> GraphServiceClient:
         """Access to Microsoft Graph client.
 
         Returns:
@@ -115,5 +114,7 @@ class M365ClientFactory:
             client_secret=config.client_secret,
         )
 
-        graph_client = GraphServiceClient(credential)
+        # Explicit scopes for Graph API (principle of least privilege)
+        scopes = ["https://graph.microsoft.com/.default"]
+        graph_client = GraphServiceClient(credential, scopes=scopes)
         return M365Client(graph_client)

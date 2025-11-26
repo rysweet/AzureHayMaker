@@ -405,6 +405,14 @@ class KnowledgeWorkerAgent(AgentBase):
             "validator_initialized": self._validator is not None,
         }
 
+    def get_allowed_recipients(self) -> list[str]:
+        """Get list of allowed internal recipients.
+
+        Returns:
+            List of allowed email addresses/UPNs
+        """
+        return list(self._allowed_recipients)
+
     async def send_email(
         self,
         to: list[str],
@@ -425,9 +433,13 @@ class KnowledgeWorkerAgent(AgentBase):
 
         Raises:
             RuntimeError: If M365 client not initialized
+            ValueError: If no recipients provided
         """
         if self._m365_client is None:
             raise RuntimeError("M365 client not initialized. Call on_start() first.")
+
+        if not to:
+            raise ValueError("At least one recipient is required")
 
         from azure_haymaker.knowledge_worker.operations import EmailOperations
 
