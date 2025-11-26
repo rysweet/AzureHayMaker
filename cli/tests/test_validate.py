@@ -4,7 +4,6 @@ import json
 from unittest.mock import MagicMock, patch
 
 import httpx
-import pytest
 from click.testing import CliRunner
 
 from haymaker_cli.validate import (

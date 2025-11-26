@@ -306,7 +306,7 @@ class KnowledgeWorkerAgent(AgentBase):
                 "Install with: pip install msgraph-sdk azure-identity"
             )
         except ValueError as e:
-            # Missing credentials - expected in simulation mode
+            # Missing credentials - log for debugging
             logger.debug(f"M365 client not initialized: {e}")
         except Exception as e:
             logger.error(f"Failed to initialize M365 client: {e}")

@@ -1,6 +1,6 @@
 """Entra user management for Knowledge Worker Activity Framework.
 
-Provides user provisioning and management for simulated knowledge workers.
+Provides user provisioning and management for knowledge workers with real M365 identities.
 """
 
 import asyncio
@@ -24,9 +24,9 @@ logger = logging.getLogger(__name__)
 class EntraUserManager:
     """Manages Entra ID user provisioning for knowledge workers.
 
-    Handles creation, deletion, and listing of simulated knowledge
-    worker users in Entra ID with proper naming conventions and
-    security configurations.
+    Handles creation, deletion, and listing of knowledge worker users
+    in Entra ID with proper naming conventions, E5 license assignment,
+    and security configurations.
 
     Naming Convention:
         - User: kw-{run_id[:8]}-{dept[:4]}-{index:03d}
