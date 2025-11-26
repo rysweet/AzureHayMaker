@@ -18,6 +18,11 @@ from azure_haymaker.knowledge_worker.agent import (
     KnowledgeWorkerAgent,
     KnowledgeWorkerConfig,
 )
+from azure_haymaker.knowledge_worker.m365_client import (
+    M365Client,
+    M365ClientConfig,
+    M365ClientFactory,
+)
 from azure_haymaker.knowledge_worker.models.team import (
     Team,
     TeamConfig,
@@ -40,6 +45,10 @@ __all__ = [
     # Agent
     "KnowledgeWorkerAgent",
     "KnowledgeWorkerConfig",
+    # M365 Client
+    "M365Client",
+    "M365ClientConfig",
+    "M365ClientFactory",
     # Orchestrator
     "DeploymentConfig",
     "DeploymentPhase",

@@ -76,6 +76,7 @@ class DeploymentConfig:
         duration_hours: How long to run activities
         tenant_domain: M365 tenant domain
         m365_app_id: M365 application client ID (optional)
+        real_m365: If True, execute real M365 operations (requires credentials)
     """
 
     name: str = "kw-deployment"
@@ -84,6 +85,7 @@ class DeploymentConfig:
     duration_hours: int = 8
     tenant_domain: str = ""
     m365_app_id: str = ""
+    real_m365: bool = False
 
     def __post_init__(self) -> None:
         """Set default departments if not provided."""
@@ -386,10 +388,7 @@ class KnowledgeWorkerOrchestrator:
 
                 logger.debug(f"Created worker: {worker_id}")
 
-        logger.info(
-            f"[{state.run_id}] Provisioning complete: "
-            f"{len(state.workers)} workers created"
-        )
+        logger.info(f"[{state.run_id}] Provisioning complete: {len(state.workers)} workers created")
 
     async def _phase_execute(self, state: DeploymentState) -> None:
         """Execute phase: Start worker activities.
@@ -400,22 +399,27 @@ class KnowledgeWorkerOrchestrator:
         state.phase = DeploymentPhase.EXECUTING
         logger.info(f"[{state.run_id}] Starting execution phase")
 
-        # In a full implementation, this would start async tasks for each worker
-        # For now, just set state to executing
+        mode = "real M365" if state.config.real_m365 else "simulation"
+        logger.info(f"[{state.run_id}] Mode: {mode}")
 
-        # Create worker tasks (simulated - no actual M365 connection)
+        # Create worker tasks
         tasks = []
         for worker in state.workers:
-            task = asyncio.create_task(
-                self._run_worker_simulation(worker, state.config.duration_hours)
-            )
+            if state.config.real_m365:
+                task = asyncio.create_task(
+                    self._run_worker_real_m365(worker, state.config.duration_hours)
+                )
+            else:
+                task = asyncio.create_task(
+                    self._run_worker_simulation(worker, state.config.duration_hours)
+                )
             tasks.append(task)
 
         self._worker_tasks[state.run_id] = tasks
 
         logger.info(
             f"[{state.run_id}] Started {len(tasks)} worker tasks "
-            f"(duration: {state.config.duration_hours}h)"
+            f"(duration: {state.config.duration_hours}h, mode: {mode})"
         )
 
     async def _run_worker_simulation(
@@ -434,11 +438,6 @@ class KnowledgeWorkerOrchestrator:
         try:
             logger.debug(f"Worker {worker_id} starting simulation")
 
-            # In a full implementation, this would:
-            # 1. Call worker.on_start() to initialize M365 client
-            # 2. Run activity scheduler for duration_hours
-            # 3. Call worker.on_cleanup()
-
             # For simulation, just wait briefly
             await asyncio.sleep(1)  # Brief simulation
 
@@ -449,6 +448,113 @@ class KnowledgeWorkerOrchestrator:
             raise
         except Exception as e:
             logger.error(f"Worker {worker_id} error: {e}")
+
+    async def _run_worker_real_m365(
+        self,
+        worker: KnowledgeWorkerAgent,
+        duration_hours: int,
+    ) -> None:
+        """Run worker with real M365 operations.
+
+        Args:
+            worker: Worker agent
+            duration_hours: How long to run
+        """
+        worker_id = worker.worker_config.worker_id
+
+        try:
+            logger.info(f"Worker {worker_id} starting real M365 operations")
+
+            # Initialize the worker (creates M365 client)
+            worker.on_start()
+
+            # Run activity loop
+            await self._run_activity_loop(worker, duration_hours)
+
+            # Cleanup
+            worker.on_cleanup(0)
+
+            logger.info(f"Worker {worker_id} completed real M365 operations")
+
+        except asyncio.CancelledError:
+            logger.info(f"Worker {worker_id} cancelled")
+            worker.on_cleanup(1)
+            raise
+        except Exception as e:
+            logger.error(f"Worker {worker_id} error: {e}")
+            worker.on_cleanup(1)
+
+    async def _run_activity_loop(
+        self,
+        worker: KnowledgeWorkerAgent,
+        duration_hours: int,
+    ) -> None:
+        """Run the activity generation loop for a worker.
+
+        Generates and executes activities at configured intervals.
+
+        Args:
+            worker: Worker agent with initialized M365 client
+            duration_hours: How long to run (in hours)
+        """
+        import random
+        from datetime import UTC, datetime, timedelta
+
+        worker_id = worker.worker_config.worker_id
+        config = worker.activity_config
+
+        end_time = datetime.now(UTC) + timedelta(hours=duration_hours)
+        activity_count = 0
+
+        # Calculate base interval (in seconds) from emails_per_hour
+        base_interval = 3600.0 / max(config.email_per_hour, 1)
+
+        while datetime.now(UTC) < end_time:
+            try:
+                # Add variance to interval (50-150% of base)
+                interval = base_interval * random.uniform(0.5, 1.5)
+
+                # Pick random activity type
+                activity_type = random.choice(["email", "calendar"])
+
+                if activity_type == "email":
+                    # Generate and send email to a random allowed recipient
+                    recipients = list(worker._allowed_recipients)
+                    if recipients:
+                        to = [random.choice(recipients)]
+                        subject = f"Activity {activity_count + 1} from {worker_id}"
+                        body = f"<p>Automated activity generated at {datetime.now(UTC).isoformat()}</p>"
+
+                        await worker.send_email(to=to, subject=subject, body=body)
+                        logger.info(f"Worker {worker_id} sent email to {to[0]}")
+                    else:
+                        logger.debug(f"Worker {worker_id}: no recipients available")
+
+                elif activity_type == "calendar":
+                    # Create a calendar event
+                    start = datetime.now(UTC) + timedelta(hours=1)
+                    end = start + timedelta(minutes=30)
+
+                    await worker.create_calendar_event(
+                        subject=f"Meeting {activity_count + 1}",
+                        start_time=start.isoformat(),
+                        end_time=end.isoformat(),
+                        body="Automated meeting created by KW agent",
+                    )
+                    logger.info(f"Worker {worker_id} created calendar event")
+
+                activity_count += 1
+
+                # Wait before next activity
+                await asyncio.sleep(interval)
+
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.warning(f"Worker {worker_id} activity error: {e}")
+                await asyncio.sleep(5)  # Brief pause on error
+
+        logger.info(f"Worker {worker_id} completed {activity_count} activities")
 
 
 __all__ = [
