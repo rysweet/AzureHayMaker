@@ -19,7 +19,6 @@ from azure_haymaker.models.execution import (
     ScenarioStats,
 )
 
-
 # ==============================================================================
 # ANALYTICS AGGREGATION FUNCTIONS (extracted for testing)
 # ==============================================================================

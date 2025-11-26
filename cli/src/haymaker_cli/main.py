@@ -27,6 +27,7 @@ from haymaker_cli.formatters import (
     format_resource_list,
     format_yaml,
 )
+from haymaker_cli.kw.commands import kw
 from haymaker_cli.orch.commands import orch
 from haymaker_cli.scenarios import scenarios
 from haymaker_cli.validate import validate
@@ -188,6 +189,9 @@ cli.add_command(scenarios)
 
 # Register validate command
 cli.add_command(validate)
+
+# Register knowledge worker command group
+cli.add_command(kw)
 
 
 # Agents command group

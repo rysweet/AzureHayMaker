@@ -1,0 +1,67 @@
+graph TB
+    subgraph "Azure HayMaker Platform"
+        ORCH[Knowledge Worker<br/>Orchestrator]
+    end
+    
+    subgraph "Identity & Security Layer"
+        ENTRA[Entra ID Users<br/>50-300 KW Users]
+        GROUPS[Security Groups<br/>Team-based]
+        RULES[Transport Rules<br/>Internal-Only Email]
+    end
+    
+    subgraph "M365 Operations Layer"
+        EMAIL[Email Operations<br/>Send/Read/Organize]
+        TEAMS[Teams Operations<br/>Chat/Channel Posts]
+        DOCS[Document Operations<br/>SharePoint/OneDrive]
+        CAL[Calendar Operations<br/>Meetings/Events]
+    end
+    
+    subgraph "Endpoint Layer"
+        CPC[Windows 365 Cloud PCs<br/>10-50 users<br/>High telemetry]
+        CLI[M365 CLI Containers<br/>50-250 users<br/>Cost-efficient]
+    end
+    
+    subgraph "Microsoft 365 Tenant"
+        GRAPH[Microsoft Graph API]
+        TENANT[DefenderATEVET12<br/>M365 Tenant]
+    end
+    
+    ORCH -->|Provision Users| ENTRA
+    ORCH -->|Create Groups| GROUPS
+    ORCH -->|Configure Rules| RULES
+    ORCH -->|Deploy| CPC
+    ORCH -->|Deploy| CLI
+    
+    ENTRA --> GRAPH
+    GROUPS --> GRAPH
+    RULES --> GRAPH
+    
+    CPC -->|Execute via| EMAIL
+    CPC -->|Execute via| TEAMS
+    CPC -->|Execute via| DOCS
+    CPC -->|Execute via| CAL
+    
+    CLI -->|Execute via| EMAIL
+    CLI -->|Execute via| TEAMS
+    CLI -->|Execute via| DOCS
+    CLI -->|Execute via| CAL
+    
+    EMAIL --> GRAPH
+    TEAMS --> GRAPH
+    DOCS --> GRAPH
+    CAL --> GRAPH
+    
+    GRAPH --> TENANT
+    
+    style ORCH fill:#0078D4,stroke:#004578,stroke-width:3px,color:#fff
+    style ENTRA fill:#50E6FF,stroke:#0078D4,stroke-width:2px
+    style GROUPS fill:#50E6FF,stroke:#0078D4,stroke-width:2px
+    style RULES fill:#50E6FF,stroke:#0078D4,stroke-width:2px
+    style EMAIL fill:#7FBA00,stroke:#498205,stroke-width:2px
+    style TEAMS fill:#7FBA00,stroke:#498205,stroke-width:2px
+    style DOCS fill:#7FBA00,stroke:#498205,stroke-width:2px
+    style CAL fill:#7FBA00,stroke:#498205,stroke-width:2px
+    style CPC fill:#FFB900,stroke:#D39200,stroke-width:2px
+    style CLI fill:#FFB900,stroke:#D39200,stroke-width:2px
+    style GRAPH fill:#8661C5,stroke:#5E42A6,stroke-width:2px,color:#fff
+    style TENANT fill:#8661C5,stroke:#5E42A6,stroke-width:2px,color:#fff
