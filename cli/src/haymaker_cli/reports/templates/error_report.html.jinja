@@ -1,0 +1,134 @@
+{% extends "base.html.jinja" %}
+
+{% block title %}{{ metadata.title }}{% endblock %}
+
+{% block content %}
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="card kpi-card h-100">
+            <div class="card-body">
+                <div class="kpi-label">Total Failures</div>
+                <div class="kpi-value text-danger">{{ failure_analysis.total_failures }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card kpi-card h-100">
+            <div class="card-body">
+                <div class="kpi-label">Failure Rate</div>
+                <div class="kpi-value text-danger">{{ "%.1f"|format(failure_analysis.failure_rate) }}%</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card kpi-card h-100">
+            <div class="card-body">
+                <div class="kpi-label">Unique Errors</div>
+                <div class="kpi-value">{{ error_distribution|length }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Errors -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="table-container">
+            <h5 class="mb-3">Top Errors</h5>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th style="width: 70%;">Error Message</th>
+                            <th class="text-end">Occurrences</th>
+                            <th class="text-end">Percentage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% set total_errors = failure_analysis.total_failures %}
+                        {% for error in failure_analysis.top_errors %}
+                        <tr>
+                            <td>
+                                <code class="text-danger">{{ error.error }}</code>
+                            </td>
+                            <td class="text-end">{{ error.count }}</td>
+                            <td class="text-end">
+                                {% if total_errors > 0 %}
+                                {{ "%.1f"|format((error.count / total_errors) * 100) }}%
+                                {% else %}
+                                0.0%
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Failures by Region -->
+{% if failure_analysis.failure_by_region %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="table-container">
+            <h5 class="mb-3">Failures by Region</h5>
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Region</th>
+                        <th class="text-end">Failures</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for region_failure in failure_analysis.failure_by_region %}
+                    <tr>
+                        <td>{{ region_failure.region }}</td>
+                        <td class="text-end">{{ region_failure.count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- All Errors -->
+{% if error_distribution %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="table-container">
+            <h5 class="mb-3">All Error Messages</h5>
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th style="width: 80%;">Error Message</th>
+                            <th class="text-end">Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for error in error_distribution %}
+                        <tr>
+                            <td><small class="font-monospace text-danger">{{ error.error }}</small></td>
+                            <td class="text-end">{{ error.count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if failure_analysis.total_failures == 0 %}
+<div class="alert alert-success" role="alert">
+    <h4 class="alert-heading">No Failures!</h4>
+    <p>There are no failed executions in the selected time period. Great job!</p>
+</div>
+{% endif %}
+{% endblock %}

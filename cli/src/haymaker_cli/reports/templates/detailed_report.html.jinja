@@ -1,0 +1,163 @@
+{% extends "base.html.jinja" %}
+
+{% block title %}{{ metadata.title }}{% endblock %}
+
+{% block content %}
+<!-- Summary KPIs -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card kpi-card h-100">
+            <div class="card-body">
+                <div class="kpi-label">Total Executions</div>
+                <div class="kpi-value">{{ kpis.total_executions }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card kpi-card h-100">
+            <div class="card-body">
+                <div class="kpi-label">Success Rate</div>
+                <div class="kpi-value">{{ "%.1f"|format(kpis.success_rate) }}%</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card kpi-card h-100">
+            <div class="card-body">
+                <div class="kpi-label">Avg Duration</div>
+                <div class="kpi-value">{{ "%.1f"|format(kpis.avg_duration_seconds) }}s</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card kpi-card h-100">
+            <div class="card-body">
+                <div class="kpi-label">Total Agents</div>
+                <div class="kpi-value">{{ kpis.total_agents }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Execution Details Table -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="table-container">
+            <h5 class="mb-3">Execution Details</h5>
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>Execution ID</th>
+                            <th>Scenario</th>
+                            <th>Status</th>
+                            <th>Started</th>
+                            <th class="text-end">Duration</th>
+                            <th class="text-end">Agents</th>
+                            <th>Error</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for exec in executions %}
+                        <tr>
+                            <td><small class="font-monospace">{{ exec.execution_id[:8] }}...</small></td>
+                            <td>{{ exec.scenario_name }}</td>
+                            <td>
+                                <span class="status-badge status-{{ exec.status }}">
+                                    {{ exec.status }}
+                                </span>
+                            </td>
+                            <td><small>{{ exec.started_at }}</small></td>
+                            <td class="text-end">
+                                {% if exec.duration_seconds %}
+                                {{ "%.1f"|format(exec.duration_seconds) }}s
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td class="text-end">{{ exec.total_agents }}</td>
+                            <td>
+                                {% if exec.error_message %}
+                                <small class="text-danger text-truncate" style="max-width: 200px; display: inline-block;">
+                                    {{ exec.error_message }}
+                                </small>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Agent Details Table -->
+{% if agents %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="table-container">
+            <h5 class="mb-3">Agent Details (Sample)</h5>
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>Agent ID</th>
+                            <th>Execution ID</th>
+                            <th>Region</th>
+                            <th>Status</th>
+                            <th class="text-end">Duration</th>
+                            <th>Error</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for agent in agents[:50] %}
+                        <tr>
+                            <td><small class="font-monospace">{{ agent.agent_id[:8] }}...</small></td>
+                            <td><small class="font-monospace">{{ agent.execution_id[:8] }}...</small></td>
+                            <td>{{ agent.region }}</td>
+                            <td>
+                                <span class="status-badge status-{{ agent.status }}">
+                                    {{ agent.status }}
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                {% if agent.duration_seconds %}
+                                {{ "%.1f"|format(agent.duration_seconds) }}s
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if agent.error_message %}
+                                <small class="text-danger text-truncate" style="max-width: 200px; display: inline-block;">
+                                    {{ agent.error_message }}
+                                </small>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if agents|length > 50 %}
+            <p class="text-muted mt-2">
+                <small>Showing first 50 of {{ agents|length }} agents</small>
+            </p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if executions|length == 0 %}
+<div class="alert alert-info" role="alert">
+    <h4 class="alert-heading">No Data Available</h4>
+    <p>There are no executions to display.</p>
+</div>
+{% endif %}
+{% endblock %}

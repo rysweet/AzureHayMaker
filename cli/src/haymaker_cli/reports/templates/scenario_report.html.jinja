@@ -1,0 +1,143 @@
+{% extends "base.html.jinja" %}
+
+{% block title %}{{ metadata.title }}{% endblock %}
+
+{% block header_info %}
+<div class="badge bg-light text-dark p-2">
+    Scenario: <strong>{{ scenario_name }}</strong>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- KPI Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card kpi-card h-100">
+            <div class="card-body">
+                <div class="kpi-label">Total Executions</div>
+                <div class="kpi-value">{{ kpis.total_executions }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card kpi-card h-100">
+            <div class="card-body">
+                <div class="kpi-label">Success Rate</div>
+                <div class="kpi-value">{{ "%.1f"|format(kpis.success_rate) }}%</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card kpi-card h-100">
+            <div class="card-body">
+                <div class="kpi-label">Avg Duration</div>
+                <div class="kpi-value">{{ "%.1f"|format(kpis.avg_duration_seconds) }}s</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card kpi-card h-100">
+            <div class="card-body">
+                <div class="kpi-label">Total Agents</div>
+                <div class="kpi-value">{{ kpis.total_agents }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Timeline Chart -->
+{% if charts and charts.timeline %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="chart-container">
+            <h5 class="mb-3">Execution Timeline</h5>
+            <div id="timelineChart"></div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Execution Details -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="table-container">
+            <h5 class="mb-3">Recent Executions</h5>
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>Execution ID</th>
+                            <th>Status</th>
+                            <th>Started</th>
+                            <th class="text-end">Duration</th>
+                            <th class="text-end">Agents</th>
+                            <th>Error</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for exec in executions %}
+                        <tr>
+                            <td><small class="font-monospace">{{ exec.execution_id[:8] }}...</small></td>
+                            <td>
+                                <span class="status-badge status-{{ exec.status }}">
+                                    {{ exec.status }}
+                                </span>
+                            </td>
+                            <td><small>{{ exec.started_at }}</small></td>
+                            <td class="text-end">
+                                {% if exec.duration_seconds %}
+                                {{ "%.1f"|format(exec.duration_seconds) }}s
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td class="text-end">{{ exec.total_agents }}</td>
+                            <td>
+                                {% if exec.error_message %}
+                                <small class="text-danger text-truncate" style="max-width: 200px; display: inline-block;">
+                                    {{ exec.error_message }}
+                                </small>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if executions|length == 0 %}
+<div class="alert alert-info" role="alert">
+    <h4 class="alert-heading">No Data Available</h4>
+    <p>There are no executions for scenario <strong>{{ scenario_name }}</strong>.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    {% if charts and charts.timeline %}
+    // Timeline Chart
+    var timelineData = [{
+        x: {{ charts.timeline.x | tojson }},
+        y: {{ charts.timeline.y | tojson }},
+        type: 'scatter',
+        mode: 'lines+markers',
+        marker: {color: '#667eea'},
+        line: {color: '#667eea', width: 2}
+    }];
+    var timelineLayout = {
+        title: '',
+        xaxis: {title: 'Date'},
+        yaxis: {title: 'Executions'},
+        margin: {l: 50, r: 30, t: 30, b: 50},
+        height: 300
+    };
+    Plotly.newPlot('timelineChart', timelineData, timelineLayout, {responsive: true});
+    {% endif %}
+</script>
+{% endblock %}

@@ -189,6 +189,13 @@ cli.add_command(scenarios)
 # Register validate command
 cli.add_command(validate)
 
+# Register telemetry and report commands
+from haymaker_cli.commands.telemetry import telemetry
+from haymaker_cli.commands.report import report
+
+cli.add_command(telemetry)
+cli.add_command(report)
+
 
 # Agents command group
 
