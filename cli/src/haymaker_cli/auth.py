@@ -194,10 +194,13 @@ def create_auth_provider(config: AuthConfig | dict[str, Any] | None = None) -> A
                 "environment variables, or explicit configuration."
             )
 
+        # Use the API scope for the orchestrator API
+        api_scope = f"api://{client_id}/.default"
         return ServicePrincipalAuthProvider(
             tenant_id=tenant_id,
             client_id=client_id,
             client_secret=client_secret,
+            scope=api_scope,
         )
 
     elif config.type == "api_key":

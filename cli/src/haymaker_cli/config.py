@@ -128,8 +128,9 @@ def load_cli_config(profile: str | None = None) -> ProfileConfig:
 
     profile_config = config.profiles[profile_name]
 
-    # Validate HTTPS for security
-    if not profile_config.endpoint.startswith("https://"):
+    # Validate HTTPS for security (allow localhost for development)
+    is_localhost = profile_config.endpoint.startswith(("http://localhost", "http://127.0.0.1"))
+    if not profile_config.endpoint.startswith("https://") and not is_localhost:
         raise ValueError(
             f"Insecure endpoint: {profile_config.endpoint}. " "HTTPS is required for API endpoints."
         )

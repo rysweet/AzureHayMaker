@@ -396,6 +396,19 @@ async def health():
     }
 
 
+@app.get("/api/status")
+async def status(_: AuthDep):
+    """Get orchestrator status. Requires authentication."""
+    running = [e for e in executions.values() if e["status"] == "running"]
+    return {
+        "status": "running" if running else "idle",
+        "service": "azure-haymaker-orchestrator",
+        "timestamp": datetime.now(UTC).isoformat(),
+        "executions_active": len(running),
+        "executions_total": len(executions),
+    }
+
+
 @app.get("/api/metrics")
 async def metrics(_: AuthDep):
     """Get execution metrics. Requires authentication."""
