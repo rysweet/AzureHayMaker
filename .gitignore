@@ -75,3 +75,11 @@ Thumbs.db
 # Build artifacts
 *.whl
 *.tar.gz
+
+# Node.js
+node_modules/
+workspace/
+
+# Session artifacts (never commit)
+*_HANDOFF.md
+SESSION_*.md
