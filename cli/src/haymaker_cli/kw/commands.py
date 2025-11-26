@@ -1039,4 +1039,58 @@ def e2e_test(
         sys.exit(1)
 
 
+@kw.command()
+@click.option("--run-id", required=True, help="Deployment run ID")
+@click.option("--format", type=click.Choice(["table", "json", "yaml"]), default="table", help="Output format")
+@click.option("--output", type=click.Path(), help="Output file path")
+def telemetry_report(run_id: str, format: str, output: str | None):
+    """Generate telemetry report for a KW deployment.
+
+    Collects M365 activity data (emails, calendar, Teams) and generates report.
+
+    Examples:
+        haymaker kw telemetry-report --run-id kw-abc12345
+        haymaker kw telemetry-report --run-id kw-abc12345 --format json --output report.json
+    """
+    import os
+    import asyncio
+    from azure.identity import ClientSecretCredential
+    from msgraph.graph_service_client import GraphServiceClient
+    from azure_haymaker.knowledge_worker.telemetry.m365_telemetry import M365TelemetryCollector
+
+    tenant_id = os.getenv("KW_TENANT_ID")
+    app_id = os.getenv("KW_APP_ID")
+    client_secret = os.getenv("KW_CLIENT_SECRET")
+
+    if not all([tenant_id, app_id, client_secret]):
+        console.print("[red]Error: Missing M365 credentials[/red]")
+        return
+
+    async def collect():
+        cred = ClientSecretCredential(tenant_id, app_id, client_secret)
+        graph_client = GraphServiceClient(cred)
+        collector = M365TelemetryCollector(graph_client, run_id)
+
+        console.print(f"\n[cyan]Collecting telemetry for: {run_id}[/cyan]\n")
+        summary = await collector.get_run_summary(hours_back=48)
+
+        if format == "table":
+            console.print("[bold]Activity Summary[/bold]\n")
+            console.print(f"Workers: {summary.get('worker_count', 0)}")
+            console.print(f"Emails: {summary.get('total_emails', 0)}")
+            console.print(f"Calendar Events: {summary.get('total_calendar_events', 0)}")
+            console.print(f"Teams Messages: {summary.get('total_teams_messages', 0)}")
+        elif format == "json":
+            import json
+            output_str = json.dumps(summary, indent=2, default=str)
+            if output:
+                with open(output, "w") as f:
+                    f.write(output_str)
+                console.print(f"✓ Saved to {output}")
+            else:
+                console.print(output_str)
+
+    asyncio.run(collect())
+
+
 __all__ = ["kw"]
