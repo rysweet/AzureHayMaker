@@ -31,6 +31,8 @@ class KnowledgeWorkerConfig(AgentConfig):
     including identity, team membership, and M365 credentials.
 
     Attributes:
+        name: Agent name (auto-generated from worker_id if empty)
+        goal: Agent goal (auto-generated from display_name if empty)
         worker_id: Unique worker identifier
         display_name: Display name in Entra
         department: Department/team name
@@ -45,6 +47,10 @@ class KnowledgeWorkerConfig(AgentConfig):
         m365_cert_thumbprint: Certificate thumbprint for auth
         tenant_domain: M365 tenant domain
     """
+
+    # Override parent required fields with defaults (populated in __post_init__)
+    name: str = ""
+    goal: str = ""
 
     # Worker identity
     worker_id: str = ""
