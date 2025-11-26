@@ -120,6 +120,10 @@ class EntraUserManager:
 
             logger.info(f"Provisioned worker: {username} ({display_name})")
 
+            # Assign E5 license
+            if created_user.id:
+                await self.assign_license(created_user.id)
+
             return WorkerIdentity(
                 worker_id=username,
                 display_name=display_name,
@@ -132,6 +136,53 @@ class EntraUserManager:
         except Exception as e:
             logger.error(f"Failed to provision worker {username}: {e}")
             raise
+
+    async def assign_license(
+        self,
+        user_id: str,
+        sku_id: str | None = None,
+    ) -> bool:
+        """Assign an M365 license to a user.
+
+        Args:
+            user_id: Entra object ID of the user
+            sku_id: License SKU ID (defaults to E5)
+
+        Returns:
+            True if license assigned successfully, False otherwise
+
+        Note:
+            E5 SKU: 06ebc4ee-1bb5-47dd-8120-11324bc54e06
+            License assignment failures are logged but don't fail provisioning.
+        """
+        from uuid import UUID
+
+        from msgraph.generated.models.assigned_license import AssignedLicense
+        from msgraph.generated.users.item.assign_license.assign_license_post_request_body import (
+            AssignLicensePostRequestBody,
+        )
+
+        # Default to E5 license
+        if sku_id is None:
+            sku_id = "06ebc4ee-1bb5-47dd-8120-11324bc54e06"  # Microsoft 365 E5
+
+        try:
+            # Convert string UUID to UUID object
+            sku_uuid = UUID(sku_id) if isinstance(sku_id, str) else sku_id
+            license = AssignedLicense(sku_id=sku_uuid)
+            body = AssignLicensePostRequestBody(
+                add_licenses=[license],
+                remove_licenses=[],
+            )
+
+            await self.graph_client.users.by_user_id(user_id).assign_license.post(body=body)
+
+            logger.info(f"Assigned E5 license to user {user_id}")
+            return True
+
+        except Exception as e:
+            logger.warning(f"Failed to assign license to user {user_id}: {e}")
+            return False
 
     async def provision_batch(
         self,
@@ -197,8 +248,7 @@ class EntraUserManager:
                     "query_parameters": {
                         "filter": filter_query,
                         "select": (
-                            "id,displayName,userPrincipalName,"
-                            "mailNickname,department,jobTitle"
+                            "id,displayName,userPrincipalName," "mailNickname,department,jobTitle"
                         ),
                     }
                 }
@@ -224,8 +274,7 @@ class EntraUserManager:
                 request_configuration={
                     "query_parameters": {
                         "select": (
-                            "id,displayName,userPrincipalName,"
-                            "mailNickname,department,jobTitle"
+                            "id,displayName,userPrincipalName," "mailNickname,department,jobTitle"
                         ),
                     }
                 }
@@ -253,12 +302,14 @@ class EntraUserManager:
         password_chars = [secrets.choice(chars) for _ in range(self.PASSWORD_LENGTH - 4)]
 
         # Add at least one of each required type
-        password_chars.extend([
-            secrets.choice(string.ascii_uppercase),
-            secrets.choice(string.ascii_lowercase),
-            secrets.choice(string.digits),
-            secrets.choice("!@#$%^&*"),
-        ])
+        password_chars.extend(
+            [
+                secrets.choice(string.ascii_uppercase),
+                secrets.choice(string.ascii_lowercase),
+                secrets.choice(string.digits),
+                secrets.choice("!@#$%^&*"),
+            ]
+        )
 
         # Shuffle to avoid predictable pattern at specific positions
         secrets.SystemRandom().shuffle(password_chars)

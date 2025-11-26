@@ -128,6 +128,7 @@ def init(
 
         if save_config:
             import os
+
             with open(save_config, "w") as f:
                 f.write(config.to_env_string())
             # Set restrictive permissions on config file
@@ -148,6 +149,7 @@ def init(
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         import traceback
+
         console.print(f"[dim]{traceback.format_exc()}[/dim]")
         sys.exit(1)
 
@@ -225,13 +227,15 @@ def list_personas(ctx: click.Context, output_format: str):
 
         for persona in WorkerPersona:
             config = persona_configs.get(persona.value, {})
-            personas.append({
-                "name": persona.value,
-                "display_name": persona.value.title(),
-                "email_per_hour": config.get("email_per_hour", 5),
-                "teams_per_hour": config.get("teams_per_hour", 5),
-                "meetings_per_day": config.get("meetings_per_day", 4),
-            })
+            personas.append(
+                {
+                    "name": persona.value,
+                    "display_name": persona.value.title(),
+                    "email_per_hour": config.get("email_per_hour", 5),
+                    "teams_per_hour": config.get("teams_per_hour", 5),
+                    "meetings_per_day": config.get("meetings_per_day", 4),
+                }
+            )
 
         if output_format == "json":
             console.print(format_json(personas))
@@ -364,6 +368,7 @@ def test(
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}", style="red")
         import traceback
+
         console.print(f"[dim]{traceback.format_exc()}[/dim]")
         sys.exit(1)
 
@@ -399,6 +404,7 @@ def check(ctx: click.Context, output_format: str):
                 KnowledgeWorkerAgent,
                 KnowledgeWorkerConfig,
             )
+
             checks.append({"name": "KW Agent", "status": "OK", "details": "Import successful"})
         except ImportError as e:
             checks.append({"name": "KW Agent", "status": "FAIL", "details": str(e)})
@@ -413,6 +419,7 @@ def check(ctx: click.Context, output_format: str):
                 WorkerIdentity,
                 WorkerPersona,
             )
+
             checks.append({"name": "KW Models", "status": "OK", "details": "All models available"})
         except ImportError as e:
             checks.append({"name": "KW Models", "status": "FAIL", "details": str(e)})
@@ -425,7 +432,10 @@ def check(ctx: click.Context, output_format: str):
                 EmailOperations,
                 TeamsOperations,
             )
-            checks.append({"name": "KW Operations", "status": "OK", "details": "All operations available"})
+
+            checks.append(
+                {"name": "KW Operations", "status": "OK", "details": "All operations available"}
+            )
         except ImportError as e:
             checks.append({"name": "KW Operations", "status": "FAIL", "details": str(e)})
 
@@ -435,7 +445,10 @@ def check(ctx: click.Context, output_format: str):
                 CommunicationValidator,
                 ExternalRecipientError,
             )
-            checks.append({"name": "KW Validators", "status": "OK", "details": "Validators available"})
+
+            checks.append(
+                {"name": "KW Validators", "status": "OK", "details": "Validators available"}
+            )
         except ImportError as e:
             checks.append({"name": "KW Validators", "status": "FAIL", "details": str(e)})
 
@@ -446,7 +459,10 @@ def check(ctx: click.Context, output_format: str):
                 EntraUserManager,
                 TransportRuleManager,
             )
-            checks.append({"name": "KW Identity", "status": "OK", "details": "Identity modules available"})
+
+            checks.append(
+                {"name": "KW Identity", "status": "OK", "details": "Identity modules available"}
+            )
         except ImportError as e:
             checks.append({"name": "KW Identity", "status": "FAIL", "details": str(e)})
 
@@ -457,7 +473,10 @@ def check(ctx: click.Context, output_format: str):
                 M365CLIContainerManager,
                 Windows365CloudPCManager,
             )
-            checks.append({"name": "KW Endpoints", "status": "OK", "details": "Endpoint managers available"})
+
+            checks.append(
+                {"name": "KW Endpoints", "status": "OK", "details": "Endpoint managers available"}
+            )
         except ImportError as e:
             checks.append({"name": "KW Endpoints", "status": "FAIL", "details": str(e)})
 
@@ -467,7 +486,10 @@ def check(ctx: click.Context, output_format: str):
                 KnowledgeWorkerCleanupManager,
                 KnowledgeWorkerResourceInventory,
             )
-            checks.append({"name": "KW Cleanup", "status": "OK", "details": "Cleanup manager available"})
+
+            checks.append(
+                {"name": "KW Cleanup", "status": "OK", "details": "Cleanup manager available"}
+            )
         except ImportError as e:
             checks.append({"name": "KW Cleanup", "status": "FAIL", "details": str(e)})
 
@@ -519,6 +541,7 @@ def _check_framework_status() -> dict[str, Any]:
             KnowledgeWorkerAgent,
             KnowledgeWorkerConfig,
         )
+
         status["framework_available"] = True
         status["modules"]["agent"] = True
         status["modules"]["config"] = True
@@ -528,6 +551,7 @@ def _check_framework_status() -> dict[str, Any]:
 
     try:
         from azure_haymaker.knowledge_worker.models import WorkerPersona
+
         status["modules"]["models"] = True
         status["persona_count"] = len(list(WorkerPersona))
     except ImportError:
@@ -535,6 +559,7 @@ def _check_framework_status() -> dict[str, Any]:
 
     try:
         from azure_haymaker.knowledge_worker.operations import EmailOperations  # noqa: F401
+
         status["modules"]["operations"] = True
     except ImportError:
         status["modules"]["operations"] = False
@@ -543,6 +568,7 @@ def _check_framework_status() -> dict[str, Any]:
         from azure_haymaker.knowledge_worker.operations.validators import (
             CommunicationValidator,  # noqa: F401
         )
+
         status["modules"]["validators"] = True
     except ImportError:
         status["modules"]["validators"] = False
@@ -677,8 +703,31 @@ def deploy(
             console.print("  - CLI containers for each worker")
             return
 
+        # Get credentials from environment
+        import os
+
+        tenant_id = os.getenv("KW_TENANT_ID")
+        app_id = os.getenv("KW_APP_ID")
+        client_secret = os.getenv("KW_CLIENT_SECRET")
+
+        if not all([tenant_id, app_id, client_secret]):
+            console.print("[red]Error: Missing M365 credentials[/red]")
+            console.print("Set KW_APP_ID, KW_CLIENT_SECRET, and KW_TENANT_ID environment variables")
+            sys.exit(1)
+
+        # Create Graph API client
+        from azure.identity import ClientSecretCredential
+        from msgraph.graph_service_client import GraphServiceClient
+
+        credential = ClientSecretCredential(
+            tenant_id=tenant_id,
+            client_id=app_id,
+            client_secret=client_secret,
+        )
+        graph_client = GraphServiceClient(credential)
+
         # Create orchestrator and start deployment
-        orchestrator = KnowledgeWorkerOrchestrator()
+        orchestrator = KnowledgeWorkerOrchestrator(graph_client)
         run_id = orchestrator.create_deployment(config)
 
         console.print(f"[green]Deployment created: {run_id}[/green]")
@@ -686,6 +735,7 @@ def deploy(
 
         # Run deployment (sync wrapper around async)
         import asyncio
+
         asyncio.run(orchestrator.start_deployment(run_id))
 
         # Get final state
@@ -705,6 +755,7 @@ def deploy(
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}", style="red")
         import traceback
+
         console.print(f"[dim]{traceback.format_exc()}[/dim]")
         sys.exit(1)
 
@@ -806,7 +857,9 @@ def e2e_test(
             users = await client.users.get()
             user_count = len(users.value) if users and users.value else 0
             console.print(f"  [green]PASS[/green] - Found {user_count} users")
-            results.append({"test": "List Users", "status": "PASS", "details": f"{user_count} users"})
+            results.append(
+                {"test": "List Users", "status": "PASS", "details": f"{user_count} users"}
+            )
         except Exception as e:
             console.print(f"  [red]FAIL[/red] - {e}")
             results.append({"test": "List Users", "status": "FAIL", "details": str(e)})
@@ -832,14 +885,22 @@ def e2e_test(
                         subject=f"[HayMaker E2E Test] {timestamp}",
                         body=ItemBody(
                             content_type=BodyType.Text,
-                            content=f"Automated E2E test email - {timestamp}"
+                            content=f"Automated E2E test email - {timestamp}",
                         ),
-                        to_recipients=[Recipient(email_address=EmailAddress(address=recipient))]
+                        to_recipients=[Recipient(email_address=EmailAddress(address=recipient))],
                     )
                     request = SendMailPostRequestBody(message=message, save_to_sent_items=True)
                     await client.users.by_user_id(sender).send_mail.post(request)
-                    console.print(f"  [green]PASS[/green] - Email sent from {sender} to {recipient}")
-                    results.append({"test": "Send Email", "status": "PASS", "details": f"{sender} -> {recipient}"})
+                    console.print(
+                        f"  [green]PASS[/green] - Email sent from {sender} to {recipient}"
+                    )
+                    results.append(
+                        {
+                            "test": "Send Email",
+                            "status": "PASS",
+                            "details": f"{sender} -> {recipient}",
+                        }
+                    )
                 except Exception as e:
                     console.print(f"  [red]FAIL[/red] - {e}")
                     results.append({"test": "Send Email", "status": "FAIL", "details": str(e)})
@@ -850,7 +911,9 @@ def e2e_test(
                 if users and users.value:
                     for user in users.value[:10]:
                         try:
-                            msgs = await client.users.by_user_id(user.user_principal_name).messages.get()
+                            msgs = await client.users.by_user_id(
+                                user.user_principal_name
+                            ).messages.get()
                             if msgs is not None:
                                 mailbox_users.append(user.user_principal_name)
                                 if len(mailbox_users) >= 2:
@@ -860,14 +923,30 @@ def e2e_test(
                             # Skip users without mailboxes silently
                             if "MailboxNotEnabledForRESTAPI" not in str(e):
                                 # Log unexpected errors for debugging
-                                console.print(f"  [dim]Warning: {user.user_principal_name}: {str(e)[:50]}[/dim]")
+                                console.print(
+                                    f"  [dim]Warning: {user.user_principal_name}: {str(e)[:50]}[/dim]"
+                                )
 
                 if len(mailbox_users) >= 2:
                     console.print(f"  [green]PASS[/green] - Found mailbox users: {mailbox_users}")
-                    results.append({"test": "Email Access", "status": "PASS", "details": f"Found {len(mailbox_users)} mailbox users"})
+                    results.append(
+                        {
+                            "test": "Email Access",
+                            "status": "PASS",
+                            "details": f"Found {len(mailbox_users)} mailbox users",
+                        }
+                    )
                 else:
-                    console.print("  [yellow]SKIP[/yellow] - Insufficient mailbox users (need --sender and --recipient)")
-                    results.append({"test": "Email Access", "status": "SKIP", "details": "No mailbox users found"})
+                    console.print(
+                        "  [yellow]SKIP[/yellow] - Insufficient mailbox users (need --sender and --recipient)"
+                    )
+                    results.append(
+                        {
+                            "test": "Email Access",
+                            "status": "SKIP",
+                            "details": "No mailbox users found",
+                        }
+                    )
 
         # Test 3: Calendar operations
         if test_calendar and sender:
@@ -887,15 +966,23 @@ def e2e_test(
                 event = Event(
                     subject=f"[HayMaker E2E Test] {now.strftime('%H:%M')}",
                     body=ItemBody(content_type=BodyType.Text, content="E2E test event"),
-                    start=DateTimeTimeZone(date_time=start.strftime("%Y-%m-%dT%H:%M:%S"), time_zone="UTC"),
-                    end=DateTimeTimeZone(date_time=end.strftime("%Y-%m-%dT%H:%M:%S"), time_zone="UTC"),
+                    start=DateTimeTimeZone(
+                        date_time=start.strftime("%Y-%m-%dT%H:%M:%S"), time_zone="UTC"
+                    ),
+                    end=DateTimeTimeZone(
+                        date_time=end.strftime("%Y-%m-%dT%H:%M:%S"), time_zone="UTC"
+                    ),
                 )
                 result = await client.users.by_user_id(sender).calendar.events.post(event)
                 console.print(f"  [green]PASS[/green] - Created calendar event: {result.subject}")
-                results.append({"test": "Create Calendar Event", "status": "PASS", "details": result.id})
+                results.append(
+                    {"test": "Create Calendar Event", "status": "PASS", "details": result.id}
+                )
             except Exception as e:
                 console.print(f"  [red]FAIL[/red] - {e}")
-                results.append({"test": "Create Calendar Event", "status": "FAIL", "details": str(e)})
+                results.append(
+                    {"test": "Create Calendar Event", "status": "FAIL", "details": str(e)}
+                )
         elif test_calendar:
             console.print("[cyan]Test 3:[/cyan] Calendar operations...")
             console.print("  [yellow]SKIP[/yellow] - Need --sender to test calendar")
@@ -908,7 +995,9 @@ def e2e_test(
                 groups = await client.groups.get()
                 group_count = len(groups.value) if groups and groups.value else 0
                 console.print(f"  [green]PASS[/green] - Found {group_count} groups")
-                results.append({"test": "List Groups", "status": "PASS", "details": f"{group_count} groups"})
+                results.append(
+                    {"test": "List Groups", "status": "PASS", "details": f"{group_count} groups"}
+                )
             except Exception as e:
                 console.print(f"  [red]FAIL[/red] - {e}")
                 results.append({"test": "List Groups", "status": "FAIL", "details": str(e)})
@@ -925,11 +1014,17 @@ def e2e_test(
         table.add_column("Details", max_width=50)
 
         for r in results:
-            status_style = {"PASS": "green", "FAIL": "red", "SKIP": "yellow"}.get(r["status"], "white")
-            table.add_row(r["test"], f"[{status_style}]{r['status']}[/{status_style}]", r["details"][:50])
+            status_style = {"PASS": "green", "FAIL": "red", "SKIP": "yellow"}.get(
+                r["status"], "white"
+            )
+            table.add_row(
+                r["test"], f"[{status_style}]{r['status']}[/{status_style}]", r["details"][:50]
+            )
 
         console.print(table)
-        console.print(f"\n[cyan]Summary:[/cyan] {pass_count} PASS, {fail_count} FAIL, {skip_count} SKIP")
+        console.print(
+            f"\n[cyan]Summary:[/cyan] {pass_count} PASS, {fail_count} FAIL, {skip_count} SKIP"
+        )
 
         if fail_count > 0:
             sys.exit(1)
@@ -939,6 +1034,7 @@ def e2e_test(
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         import traceback
+
         console.print(f"[dim]{traceback.format_exc()}[/dim]")
         sys.exit(1)
 
