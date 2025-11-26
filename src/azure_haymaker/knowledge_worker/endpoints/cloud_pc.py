@@ -120,26 +120,36 @@ class Windows365CloudPCManager:
     ) -> str:
         """Provision a Cloud PC for a worker.
 
+        Cloud PCs are provisioned by assigning users to policy assignment groups.
+        The actual provisioning happens asynchronously via Windows 365 service.
+
         Args:
             worker: Worker identity to assign Cloud PC
             policy_id: Provisioning policy ID
 
         Returns:
-            Cloud PC ID (or placeholder if provisioning is asynchronous)
+            Cloud PC ID (placeholder until async provisioning completes)
         """
         try:
-            # Cloud PCs are provisioned by assigning users to policy groups
-            # The actual provisioning happens asynchronously
-
             logger.info(
                 f"Cloud PC provisioning initiated for worker: {worker.worker_id}"
             )
 
-            # In a full implementation, this would:
-            # 1. Add user to provisioning policy assignment group
-            # 2. Wait for provisioning to complete
-            # 3. Return the Cloud PC ID
+            # Step 1: Get or create the assignment group for this policy
+            group_id = await self._get_or_create_assignment_group(policy_id)
 
+            # Step 2: Add user to the assignment group
+            await self._add_user_to_group(worker, group_id)
+
+            # Step 3: Assign group to policy (if not already assigned)
+            await self._assign_group_to_policy(policy_id, group_id)
+
+            logger.info(
+                f"Cloud PC provisioning group assignment complete for {worker.worker_id}"
+            )
+
+            # Return placeholder ID - actual Cloud PC ID will be available
+            # after async provisioning completes
             return f"cloudpc-{worker.worker_id}"
 
         except Exception as e:
@@ -155,6 +165,8 @@ class Windows365CloudPCManager:
     ) -> bool:
         """Wait for Cloud PC to be provisioned and ready.
 
+        Polls Cloud PC provisioning status with progress tracking and logging.
+
         Args:
             worker: Worker identity
             timeout_minutes: Timeout in minutes (default: 90)
@@ -165,6 +177,8 @@ class Windows365CloudPCManager:
         timeout = timeout_minutes or self.PROVISIONING_TIMEOUT_MINUTES
         start_time = datetime.now()
         deadline = start_time + timedelta(minutes=timeout)
+        last_status = None
+        check_count = 0
 
         logger.info(
             f"Waiting for Cloud PC provisioning: {worker.worker_id} "
@@ -172,6 +186,9 @@ class Windows365CloudPCManager:
         )
 
         while datetime.now() < deadline:
+            check_count += 1
+            elapsed = (datetime.now() - start_time).total_seconds() / 60
+
             try:
                 # Check provisioning status
                 cloud_pcs = await self.graph_client.device_management.virtual_endpoint.cloud_p_cs.get(
@@ -186,8 +203,19 @@ class Windows365CloudPCManager:
                     pc = cloud_pcs.value[0]
                     status = pc.status
 
+                    # Log status changes
+                    if status != last_status:
+                        logger.info(
+                            f"Cloud PC status for {worker.worker_id}: {status} "
+                            f"(elapsed: {elapsed:.1f} min, check: {check_count})"
+                        )
+                        last_status = status
+
                     if status == "provisioned":
-                        logger.info(f"Cloud PC ready for {worker.worker_id}")
+                        logger.info(
+                            f"Cloud PC ready for {worker.worker_id} "
+                            f"(total time: {elapsed:.1f} minutes)"
+                        )
                         return True
                     elif status in ("failed", "error"):
                         logger.error(
@@ -196,17 +224,30 @@ class Windows365CloudPCManager:
                         return False
                     else:
                         logger.debug(
-                            f"Cloud PC status for {worker.worker_id}: {status}"
+                            f"Cloud PC status for {worker.worker_id}: {status} "
+                            f"(check {check_count}, elapsed {elapsed:.1f} min)"
+                        )
+                else:
+                    # No Cloud PC found yet - provisioning not started
+                    if check_count % 5 == 0:  # Log every 5th check
+                        logger.debug(
+                            f"Cloud PC not found yet for {worker.worker_id} "
+                            f"(check {check_count}, elapsed {elapsed:.1f} min)"
                         )
 
             except Exception as e:
                 logger.warning(
-                    f"Error checking Cloud PC status for {worker.worker_id}: {e}"
+                    f"Error checking Cloud PC status for {worker.worker_id}: {e} "
+                    f"(check {check_count}, will retry)"
                 )
 
             await asyncio.sleep(self.PROVISIONING_CHECK_INTERVAL_SECONDS)
 
-        logger.warning(f"Cloud PC provisioning timeout for {worker.worker_id}")
+        elapsed_total = (datetime.now() - start_time).total_seconds() / 60
+        logger.warning(
+            f"Cloud PC provisioning timeout for {worker.worker_id} "
+            f"(elapsed: {elapsed_total:.1f} minutes, checks: {check_count})"
+        )
         return False
 
     async def get_cloud_pc(
@@ -295,3 +336,172 @@ class Windows365CloudPCManager:
         except Exception as e:
             logger.error(f"Failed to list Cloud PCs for run {self.run_id}: {e}")
             return []
+
+    async def provision_batch(
+        self,
+        workers: list[WorkerIdentity],
+        policy_id: str,
+        max_concurrent: int = 10,
+    ) -> list[tuple[WorkerIdentity, str]]:
+        """Provision Cloud PCs for multiple workers efficiently.
+
+        Provisions Cloud PCs concurrently with rate limiting to avoid
+        overwhelming the Graph API.
+
+        Args:
+            workers: List of worker identities
+            policy_id: Provisioning policy ID
+            max_concurrent: Maximum concurrent provisioning operations
+
+        Returns:
+            List of (worker, cloud_pc_id) tuples
+        """
+        results = []
+        semaphore = asyncio.Semaphore(max_concurrent)
+
+        async def provision_one(worker: WorkerIdentity) -> tuple[WorkerIdentity, str]:
+            async with semaphore:
+                cloud_pc_id = await self.provision_cloud_pc(
+                    worker=worker, policy_id=policy_id
+                )
+                return (worker, cloud_pc_id)
+
+        tasks = [provision_one(worker) for worker in workers]
+        completed = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for result in completed:
+            if isinstance(result, Exception):
+                logger.error(f"Batch provisioning error: {result}")
+            else:
+                results.append(result)
+
+        logger.info(
+            f"Batch provisioning complete: {len(results)}/{len(workers)} successful"
+        )
+        return results
+
+    async def _get_or_create_assignment_group(self, policy_id: str) -> str:
+        """Get or create an Entra group for Cloud PC policy assignment.
+
+        Args:
+            policy_id: Provisioning policy ID
+
+        Returns:
+            Entra group ID
+        """
+        group_name = f"HayMaker-CloudPC-{self.run_id[:8]}"
+
+        try:
+            # Search for existing group
+            groups = await self.graph_client.groups.get(
+                request_configuration={
+                    "query_parameters": {"filter": f"displayName eq '{group_name}'"}
+                }
+            )
+
+            if groups.value:
+                logger.info(f"Using existing assignment group: {group_name}")
+                return groups.value[0].id
+
+            # Create new group
+            group_data = {
+                "displayName": group_name,
+                "mailNickname": f"haymaker-cloudpc-{self.run_id[:8]}",
+                "description": f"Cloud PC assignment group for HayMaker run {self.run_id}",
+                "mailEnabled": False,
+                "securityEnabled": True,
+                "groupTypes": [],
+            }
+
+            group = await self.graph_client.groups.post(body=group_data)
+            logger.info(f"Created assignment group: {group_name} ({group.id})")
+            return group.id
+
+        except Exception as e:
+            logger.error(f"Failed to get/create assignment group: {e}")
+            raise
+
+    async def _add_user_to_group(
+        self, worker: WorkerIdentity, group_id: str
+    ) -> None:
+        """Add a user to an Entra group.
+
+        Args:
+            worker: Worker identity
+            group_id: Entra group ID
+        """
+        try:
+            # Check if user already in group
+            members = await self.graph_client.groups.by_group_id(
+                group_id
+            ).members.get()
+
+            member_ids = [m.id for m in (members.value or [])]
+            if worker.entra_object_id in member_ids:
+                logger.debug(
+                    f"User {worker.worker_id} already in group {group_id}"
+                )
+                return
+
+            # Add user to group
+            reference_data = {
+                "@odata.id": f"https://graph.microsoft.com/v1.0/directoryObjects/{worker.entra_object_id}"
+            }
+
+            await self.graph_client.groups.by_group_id(group_id).members.ref.post(
+                body=reference_data
+            )
+
+            logger.info(
+                f"Added user {worker.worker_id} to Cloud PC assignment group"
+            )
+
+        except Exception as e:
+            logger.error(
+                f"Failed to add user {worker.worker_id} to group {group_id}: {e}"
+            )
+            raise
+
+    async def _assign_group_to_policy(
+        self, policy_id: str, group_id: str
+    ) -> None:
+        """Assign an Entra group to a Cloud PC provisioning policy.
+
+        Args:
+            policy_id: Provisioning policy ID
+            group_id: Entra group ID
+        """
+        try:
+            # Check existing assignments
+            assignments = await self.graph_client.device_management.virtual_endpoint.provisioning_policies.by_cloud_pc_provisioning_policy_id(
+                policy_id
+            ).assignments.get()
+
+            # Check if group already assigned
+            assigned_group_ids = [
+                a.target.group_id for a in (assignments.value or []) if hasattr(a.target, "group_id")
+            ]
+
+            if group_id in assigned_group_ids:
+                logger.debug(f"Group {group_id} already assigned to policy {policy_id}")
+                return
+
+            # Create assignment
+            assignment_data = {
+                "target": {
+                    "@odata.type": "#microsoft.graph.groupAssignmentTarget",
+                    "groupId": group_id,
+                }
+            }
+
+            await self.graph_client.device_management.virtual_endpoint.provisioning_policies.by_cloud_pc_provisioning_policy_id(
+                policy_id
+            ).assignments.post(
+                body=assignment_data
+            )
+
+            logger.info(f"Assigned group {group_id} to policy {policy_id}")
+
+        except Exception as e:
+            logger.error(f"Failed to assign group {group_id} to policy {policy_id}: {e}")
+            raise
