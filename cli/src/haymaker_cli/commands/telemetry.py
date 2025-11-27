@@ -112,8 +112,6 @@ def stop(storage_dir: str | None):
 def status(storage_dir: str | None):
     """Show telemetry collection status."""
     try:
-        from pathlib import Path
-
         from haymaker_cli.telemetry.storage import TelemetryStorage
 
         # Setup storage
@@ -152,8 +150,6 @@ def status(storage_dir: str | None):
 def collect(storage_dir: str | None):
     """Manually trigger telemetry collection."""
     try:
-        from pathlib import Path
-
         from haymaker_cli.client import HayMakerClient
         from haymaker_cli.config import load_cli_config
         from haymaker_cli.telemetry.collector import TelemetryCollector
