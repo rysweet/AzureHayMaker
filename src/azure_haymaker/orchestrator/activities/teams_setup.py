@@ -101,7 +101,7 @@ async def create_teams_for_teams_activity(params: dict[str, Any]) -> dict[str, A
 
             if not m365_group_id or not department:
                 logger.warning(
-                    f"Skipping team config: missing m365_group_id or department"
+                    "Skipping team config: missing m365_group_id or department"
                 )
                 results.append({
                     "status": "failed",
