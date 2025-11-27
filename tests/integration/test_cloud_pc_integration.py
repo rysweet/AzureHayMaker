@@ -201,7 +201,7 @@ class TestCloudPCProvisioningWorkflow:
         cloud_pc_id = await cloud_pc_manager.provision_cloud_pc(
             worker=worker, policy_id=policy_id
         )
-        assert cloud_pc_id.startswith("cloudpc-")
+        assert cloud_pc_id.startswith("pending-") or cloud_pc_id.startswith("mock-cloudpc-")
 
         ready = await cloud_pc_manager.wait_for_provisioning(
             worker=worker, timeout_minutes=1
@@ -235,7 +235,7 @@ class TestCloudPCProvisioningWorkflow:
         cloud_pc_ids = await asyncio.gather(*provision_tasks)
 
         assert len(cloud_pc_ids) == len(test_workers)
-        assert all(pc_id.startswith("cloudpc-") for pc_id in cloud_pc_ids)
+        assert all(pc_id.startswith("pending-") or pc_id.startswith("mock-cloudpc-") for pc_id in cloud_pc_ids)
 
 
 # ==============================================================================

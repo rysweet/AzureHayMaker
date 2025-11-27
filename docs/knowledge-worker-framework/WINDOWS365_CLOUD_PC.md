@@ -162,9 +162,9 @@ tags = {
    - See [Windows 365 pricing](https://www.microsoft.com/windows-365/enterprise/pricing)
 
 2. **Azure AD Permissions**
-   - `CloudPC.ReadWrite.All` (Graph API)
-   - `DeviceManagementManagedDevices.ReadWrite.All`
-   - `Directory.ReadWrite.All` (for user assignment)
+   - `CloudPC.ReadWrite.All` (Graph API) - **Optional**, see [Graceful Degradation](#graceful-degradation-without-cloud-pc-permission)
+   - `DeviceManagementManagedDevices.ReadWrite.All` - Optional
+   - `Directory.ReadWrite.All` (for user assignment) - Required
 
 3. **Network Configuration**
    - Azure Virtual Network (if using Azure Network Connection)
@@ -175,6 +175,8 @@ tags = {
    - App registration with certificate authentication
    - Certificate stored in Azure Key Vault
    - Mounted to Container Apps via secret volume
+
+**Note**: The Knowledge Worker Framework works fully **without** CloudPC.ReadWrite.All permission by using graceful degradation (mock provisioning). See [Graceful Degradation](#graceful-degradation-without-cloud-pc-permission) below.
 
 ### Initial Setup
 
@@ -511,6 +513,218 @@ for pc in cloud_pcs:
 # kw-abc12345-kq8r1: provisioning
 # kw-abc12345-mp3t7: provisioned
 ```
+
+---
+
+## Graceful Degradation Without Cloud PC Permission
+
+The Knowledge Worker Framework is designed to work fully **without** CloudPC.ReadWrite.All permission. When this permission is not available, the framework uses **graceful degradation** with mock provisioning.
+
+### Why Graceful Degradation?
+
+**Real-world constraint**: CloudPC.ReadWrite.All requires admin consent and may take days/weeks to approve. The framework needs to work **today** for development, testing, and demonstration.
+
+**Solution**: Mock Cloud PC provisioning allows:
+- Full M365 activity simulation
+- Complete telemetry collection
+- Realistic reports and dashboards
+- Development and testing without waiting for permissions
+
+### Behavior Comparison
+
+#### With CloudPC.ReadWrite.All Permission (Full Provisioning)
+
+```python
+from azure_haymaker.knowledge_worker.endpoints.cloud_pc import Windows365CloudPCManager
+
+cloudpc_manager = Windows365CloudPCManager(graph_client, run_id)
+
+# Real Cloud PC provisioning
+policy_id = await cloudpc_manager.ensure_provisioning_policy()
+cloud_pc_id = await cloudpc_manager.provision_cloud_pc(worker, policy_id)
+
+# Wait for provisioning (30-90 minutes)
+ready = await cloudpc_manager.wait_for_provisioning(worker, timeout_minutes=90)
+
+if ready:
+    print(f"Real Cloud PC provisioned: {cloud_pc_id}")
+    # Actual Windows 365 Cloud PC available
+    # Can collect Windows event logs, process telemetry, etc.
+```
+
+**Output**:
+```
+Cloud PC provisioning initiated for worker: kw-abc123-001
+Waiting for Cloud PC provisioning: kw-abc123-001 (timeout: 90 minutes)
+Cloud PC status for kw-abc123-001: provisioning (elapsed: 1.0 min)
+Cloud PC status for kw-abc123-001: provisioning (elapsed: 15.2 min)
+Cloud PC status for kw-abc123-001: provisioned (elapsed: 42.3 min)
+Cloud PC ready for kw-abc123-001 (total time: 42.3 minutes)
+```
+
+#### Without CloudPC.ReadWrite.All Permission (Graceful Degradation)
+
+```python
+from azure_haymaker.knowledge_worker.endpoints.cloud_pc import Windows365CloudPCManager
+
+cloudpc_manager = Windows365CloudPCManager(graph_client, run_id)
+
+try:
+    # Attempt Cloud PC provisioning
+    policy_id = await cloudpc_manager.ensure_provisioning_policy()
+    cloud_pc_id = await cloudpc_manager.provision_cloud_pc(worker, policy_id)
+
+except Exception as e:
+    # Permission error - graceful fallback
+    if "Insufficient privileges" in str(e) or "403" in str(e):
+        logger.info(
+            "CloudPC.ReadWrite.All permission not available. "
+            "Using mock provisioning for development/testing."
+        )
+
+        # Mock Cloud PC data
+        cloud_pc_id = f"mock-cloudpc-{worker.worker_id}"
+        mock_data = {
+            "id": cloud_pc_id,
+            "status": "provisioned",
+            "display_name": f"Mock-{worker.display_name}",
+            "user_principal_name": worker.user_principal_name,
+            "managed_device_id": f"mock-device-{worker.worker_id}",
+            "provisioning_time": "instant",
+        }
+
+        # Continue with M365 activity simulation
+        # All other features work normally
+    else:
+        raise  # Re-raise non-permission errors
+
+# M365 activity simulation works identically
+await simulate_worker_activity(worker)
+
+# Telemetry collection works identically
+telemetry = await collector.get_emails_for_worker(worker)
+```
+
+**Output**:
+```
+CloudPC.ReadWrite.All permission not available. Using mock provisioning.
+Mock Cloud PC provisioned instantly: mock-cloudpc-kw-abc123-001
+Continuing with M365 activity simulation...
+M365 activity simulation complete for kw-abc123-001
+Telemetry collection complete: 15 emails, 6 calendar events, 8 Teams messages
+```
+
+### What Works Without Cloud PC Permission
+
+**Fully Functional** (No Degradation):
+- Worker identity provisioning (Entra ID users)
+- M365 E5 license assignment
+- Teams team creation and management
+- Email sending and receiving
+- Calendar event creation and management
+- Teams message posting
+- **Complete M365 telemetry collection** (email, calendar, Teams)
+- JSON and PowerPoint report generation
+- Activity simulation and scheduling
+- All orchestration features
+
+**Mock Data Used For**:
+- Cloud PC provisioning status
+- Cloud PC display names
+- Cloud PC managed device IDs
+- Windows event logs (not available without real Cloud PC)
+- Desktop process telemetry (not available without real Cloud PC)
+
+### Implementation Example
+
+```python
+async def provision_with_fallback(
+    workers: list[WorkerIdentity],
+    graph_client: Any,
+    run_id: str,
+) -> dict[str, Any]:
+    """Provision Cloud PCs with graceful degradation."""
+
+    cloudpc_manager = Windows365CloudPCManager(graph_client, run_id)
+    results = {
+        "provisioning_mode": "unknown",
+        "workers": [],
+    }
+
+    # Try real Cloud PC provisioning first
+    try:
+        policy_id = await cloudpc_manager.ensure_provisioning_policy()
+
+        # If we get here, permission is available
+        results["provisioning_mode"] = "real_cloudpc"
+
+        for worker in workers:
+            cloud_pc_id = await cloudpc_manager.provision_cloud_pc(worker, policy_id)
+            ready = await cloudpc_manager.wait_for_provisioning(worker)
+
+            results["workers"].append({
+                "worker_id": worker.worker_id,
+                "cloud_pc_id": cloud_pc_id,
+                "status": "provisioned" if ready else "failed",
+                "mode": "real",
+            })
+
+    except Exception as e:
+        # Permission not available - use mock provisioning
+        if "Insufficient privileges" in str(e) or "403" in str(e):
+            logger.info("CloudPC permission not available, using mock provisioning")
+            results["provisioning_mode"] = "mock_cloudpc"
+
+            for worker in workers:
+                mock_id = f"mock-cloudpc-{worker.worker_id}"
+
+                results["workers"].append({
+                    "worker_id": worker.worker_id,
+                    "cloud_pc_id": mock_id,
+                    "status": "provisioned",
+                    "mode": "mock",
+                })
+        else:
+            # Unexpected error
+            raise
+
+    return results
+```
+
+### When to Use Mock vs Real Cloud PC
+
+| Scenario | Use Mock | Use Real |
+|----------|----------|----------|
+| **Development** | Yes | Optional |
+| **Testing** | Yes | For Cloud PC-specific tests |
+| **CI/CD** | Yes | No |
+| **Demos** | Yes | If permission available |
+| **Production - M365 only** | Yes | No |
+| **Production - Desktop telemetry** | No | Yes (required) |
+
+### Transitioning from Mock to Real
+
+When CloudPC.ReadWrite.All permission becomes available:
+
+```python
+# 1. Update configuration
+config["cloudpc_mode"] = "real"  # Change from "mock"
+
+# 2. Re-run provisioning
+# Framework automatically detects permission and uses real provisioning
+python provision_w365_cloudpc.py
+
+# 3. Verify real Cloud PCs
+cloud_pcs = await cloudpc_manager.list_cloud_pcs_for_run()
+for pc in cloud_pcs:
+    print(f"{pc['display_name']}: {pc['status']}")
+
+# Output:
+# kw-abc12345-fx9p2: provisioned
+# kw-abc12345-kq8r1: provisioned
+```
+
+**No code changes required** - the framework detects available permissions and adjusts automatically.
 
 ---
 
@@ -932,6 +1146,7 @@ async def verify_cloud_pc_ready(worker: WorkerIdentity) -> bool:
 
 ## Related Documentation
 
+- [Windows 365 + M365 E2E Demo](./WINDOWS365_E2E_DEMO.md) - Complete end-to-end demo workflow
 - [Knowledge Worker Framework Architecture](./ARCHITECTURE.md) - Overall framework design
 - [Endpoint Strategy](./ARCHITECTURE.md#6-endpoint-strategy) - Detailed endpoint comparison
 - [Resource Tracking and Cleanup](./ARCHITECTURE.md#8-resource-tracking-and-cleanup) - Cleanup guarantees

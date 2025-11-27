@@ -57,6 +57,14 @@ Testing strategies and test plans.
 - [Testing Plan](testing/TESTING_PLAN.md) - Comprehensive test strategy
 - [E2E Walkthrough](E2E_WALKTHROUGH.md) - End-to-end testing guide
 
+## 🏢 Knowledge Worker Framework
+
+Documentation for the Knowledge Worker Activity Framework.
+
+- [Windows 365 + M365 E2E Demo](knowledge-worker-framework/WINDOWS365_E2E_DEMO.md) - Complete demonstration with telemetry
+- [Windows 365 Cloud PC Provisioning](knowledge-worker-framework/WINDOWS365_CLOUD_PC.md) - Cloud PC management and graceful degradation
+- [Knowledge Worker Architecture](knowledge-worker-framework/ARCHITECTURE.md) - Framework design and components
+
 ## 📖 Reference
 
 Quick reference guides and supporting documentation.

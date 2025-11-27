@@ -44,6 +44,12 @@ from azure_haymaker.knowledge_worker.teams_integration import (
     TeamsIntegration,
     TeamsIntegrationError,
 )
+from azure_haymaker.knowledge_worker.telemetry import (
+    CalendarEvidence,
+    EmailEvidence,
+    M365TelemetryCollector,
+    TeamsEvidence,
+)
 
 __all__ = [
     # Agent
@@ -70,4 +76,9 @@ __all__ = [
     # Teams integration
     "TeamsIntegration",
     "TeamsIntegrationError",
+    # Telemetry
+    "M365TelemetryCollector",
+    "EmailEvidence",
+    "CalendarEvidence",
+    "TeamsEvidence",
 ]
