@@ -571,7 +571,8 @@ done
 
 ## Related Documentation
 
-For detailed API documentation, see:
+For detailed documentation, see:
+- [Reporting & Telemetry Guide](/AzureHayMaker/reporting-telemetry/) - Comprehensive reporting, metrics, and dashboard documentation
 - [API Reference](/AzureHayMaker/api/) - REST API endpoints and examples
 - [Architecture Documentation](/AzureHayMaker/architecture/) - System design and components
 - [Scenarios](/AzureHayMaker/scenarios/) - Available scenarios for execution

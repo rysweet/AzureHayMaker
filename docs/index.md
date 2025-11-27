@@ -80,6 +80,10 @@ Azure HayMaker generates benign telemetry (the "Hay") in which to hide cybersecu
     <span class="icon">💻</span>
     <span>CLI Guide</span>
   </a>
+  <a href="/AzureHayMaker/reporting-telemetry/" class="quick-link">
+    <span class="icon">📊</span>
+    <span>Reports & Metrics</span>
+  </a>
   <a href="/AzureHayMaker/api/" class="quick-link">
     <span class="icon">🔌</span>
     <span>API Reference</span>
@@ -192,6 +196,10 @@ Every component implements real functionality with no stubs, TODOs, or placehold
   <a href="/AzureHayMaker/scenarios/" class="quick-link">
     <span class="icon">📋</span>
     <span>Scenarios</span>
+  </a>
+  <a href="/AzureHayMaker/reporting-telemetry/" class="quick-link">
+    <span class="icon">📊</span>
+    <span>Reporting & Telemetry</span>
   </a>
   <a href="/AzureHayMaker/reference/faq" class="quick-link">
     <span class="icon">❓</span>
