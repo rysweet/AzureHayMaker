@@ -31,6 +31,8 @@ class KnowledgeWorkerConfig(AgentConfig):
     including identity, team membership, and M365 credentials.
 
     Attributes:
+        name: Agent name (auto-generated from worker_id if empty)
+        goal: Agent goal (auto-generated from display_name if empty)
         worker_id: Unique worker identifier
         display_name: Display name in Entra
         department: Department/team name
@@ -45,6 +47,10 @@ class KnowledgeWorkerConfig(AgentConfig):
         m365_cert_thumbprint: Certificate thumbprint for auth
         tenant_domain: M365 tenant domain
     """
+
+    # Override parent required fields with defaults (populated in __post_init__)
+    name: str = ""
+    goal: str = ""
 
     # Worker identity
     worker_id: str = ""
@@ -155,8 +161,7 @@ class KnowledgeWorkerAgent(AgentBase):
             persona = WorkerPersona(self.worker_config.persona.lower())
         except ValueError:
             logger.warning(
-                f"Unknown persona '{self.worker_config.persona}', "
-                f"defaulting to ENGINEERING"
+                f"Unknown persona '{self.worker_config.persona}', defaulting to ENGINEERING"
             )
             persona = WorkerPersona.ENGINEERING
 
@@ -196,9 +201,7 @@ class KnowledgeWorkerAgent(AgentBase):
             RuntimeError: If validator not initialized (call on_start first)
         """
         if self._validator is None:
-            raise RuntimeError(
-                "Validator not initialized. Call on_start() first."
-            )
+            raise RuntimeError("Validator not initialized. Call on_start() first.")
         return self._validator
 
     @property
@@ -212,9 +215,7 @@ class KnowledgeWorkerAgent(AgentBase):
             RuntimeError: If client not initialized (call on_start first)
         """
         if self._m365_client is None:
-            raise RuntimeError(
-                "M365 client not initialized. Call on_start() first."
-            )
+            raise RuntimeError("M365 client not initialized. Call on_start() first.")
         return self._m365_client
 
     def on_start(self) -> None:
@@ -242,8 +243,7 @@ class KnowledgeWorkerAgent(AgentBase):
         self._load_allowed_recipients()
 
         logger.info(
-            f"Knowledge worker initialized with {len(self._allowed_recipients)} "
-            f"allowed recipients"
+            f"Knowledge worker initialized with {len(self._allowed_recipients)} allowed recipients"
         )
 
     def on_execute(self) -> int:
@@ -265,9 +265,7 @@ class KnowledgeWorkerAgent(AgentBase):
         Args:
             exit_code: Exit code from on_execute()
         """
-        logger.info(
-            f"Cleaning up knowledge worker: {self.worker_config.worker_id}"
-        )
+        logger.info(f"Cleaning up knowledge worker: {self.worker_config.worker_id}")
 
         self._disconnect_m365_client()
 
@@ -280,9 +278,7 @@ class KnowledgeWorkerAgent(AgentBase):
         """
         tenant_domain = self.worker_config.tenant_domain
         if not tenant_domain:
-            logger.warning(
-                "No tenant domain configured. Validator will reject all recipients."
-            )
+            logger.warning("No tenant domain configured. Validator will reject all recipients.")
             tenant_domain = "invalid.domain"
 
         self._validator = CommunicationValidator(
@@ -291,41 +287,27 @@ class KnowledgeWorkerAgent(AgentBase):
         )
 
     def _initialize_m365_client(self) -> None:
-        """Initialize M365 CLI connection with certificate auth.
+        """Initialize M365 client connection with client secret auth.
 
-        Connects to Microsoft Graph using certificate-based authentication
-        with the configured app registration.
+        Connects to Microsoft Graph using client secret credentials
+        from environment variables (KW_APP_ID, KW_CLIENT_SECRET, KW_TENANT_ID).
         """
-        if not self.worker_config.m365_app_id:
-            logger.warning("No M365 app ID configured. Skipping client initialization.")
-            return
-
         try:
-            # Import here to avoid dependency issues if msgraph not installed
-            from azure.identity import CertificateCredential
-            from msgraph import GraphServiceClient
+            # Import here to avoid dependency issues if not installed
+            from azure_haymaker.knowledge_worker.m365_client import M365ClientFactory
 
-            # Build credential from certificate
-            # Note: In production, certificate path comes from Key Vault mount
-            cert_path = f"/secrets/{self.worker_config.m365_cert_thumbprint}.pem"
+            self._m365_client = M365ClientFactory.create()
 
-            credential = CertificateCredential(
-                tenant_id=self._extract_tenant_id(),
-                client_id=self.worker_config.m365_app_id,
-                certificate_path=cert_path,
-            )
-
-            self._m365_client = GraphServiceClient(credential)
-
-            logger.info(
-                f"M365 client initialized for {self.worker_config.worker_id}"
-            )
+            logger.info(f"M365 client initialized for {self.worker_config.worker_id}")
 
         except ImportError:
             logger.warning(
                 "Microsoft Graph SDK not installed. "
                 "Install with: pip install msgraph-sdk azure-identity"
             )
+        except ValueError as e:
+            # Missing credentials - log for debugging
+            logger.debug(f"M365 client not initialized: {e}")
         except Exception as e:
             logger.error(f"Failed to initialize M365 client: {e}")
 
@@ -346,15 +328,19 @@ class KnowledgeWorkerAgent(AgentBase):
 
         Queries Entra to build the list of internal recipients
         that this worker is allowed to communicate with.
+
+        Note:
+            If orchestrator has already populated allowed_recipients,
+            this method preserves them and updates the validator.
         """
         # In a full implementation, this would query:
         # 1. All workers in the same run
         # 2. Team shared mailboxes
         # 3. Distribution groups
 
-        # For now, start with an empty set that gets populated
-        # as the orchestrator provisions workers
-        self._allowed_recipients = set()
+        # Don't reset if orchestrator already populated recipients
+        if not self._allowed_recipients:
+            self._allowed_recipients = set()
 
         if self._validator:
             self._validator.allowed_upns = self._allowed_recipients
@@ -368,9 +354,7 @@ class KnowledgeWorkerAgent(AgentBase):
             # The Graph SDK handles connection pooling automatically
             # Just clear the reference
             self._m365_client = None
-            logger.debug(
-                f"M365 client disconnected for {self.worker_config.worker_id}"
-            )
+            logger.debug(f"M365 client disconnected for {self.worker_config.worker_id}")
 
     def add_allowed_recipient(self, recipient: str) -> None:
         """Add a recipient to the allowed list.
@@ -424,3 +408,113 @@ class KnowledgeWorkerAgent(AgentBase):
             "m365_client_initialized": self._m365_client is not None,
             "validator_initialized": self._validator is not None,
         }
+
+    def get_allowed_recipients(self) -> list[str]:
+        """Get list of allowed internal recipients.
+
+        Returns:
+            List of allowed email addresses/UPNs
+        """
+        return list(self._allowed_recipients)
+
+    async def send_email(
+        self,
+        to: list[str],
+        subject: str,
+        body: str,
+        cc: list[str] | None = None,
+    ) -> str | None:
+        """Send an email to internal recipients.
+
+        Args:
+            to: List of recipient email addresses
+            subject: Email subject
+            body: Email body (HTML supported)
+            cc: Optional CC recipients
+
+        Returns:
+            Message ID if sent, None if blocked or failed
+
+        Raises:
+            RuntimeError: If M365 client not initialized
+            ValueError: If no recipients provided
+        """
+        if self._m365_client is None:
+            raise RuntimeError("M365 client not initialized. Call on_start() first.")
+
+        if not to:
+            raise ValueError("At least one recipient is required")
+
+        from azure_haymaker.knowledge_worker.operations import EmailOperations
+
+        ops = EmailOperations(
+            worker_identity=self.worker_identity,
+            m365_client=self._m365_client,
+            validator=self.validator,
+        )
+
+        return await ops.send_email(
+            to=to,
+            subject=subject,
+            body=body,
+            cc=cc,
+        )
+
+    async def create_calendar_event(
+        self,
+        subject: str,
+        start_time: str,
+        end_time: str,
+        attendees: list[str] | None = None,
+        body: str = "",
+        is_online_meeting: bool = False,
+    ) -> str | None:
+        """Create a calendar event.
+
+        Args:
+            subject: Event subject
+            start_time: Start time in ISO format
+            end_time: End time in ISO format
+            attendees: List of attendee email addresses
+            body: Optional event body
+            is_online_meeting: If True, create Teams meeting
+
+        Returns:
+            Event ID if created, None if failed
+
+        Raises:
+            RuntimeError: If M365 client not initialized
+        """
+        if self._m365_client is None:
+            raise RuntimeError("M365 client not initialized. Call on_start() first.")
+
+        from datetime import datetime
+
+        from azure_haymaker.knowledge_worker.operations import CalendarOperations
+
+        # Parse ISO strings to datetime if needed
+        start_dt = (
+            datetime.fromisoformat(start_time.replace("Z", "+00:00"))
+            if isinstance(start_time, str)
+            else start_time
+        )
+        end_dt = (
+            datetime.fromisoformat(end_time.replace("Z", "+00:00"))
+            if isinstance(end_time, str)
+            else end_time
+        )
+
+        ops = CalendarOperations(
+            worker_identity=self.worker_identity,
+            m365_client=self._m365_client,
+            validator=self.validator,
+        )
+
+        return await ops.create_event(
+            subject=subject,
+            start_time=start_dt,
+            end_time=end_dt,
+            attendees=attendees or [],
+            body=body,
+            is_online=is_online_meeting,
+        )

@@ -1,9 +1,6 @@
 """Tests for haymaker_cli.scenarios module."""
 
 import json
-import tempfile
-from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from click.testing import CliRunner

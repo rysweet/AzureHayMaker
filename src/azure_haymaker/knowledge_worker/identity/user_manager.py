@@ -1,6 +1,6 @@
 """Entra user management for Knowledge Worker Activity Framework.
 
-Provides user provisioning and management for simulated knowledge workers.
+Provides user provisioning and management for knowledge workers with real M365 identities.
 """
 
 import asyncio
@@ -9,6 +9,9 @@ import secrets
 import string
 from collections.abc import AsyncIterator
 from typing import Any
+
+from msgraph.generated.models.password_profile import PasswordProfile
+from msgraph.generated.models.user import User
 
 from azure_haymaker.knowledge_worker.models.worker import (
     WorkerIdentity,
@@ -21,9 +24,9 @@ logger = logging.getLogger(__name__)
 class EntraUserManager:
     """Manages Entra ID user provisioning for knowledge workers.
 
-    Handles creation, deletion, and listing of simulated knowledge
-    worker users in Entra ID with proper naming conventions and
-    security configurations.
+    Handles creation, deletion, and listing of knowledge worker users
+    in Entra ID with proper naming conventions, E5 license assignment,
+    and security configurations.
 
     Naming Convention:
         - User: kw-{run_id[:8]}-{dept[:4]}-{index:03d}
@@ -96,24 +99,37 @@ class EntraUserManager:
             persona = self._persona_from_department(department)
 
         try:
-            # Create user via Graph API
-            user_data = {
-                "accountEnabled": True,
-                "displayName": display_name,
-                "mailNickname": username,
-                "userPrincipalName": upn,
-                "passwordProfile": {
-                    "forceChangePasswordNextSignIn": False,
-                    "password": password,
-                },
-                "department": department,
-                "jobTitle": f"Knowledge Worker ({persona.value})",
-                "usageLocation": "US",  # Required for license assignment
-            }
+            # Create user via Graph API using proper SDK models
+            password_profile = PasswordProfile(
+                force_change_password_next_sign_in=False,
+                password=password,
+            )
 
-            created_user = await self.graph_client.users.post(body=user_data)
+            user = User(
+                account_enabled=True,
+                display_name=display_name,
+                mail_nickname=username,
+                user_principal_name=upn,
+                password_profile=password_profile,
+                department=department,
+                job_title=f"Knowledge Worker ({persona.value})",
+                usage_location="US",  # Required for license assignment
+            )
+
+            created_user = await self.graph_client.users.post(body=user)
 
             logger.info(f"Provisioned worker: {username} ({display_name})")
+
+            # Ensure usage location is set (required for license assignment)
+            # Graph API sometimes doesn't return all fields on POST, so update explicitly
+            if created_user.id:
+                update_user = User(usage_location="US", account_enabled=True)
+                await self.graph_client.users.by_user_id(created_user.id).patch(body=update_user)
+                logger.debug(f"Set usage location for {username}")
+
+            # Assign E5 license
+            if created_user.id:
+                await self.assign_license(created_user.id)
 
             return WorkerIdentity(
                 worker_id=username,
@@ -127,6 +143,112 @@ class EntraUserManager:
         except Exception as e:
             logger.error(f"Failed to provision worker {username}: {e}")
             raise
+
+    async def get_available_e5_sku(self) -> str | None:
+        """Query tenant for available E5 license SKU.
+
+        Returns:
+            SKU ID of first available E5 license, or None if not found
+
+        Note:
+            Searches for SKUs with "E5" in the part number and available units.
+            Different tenants have different E5 variants:
+            - SPE_E5 (standard)
+            - SPE_E5_NOPSTNCONF (without PSTN)
+            - ENTERPRISEPREMIUM
+            etc.
+        """
+        try:
+            skus = await self.graph_client.subscribed_skus.get()
+
+            if not skus or not skus.value:
+                logger.warning("No subscribed SKUs found in tenant")
+                return None
+
+            # Find E5 license with available units
+            for sku in skus.value:
+                sku_name = sku.sku_part_number or ""
+                if "E5" in sku_name.upper():
+                    enabled = sku.prepaid_units.enabled if sku.prepaid_units else 0
+                    consumed = sku.consumed_units or 0
+                    available = enabled - consumed
+
+                    if available > 0:
+                        logger.info(
+                            f"Found E5 license: {sku_name} "
+                            f"({available} available, SKU: {sku.sku_id})"
+                        )
+                        return str(sku.sku_id)
+                    else:
+                        logger.warning(
+                            f"Found E5 license {sku_name} but no units available "
+                            f"({consumed}/{enabled} consumed)"
+                        )
+
+            logger.warning("No E5 licenses with available units found")
+            return None
+
+        except Exception as e:
+            logger.error(f"Failed to query subscribed SKUs: {e}")
+            return None
+
+    async def assign_license(
+        self,
+        user_id: str,
+        sku_id: str | None = None,
+    ) -> bool:
+        """Assign an M365 license to a user.
+
+        Args:
+            user_id: Entra object ID of the user
+            sku_id: License SKU ID (queries tenant for E5 if not provided)
+
+        Returns:
+            True if license assigned successfully, False otherwise
+
+        Note:
+            If sku_id is not provided, queries the tenant for available E5 licenses.
+            License assignment failures are logged but don't fail provisioning.
+
+        Example:
+            >>> manager = EntraUserManager(graph_client, "run-123", "test.onmicrosoft.com")
+            >>> success = await manager.assign_license("user-object-id")
+            >>> # Returns True if E5 license assigned, False on failure
+        """
+        from uuid import UUID
+
+        from msgraph.generated.models.assigned_license import AssignedLicense
+        from msgraph.generated.users.item.assign_license.assign_license_post_request_body import (
+            AssignLicensePostRequestBody,
+        )
+
+        # Query tenant for E5 license if not provided
+        if sku_id is None:
+            sku_id = await self.get_available_e5_sku()
+            if sku_id is None:
+                logger.warning(
+                    "No E5 licenses available in tenant. "
+                    "User created but will not have mailbox access."
+                )
+                return False
+
+        try:
+            # Convert string UUID to UUID object
+            sku_uuid = UUID(sku_id) if isinstance(sku_id, str) else sku_id
+            license = AssignedLicense(sku_id=sku_uuid)
+            body = AssignLicensePostRequestBody(
+                add_licenses=[license],
+                remove_licenses=[],
+            )
+
+            await self.graph_client.users.by_user_id(user_id).assign_license.post(body=body)
+
+            logger.info(f"Assigned E5 license to user {user_id}")
+            return True
+
+        except Exception as e:
+            logger.warning(f"Failed to assign license to user {user_id}: {e}")
+            return False
 
     async def provision_batch(
         self,
@@ -192,8 +314,7 @@ class EntraUserManager:
                     "query_parameters": {
                         "filter": filter_query,
                         "select": (
-                            "id,displayName,userPrincipalName,"
-                            "mailNickname,department,jobTitle"
+                            "id,displayName,userPrincipalName," "mailNickname,department,jobTitle"
                         ),
                     }
                 }
@@ -219,8 +340,7 @@ class EntraUserManager:
                 request_configuration={
                     "query_parameters": {
                         "select": (
-                            "id,displayName,userPrincipalName,"
-                            "mailNickname,department,jobTitle"
+                            "id,displayName,userPrincipalName," "mailNickname,department,jobTitle"
                         ),
                     }
                 }
@@ -235,21 +355,32 @@ class EntraUserManager:
 
         Returns:
             Secure password string meeting complexity requirements
+
+        Note:
+            Password is generated for Entra ID compliance. In live_mode,
+            the app uses application-level delegation (not per-user auth)
+            so workers don't need to authenticate with these passwords.
         """
         # Ensure password has required complexity
         chars = string.ascii_letters + string.digits + "!@#$%^&*"
-        password = "".join(secrets.choice(chars) for _ in range(self.PASSWORD_LENGTH))
 
-        # Ensure at least one of each required type
-        password = (
-            secrets.choice(string.ascii_uppercase)
-            + secrets.choice(string.ascii_lowercase)
-            + secrets.choice(string.digits)
-            + secrets.choice("!@#$%^&*")
-            + password[4:]
+        # Generate base password
+        password_chars = [secrets.choice(chars) for _ in range(self.PASSWORD_LENGTH - 4)]
+
+        # Add at least one of each required type
+        password_chars.extend(
+            [
+                secrets.choice(string.ascii_uppercase),
+                secrets.choice(string.ascii_lowercase),
+                secrets.choice(string.digits),
+                secrets.choice("!@#$%^&*"),
+            ]
         )
 
-        return password
+        # Shuffle to avoid predictable pattern at specific positions
+        secrets.SystemRandom().shuffle(password_chars)
+
+        return "".join(password_chars)
 
     def _persona_from_department(self, department: str) -> WorkerPersona:
         """Map department name to persona enum.
