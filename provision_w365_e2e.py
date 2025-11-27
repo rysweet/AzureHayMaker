@@ -40,7 +40,8 @@ from azure_haymaker.knowledge_worker.teams_integration import TeamsIntegration
 from azure_haymaker.knowledge_worker.telemetry import M365TelemetryCollector
 
 # Constants
-TELEMETRY_LOOKBACK_HOURS = 24
+TELEMETRY_LOOKBACK_HOURS = 24  # Look back 24 hours for telemetry data
+MAX_CONSOLE_DISPLAY_WORKERS = 10  # Limit console output to first N workers for readability
 
 
 def get_graph_client() -> GraphServiceClient:
@@ -286,11 +287,11 @@ def generate_console_report(
     print("-" * 70)
     print(f"{'Worker ID':<25} {'Persona':<15} {'Department':<20}")
     print("-" * 70)
-    for worker in workers[:10]:  # Show first 10
+    for worker in workers[:MAX_CONSOLE_DISPLAY_WORKERS]:
         persona = worker.persona.name if worker.persona else "N/A"
         print(f"{worker.worker_id:<25} {persona:<15} {worker.department:<20}")
-    if len(workers) > 10:
-        print(f"... and {len(workers) - 10} more workers")
+    if len(workers) > MAX_CONSOLE_DISPLAY_WORKERS:
+        print(f"... and {len(workers) - MAX_CONSOLE_DISPLAY_WORKERS} more workers")
 
     # Telemetry summary
     print("\nTelemetry Summary:")

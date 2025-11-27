@@ -15,14 +15,12 @@ Uses pytest with AsyncMock for Graph API interactions.
 """
 
 import asyncio
-from datetime import UTC, datetime, timedelta
-from unittest.mock import ANY, AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
 
 # Import the module under test
-# Note: This import will fail until Windows365CloudPCManager is implemented
 try:
     from azure_haymaker.knowledge_worker.endpoints.cloud_pc import (
         Windows365CloudPCManager,
@@ -41,7 +39,7 @@ except ImportError:
 
 
 pytestmark = pytest.mark.skipif(
-    not CLOUD_PC_AVAILABLE, reason="Windows365CloudPCManager not yet implemented"
+    not CLOUD_PC_AVAILABLE, reason="Windows365CloudPCManager module not available"
 )
 
 

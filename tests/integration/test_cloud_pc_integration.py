@@ -14,8 +14,7 @@ Uses pytest with real or mocked Azure/M365 services.
 
 import asyncio
 from datetime import UTC, datetime, timedelta
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -44,7 +43,7 @@ except ImportError:
 
 pytestmark = pytest.mark.skipif(
     not INTEGRATION_AVAILABLE,
-    reason="Cloud PC and Telemetry modules not yet implemented",
+    reason="Cloud PC and Telemetry modules not available",
 )
 
 
@@ -573,7 +572,7 @@ class TestIntegrationErrorHandling:
             try:
                 emails = await telemetry_collector.get_emails_for_worker(worker=worker)
                 results.append((worker.worker_id, emails))
-            except Exception as e:
+            except Exception:
                 results.append((worker.worker_id, None))
 
         # Worker 1 should have failed

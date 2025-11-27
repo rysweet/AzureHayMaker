@@ -8,7 +8,7 @@ owner: knowledge-worker-framework
 
 # Windows 365 Cloud PC Provisioning
 
-> **Note**: This document describes the Windows 365 Cloud PC provisioning feature for the Knowledge Worker Activity Framework. Implementation is in progress. See [ARCHITECTURE.md](./ARCHITECTURE.md) for overall framework design.
+> **Note**: This document describes the Windows 365 Cloud PC provisioning feature for the Knowledge Worker Activity Framework. Implementation is complete with graceful degradation for missing CloudPC permissions. See [ARCHITECTURE.md](./ARCHITECTURE.md) for overall framework design.
 
 ## Overview
 
