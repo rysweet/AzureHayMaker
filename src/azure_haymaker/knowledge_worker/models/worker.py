@@ -32,10 +32,12 @@ class EndpointType(str, Enum):
 
     Workers can execute activities from either:
     - CLOUD_PC: Windows 365 Cloud PC for rich desktop telemetry
+    - WINDOWS_VM: Azure Windows VM fallback for Computer Use Agents
     - CLI_CONTAINER: M365 CLI container for cost-efficient API-only activity
     """
 
     CLOUD_PC = "cloud_pc"
+    WINDOWS_VM = "windows_vm"
     CLI_CONTAINER = "cli_container"
 
 
