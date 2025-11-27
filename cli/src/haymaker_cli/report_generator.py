@@ -1,10 +1,134 @@
 """HTML report generator for HayMaker metrics."""
 
+import html
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
-from haymaker_cli.client import SyncHayMakerClient
-from haymaker_cli.models import AgentInfo, MetricsSummary, ResourceInfo
+from haymaker_cli.models import AgentInfo, MetricsSummary, ResourceInfo, ScenarioMetrics
+
+# Constants for report display limits
+MAX_RECENT_AGENTS_IN_REPORT = 20
+MAX_RECENT_RESOURCES_IN_REPORT = 50
+
+# Shared CSS styles for HTML reports
+_REPORT_STYLES = """
+<style>
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+    }
+    .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+    }
+    .header h1 {
+        margin: 0 0 10px 0;
+        font-size: 2.5em;
+    }
+    .header .subtitle {
+        opacity: 0.9;
+        font-size: 1.1em;
+    }
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    .kpi-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .kpi-card .label {
+        font-size: 0.9em;
+        color: #666;
+        margin-bottom: 8px;
+    }
+    .kpi-card .value {
+        font-size: 2em;
+        font-weight: bold;
+        color: #667eea;
+    }
+    .kpi-card.success .value { color: #10b981; }
+    .kpi-card.danger .value { color: #ef4444; }
+    .kpi-card.warning .value { color: #f59e0b; }
+    .section {
+        background: white;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    .section h2 {
+        margin-top: 0;
+        color: #667eea;
+        border-bottom: 2px solid #667eea;
+        padding-bottom: 10px;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    th, td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    th {
+        background-color: #f9fafb;
+        font-weight: 600;
+        color: #374151;
+    }
+    tr:hover {
+        background-color: #f9fafb;
+    }
+    .footer {
+        text-align: center;
+        color: #666;
+        margin-top: 30px;
+        font-size: 0.9em;
+    }
+</style>
+"""
+
+
+def _count_agents_by_status(agents: list[AgentInfo]) -> dict[str, int]:
+    """Count agents grouped by status.
+
+    Args:
+        agents: List of agent information
+
+    Returns:
+        Dictionary mapping status to count
+    """
+    return dict(Counter(a.status for a in agents))
+
+
+def _group_resources_by_type(resources: list[ResourceInfo]) -> dict[str, int]:
+    """Group active resources by type.
+
+    Args:
+        resources: List of resource information
+
+    Returns:
+        Dictionary mapping resource type to count of active resources
+    """
+    result: dict[str, int] = {}
+    for r in resources:
+        if r.status == "created":
+            result[r.type] = result.get(r.type, 0) + 1
+    return result
 
 
 class ReportGenerator:
@@ -14,18 +138,13 @@ class ReportGenerator:
     and renders it as HTML reports.
 
     Example:
-        >>> client = SyncHayMakerClient("https://api.example.com", auth)
-        >>> generator = ReportGenerator(client)
+        >>> generator = ReportGenerator()
         >>> generator.generate_summary_report(...)  # doctest: +SKIP
     """
 
-    def __init__(self, client: SyncHayMakerClient):
-        """Initialize report generator.
-
-        Args:
-            client: Configured HayMaker client
-        """
-        self.client = client
+    def __init__(self):
+        """Initialize report generator."""
+        pass
 
     def generate_summary_report(
         self,
@@ -42,22 +161,21 @@ class ReportGenerator:
             resources: List of resource information
             output_path: Output file path
         """
-        # Calculate additional stats
-        running_agents = len([a for a in agents if a.status == "running"])
-        completed_agents = len([a for a in agents if a.status == "completed"])
-        failed_agents = len([a for a in agents if a.status == "failed"])
+        # Calculate agent stats using helper
+        agent_counts = _count_agents_by_status(agents)
+        running_agents = agent_counts.get("running", 0)
+        completed_agents = agent_counts.get("completed", 0)
+        failed_agents = agent_counts.get("failed", 0)
 
+        # Calculate resource stats
         active_resources = len([r for r in resources if r.status == "created"])
         deleted_resources = len([r for r in resources if r.status == "deleted"])
 
-        # Group resources by type
-        resources_by_type: dict[str, int] = {}
-        for resource in resources:
-            if resource.status == "created":
-                resources_by_type[resource.type] = resources_by_type.get(resource.type, 0) + 1
+        # Group resources by type using helper
+        resources_by_type = _group_resources_by_type(resources)
 
         # Generate HTML
-        html = self._render_summary_html(
+        html_content = self._render_summary_html(
             metrics=metrics,
             running_agents=running_agents,
             completed_agents=completed_agents,
@@ -68,7 +186,7 @@ class ReportGenerator:
         )
 
         # Write to file
-        output_path.write_text(html)
+        output_path.write_text(html_content)
 
     def generate_scenario_report(
         self,
@@ -94,21 +212,20 @@ class ReportGenerator:
                 scenario_metrics = sm
                 break
 
-        # Calculate stats
-        running_agents = len([a for a in agents if a.status == "running"])
-        completed_agents = len([a for a in agents if a.status == "completed"])
-        failed_agents = len([a for a in agents if a.status == "failed"])
+        # Calculate agent stats using helper
+        agent_counts = _count_agents_by_status(agents)
+        running_agents = agent_counts.get("running", 0)
+        completed_agents = agent_counts.get("completed", 0)
+        failed_agents = agent_counts.get("failed", 0)
 
+        # Calculate resource stats
         active_resources = len([r for r in resources if r.status == "created"])
 
-        # Group resources by type
-        resources_by_type: dict[str, int] = {}
-        for resource in resources:
-            if resource.status == "created":
-                resources_by_type[resource.type] = resources_by_type.get(resource.type, 0) + 1
+        # Group resources by type using helper
+        resources_by_type = _group_resources_by_type(resources)
 
         # Generate HTML
-        html = self._render_scenario_html(
+        html_content = self._render_scenario_html(
             scenario_name=scenario_name,
             scenario_metrics=scenario_metrics,
             metrics=metrics,
@@ -122,7 +239,7 @@ class ReportGenerator:
         )
 
         # Write to file
-        output_path.write_text(html)
+        output_path.write_text(html_content)
 
     def _render_summary_html(
         self,
@@ -150,7 +267,7 @@ class ReportGenerator:
         """
         now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
 
-        # Build scenario rows
+        # Build scenario rows with HTML escaping
         scenario_rows = ""
         for scenario in metrics.scenarios:
             success_rate = (
@@ -166,21 +283,21 @@ class ReportGenerator:
 
             scenario_rows += f"""
                 <tr>
-                    <td>{scenario.scenario_name}</td>
+                    <td>{html.escape(scenario.scenario_name)}</td>
                     <td>{scenario.run_count}</td>
                     <td>{scenario.success_count}</td>
                     <td>{scenario.fail_count}</td>
                     <td>{success_rate:.1f}%</td>
-                    <td>{avg_duration}</td>
+                    <td>{html.escape(avg_duration)}</td>
                 </tr>
             """
 
-        # Build resources by type rows
+        # Build resources by type rows with HTML escaping
         resource_type_rows = ""
         for resource_type, count in sorted(resources_by_type.items()):
             resource_type_rows += f"""
                 <tr>
-                    <td>{resource_type}</td>
+                    <td>{html.escape(resource_type)}</td>
                     <td>{count}</td>
                 </tr>
             """
@@ -191,98 +308,12 @@ class ReportGenerator:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HayMaker Summary Report</title>
-    <style>
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }}
-        .header {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            border-radius: 10px;
-            margin-bottom: 30px;
-        }}
-        .header h1 {{
-            margin: 0 0 10px 0;
-            font-size: 2.5em;
-        }}
-        .header .subtitle {{
-            opacity: 0.9;
-            font-size: 1.1em;
-        }}
-        .kpi-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }}
-        .kpi-card {{
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }}
-        .kpi-card .label {{
-            font-size: 0.9em;
-            color: #666;
-            margin-bottom: 8px;
-        }}
-        .kpi-card .value {{
-            font-size: 2em;
-            font-weight: bold;
-            color: #667eea;
-        }}
-        .kpi-card.success .value {{ color: #10b981; }}
-        .kpi-card.danger .value {{ color: #ef4444; }}
-        .kpi-card.warning .value {{ color: #f59e0b; }}
-        .section {{
-            background: white;
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }}
-        .section h2 {{
-            margin-top: 0;
-            color: #667eea;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 10px;
-        }}
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-        }}
-        th, td {{
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #e5e7eb;
-        }}
-        th {{
-            background-color: #f9fafb;
-            font-weight: 600;
-            color: #374151;
-        }}
-        tr:hover {{
-            background-color: #f9fafb;
-        }}
-        .footer {{
-            text-align: center;
-            color: #666;
-            margin-top: 30px;
-            font-size: 0.9em;
-        }}
-    </style>
+    {_REPORT_STYLES}
 </head>
 <body>
     <div class="header">
         <h1>HayMaker Summary Report</h1>
-        <div class="subtitle">Period: {metrics.period} | Generated: {now}</div>
+        <div class="subtitle">Period: {html.escape(metrics.period)} | Generated: {html.escape(now)}</div>
     </div>
 
     <div class="kpi-grid">
@@ -366,7 +397,7 @@ class ReportGenerator:
     def _render_scenario_html(
         self,
         scenario_name: str,
-        scenario_metrics: any,
+        scenario_metrics: ScenarioMetrics | None,
         metrics: MetricsSummary,
         running_agents: int,
         completed_agents: int,
@@ -395,20 +426,21 @@ class ReportGenerator:
         """
         now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
 
-        # Scenario metrics
+        # Scenario metrics with safe defaults
         run_count = scenario_metrics.run_count if scenario_metrics else 0
         success_count = scenario_metrics.success_count if scenario_metrics else 0
         fail_count = scenario_metrics.fail_count if scenario_metrics else 0
         success_rate = (success_count / run_count * 100) if run_count > 0 else 0.0
-        avg_duration = (
+        avg_duration_raw = (
             f"{scenario_metrics.avg_duration_hours:.2f}h"
             if scenario_metrics and scenario_metrics.avg_duration_hours is not None
             else "N/A"
         )
+        avg_duration = html.escape(avg_duration_raw)
 
-        # Build agent rows
+        # Build agent rows with HTML escaping
         agent_rows = ""
-        for agent in sorted(agents, key=lambda a: a.started_at, reverse=True)[:20]:
+        for agent in sorted(agents, key=lambda a: a.started_at, reverse=True)[:MAX_RECENT_AGENTS_IN_REPORT]:
             status_color = {
                 "running": "#f59e0b",
                 "completed": "#10b981",
@@ -423,17 +455,17 @@ class ReportGenerator:
 
             agent_rows += f"""
                 <tr>
-                    <td>{agent.agent_id}</td>
-                    <td><span style="color: {status_color}; font-weight: bold;">{agent.status}</span></td>
-                    <td>{agent.started_at.strftime("%Y-%m-%d %H:%M:%S")}</td>
-                    <td>{completed_str}</td>
-                    <td>{agent.progress or "-"}</td>
+                    <td>{html.escape(agent.agent_id)}</td>
+                    <td><span style="color: {html.escape(status_color)}; font-weight: bold;">{html.escape(agent.status)}</span></td>
+                    <td>{html.escape(agent.started_at.strftime("%Y-%m-%d %H:%M:%S"))}</td>
+                    <td>{html.escape(completed_str)}</td>
+                    <td>{html.escape(agent.progress or "-")}</td>
                 </tr>
             """
 
-        # Build resource rows
+        # Build resource rows with HTML escaping
         resource_rows = ""
-        for resource in sorted(resources, key=lambda r: r.created_at, reverse=True)[:50]:
+        for resource in sorted(resources, key=lambda r: r.created_at, reverse=True)[:MAX_RECENT_RESOURCES_IN_REPORT]:
             status_color = {
                 "created": "#10b981",
                 "deleted": "#6b7280",
@@ -448,20 +480,20 @@ class ReportGenerator:
 
             resource_rows += f"""
                 <tr>
-                    <td>{resource.name}</td>
-                    <td>{resource.type}</td>
-                    <td><span style="color: {status_color}; font-weight: bold;">{resource.status}</span></td>
-                    <td>{resource.created_at.strftime("%Y-%m-%d %H:%M:%S")}</td>
-                    <td>{deleted_str}</td>
+                    <td>{html.escape(resource.name)}</td>
+                    <td>{html.escape(resource.type)}</td>
+                    <td><span style="color: {html.escape(status_color)}; font-weight: bold;">{html.escape(resource.status)}</span></td>
+                    <td>{html.escape(resource.created_at.strftime("%Y-%m-%d %H:%M:%S"))}</td>
+                    <td>{html.escape(deleted_str)}</td>
                 </tr>
             """
 
-        # Build resources by type rows
+        # Build resources by type rows with HTML escaping
         resource_type_rows = ""
         for resource_type, count in sorted(resources_by_type.items()):
             resource_type_rows += f"""
                 <tr>
-                    <td>{resource_type}</td>
+                    <td>{html.escape(resource_type)}</td>
                     <td>{count}</td>
                 </tr>
             """
@@ -471,99 +503,13 @@ class ReportGenerator:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HayMaker Scenario Report - {scenario_name}</title>
-    <style>
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }}
-        .header {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            border-radius: 10px;
-            margin-bottom: 30px;
-        }}
-        .header h1 {{
-            margin: 0 0 10px 0;
-            font-size: 2.5em;
-        }}
-        .header .subtitle {{
-            opacity: 0.9;
-            font-size: 1.1em;
-        }}
-        .kpi-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }}
-        .kpi-card {{
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }}
-        .kpi-card .label {{
-            font-size: 0.9em;
-            color: #666;
-            margin-bottom: 8px;
-        }}
-        .kpi-card .value {{
-            font-size: 2em;
-            font-weight: bold;
-            color: #667eea;
-        }}
-        .kpi-card.success .value {{ color: #10b981; }}
-        .kpi-card.danger .value {{ color: #ef4444; }}
-        .kpi-card.warning .value {{ color: #f59e0b; }}
-        .section {{
-            background: white;
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }}
-        .section h2 {{
-            margin-top: 0;
-            color: #667eea;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 10px;
-        }}
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-        }}
-        th, td {{
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #e5e7eb;
-        }}
-        th {{
-            background-color: #f9fafb;
-            font-weight: 600;
-            color: #374151;
-        }}
-        tr:hover {{
-            background-color: #f9fafb;
-        }}
-        .footer {{
-            text-align: center;
-            color: #666;
-            margin-top: 30px;
-            font-size: 0.9em;
-        }}
-    </style>
+    <title>HayMaker Scenario Report - {html.escape(scenario_name)}</title>
+    {_REPORT_STYLES}
 </head>
 <body>
     <div class="header">
-        <h1>Scenario Report: {scenario_name}</h1>
-        <div class="subtitle">Period: {metrics.period} | Generated: {now}</div>
+        <h1>Scenario Report: {html.escape(scenario_name)}</h1>
+        <div class="subtitle">Period: {html.escape(metrics.period)} | Generated: {html.escape(now)}</div>
     </div>
 
     <div class="kpi-grid">

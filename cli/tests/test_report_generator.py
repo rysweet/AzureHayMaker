@@ -2,18 +2,11 @@
 
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
 from haymaker_cli.models import AgentInfo, MetricsSummary, ResourceInfo, ScenarioMetrics
 from haymaker_cli.report_generator import ReportGenerator
-
-
-@pytest.fixture
-def mock_client():
-    """Create mock HayMaker client."""
-    return MagicMock()
 
 
 @pytest.fixture
@@ -113,17 +106,15 @@ def sample_resources():
     ]
 
 
-def test_report_generator_init(mock_client):
+def test_report_generator_init():
     """Test report generator initialization."""
-    generator = ReportGenerator(mock_client)
-    assert generator.client == mock_client
+    generator = ReportGenerator()
+    # ReportGenerator no longer stores client
 
 
-def test_generate_summary_report(
-    mock_client, sample_metrics, sample_agents, sample_resources, tmp_path
-):
+def test_generate_summary_report(sample_metrics, sample_agents, sample_resources, tmp_path):
     """Test summary report generation."""
-    generator = ReportGenerator(mock_client)
+    generator = ReportGenerator()
     output_path = tmp_path / "summary.html"
 
     generator.generate_summary_report(
@@ -146,11 +137,9 @@ def test_generate_summary_report(
     assert "network-01" in html
 
 
-def test_generate_scenario_report(
-    mock_client, sample_metrics, sample_agents, sample_resources, tmp_path
-):
+def test_generate_scenario_report(sample_metrics, sample_agents, sample_resources, tmp_path):
     """Test scenario-specific report generation."""
-    generator = ReportGenerator(mock_client)
+    generator = ReportGenerator()
     output_path = tmp_path / "scenario.html"
 
     # Filter agents and resources for scenario
@@ -179,10 +168,10 @@ def test_generate_scenario_report(
 
 
 def test_summary_report_calculates_stats_correctly(
-    mock_client, sample_metrics, sample_agents, sample_resources, tmp_path
+    sample_metrics, sample_agents, sample_resources, tmp_path
 ):
     """Test that summary report calculates statistics correctly."""
-    generator = ReportGenerator(mock_client)
+    generator = ReportGenerator()
     output_path = tmp_path / "summary.html"
 
     generator.generate_summary_report(
@@ -203,10 +192,10 @@ def test_summary_report_calculates_stats_correctly(
 
 
 def test_scenario_report_groups_resources_by_type(
-    mock_client, sample_metrics, sample_agents, sample_resources, tmp_path
+    sample_metrics, sample_agents, sample_resources, tmp_path
 ):
     """Test that scenario report groups resources by type."""
-    generator = ReportGenerator(mock_client)
+    generator = ReportGenerator()
     output_path = tmp_path / "scenario.html"
 
     compute_resources = [r for r in sample_resources if r.scenario == "compute-01"]
@@ -225,9 +214,9 @@ def test_scenario_report_groups_resources_by_type(
     assert "Microsoft.Compute/virtualMachines" in html
 
 
-def test_summary_report_handles_empty_data(mock_client, tmp_path):
+def test_summary_report_handles_empty_data(tmp_path):
     """Test that summary report handles empty data gracefully."""
-    generator = ReportGenerator(mock_client)
+    generator = ReportGenerator()
     output_path = tmp_path / "empty.html"
 
     empty_metrics = MetricsSummary(
@@ -249,11 +238,9 @@ def test_summary_report_handles_empty_data(mock_client, tmp_path):
     assert "0" in html  # Zero executions
 
 
-def test_scenario_report_handles_missing_scenario_metrics(
-    mock_client, sample_metrics, tmp_path
-):
+def test_scenario_report_handles_missing_scenario_metrics(sample_metrics, tmp_path):
     """Test scenario report when scenario has no metrics."""
-    generator = ReportGenerator(mock_client)
+    generator = ReportGenerator()
     output_path = tmp_path / "missing.html"
 
     # Use a scenario that doesn't exist in metrics
