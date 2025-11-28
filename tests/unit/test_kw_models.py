@@ -98,10 +98,11 @@ class TestEndpointType:
         """Test that endpoint types have expected values."""
         assert EndpointType.CLOUD_PC.value == "cloud_pc"
         assert EndpointType.CLI_CONTAINER.value == "cli_container"
+        assert EndpointType.WINDOWS_VM.value == "windows_vm"
 
     def test_endpoint_type_count(self) -> None:
-        """Test that only two endpoint types exist."""
-        assert len(EndpointType) == 2
+        """Test that three endpoint types exist."""
+        assert len(EndpointType) == 3
 
 
 class TestWorkerIdentity:
