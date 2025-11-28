@@ -17,9 +17,8 @@ Uses pytest with AsyncMock for Azure SDK interactions.
 """
 
 import asyncio
-import string
-from datetime import UTC, datetime, timedelta
-from unittest.mock import ANY, AsyncMock, MagicMock, call, patch
+import logging
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -121,6 +120,21 @@ def windows_vm_manager(mock_compute_client, mock_network_client, run_id, locatio
         run_id=run_id,
         location=location,
         resource_group_name=f"rg-haymaker-{run_id[:8]}",
+        allowed_source_ips=None,  # Default: unrestricted (testing)
+    )
+
+
+@pytest.fixture
+def windows_vm_manager_secure(mock_compute_client, mock_network_client, run_id, location):
+    """Fixture: WindowsVMManager instance with restricted IPs (secure)."""
+    return WindowsVMManager(
+        compute_client=mock_compute_client,
+        network_client=mock_network_client,
+        subscription_id="12345678-1234-1234-1234-123456789012",
+        run_id=run_id,
+        location=location,
+        resource_group_name=f"rg-haymaker-{run_id[:8]}",
+        allowed_source_ips=["1.2.3.4/32", "10.0.0.0/8"],
     )
 
 
@@ -143,7 +157,7 @@ def worker_identity():
 def mock_vm_response():
     """Fixture: Mock VM response from Azure SDK."""
     vm = MagicMock()
-    vm.id = f"/subscriptions/sub-id/resourceGroups/rg-test/providers/Microsoft.Compute/virtualMachines/vm-test"
+    vm.id = "/subscriptions/sub-id/resourceGroups/rg-test/providers/Microsoft.Compute/virtualMachines/vm-test"
     vm.name = "cua-win-eastus-kw-test-001"
     vm.location = "eastus"
     vm.provisioning_state = "Succeeded"
@@ -895,6 +909,255 @@ class TestVMNaming:
         assert len(vm_name) <= 64
         assert vm_name[0].isalpha()
         assert all(c.isalnum() or c == "-" for c in vm_name)
+
+
+# ==============================================================================
+# SECURITY TESTS
+# ==============================================================================
+
+
+class TestSecurityFeatures:
+    """Tests for security improvements."""
+
+    @pytest.mark.asyncio
+    async def test_allowed_source_ips_validation_valid_single_ip(
+        self, mock_compute_client, mock_network_client, run_id, location
+    ):
+        """Test that valid single IP addresses are accepted."""
+        manager = WindowsVMManager(
+            compute_client=mock_compute_client,
+            network_client=mock_network_client,
+            subscription_id="12345678-1234-1234-1234-123456789012",
+            run_id=run_id,
+            location=location,
+            resource_group_name=f"rg-haymaker-{run_id[:8]}",
+            allowed_source_ips=["1.2.3.4/32"],
+        )
+
+        assert manager.allowed_source_ips == ["1.2.3.4/32"]
+
+    @pytest.mark.asyncio
+    async def test_allowed_source_ips_validation_valid_cidr_range(
+        self, mock_compute_client, mock_network_client, run_id, location
+    ):
+        """Test that valid CIDR ranges are accepted."""
+        manager = WindowsVMManager(
+            compute_client=mock_compute_client,
+            network_client=mock_network_client,
+            subscription_id="12345678-1234-1234-1234-123456789012",
+            run_id=run_id,
+            location=location,
+            resource_group_name=f"rg-haymaker-{run_id[:8]}",
+            allowed_source_ips=["10.0.0.0/8", "192.168.0.0/16"],
+        )
+
+        assert len(manager.allowed_source_ips) == 2
+        assert "10.0.0.0/8" in manager.allowed_source_ips
+        assert "192.168.0.0/16" in manager.allowed_source_ips
+
+    @pytest.mark.asyncio
+    async def test_allowed_source_ips_validation_invalid_ip(
+        self, mock_compute_client, mock_network_client, run_id, location
+    ):
+        """Test that invalid IP addresses are rejected."""
+        with pytest.raises(ValueError) as exc_info:
+            WindowsVMManager(
+                compute_client=mock_compute_client,
+                network_client=mock_network_client,
+                subscription_id="12345678-1234-1234-1234-123456789012",
+                run_id=run_id,
+                location=location,
+                resource_group_name=f"rg-haymaker-{run_id[:8]}",
+                allowed_source_ips=["invalid.ip.address"],
+            )
+
+        assert "Invalid IP address or CIDR range" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_allowed_source_ips_validation_empty_list(
+        self, mock_compute_client, mock_network_client, run_id, location
+    ):
+        """Test that empty list is rejected (use None for unrestricted)."""
+        with pytest.raises(ValueError) as exc_info:
+            WindowsVMManager(
+                compute_client=mock_compute_client,
+                network_client=mock_network_client,
+                subscription_id="12345678-1234-1234-1234-123456789012",
+                run_id=run_id,
+                location=location,
+                resource_group_name=f"rg-haymaker-{run_id[:8]}",
+                allowed_source_ips=[],
+            )
+
+        assert "cannot be empty" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_nsg_rules_with_restricted_ips(
+        self, windows_vm_manager_secure, worker_identity, mock_network_client
+    ):
+        """Test NSG creation with restricted source IPs."""
+        nsg_poller = AsyncMock()
+        nsg_response = MagicMock()
+        nsg_poller.result = AsyncMock(return_value=nsg_response)
+        mock_network_client.network_security_groups.begin_create_or_update.return_value = (
+            nsg_poller
+        )
+
+        await windows_vm_manager_secure._create_nsg("test-nsg", worker_identity)
+
+        # Verify NSG was created
+        call_args = mock_network_client.network_security_groups.begin_create_or_update.call_args
+        nsg_params = call_args.kwargs.get("parameters") or call_args[0][2]
+
+        # Should have 2 rules (one per allowed IP)
+        security_rules = nsg_params["security_rules"]
+        assert len(security_rules) == 2
+
+        # Verify rules have correct source IPs
+        source_ips = [rule["source_address_prefix"] for rule in security_rules]
+        assert "1.2.3.4/32" in source_ips
+        assert "10.0.0.0/8" in source_ips
+
+    @pytest.mark.asyncio
+    async def test_nsg_rules_without_restricted_ips_logs_warning(
+        self, windows_vm_manager, worker_identity, mock_network_client, caplog
+    ):
+        """Test NSG creation without restricted IPs logs security warning."""
+        nsg_poller = AsyncMock()
+        nsg_response = MagicMock()
+        nsg_poller.result = AsyncMock(return_value=nsg_response)
+        mock_network_client.network_security_groups.begin_create_or_update.return_value = (
+            nsg_poller
+        )
+
+        with caplog.at_level(logging.WARNING):
+            await windows_vm_manager._create_nsg("test-nsg", worker_identity)
+
+        # Should log warning about unrestricted access
+        assert any("INSECURE" in record.message for record in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_location_validation_valid_regions(
+        self, mock_compute_client, mock_network_client, run_id
+    ):
+        """Test that valid Azure regions are accepted."""
+        valid_regions = ["eastus", "westus2", "northeurope", "japaneast"]
+
+        for region in valid_regions:
+            manager = WindowsVMManager(
+                compute_client=mock_compute_client,
+                network_client=mock_network_client,
+                subscription_id="12345678-1234-1234-1234-123456789012",
+                run_id=run_id,
+                location=region,
+                resource_group_name="rg-test",
+            )
+            assert manager.location == region
+
+    @pytest.mark.asyncio
+    async def test_location_validation_invalid_region(
+        self, mock_compute_client, mock_network_client, run_id
+    ):
+        """Test that invalid Azure regions are rejected."""
+        with pytest.raises(ValueError) as exc_info:
+            WindowsVMManager(
+                compute_client=mock_compute_client,
+                network_client=mock_network_client,
+                subscription_id="12345678-1234-1234-1234-123456789012",
+                run_id=run_id,
+                location="invalid-region",
+                resource_group_name="rg-test",
+            )
+
+        assert "Invalid Azure region" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_resource_group_validation_valid_names(
+        self, mock_compute_client, mock_network_client, run_id, location
+    ):
+        """Test that valid resource group names are accepted."""
+        valid_names = ["rg-test", "rg_test_123", "rg.test", "rg(test)"]
+
+        for name in valid_names:
+            manager = WindowsVMManager(
+                compute_client=mock_compute_client,
+                network_client=mock_network_client,
+                subscription_id="12345678-1234-1234-1234-123456789012",
+                run_id=run_id,
+                location=location,
+                resource_group_name=name,
+            )
+            assert manager.resource_group_name == name
+
+    @pytest.mark.asyncio
+    async def test_resource_group_validation_invalid_names(
+        self, mock_compute_client, mock_network_client, run_id, location
+    ):
+        """Test that invalid resource group names are rejected."""
+        invalid_names = [
+            "rg-test.",  # Ends with period
+            "rg@test",   # Invalid character
+            "rg test",   # Space
+            "",          # Empty
+        ]
+
+        for name in invalid_names:
+            with pytest.raises(ValueError) as exc_info:
+                WindowsVMManager(
+                    compute_client=mock_compute_client,
+                    network_client=mock_network_client,
+                    subscription_id="12345678-1234-1234-1234-123456789012",
+                    run_id=run_id,
+                    location=location,
+                    resource_group_name=name,
+                )
+
+            assert "resource_group_name" in str(exc_info.value).lower()
+
+    @pytest.mark.asyncio
+    async def test_worker_id_validation_valid_ids(self, windows_vm_manager):
+        """Test that valid worker IDs are accepted."""
+        valid_ids = ["worker-001", "worker_001", "WORKER123", "w1"]
+
+        for worker_id in valid_ids:
+            # Should not raise
+            windows_vm_manager._validate_worker_id(worker_id)
+
+    @pytest.mark.asyncio
+    async def test_worker_id_validation_invalid_ids(self, windows_vm_manager):
+        """Test that invalid worker IDs are rejected."""
+        invalid_ids = [
+            "worker@001",  # Invalid character
+            "worker 001",  # Space
+            "",            # Empty
+            "w" * 100,     # Too long
+        ]
+
+        for worker_id in invalid_ids:
+            with pytest.raises(ValueError) as exc_info:
+                windows_vm_manager._validate_worker_id(worker_id)
+
+            assert "worker_id" in str(exc_info.value).lower()
+
+    @pytest.mark.asyncio
+    async def test_security_warning_logged_on_init_without_ips(
+        self, mock_compute_client, mock_network_client, run_id, location, caplog
+    ):
+        """Test that security warning is logged when allowed_source_ips is None."""
+        with caplog.at_level(logging.WARNING):
+            WindowsVMManager(
+                compute_client=mock_compute_client,
+                network_client=mock_network_client,
+                subscription_id="12345678-1234-1234-1234-123456789012",
+                run_id=run_id,
+                location=location,
+                resource_group_name="rg-test",
+                allowed_source_ips=None,
+            )
+
+        # Should log security warning
+        assert any("SECURITY WARNING" in record.message for record in caplog.records)
+        assert any("ANY IP address" in record.message for record in caplog.records)
 
 
 if __name__ == "__main__":
