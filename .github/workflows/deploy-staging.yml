@@ -40,12 +40,22 @@ jobs:
           az bicep build --file infra/bicep/main.bicep
           echo "Bicep templates compiled successfully"
 
+      - name: Create resource group
+        run: |
+          RESOURCE_GROUP="haymaker-staging-rg"
+          echo "Ensuring resource group exists: $RESOURCE_GROUP"
+          az group create \
+            --name "$RESOURCE_GROUP" \
+            --location ${{ env.AZURE_REGION }} \
+            --tags Environment=staging ManagedBy=Bicep Project=AzureHayMaker DeployedBy=GitHubActions
+
       - name: Validate deployment
         run: |
+          RESOURCE_GROUP="haymaker-staging-rg"
           VALIDATION_NAME="haymaker-staging-validation-$(date +%Y%m%d-%H%M%S)"
-          az deployment sub validate \
+          az deployment group validate \
             --name "$VALIDATION_NAME" \
-            --location ${{ env.AZURE_REGION }} \
+            --resource-group "$RESOURCE_GROUP" \
             --template-file infra/bicep/main.bicep \
             --parameters infra/bicep/parameters/staging.bicepparam \
             --parameters adminObjectIds="['${{ secrets.AZURE_CLIENT_ID }}']" \
@@ -101,17 +111,28 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Create resource group
+        run: |
+          RESOURCE_GROUP="haymaker-staging-rg"
+          echo "Ensuring resource group exists: $RESOURCE_GROUP"
+          az group create \
+            --name "$RESOURCE_GROUP" \
+            --location ${{ env.AZURE_REGION }} \
+            --tags Environment=staging ManagedBy=Bicep Project=AzureHayMaker DeployedBy=GitHubActions
+
       - name: Deploy Bicep infrastructure
         id: deploy
         run: |
+          RESOURCE_GROUP="haymaker-staging-rg"
           echo "Deploying infrastructure to staging environment..."
+          echo "Resource Group: $RESOURCE_GROUP"
 
           DEPLOYMENT_NAME="haymaker-staging-$(date +%Y%m%d-%H%M%S)"
           echo "Deployment name: $DEPLOYMENT_NAME"
 
-          DEPLOYMENT_OUTPUT=$(az deployment sub create \
+          DEPLOYMENT_OUTPUT=$(az deployment group create \
             --name "$DEPLOYMENT_NAME" \
-            --location ${{ env.AZURE_REGION }} \
+            --resource-group "$RESOURCE_GROUP" \
             --template-file infra/bicep/main.bicep \
             --parameters infra/bicep/parameters/staging.bicepparam \
             --parameters adminObjectIds="['${{ secrets.AZURE_CLIENT_ID }}']" \
