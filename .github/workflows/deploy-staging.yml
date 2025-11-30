@@ -95,7 +95,6 @@ jobs:
     name: Deploy Infrastructure
     needs: [validate, test]
     runs-on: ubuntu-latest
-    environment: staging
     outputs:
       functionAppName: ${{ steps.deploy.outputs.functionAppName }}
       keyVaultName: ${{ steps.deploy.outputs.keyVaultName }}
@@ -182,7 +181,6 @@ jobs:
     name: Deploy Function App
     needs: [deploy-infrastructure]
     runs-on: ubuntu-latest
-    environment: staging
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
