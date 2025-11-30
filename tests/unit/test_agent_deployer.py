@@ -355,7 +355,7 @@ class TestSecurityControls:
     ):
         """Test that deployed config.json does NOT contain M365 credentials."""
         # Act
-        result = agent_deployer.deploy_agent(
+        agent_deployer.deploy_agent(
             worker_identity=worker_identity, workflows=workflows
         )
 

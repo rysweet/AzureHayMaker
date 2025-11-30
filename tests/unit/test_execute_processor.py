@@ -443,7 +443,7 @@ class TestMonitoringLoop:
             patch(
                 "azure_haymaker.orchestrator.execute_processor.BlobServiceClient"
             ) as mock_blob,
-            patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+            patch("asyncio.sleep", new_callable=AsyncMock),
         ):
             mock_tracker = AsyncMock()
             mock_tracker_cls.return_value = mock_tracker
@@ -926,7 +926,7 @@ class TestErrorHandling:
             ),
             patch(
                 "azure_haymaker.orchestrator.execute_processor.TableClient"
-            ) as mock_table,
+            ),
             patch("azure_haymaker.orchestrator.execute_processor.SecretClient"),
             patch(
                 "azure_haymaker.orchestrator.execute_processor.ExecutionTracker"

@@ -257,7 +257,7 @@ class TestCloudPCToWindowsVMFallback:
         }
         mock_windows_vm_manager.wait_for_provisioning.return_value = True
 
-        result = await endpoint_manager.provision_endpoint_with_fallback(
+        await endpoint_manager.provision_endpoint_with_fallback(
             worker=worker
         )
 
@@ -554,7 +554,7 @@ class TestWorkerStateTracking:
             endpoint_manager.provision_endpoint_with_fallback(worker=w)
             for w in workers
         ]
-        results = await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks)
 
         # Verify each worker has correct endpoint type
         assert workers[0].endpoint_type == EndpointType.CLOUD_PC

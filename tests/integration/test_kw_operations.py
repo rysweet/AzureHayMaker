@@ -762,7 +762,7 @@ class TestRateLimiting:
         )
 
         # Check that some time passed (rate limit pause)
-        elapsed = (datetime.now(UTC) - start).total_seconds()
+        (datetime.now(UTC) - start).total_seconds()
         # Should have paused (implementation detail: 1 second per ARCHITECTURE.md)
         # This assertion depends on implementation
         assert email_ops._operation_count == 100

@@ -132,7 +132,7 @@ def test_http_api_routes():
     route_pattern = r'@app\.route\(route="([^"]+)",\s*methods=\["(\w+)"\]'
     routes = re.findall(route_pattern, content)
 
-    found_routes = {route: method for route, method in routes}
+    found_routes = dict(routes)
 
     print("\nHTTP API Routes:")
     for route, method in sorted(found_routes.items()):

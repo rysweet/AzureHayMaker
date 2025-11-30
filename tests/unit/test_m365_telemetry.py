@@ -212,7 +212,7 @@ class TestEmailTelemetry:
             return_value=mock_result
         )
 
-        result = await telemetry_collector.get_emails_for_worker(
+        await telemetry_collector.get_emails_for_worker(
             worker=worker_identity, start_time=start_time, end_time=end_time
         )
 
@@ -418,7 +418,7 @@ class TestTeamsTelemetry:
         )
 
         # In practice, you'd aggregate these
-        all_messages = result_general + result_random
+        result_general + result_random
         # This is a simplified test - actual implementation would handle multi-channel aggregation
         assert len(result_general) + len(result_random) >= 0
 

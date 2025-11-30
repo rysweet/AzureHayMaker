@@ -380,7 +380,8 @@ class TestSecurityControls:
 
         # Assert - single quotes should be doubled and wrapped
         assert "''" in escaped  # Single quotes doubled
-        assert escaped.startswith("'") and escaped.endswith("'")  # Wrapped in quotes
+        assert escaped.startswith("'")
+        assert escaped.endswith("'")
 
     def test_null_byte_in_path_rejected(self, tmp_path, mock_winrm_protocol):
         """Test that paths with null bytes are rejected."""

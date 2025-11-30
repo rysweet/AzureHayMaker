@@ -407,7 +407,7 @@ class TestCloudPCTelemetryIntegration:
 
         # Step 1: Provision Cloud PC
         policy_id = await cloud_pc_manager.ensure_provisioning_policy()
-        cloud_pc_id = await cloud_pc_manager.provision_cloud_pc(
+        await cloud_pc_manager.provision_cloud_pc(
             worker=worker, policy_id=policy_id
         )
         ready = await cloud_pc_manager.wait_for_provisioning(worker=worker, timeout_minutes=1)
@@ -466,7 +466,7 @@ class TestCloudPCTelemetryIntegration:
 
         # Phase 1: Provision
         policy_id = await cloud_pc_manager.ensure_provisioning_policy()
-        cloud_pc_id = await cloud_pc_manager.provision_cloud_pc(
+        await cloud_pc_manager.provision_cloud_pc(
             worker=worker, policy_id=policy_id
         )
         ready = await cloud_pc_manager.wait_for_provisioning(worker=worker, timeout_minutes=1)
@@ -483,8 +483,8 @@ class TestCloudPCTelemetryIntegration:
             AsyncMock(return_value=MagicMock(value=[]))
         )
 
-        emails = await telemetry_collector.get_emails_for_worker(worker=worker)
-        calendar = await telemetry_collector.get_calendar_events_for_worker(worker=worker)
+        await telemetry_collector.get_emails_for_worker(worker=worker)
+        await telemetry_collector.get_calendar_events_for_worker(worker=worker)
 
         # Phase 4: Cleanup
         mock_graph_client.device_management.virtual_endpoint.cloud_p_cs.by_cloud_pc_id = (
@@ -512,7 +512,7 @@ class TestIntegrationErrorHandling:
         self, cloud_pc_manager, test_workers, mock_graph_client
     ):
         """Test provisioning retries on transient failures."""
-        worker = test_workers[0]
+        test_workers[0]
 
         # Mock policy with transient failure
         call_count = [0]

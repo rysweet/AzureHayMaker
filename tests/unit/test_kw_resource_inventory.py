@@ -122,7 +122,7 @@ class TestResourceRegistration:
 
         assert "unknown_type" not in inventory.resources
 
-    @pytest.mark.parametrize("resource_type,resource_id", [
+    @pytest.mark.parametrize(("resource_type", "resource_id"), [
         ("entra_users", "user-abc-123"),
         ("security_groups", "sg-def-456"),
         ("m365_groups", "m365-ghi-789"),
@@ -451,7 +451,7 @@ class TestResourceCleanupOrdering:
 class TestResourceTagging:
     """Tests for resource tagging conventions from ARCHITECTURE.md."""
 
-    @pytest.mark.parametrize("tag_key,description", [
+    @pytest.mark.parametrize(("tag_key", "description"), [
         ("AzureHayMaker-managed", "Identifies managed resources"),
         ("RunId", "Associates with specific run"),
         ("Component", "Identifies framework (knowledge-worker)"),

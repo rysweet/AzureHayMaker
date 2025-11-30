@@ -75,7 +75,7 @@ class TestWorkerPersona:
         assert WorkerPersona.ENGINEERING.value == "engineering"
         assert WorkerPersona.LEGAL.value == "legal"
 
-    @pytest.mark.parametrize("persona,expected_value", [
+    @pytest.mark.parametrize(("persona", "expected_value"), [
         ("EXECUTIVE", "executive"),
         ("LEGAL", "legal"),
         ("ENGINEERING", "engineering"),
@@ -211,7 +211,7 @@ class TestWorkerIdentity:
         assert identity.persona == WorkerPersona.SALES
         assert identity.endpoint_type == EndpointType.CLOUD_PC
 
-    @pytest.mark.parametrize("persona,department", [
+    @pytest.mark.parametrize(("persona", "department"), [
         (WorkerPersona.EXECUTIVE, "executive"),
         (WorkerPersona.ENGINEERING, "engineering"),
         (WorkerPersona.LEGAL, "legal"),
@@ -274,7 +274,7 @@ class TestWorkerConfig:
         assert config.work_end_hour == 18
         assert config.preferred_communication == "email"
 
-    @pytest.mark.parametrize("field,min_val,max_val", [
+    @pytest.mark.parametrize(("field", "min_val", "max_val"), [
         ("email_per_hour", 0, 50),
         ("teams_messages_per_hour", 0, 100),
         ("documents_per_day", 0, 20),
@@ -295,7 +295,7 @@ class TestWorkerConfig:
         config_max = WorkerConfig(**{field: max_val})
         assert getattr(config_max, field) == max_val
 
-    @pytest.mark.parametrize("field,invalid_value", [
+    @pytest.mark.parametrize(("field", "invalid_value"), [
         ("email_per_hour", -1),
         ("email_per_hour", 51),
         ("teams_messages_per_hour", -1),
@@ -465,7 +465,7 @@ class TestTeamConfig:
         assert config.cross_team_communication_enabled is False
         assert config.max_peer_teams == 5
 
-    @pytest.mark.parametrize("field,min_val,max_val", [
+    @pytest.mark.parametrize(("field", "min_val", "max_val"), [
         ("min_members", 1, None),
         ("max_members", None, 50),
         ("manager_ratio", 0.0, 0.5),
@@ -483,7 +483,7 @@ class TestTeamConfig:
             config_max = TeamConfig(**{field: max_val})
             assert getattr(config_max, field) == max_val
 
-    @pytest.mark.parametrize("field,invalid_value", [
+    @pytest.mark.parametrize(("field", "invalid_value"), [
         ("min_members", 0),
         ("max_members", 51),
         ("manager_ratio", -0.1),
@@ -516,7 +516,7 @@ class TestTeamConfig:
 class TestNamingConventions:
     """Tests for Knowledge Worker naming conventions from ARCHITECTURE.md."""
 
-    @pytest.mark.parametrize("run_id,dept,index,expected", [
+    @pytest.mark.parametrize(("run_id", "dept", "index", "expected"), [
         ("abc12345-full-uuid", "engineering", 1, "kw-abc12345-engi-001"),
         ("xyz99999-full-uuid", "executive", 5, "kw-xyz99999-exec-005"),
         ("test1234-full-uuid", "legal", 10, "kw-test1234-lega-010"),
@@ -530,7 +530,7 @@ class TestNamingConventions:
         generated_id = f"kw-{run_id[:8]}-{dept[:4]}-{index:03d}"
         assert generated_id == expected
 
-    @pytest.mark.parametrize("worker_id,expected_valid", [
+    @pytest.mark.parametrize(("worker_id", "expected_valid"), [
         ("kw-abc12345-engi-001", True),
         ("kw-abc12345-exec-999", True),
         ("invalid-worker-id", False),

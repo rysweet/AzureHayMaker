@@ -298,7 +298,7 @@ class TestFullLifecycleIntegration:
 
         # Deploy agents
         deployment_results = []
-        for worker, vm_info in zip(workers, vm_infos):
+        for worker, vm_info in zip(workers, vm_infos, strict=False):
             winrm_conn = WinRMConnection(
                 hostname=vm_info["hostname"],
                 username=vm_info["username"],
@@ -558,7 +558,7 @@ class TestMultiAgentCoordination:
 
         # Create agents
         agents = []
-        for worker, vm_info in zip(workers, vm_infos):
+        for worker, vm_info in zip(workers, vm_infos, strict=False):
             config = ComputerUseConfig(
                 worker_id=worker.worker_id,
                 display_name=worker.display_name,
