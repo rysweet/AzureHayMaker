@@ -135,7 +135,7 @@ def windows_vm_manager(mock_compute_client, mock_network_client, run_id, locatio
         location=location,
         resource_group_name=f"rg-haymaker-{run_id[:8]}",
         vnet_id=f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-haymaker-{run_id[:8]}/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default",
-        allowed_source_ips=None,  # Default: unrestricted (testing)
+        allowed_source_ips=["203.0.113.0/24"],  # Test network (RFC 5737)
     )
 
 
@@ -1056,7 +1056,7 @@ class TestSecurityFeatures:
     async def test_allowed_source_ips_validation_empty_list(
         self, mock_compute_client, mock_network_client, run_id, location
     ):
-        """Test that empty list is rejected (use None for unrestricted)."""
+        """Test that empty list is rejected."""
         with pytest.raises(ValueError) as exc_info:
             WindowsVMManager(
                 compute_client=mock_compute_client,
@@ -1070,6 +1070,63 @@ class TestSecurityFeatures:
             )
 
         assert "cannot be empty" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_allowed_source_ips_rejects_wildcard_star(
+        self, mock_compute_client, mock_network_client, run_id, location
+    ):
+        """Test that wildcard '*' is rejected."""
+        with pytest.raises(ValueError) as exc_info:
+            WindowsVMManager(
+                compute_client=mock_compute_client,
+                network_client=mock_network_client,
+                subscription_id="12345678-1234-1234-1234-123456789012",
+                run_id=run_id,
+                location=location,
+                resource_group_name=f"rg-haymaker-{run_id[:8]}",
+                vnet_id=f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-haymaker-{run_id[:8]}/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default",
+                allowed_source_ips=["*"],
+            )
+
+        assert "Wildcard" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_allowed_source_ips_rejects_wildcard_cidr(
+        self, mock_compute_client, mock_network_client, run_id, location
+    ):
+        """Test that wildcard CIDR '0.0.0.0/0' is rejected."""
+        with pytest.raises(ValueError) as exc_info:
+            WindowsVMManager(
+                compute_client=mock_compute_client,
+                network_client=mock_network_client,
+                subscription_id="12345678-1234-1234-1234-123456789012",
+                run_id=run_id,
+                location=location,
+                resource_group_name=f"rg-haymaker-{run_id[:8]}",
+                vnet_id=f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-haymaker-{run_id[:8]}/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default",
+                allowed_source_ips=["0.0.0.0/0"],
+            )
+
+        assert "Wildcard" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_allowed_source_ips_rejects_ipv6_wildcard(
+        self, mock_compute_client, mock_network_client, run_id, location
+    ):
+        """Test that IPv6 wildcard '::/0' is rejected."""
+        with pytest.raises(ValueError) as exc_info:
+            WindowsVMManager(
+                compute_client=mock_compute_client,
+                network_client=mock_network_client,
+                subscription_id="12345678-1234-1234-1234-123456789012",
+                run_id=run_id,
+                location=location,
+                resource_group_name=f"rg-haymaker-{run_id[:8]}",
+                vnet_id=f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-haymaker-{run_id[:8]}/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default",
+                allowed_source_ips=["::/0"],
+            )
+
+        assert "Wildcard" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_nsg_rules_with_restricted_ips(
@@ -1099,24 +1156,6 @@ class TestSecurityFeatures:
         assert "1.2.3.4/32" in source_ips
         assert "10.0.0.0/8" in source_ips
 
-    @pytest.mark.asyncio
-    async def test_nsg_rules_without_restricted_ips_logs_warning(
-        self, windows_vm_manager, worker_identity, mock_network_client, caplog
-    ):
-        """Test NSG creation without restricted IPs logs security warning."""
-        nsg_response = MagicMock()
-
-        mock_network_client.network_security_groups.begin_create_or_update.return_value = (
-
-            _create_awaitable_mock(nsg_response)
-
-        )
-
-        with caplog.at_level(logging.WARNING):
-            await windows_vm_manager._create_nsg("test-nsg", worker_identity)
-
-        # Should log warning about unrestricted access
-        assert any("INSECURE" in record.message for record in caplog.records)
 
     @pytest.mark.asyncio
     async def test_location_validation_valid_regions(
@@ -1134,6 +1173,7 @@ class TestSecurityFeatures:
                 location=region,
                 resource_group_name="rg-test",
                 vnet_id=f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-test/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default",
+                allowed_source_ips=["203.0.113.0/24"],
             )
             assert manager.location == region
 
@@ -1151,6 +1191,7 @@ class TestSecurityFeatures:
                 location="invalid-region",
                 resource_group_name="rg-test",
                 vnet_id=f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-test/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default",
+                allowed_source_ips=["203.0.113.0/24"],
             )
 
         assert "Invalid Azure region" in str(exc_info.value)
@@ -1171,6 +1212,7 @@ class TestSecurityFeatures:
                 location=location,
                 resource_group_name=name,
                 vnet_id=f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/{name}/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default",
+                allowed_source_ips=["203.0.113.0/24"],
             )
             assert manager.resource_group_name == name
 
@@ -1198,6 +1240,7 @@ class TestSecurityFeatures:
                     location=location,
                     resource_group_name=rg_name,
                     vnet_id=vnet_id,
+                    allowed_source_ips=["203.0.113.0/24"],
                 )
 
             # Should raise ValueError (either for resource_group_name or vnet_id validation)
@@ -1228,26 +1271,6 @@ class TestSecurityFeatures:
 
             assert "worker_id" in str(exc_info.value).lower()
 
-    @pytest.mark.asyncio
-    async def test_security_warning_logged_on_init_without_ips(
-        self, mock_compute_client, mock_network_client, run_id, location, caplog
-    ):
-        """Test that security warning is logged when allowed_source_ips is None."""
-        with caplog.at_level(logging.WARNING):
-            WindowsVMManager(
-                compute_client=mock_compute_client,
-                network_client=mock_network_client,
-                subscription_id="12345678-1234-1234-1234-123456789012",
-                run_id=run_id,
-                location=location,
-                resource_group_name="rg-test",
-                vnet_id=f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-test/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default",
-                allowed_source_ips=None,
-            )
-
-        # Should log security warning
-        assert any("SECURITY WARNING" in record.message for record in caplog.records)
-        assert any("ANY IP address" in record.message for record in caplog.records)
 
 
 if __name__ == "__main__":

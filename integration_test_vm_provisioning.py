@@ -137,6 +137,22 @@ async def test_vm_manager_initialization(subscription_id, credential, compute_cl
         vnet_id = await _ensure_vnet_exists(subscription_id, resource_group, location)
         print(f"✅ VNet ID: {vnet_id}")
 
+        # Get the public IP of the test machine for NSG whitelist
+        import subprocess
+        try:
+            # Get public IP from ipify.org
+            result = subprocess.run(['curl', '-s', 'https://api.ipify.org'],
+                                   capture_output=True, text=True, timeout=5)
+            public_ip = result.stdout.strip()
+            # Add /32 for single IP CIDR notation
+            allowed_ips = [f"{public_ip}/32"]
+            print(f"✅ Detected public IP for NSG whitelist: {public_ip}")
+        except Exception as e:
+            print(f"⚠️  Could not detect public IP: {e}")
+            print("   Using RFC 5737 test network range instead")
+            # Fallback to test network (this will block actual RDP access)
+            allowed_ips = ["203.0.113.0/24"]
+
         # Initialize manager
         manager = WindowsVMManager(
             compute_client=compute_client,
@@ -146,8 +162,8 @@ async def test_vm_manager_initialization(subscription_id, credential, compute_cl
             location=location,
             run_id=run_id,
             vnet_id=vnet_id,  # Required parameter
+            allowed_source_ips=allowed_ips,  # REQUIRED - explicit IPs only
             vm_size="Standard_B2s",  # Available in most regions
-            allowed_source_ips=None,  # Will log security warning
         )
 
         print(f"✅ WindowsVMManager initialized")

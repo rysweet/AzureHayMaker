@@ -4,14 +4,15 @@ Provides Windows VM provisioning as a fallback when Cloud PCs are unavailable.
 VMs are configured with RDP access, browsers, and Desktop Experience for
 Computer Use Agent capabilities.
 
-SECURITY WARNING:
-    This module handles sensitive operations including:
-    - Admin password generation and return (plaintext)
-    - Network security group configuration
-    - Public IP address assignment
+SECURITY REQUIREMENTS:
+    This module enforces security-first design:
+    - allowed_source_ips parameter is REQUIRED (no wildcards allowed)
+    - Admin password generation uses cryptographic randomness
+    - Network security groups reject wildcard IP ranges ('*', '0.0.0.0/0')
+    - Public IP addresses require explicit IP whitelisting
 
-    For TESTING: Default settings allow RDP from any IP (insecure but functional)
-    For PRODUCTION: Configure allowed_source_ips to restrict access
+    BREAKING CHANGE: allowed_source_ips is now REQUIRED.
+    Must specify explicit IPs/ranges: allowed_source_ips=["203.0.113.0/24"]
 """
 
 import asyncio
@@ -47,8 +48,8 @@ class WindowsVMManager:
     SECURITY CONSIDERATIONS:
         - Admin passwords are returned in plaintext (required for Computer Use Agents)
         - For production, store passwords in Azure Key Vault after provisioning
-        - Configure allowed_source_ips to restrict RDP access
-        - Default settings allow RDP from ANY IP (testing only)
+        - allowed_source_ips is REQUIRED and must contain explicit IPs/ranges
+        - Wildcard IPs ('*', '0.0.0.0/0') are rejected at initialization
 
     Attributes:
         compute_client: Azure Compute Management client
@@ -94,8 +95,8 @@ class WindowsVMManager:
         location: str,
         resource_group_name: str,
         vnet_id: str,
+        allowed_source_ips: list[str],
         vm_size: str | None = None,
-        allowed_source_ips: list[str] | None = None,
     ):
         """Initialize WindowsVMManager.
 
@@ -108,17 +109,17 @@ class WindowsVMManager:
             resource_group_name: Resource group name for VM resources
             vnet_id: Full Azure Resource ID of the Virtual Network
                 Format: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Network/virtualNetworks/{vnet}/subnets/{subnet}
-            vm_size: Azure VM size (default: Standard_D2s_v3)
-            allowed_source_ips: List of IP addresses/CIDR ranges allowed RDP access.
-                If None, allows access from ANY IP (INSECURE - testing only).
+            allowed_source_ips: REQUIRED list of IP addresses/CIDR ranges allowed RDP access.
+                Must be specific IPs/ranges, wildcards are rejected.
                 Examples: ["1.2.3.4/32"], ["10.0.0.0/8", "192.168.1.0/24"]
+            vm_size: Azure VM size (default: Standard_D2s_v3)
 
         Raises:
             ValueError: If input validation fails
 
         Security Note:
-            For testing: Leave allowed_source_ips=None for convenience
-            For production: ALWAYS configure allowed_source_ips to restrict access
+            allowed_source_ips is REQUIRED and cannot be None or contain wildcards.
+            This prevents accidental exposure of RDP to the entire internet.
         """
         # Input validation
         self._validate_location(location)
@@ -134,20 +135,11 @@ class WindowsVMManager:
         self.vnet_id = vnet_id
         self.vm_size = vm_size or self.DEFAULT_VM_SIZE
 
-        # Security: Validate and configure allowed source IPs
-        if allowed_source_ips is not None:
-            self.allowed_source_ips = self._validate_ip_addresses(allowed_source_ips)
-            logger.info(
-                f"NSG configured with {len(self.allowed_source_ips)} allowed source IP ranges"
-            )
-        else:
-            self.allowed_source_ips = None
-            logger.warning(
-                "SECURITY WARNING: No allowed_source_ips configured. "
-                "RDP will be accessible from ANY IP address (*). "
-                "This is acceptable for TESTING but NOT for PRODUCTION. "
-                "Configure allowed_source_ips=['your.ip.address/32'] for production use."
-            )
+        # Security: Validate and configure allowed source IPs (REQUIRED)
+        self.allowed_source_ips = self._validate_ip_addresses(allowed_source_ips)
+        logger.info(
+            f"NSG configured with {len(self.allowed_source_ips)} allowed source IP ranges"
+        )
 
     def _validate_location(self, location: str) -> None:
         """Validate Azure region.
@@ -244,24 +236,51 @@ class WindowsVMManager:
             Validated list of IP addresses/CIDR ranges
 
         Raises:
-            ValueError: If any IP address/range is invalid
+            ValueError: If any IP address/range is invalid or contains wildcards
         """
         if not isinstance(ip_list, list):
             raise ValueError("allowed_source_ips must be a list")
 
         if not ip_list:
-            raise ValueError("allowed_source_ips cannot be empty (use None for unrestricted)")
+            raise ValueError(
+                "allowed_source_ips cannot be empty. "
+                "Must specify explicit IP addresses/ranges for security."
+            )
+
+        # Reject wildcard values
+        wildcard_values = {"*", "0.0.0.0/0", "::/0", "any", "internet"}
 
         validated = []
         for ip_str in ip_list:
             if not isinstance(ip_str, str):
                 raise ValueError(f"IP address must be string, got: {type(ip_str)}")
 
+            # Check for wildcard patterns
+            ip_str_lower = ip_str.lower().strip()
+            if ip_str_lower in wildcard_values:
+                raise ValueError(
+                    f"Wildcard IP '{ip_str}' is not allowed. "
+                    f"Must specify explicit IP addresses/CIDR ranges for security. "
+                    f"Example: ['203.0.113.0/24'] for your organization's network."
+                )
+
             try:
                 # Validate as IP network (supports both single IPs and CIDR ranges)
                 network = ipaddress.ip_network(ip_str, strict=False)
+
+                # Additional check: reject 0.0.0.0/0 and ::/0 after parsing
+                if (network.num_addresses == 2**32 and network.version == 4) or \
+                   (network.num_addresses == 2**128 and network.version == 6):
+                    raise ValueError(
+                        f"Wildcard CIDR range '{ip_str}' is not allowed. "
+                        f"Must specify explicit IP addresses/ranges for security."
+                    )
+
                 validated.append(str(network))
             except ValueError as e:
+                # Re-raise with better message if it's our security check
+                if "Wildcard" in str(e):
+                    raise
                 raise ValueError(
                     f"Invalid IP address or CIDR range: '{ip_str}'. "
                     f"Expected format: '1.2.3.4/32' or '10.0.0.0/8'. Error: {e}"
@@ -460,55 +479,36 @@ class WindowsVMManager:
     async def _create_nsg(self, nsg_name: str, worker: WorkerIdentity) -> None:
         """Create Network Security Group with RDP rule.
 
-        Creates NSG rules based on allowed_source_ips configuration:
-        - If allowed_source_ips is configured: Creates one rule per IP/range
-        - If None: Creates single rule allowing access from ANY IP (*)
+        Creates NSG rules with one rule per allowed source IP/range.
+        All IPs must be explicitly specified (wildcards are rejected).
 
         Args:
             nsg_name: Name for the NSG
             worker: Worker identity for tagging
 
         Security Note:
-            When allowed_source_ips is None, RDP is accessible from ANY IP.
-            This is INSECURE and should only be used for testing.
+            All source IPs are validated at initialization.
+            Wildcards like '*' or '0.0.0.0/0' are rejected.
         """
         logger.info(f"Creating NSG: {nsg_name}")
 
-        # Build security rules based on configuration
+        # Build security rules - one per allowed source IP/range
         security_rules = []
 
-        if self.allowed_source_ips:
-            # Create one rule per allowed source IP/range
-            for idx, source_ip in enumerate(self.allowed_source_ips):
-                rule = {
-                    "name": f"AllowRDP-{idx}",
-                    "protocol": "Tcp",
-                    "source_port_range": "*",
-                    "destination_port_range": str(self.RDP_PORT),
-                    "source_address_prefix": source_ip,
-                    "destination_address_prefix": "*",
-                    "access": "Allow",
-                    "priority": 1000 + idx,  # Increment priority for each rule
-                    "direction": "Inbound",
-                }
-                security_rules.append(rule)
-                logger.info(f"NSG rule {idx}: Allow RDP from {source_ip}")
-        else:
-            # INSECURE: Allow from ANY IP (testing only)
-            security_rules.append({
-                "name": "AllowRDP",
+        for idx, source_ip in enumerate(self.allowed_source_ips):
+            rule = {
+                "name": f"AllowRDP-{idx}",
                 "protocol": "Tcp",
                 "source_port_range": "*",
                 "destination_port_range": str(self.RDP_PORT),
-                "source_address_prefix": "*",
+                "source_address_prefix": source_ip,
                 "destination_address_prefix": "*",
                 "access": "Allow",
-                "priority": 1000,
+                "priority": 1000 + idx,  # Increment priority for each rule
                 "direction": "Inbound",
-            })
-            logger.warning(
-                f"NSG {nsg_name}: RDP allowed from ANY IP (*) - INSECURE (testing only)"
-            )
+            }
+            security_rules.append(rule)
+            logger.info(f"NSG rule {idx}: Allow RDP from {source_ip}")
 
         nsg_params = {
             "location": self.location,
