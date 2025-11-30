@@ -395,8 +395,8 @@ class WinRMConnection:
         for pattern in dangerous_patterns:
             if re.search(pattern, command, re.IGNORECASE):
                 raise ValueError(
-                    f"Command contains dangerous pattern and appears to be a command injection attempt. "
-                    f"Multiple operations with dangerous commands are not allowed."
+                    "Command contains dangerous pattern and appears to be a command injection attempt. "
+                    "Multiple operations with dangerous commands are not allowed."
                 )
 
     @staticmethod
