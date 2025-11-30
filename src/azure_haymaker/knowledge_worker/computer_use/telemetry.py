@@ -11,7 +11,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from azure_haymaker.knowledge_worker.computer_use.security_utils import sanitize_error
+from azure_haymaker.knowledge_worker.computer_use.security_utils import (
+    sanitize_dict,
+    sanitize_error,
+)
 from azure_haymaker.knowledge_worker.models.worker import WorkerIdentity
 
 logger = logging.getLogger(__name__)
@@ -135,13 +138,16 @@ class ComputerUseTelemetryCollector:
         if not operation or not operation.strip():
             raise ValueError("Operation name cannot be empty")
 
+        # Sanitize metadata to remove sensitive data
+        safe_metadata = sanitize_dict(metadata) if metadata else {}
+
         log_entry = OperationLog(
             operation=operation,
             status=status,
             duration_ms=duration_ms,
             timestamp=timestamp or datetime.now(UTC),
             worker_id=self.worker_identity.worker_id,
-            metadata=metadata or {},
+            metadata=safe_metadata,  # Use sanitized metadata
         )
 
         self.logs.append(log_entry)
