@@ -333,8 +333,11 @@ class WinRMConnection:
             logger.info("Disconnected successfully")
 
         except Exception as e:
-            logger.warning(f"Error during disconnect (ignoring): {e}")
+            logger.warning(f"Error during disconnect: {e}", exc_info=True)
             self.is_connected = False
+            # Reset state but allow cleanup to continue
+            self._protocol = None
+            self._shell_id = None
 
     def __enter__(self) -> "WinRMConnection":
         """Context manager entry."""

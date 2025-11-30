@@ -204,8 +204,8 @@ class BrowserAutomation:
             try:
                 await self._page.wait_for_selector('input[type="submit"]', timeout=5000)
                 await self._page.click('input[type="submit"]')
-            except Exception:
-                logger.debug("No 'Stay signed in' prompt")
+            except TimeoutError:
+                logger.debug("No 'Stay signed in' prompt (timeout)")
 
             # Handle MFA if needed
             if mfa_code:
@@ -330,8 +330,15 @@ class BrowserAutomation:
             await self._page.fill(body_selector, body)
             await self._page.click('[aria-label="Send"]')
 
-            # Wait for confirmation (send animation completes)
-            await asyncio.sleep(1)
+            # Wait for send to complete (message compose window closes)
+            try:
+                await self._page.wait_for_selector(
+                    '[aria-label="New mail"]',
+                    state="visible",
+                    timeout=5000
+                )
+            except TimeoutError:
+                logger.debug("Send confirmation not detected, continuing")
 
             logger.info(f"Email sent successfully to {to}")
 
@@ -384,8 +391,8 @@ class BrowserAutomation:
             await self._page.fill(compose_selector, message)
             await self._page.click('[data-tid="send-message-button"]')
 
-            # Wait for send confirmation
-            await asyncio.sleep(0.5)
+            # Wait for message to appear in channel (send complete)
+            await self._page.wait_for_load_state("networkidle", timeout=5000)
 
             logger.info(f"Teams message sent to {channel}")
 
@@ -437,7 +444,9 @@ class BrowserAutomation:
                 await self._page.fill('[aria-label="Invite attendees"]', attendees_str)
 
             await self._page.click('[aria-label="Save"]')
-            await asyncio.sleep(1)
+
+            # Wait for event to be saved and dialog to close
+            await self._page.wait_for_load_state("networkidle", timeout=5000)
 
             logger.info("Calendar event created successfully")
 
@@ -483,8 +492,13 @@ class BrowserAutomation:
             logger.info("Browser closed successfully")
 
         except Exception as e:
-            logger.warning(f"Error during browser close (ignoring): {e}")
+            logger.warning(f"Error during browser close: {e}", exc_info=True)
             self.is_browser_running = False
+            # Reset state but allow cleanup to continue
+            self._context = None
+            self._browser = None
+            self._playwright = None
+            self._page = None
 
     async def __aenter__(self) -> "BrowserAutomation":
         """Async context manager entry."""

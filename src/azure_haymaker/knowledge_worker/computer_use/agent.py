@@ -285,8 +285,9 @@ class ComputerUseKnowledgeWorkerAgent(KnowledgeWorkerAgent):
                 self._browser_started = False
 
         except Exception as e:
-            logger.error(f"Error during browser cleanup: {e}")
-            # Continue cleanup even if browser close fails
+            logger.error(f"Error during browser cleanup: {e}", exc_info=True)
+            # Reset state and continue cleanup even if browser close fails
+            self._browser_started = False
 
         finally:
             # Call parent cleanup

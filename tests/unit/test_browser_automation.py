@@ -69,6 +69,7 @@ def mock_playwright():
         page.fill = AsyncMock()
         page.click = AsyncMock()
         page.wait_for_selector = AsyncMock()
+        page.wait_for_load_state = AsyncMock()
         page.screenshot = AsyncMock()
         page.title.return_value = "Microsoft 365"
 
