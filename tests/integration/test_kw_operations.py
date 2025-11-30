@@ -20,6 +20,11 @@ import pytest
 
 # Import paths based on ARCHITECTURE.md specification
 try:
+    from azure_haymaker.knowledge_worker.safety.communication import (
+        CommunicationValidator,
+        ExternalRecipientError,
+    )
+
     from azure_haymaker.knowledge_worker.models.worker import (
         EndpointType,
         WorkerIdentity,
@@ -30,10 +35,6 @@ try:
     from azure_haymaker.knowledge_worker.operations.documents import DocumentOperations
     from azure_haymaker.knowledge_worker.operations.email import EmailOperations
     from azure_haymaker.knowledge_worker.operations.teams import TeamsOperations
-    from azure_haymaker.knowledge_worker.safety.communication import (
-        CommunicationValidator,
-        ExternalRecipientError,
-    )
     OPERATIONS_AVAILABLE = True
 except ImportError:
     OPERATIONS_AVAILABLE = False

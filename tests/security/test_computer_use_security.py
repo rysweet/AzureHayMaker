@@ -11,9 +11,7 @@ This module tests security aspects of Computer Use agents including:
 Uses pytest with security-focused test patterns.
 """
 
-import re
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 

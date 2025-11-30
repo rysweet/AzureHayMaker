@@ -14,17 +14,14 @@ Uses pytest with pydantic models.
 """
 
 import json
-from datetime import datetime
 
 import pytest
 
 from azure_haymaker.knowledge_worker.models.worker import (
     EndpointType,
-    WorkerConfig,
     WorkerIdentity,
     WorkerPersona,
 )
-
 
 # ==============================================================================
 # ENDPOINT TYPE ENUM TESTS

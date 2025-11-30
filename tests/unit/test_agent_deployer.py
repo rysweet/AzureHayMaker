@@ -14,8 +14,7 @@ Tests cover:
 Uses pytest with mocks for WinRM and file operations.
 """
 
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, call, patch
+from unittest.mock import MagicMock
 
 import pytest
 

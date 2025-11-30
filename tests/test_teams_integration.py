@@ -9,8 +9,9 @@ Tests cover:
 - Complete team setup workflow
 """
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from azure_haymaker.knowledge_worker.teams_integration import (
     TeamsIntegration,

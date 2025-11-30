@@ -15,8 +15,7 @@ NOTE: Tests requiring real Windows VMs are marked with @pytest.mark.requires_vm
 and will be skipped in CI. Run manually with real Azure resources for full validation.
 """
 
-from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -30,8 +29,8 @@ requires_vm = pytest.mark.skipif(
 # Import modules under test
 try:
     from azure_haymaker.knowledge_worker.computer_use.agent import (
-        ComputerUseKnowledgeWorkerAgent,
         ComputerUseConfig,
+        ComputerUseKnowledgeWorkerAgent,
     )
     from azure_haymaker.knowledge_worker.computer_use.agent_deployer import (
         AgentDeployer,

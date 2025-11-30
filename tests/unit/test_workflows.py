@@ -14,22 +14,22 @@ Tests cover:
 Uses pytest with mocks for browser automation.
 """
 
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 # Import the module under test
 # Note: These imports will fail until workflows are implemented
 try:
+    from azure_haymaker.knowledge_worker.computer_use.browser_automation import (
+        BrowserAutomation,
+    )
     from azure_haymaker.knowledge_worker.computer_use.workflows import (
         CalendarWorkflow,
         EmailWorkflow,
         TeamsMessageWorkflow,
         WorkflowError,
         WorkflowValidationError,
-    )
-    from azure_haymaker.knowledge_worker.computer_use.browser_automation import (
-        BrowserAutomation,
     )
 
     WORKFLOWS_AVAILABLE = True

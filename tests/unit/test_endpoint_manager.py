@@ -14,8 +14,7 @@ Tests cover:
 Uses pytest with AsyncMock for endpoint managers.
 """
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest

@@ -15,7 +15,7 @@ Uses pytest with mixed real/mocked components for controlled testing.
 """
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -26,6 +26,7 @@ try:
         AllEndpointsFailedError,
         EndpointManager,
     )
+
     from azure_haymaker.knowledge_worker.models.worker import (
         EndpointType,
         WorkerIdentity,
@@ -168,7 +169,7 @@ class TestCloudPCToWindowsVMFallback:
         }
         mock_windows_vm_manager.wait_for_provisioning.return_value = True
 
-        print(f"\n🔄 Testing Cloud PC → Windows VM fallback...")
+        print("\n🔄 Testing Cloud PC → Windows VM fallback...")
 
         result = await endpoint_manager.provision_endpoint_with_fallback(
             worker=worker
@@ -217,7 +218,7 @@ class TestCloudPCToWindowsVMFallback:
         }
         mock_windows_vm_manager.wait_for_provisioning.return_value = True
 
-        print(f"\n🔄 Testing Cloud PC quota → Windows VM fallback...")
+        print("\n🔄 Testing Cloud PC quota → Windows VM fallback...")
 
         result = await endpoint_manager.provision_endpoint_with_fallback(
             worker=worker
@@ -227,7 +228,7 @@ class TestCloudPCToWindowsVMFallback:
         assert result["endpoint_type"] == EndpointType.WINDOWS_VM
         assert worker.endpoint_type == EndpointType.WINDOWS_VM
 
-        print(f"✅ Successfully fell back to Windows VM after quota error")
+        print("✅ Successfully fell back to Windows VM after quota error")
 
     @pytest.mark.asyncio
     async def test_fallback_tracks_cloud_pc_failure_reason(
@@ -308,7 +309,7 @@ class TestWindowsVMToContainerFallback:
 
         # Mock Container success (already configured in fixture)
 
-        print(f"\n🔄 Testing Windows VM quota → Container fallback...")
+        print("\n🔄 Testing Windows VM quota → Container fallback...")
 
         result = await endpoint_manager.provision_endpoint_with_fallback(
             worker=worker
@@ -357,7 +358,7 @@ class TestWindowsVMToContainerFallback:
         }
         mock_windows_vm_manager.wait_for_provisioning.return_value = False
 
-        print(f"\n🔄 Testing Windows VM timeout → Container fallback...")
+        print("\n🔄 Testing Windows VM timeout → Container fallback...")
 
         result = await endpoint_manager.provision_endpoint_with_fallback(
             worker=worker
@@ -367,7 +368,7 @@ class TestWindowsVMToContainerFallback:
         assert result["endpoint_type"] == EndpointType.CLI_CONTAINER
         assert worker.endpoint_type == EndpointType.CLI_CONTAINER
 
-        print(f"✅ Successfully fell back to Container after VM timeout")
+        print("✅ Successfully fell back to Container after VM timeout")
 
 
 # ==============================================================================
@@ -405,7 +406,7 @@ class TestFullCascadeFallback:
         mock_windows_vm_manager.provision_vm.side_effect = Exception("VM failed")
         # Container succeeds (already configured)
 
-        print(f"\n🔄 Testing full cascade: Cloud PC → VM → Container...")
+        print("\n🔄 Testing full cascade: Cloud PC → VM → Container...")
 
         result = await endpoint_manager.provision_endpoint_with_fallback(
             worker=worker
@@ -546,7 +547,7 @@ class TestWorkerStateTracking:
         mock_windows_vm_manager.provision_vm = mock_provision_vm
         mock_windows_vm_manager.wait_for_provisioning = mock_wait_vm
 
-        print(f"\n🔄 Testing multiple workers with different endpoints...")
+        print("\n🔄 Testing multiple workers with different endpoints...")
 
         # Provision all workers
         tasks = [
@@ -592,7 +593,7 @@ class TestCascadeErrorHandling:
             "Container failed"
         )
 
-        print(f"\n❌ Testing all endpoints fail scenario...")
+        print("\n❌ Testing all endpoints fail scenario...")
 
         with pytest.raises(AllEndpointsFailedError) as exc_info:
             await endpoint_manager.provision_endpoint_with_fallback(worker=worker)
@@ -601,7 +602,7 @@ class TestCascadeErrorHandling:
         error_message = str(exc_info.value)
         assert len(error_message) > 0
 
-        print(f"✅ AllEndpointsFailedError raised correctly")
+        print("✅ AllEndpointsFailedError raised correctly")
 
     @pytest.mark.asyncio
     async def test_partial_provisioning_cleanup(

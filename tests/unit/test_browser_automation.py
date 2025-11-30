@@ -16,7 +16,7 @@ Tests cover:
 Uses pytest with mocks for Playwright interactions.
 """
 
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -425,7 +425,7 @@ class TestTeamsOperations:
         # Assert
         assert result["success"] is True
         # Should navigate to channel
-        page.click.assert_any_call(f'[aria-label*="General"]')
+        page.click.assert_any_call('[aria-label*="General"]')
         # Should type and send message
         page.fill.assert_called()
         assert page.click.call_count >= 2  # Channel + Send

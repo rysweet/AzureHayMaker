@@ -15,8 +15,7 @@ Tests cover:
 Uses pytest with mocks for browser automation and WinRM.
 """
 
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -25,8 +24,8 @@ import pytest
 try:
     from azure_haymaker.knowledge_worker.agent import KnowledgeWorkerConfig
     from azure_haymaker.knowledge_worker.computer_use.agent import (
-        ComputerUseKnowledgeWorkerAgent,
         ComputerUseConfig,
+        ComputerUseKnowledgeWorkerAgent,
     )
     from azure_haymaker.knowledge_worker.computer_use.browser_automation import (
         BrowserAutomation,

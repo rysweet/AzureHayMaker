@@ -14,9 +14,7 @@ Tests cover:
 Uses pytest with mocks for WinRM protocol interactions.
 """
 
-import io
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 

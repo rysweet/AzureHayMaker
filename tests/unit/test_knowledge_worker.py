@@ -7,16 +7,17 @@ Tests critical paths introduced in PR #115:
 - User provisioning with license assignment
 """
 
-import pytest
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 from uuid import UUID
 
+import pytest
+
+from azure_haymaker.knowledge_worker.identity.user_manager import EntraUserManager
+from azure_haymaker.knowledge_worker.models.worker import WorkerIdentity, WorkerPersona
 from azure_haymaker.knowledge_worker.orchestrator import (
     DeploymentConfig,
     KnowledgeWorkerOrchestrator,
 )
-from azure_haymaker.knowledge_worker.identity.user_manager import EntraUserManager
-from azure_haymaker.knowledge_worker.models.worker import WorkerIdentity, WorkerPersona
 
 
 class TestOrchestratorCredentials:

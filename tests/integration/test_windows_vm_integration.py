@@ -17,9 +17,7 @@ Uses pytest with real Azure credentials and cleanup fixtures.
 
 import asyncio
 import socket
-from datetime import datetime, timedelta
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import datetime
 from uuid import uuid4
 
 import pytest
@@ -83,10 +81,11 @@ async def azure_clients():
     - Environment variables: AZURE_SUBSCRIPTION_ID, AZURE_CLIENT_ID, etc.
     - Managed Identity (when running in Azure)
     """
+    import os
+
     from azure.identity import DefaultAzureCredential
     from azure.mgmt.compute import ComputeManagementClient
     from azure.mgmt.network import NetworkManagementClient
-    import os
 
     subscription_id = os.environ.get("AZURE_SUBSCRIPTION_ID")
     if not subscription_id:
@@ -225,7 +224,7 @@ class TestRealVMProvisioning:
         print(f"   Admin: {result['admin_username']}")
 
         # Wait for VM to be fully ready
-        print(f"⏳ Waiting for VM provisioning to complete...")
+        print("⏳ Waiting for VM provisioning to complete...")
         ready = await windows_vm_manager.wait_for_provisioning(
             vm_name=result["vm_name"], timeout_minutes=15
         )
@@ -311,7 +310,7 @@ class TestRDPPortAccessibility:
                     rdp_accessible = True
                     print(f"✅ RDP port accessible on attempt {attempt + 1}")
                     break
-            except (socket.timeout, ConnectionRefusedError, OSError) as e:
+            except (TimeoutError, ConnectionRefusedError, OSError) as e:
                 print(
                     f"⏳ RDP not ready yet (attempt {attempt + 1}/{max_retries}): {e}"
                 )
@@ -341,7 +340,7 @@ class TestRDPPortAccessibility:
         assert ready is True
 
         # Verify computer use readiness
-        print(f"\n🔍 Verifying computer use readiness...")
+        print("\n🔍 Verifying computer use readiness...")
         computer_use_ready = await windows_vm_manager.verify_computer_use_ready(
             vm_name=result["vm_name"],
             public_ip=result["public_ip"],
@@ -498,7 +497,7 @@ class TestVMConfiguration:
         assert ready is True
 
         # Get VM details from Azure
-        print(f"\n🔍 Verifying VM configuration...")
+        print("\n🔍 Verifying VM configuration...")
         compute_client = azure_clients["compute"]
         resource_group = windows_vm_manager.resource_group_name
 
@@ -513,11 +512,11 @@ class TestVMConfiguration:
         assert "WindowsServer" in str(image_ref.offer) or "2022" in str(
             image_ref.sku
         ), "VM not using Windows Server 2022 image"
-        print(f"✅ OS image verified: Windows Server 2022")
+        print("✅ OS image verified: Windows Server 2022")
 
         # Verify tags include run_id
         assert "run_id" in vm.tags or windows_vm_manager.run_id in str(vm.tags)
-        print(f"✅ VM tags verified: run_id present")
+        print("✅ VM tags verified: run_id present")
 
     @pytest.mark.asyncio
     @pytest.mark.slow
@@ -549,7 +548,7 @@ class TestVMConfiguration:
 
         # Standard_D2s_v3 has 8GB RAM
         assert vm.hardware_profile.vm_size == "Standard_D2s_v3"
-        print(f"✅ VM has adequate RAM: Standard_D2s_v3 (8GB)")
+        print("✅ VM has adequate RAM: Standard_D2s_v3 (8GB)")
 
 
 if __name__ == "__main__":

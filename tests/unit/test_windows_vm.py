@@ -17,7 +17,6 @@ Uses pytest with AsyncMock for Azure SDK interactions.
 """
 
 import asyncio
-import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -1172,7 +1171,7 @@ class TestSecurityFeatures:
                 run_id=run_id,
                 location=region,
                 resource_group_name="rg-test",
-                vnet_id=f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-test/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default",
+                vnet_id="/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-test/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default",
                 allowed_source_ips=["203.0.113.0/24"],
             )
             assert manager.location == region
@@ -1190,7 +1189,7 @@ class TestSecurityFeatures:
                 run_id=run_id,
                 location="invalid-region",
                 resource_group_name="rg-test",
-                vnet_id=f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-test/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default",
+                vnet_id="/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-test/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default",
                 allowed_source_ips=["203.0.113.0/24"],
             )
 

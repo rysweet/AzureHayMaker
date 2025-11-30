@@ -150,7 +150,7 @@ class TestSanitizeDict:
             "credential": "cred",
         }
         result = sanitize_dict(data)
-        for key in data.keys():
+        for key in data:
             assert result[key] == "[REDACTED]"
 
     def test_preserves_non_sensitive_data(self):
