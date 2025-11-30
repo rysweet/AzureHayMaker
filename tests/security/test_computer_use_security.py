@@ -53,7 +53,6 @@ pytestmark = [
     pytest.mark.skipif(
         not SECURITY_AVAILABLE, reason="Security test modules not yet implemented"
     ),
-    pytest.mark.skip(reason="Security features not yet implemented - placeholder tests for future implementation"),
 ]
 
 

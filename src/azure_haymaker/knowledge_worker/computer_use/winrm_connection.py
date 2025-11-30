@@ -18,6 +18,8 @@ from typing import Any
 
 from winrm.protocol import Protocol
 
+from .security_utils import sanitize_error
+
 logger = logging.getLogger(__name__)
 
 
@@ -145,8 +147,9 @@ class WinRMConnection:
 
         except Exception as e:
             self.is_connected = False
-            logger.error(f"WinRM connection failed: {e}")
-            raise WinRMConnectionError(f"Connection failed: {e}") from e
+            sanitized_error = sanitize_error(str(e))
+            logger.error(f"WinRM connection failed: {sanitized_error}")
+            raise WinRMConnectionError(f"Connection failed: {sanitized_error}") from e
 
     def execute_command(
         self, command: str, timeout: int | None = None
@@ -211,8 +214,9 @@ class WinRMConnection:
         except WinRMTimeoutError:
             raise
         except Exception as e:
-            logger.error(f"Command execution failed: {e}")
-            raise WinRMConnectionError(f"Failed to execute command: {e}") from e
+            sanitized_error = sanitize_error(str(e))
+            logger.error(f"Command execution failed: {sanitized_error}")
+            raise WinRMConnectionError(f"Failed to execute command: {sanitized_error}") from e
 
     def copy_file(self, local_path: str, remote_path: str) -> bool:
         """Copy local file to remote VM.
@@ -304,14 +308,16 @@ class WinRMConnection:
                 if not verify_result["success"]:
                     logger.warning("File verification check failed, but continuing")
             except Exception as e:
-                logger.warning(f"File verification skipped: {e}")
+                sanitized_error = sanitize_error(str(e))
+                logger.warning(f"File verification skipped: {sanitized_error}")
 
             logger.info(f"Successfully copied {local_file.name} to remote VM")
             return True
 
         except Exception as e:
-            logger.error(f"File copy failed: {e}")
-            raise WinRMConnectionError(f"Failed to copy file: {e}") from e
+            sanitized_error = sanitize_error(str(e))
+            logger.error(f"File copy failed: {sanitized_error}")
+            raise WinRMConnectionError(f"Failed to copy file: {sanitized_error}") from e
 
     def disconnect(self) -> None:
         """Disconnect from remote VM.
@@ -333,7 +339,8 @@ class WinRMConnection:
             logger.info("Disconnected successfully")
 
         except Exception as e:
-            logger.warning(f"Error during disconnect: {e}", exc_info=True)
+            sanitized_error = sanitize_error(str(e))
+            logger.warning(f"Error during disconnect: {sanitized_error}", exc_info=True)
             self.is_connected = False
             # Reset state but allow cleanup to continue
             self._protocol = None

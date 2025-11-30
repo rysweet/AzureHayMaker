@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from azure_haymaker.knowledge_worker.computer_use.security_utils import sanitize_error
 from azure_haymaker.knowledge_worker.models.worker import WorkerIdentity
 
 logger = logging.getLogger(__name__)
@@ -293,7 +294,8 @@ class ComputerUseTelemetryCollector:
             }
 
         except Exception as e:
-            logger.error(f"Failed to export logs: {e}")
+            sanitized_error = sanitize_error(str(e))
+            logger.error(f"Failed to export logs: {sanitized_error}")
             raise
 
     async def _export_to_azure_storage(self, url: str, content: str) -> None:
@@ -353,4 +355,5 @@ class ComputerUseTelemetryCollector:
                 f.write(json.dumps(log.to_dict()) + "\n")
 
         except Exception as e:
-            logger.warning(f"Failed to persist log to disk: {e}")
+            sanitized_error = sanitize_error(str(e))
+            logger.warning(f"Failed to persist log to disk: {sanitized_error}")

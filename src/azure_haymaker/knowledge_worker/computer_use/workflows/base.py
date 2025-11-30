@@ -7,6 +7,8 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any
 
+from azure_haymaker.knowledge_worker.computer_use.security_utils import sanitize_error
+
 logger = logging.getLogger(__name__)
 
 
@@ -104,5 +106,6 @@ class BaseWorkflow(ABC):
         Raises:
             WorkflowError: Always raises with context
         """
-        logger.error(f"{self.workflow_name} - {operation} failed: {error}")
+        sanitized_error = sanitize_error(str(error))
+        logger.error(f"{self.workflow_name} - {operation} failed: {sanitized_error}")
         raise WorkflowError(f"{operation} failed: {error}") from error

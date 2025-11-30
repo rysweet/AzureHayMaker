@@ -16,6 +16,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from azure_haymaker.knowledge_worker.computer_use.security_utils import sanitize_error
 from azure_haymaker.knowledge_worker.computer_use.winrm_connection import (
     WinRMConnection,
 )
@@ -185,8 +186,9 @@ msgraph-sdk>=1.0.0
             }
 
         except Exception as e:
-            logger.error(f"Deployment failed for worker {worker_id}: {e}")
-            raise DeploymentError(f"Deployment failed: {e}") from e
+            sanitized_error = sanitize_error(str(e))
+            logger.error(f"Deployment failed for worker {worker_id}: {sanitized_error}")
+            raise DeploymentError(f"Deployment failed: {sanitized_error}") from e
 
     def _create_directory_structure(self, deployment_path: str) -> None:
         """Create agent directory structure on VM.

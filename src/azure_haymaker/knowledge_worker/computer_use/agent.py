@@ -17,6 +17,7 @@ from azure_haymaker.knowledge_worker.agent import (
 from azure_haymaker.knowledge_worker.computer_use.browser_automation import (
     BrowserAutomation,
 )
+from azure_haymaker.knowledge_worker.computer_use.security_utils import sanitize_error
 from azure_haymaker.knowledge_worker.computer_use.telemetry import (
     ComputerUseTelemetryCollector,
 )
@@ -199,7 +200,8 @@ class ComputerUseKnowledgeWorkerAgent(KnowledgeWorkerAgent):
             logger.info(f"Computer Use agent {self.worker_identity.worker_id} started successfully")
 
         except Exception as e:
-            logger.error(f"Failed to start Computer Use agent: {e}")
+            sanitized_error = sanitize_error(str(e))
+            logger.error(f"Failed to start Computer Use agent: {sanitized_error}")
             self._browser_started = False
             raise
 
@@ -264,7 +266,8 @@ class ComputerUseKnowledgeWorkerAgent(KnowledgeWorkerAgent):
                 metadata={"error": str(e), "params": params},
             )
 
-            logger.error(f"Workflow {workflow_name} failed: {e}")
+            sanitized_error = sanitize_error(str(e))
+            logger.error(f"Workflow {workflow_name} failed: {sanitized_error}")
             raise
 
     def on_cleanup(self, exit_code: int = 0) -> None:
@@ -285,7 +288,8 @@ class ComputerUseKnowledgeWorkerAgent(KnowledgeWorkerAgent):
                 self._browser_started = False
 
         except Exception as e:
-            logger.error(f"Error during browser cleanup: {e}", exc_info=True)
+            sanitized_error = sanitize_error(str(e))
+            logger.error(f"Error during browser cleanup: {sanitized_error}", exc_info=True)
             # Reset state and continue cleanup even if browser close fails
             self._browser_started = False
 

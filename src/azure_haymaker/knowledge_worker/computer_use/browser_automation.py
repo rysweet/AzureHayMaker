@@ -12,11 +12,12 @@ Key features:
 - Screenshot capture for debugging
 """
 
-import asyncio
 import logging
 from typing import Any
 
 from playwright.async_api import Browser, BrowserContext, Page, async_playwright
+
+from .security_utils import sanitize_error
 
 logger = logging.getLogger(__name__)
 
@@ -159,8 +160,9 @@ class BrowserAutomation:
 
         except Exception as e:
             self.is_browser_running = False
-            logger.error(f"Failed to launch browser: {e}")
-            raise BrowserAutomationError(f"Browser launch failed: {e}") from e
+            sanitized_error = sanitize_error(str(e))
+            logger.error(f"Failed to launch browser: {sanitized_error}")
+            raise BrowserAutomationError(f"Browser launch failed: {sanitized_error}") from e
 
     async def login_m365(
         self,
@@ -215,7 +217,8 @@ class BrowserAutomation:
                     await self._page.fill('input[name="otc"]', mfa_code)
                     await self._page.click('input[type="submit"]')
                 except Exception as e:
-                    logger.warning(f"MFA not required or failed: {e}")
+                    sanitized_error = sanitize_error(str(e))
+                    logger.warning(f"MFA not required or failed: {sanitized_error}")
 
             # Wait for successful login (portal loads)
             await self._page.wait_for_selector('[data-automationid="AppLauncher"]', timeout=15000)
@@ -225,14 +228,15 @@ class BrowserAutomation:
 
         except Exception as e:
             self.is_authenticated = False
-            logger.error(f"M365 login failed: {e}")
+            sanitized_error = sanitize_error(str(e))
+            logger.error(f"M365 login failed: {sanitized_error}")
 
             if "timeout" in str(e).lower():
                 raise LoginError("Login timeout - check credentials or MFA") from e
             elif "credential" in str(e).lower() or "password" in str(e).lower():
                 raise LoginError("Invalid credentials") from e
             else:
-                raise LoginError(f"Login failed: {e}") from e
+                raise LoginError(f"Login failed: {sanitized_error}") from e
 
     async def navigate_to_outlook_web(self) -> None:
         """Navigate to Outlook Web (OWA).
@@ -257,8 +261,9 @@ class BrowserAutomation:
             logger.info("Navigation to Outlook Web successful")
 
         except Exception as e:
-            logger.error(f"Failed to navigate to Outlook Web: {e}")
-            raise NavigationError(f"Outlook navigation failed: {e}") from e
+            sanitized_error = sanitize_error(str(e))
+            logger.error(f"Failed to navigate to Outlook Web: {sanitized_error}")
+            raise NavigationError(f"Outlook navigation failed: {sanitized_error}") from e
 
     async def navigate_to_teams_web(self) -> None:
         """Navigate to Microsoft Teams Web.
@@ -281,8 +286,9 @@ class BrowserAutomation:
             logger.info("Navigation to Teams Web successful")
 
         except Exception as e:
-            logger.error(f"Failed to navigate to Teams Web: {e}")
-            raise NavigationError(f"Teams navigation failed: {e}") from e
+            sanitized_error = sanitize_error(str(e))
+            logger.error(f"Failed to navigate to Teams Web: {sanitized_error}")
+            raise NavigationError(f"Teams navigation failed: {sanitized_error}") from e
 
     async def send_email_via_browser(
         self,
@@ -348,11 +354,13 @@ class BrowserAutomation:
             }
 
         except TimeoutError as e:
-            logger.error(f"Email send timeout: {e}")
-            raise BrowserAutomationError(f"Email send timeout: {e}") from e
+            sanitized_error = sanitize_error(str(e))
+            logger.error(f"Email send timeout: {sanitized_error}")
+            raise BrowserAutomationError(f"Email send timeout: {sanitized_error}") from e
         except Exception as e:
-            logger.error(f"Failed to send email: {e}")
-            raise BrowserAutomationError(f"Email send failed: {e}") from e
+            sanitized_error = sanitize_error(str(e))
+            logger.error(f"Failed to send email: {sanitized_error}")
+            raise BrowserAutomationError(f"Email send failed: {sanitized_error}") from e
 
     async def send_teams_message_via_browser(
         self,
@@ -402,8 +410,9 @@ class BrowserAutomation:
             }
 
         except Exception as e:
-            logger.error(f"Failed to send Teams message: {e}")
-            raise BrowserAutomationError(f"Teams message send failed: {e}") from e
+            sanitized_error = sanitize_error(str(e))
+            logger.error(f"Failed to send Teams message: {sanitized_error}")
+            raise BrowserAutomationError(f"Teams message send failed: {sanitized_error}") from e
 
     async def create_calendar_event_via_browser(
         self,
@@ -456,8 +465,9 @@ class BrowserAutomation:
             }
 
         except Exception as e:
-            logger.error(f"Failed to create calendar event: {e}")
-            raise BrowserAutomationError(f"Calendar event creation failed: {e}") from e
+            sanitized_error = sanitize_error(str(e))
+            logger.error(f"Failed to create calendar event: {sanitized_error}")
+            raise BrowserAutomationError(f"Calendar event creation failed: {sanitized_error}") from e
 
     async def close_browser(self) -> None:
         """Close browser and cleanup resources.
@@ -492,7 +502,8 @@ class BrowserAutomation:
             logger.info("Browser closed successfully")
 
         except Exception as e:
-            logger.warning(f"Error during browser close: {e}", exc_info=True)
+            sanitized_error = sanitize_error(str(e))
+            logger.warning(f"Error during browser close: {sanitized_error}", exc_info=True)
             self.is_browser_running = False
             # Reset state but allow cleanup to continue
             self._context = None
