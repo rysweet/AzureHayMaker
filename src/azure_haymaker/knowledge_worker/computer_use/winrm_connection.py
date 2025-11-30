@@ -170,9 +170,13 @@ class WinRMConnection:
         Raises:
             WinRMConnectionError: If not connected
             WinRMTimeoutError: If command times out
+            ValueError: If command contains suspicious injection patterns
         """
         if not self.is_connected or not self._protocol or not self._shell_id:
             raise WinRMConnectionError("Not connected. Call connect() first.")
+
+        # SECURITY: Validate command to prevent injection attacks
+        self._validate_command(command)
 
         try:
             logger.debug(f"Executing command: {command[:100]}...")
@@ -397,6 +401,48 @@ class WinRMConnection:
 
         # Wrap in single quotes (safest in PowerShell)
         return f"'{escaped}'"
+
+    @staticmethod
+    def _validate_command(command: str) -> None:
+        """Validate PowerShell command for security issues.
+
+        SECURITY: Prevents command injection attacks by checking for
+        dangerous patterns like command chaining (;), piping to rm/del, etc.
+
+        Args:
+            command: PowerShell command to validate
+
+        Raises:
+            ValueError: If command contains suspicious injection patterns
+
+        Example:
+            >>> _validate_command("Get-Process")  # OK
+            >>> _validate_command("Get-Process; Remove-Item C:\\*")  # Raises ValueError
+        """
+        if not command or not command.strip():
+            raise ValueError("Command cannot be empty")
+
+        # Check for null bytes
+        if "\0" in command:
+            raise ValueError("Command contains null byte (possible injection)")
+
+        # SECURITY: Check for command chaining that combines with destructive operations
+        # Allow semicolons in safe contexts but reject obvious attacks
+        dangerous_patterns = [
+            (r";\s*Remove-Item", "command injection with Remove-Item"),
+            (r";\s*rm\s+", "command injection with rm"),
+            (r";\s*del\s+", "command injection with del"),
+            (r";\s*rmdir", "command injection with rmdir"),
+            (r";\s*Format-", "command injection with Format"),
+            (r"\|\s*Remove-Item", "pipe to Remove-Item"),
+            (r"\|\s*rm\s+", "pipe to rm"),
+            (r"\|\s*del\s+", "pipe to del"),
+        ]
+
+        import re
+        for pattern, description in dangerous_patterns:
+            if re.search(pattern, command, re.IGNORECASE):
+                raise ValueError(f"Command contains suspicious pattern: {description}")
 
     @staticmethod
     def _validate_windows_path(path: str) -> None:

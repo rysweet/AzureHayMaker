@@ -91,6 +91,24 @@ class ComputerUseConfig(KnowledgeWorkerConfig):
     vm_username: str = ""
     vm_password: str = ""
 
+    def __repr__(self) -> str:
+        """Return string representation with sanitized passwords.
+
+        SECURITY: Ensures passwords are not exposed in logs or debugging output.
+        """
+        # Build sanitized representation
+        attrs = []
+        for key, value in self.__dict__.items():
+            # Sanitize password fields
+            if "password" in key.lower():
+                attrs.append(f"{key}='***'")
+            else:
+                attrs.append(f"{key}={value!r}")
+
+        class_name = self.__class__.__name__
+        attrs_str = ", ".join(attrs)
+        return f"{class_name}({attrs_str})"
+
 
 class ComputerUseKnowledgeWorkerAgent(KnowledgeWorkerAgent):
     """Computer Use Knowledge Worker Agent.
@@ -269,6 +287,61 @@ class ComputerUseKnowledgeWorkerAgent(KnowledgeWorkerAgent):
             sanitized_error = sanitize_error(str(e))
             logger.error(f"Workflow {workflow_name} failed: {sanitized_error}")
             raise
+
+    def get_worker_stats(self) -> dict[str, Any]:
+        """Get worker statistics with credentials excluded.
+
+        SECURITY: Returns agent statistics without exposing sensitive credentials.
+        VM hostname and usernames are included, but passwords are excluded.
+
+        Returns:
+            Dict with agent statistics (credentials sanitized):
+                - worker_id: Worker ID
+                - display_name: Worker display name
+                - department: Worker department
+                - persona: Worker persona
+                - endpoint_type: Endpoint type
+                - vm_hostname: VM hostname (safe to expose)
+                - vm_username: VM username (safe to expose)
+                - m365_username: M365 username (safe to expose)
+                - allowed_recipients_count: Number of allowed recipients
+                - m365_client_initialized: Whether M365 client is initialized
+                - validator_initialized: Whether validator is initialized
+                - browser_started: Whether browser is running
+
+        Example:
+            >>> agent = ComputerUseKnowledgeWorkerAgent(config=config, identity=identity)
+            >>> stats = agent.get_worker_stats()
+            >>> "vm_password" not in stats  # Passwords excluded
+            True
+            >>> stats["vm_hostname"]  # Hostname included
+            'test-vm.westus2.cloudapp.azure.com'
+        """
+        # Get base stats from parent (which already sanitizes some fields)
+        base_stats = {
+            "worker_id": self.worker_identity.worker_id,
+            "display_name": self.worker_identity.display_name,
+            "department": self.worker_identity.department or "",
+            "persona": self.worker_identity.persona or "",
+            "endpoint_type": self.worker_identity.endpoint_type or "cli_container",
+            "allowed_recipients_count": len(self.allowed_recipients) if hasattr(self, "allowed_recipients") else 0,
+            # Use private attributes to avoid triggering properties' RuntimeError
+            "m365_client_initialized": hasattr(self, "_m365_client") and self._m365_client is not None,
+            "validator_initialized": hasattr(self, "_validator") and self._validator is not None,
+        }
+
+        # Add Computer Use specific stats (WITHOUT credentials)
+        computer_use_stats = {
+            "vm_hostname": self.worker_config.vm_hostname,
+            "vm_username": self.worker_config.vm_username,
+            # vm_password deliberately excluded for security
+            "m365_username": self.worker_config.m365_username,
+            # m365_password deliberately excluded for security
+            "browser_started": self._browser_started,
+            "browser_authenticated": self.browser.is_authenticated if self.browser else False,
+        }
+
+        return {**base_stats, **computer_use_stats}
 
     def on_cleanup(self, exit_code: int = 0) -> None:
         """Agent cleanup hook.

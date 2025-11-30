@@ -255,6 +255,69 @@ class ComputerUseTelemetryCollector:
 
         return metrics_by_op
 
+    def prepare_export_data(self) -> dict[str, Any]:
+        """Prepare telemetry data for export with sensitive fields excluded.
+
+        SECURITY: Sanitizes all logs and metadata before export to prevent
+        credential leakage in exported telemetry data. Removes both sensitive
+        values AND sensitive field names entirely.
+
+        Returns:
+            Dict containing sanitized logs and summary metrics suitable for export
+
+        Example:
+            >>> collector = ComputerUseTelemetryCollector(worker_identity=identity)
+            >>> collector.log_operation("login", "success", 1000, {"password": "secret"})
+            >>> export_data = collector.prepare_export_data()
+            >>> "secret" not in str(export_data)  # Password is sanitized
+            True
+            >>> "password" not in str(export_data).lower()  # Field name also excluded
+            True
+        """
+        # Convert logs to dicts and sanitize
+        sanitized_logs = []
+        for log in self.logs:
+            log_dict = log.to_dict()
+            # Sanitize metadata within each log - completely remove sensitive fields
+            if "metadata" in log_dict:
+                sanitized_metadata = {}
+                for key, value in log_dict["metadata"].items():
+                    # Check if key indicates sensitive data
+                    key_lower = key.lower()
+                    is_sensitive_key = any(
+                        keyword in key_lower
+                        for keyword in ["password", "passwd", "pwd", "secret", "token", "api_key", "apikey", "credential", "cert", "certificate"]
+                    )
+                    # Skip sensitive keys entirely (don't even include them as [REDACTED])
+                    if not is_sensitive_key:
+                        # For non-sensitive keys, still recursively sanitize values
+                        if isinstance(value, dict):
+                            sanitized_metadata[key] = sanitize_dict(value)
+                        else:
+                            sanitized_metadata[key] = value
+                log_dict["metadata"] = sanitized_metadata
+            sanitized_logs.append(log_dict)
+
+        # Get metrics summary
+        metrics = self.get_metrics_summary()
+
+        # Prepare export package
+        export_data = {
+            "worker_id": self.worker_identity.worker_id,
+            "export_timestamp": datetime.now(UTC).isoformat(),
+            "total_logs": len(sanitized_logs),
+            "metrics": {
+                "total_operations": metrics.total_operations,
+                "successful_operations": metrics.successful_operations,
+                "failed_operations": metrics.failed_operations,
+                "average_duration_ms": metrics.average_duration_ms,
+                "success_rate": metrics.success_rate,
+            },
+            "logs": sanitized_logs,
+        }
+
+        return export_data
+
     async def export_logs(
         self,
         destination: str,

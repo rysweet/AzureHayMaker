@@ -472,6 +472,9 @@ class BrowserAutomation:
     async def close_browser(self) -> None:
         """Close browser and cleanup resources.
 
+        SECURITY: Clears sensitive data (cookies, storage) before closing
+        to prevent data leakage between sessions.
+
         Safe to call multiple times (idempotent).
         """
         if not self.is_browser_running:
@@ -481,7 +484,15 @@ class BrowserAutomation:
         try:
             logger.info("Closing browser")
 
+            # SECURITY: Clear sensitive data before closing
             if self._context:
+                try:
+                    await self._context.clear_cookies()
+                    logger.debug("Cleared browser cookies")
+                except Exception as e:
+                    sanitized_error = sanitize_error(str(e))
+                    logger.warning(f"Failed to clear cookies: {sanitized_error}")
+
                 await self._context.close()
                 self._context = None
 
