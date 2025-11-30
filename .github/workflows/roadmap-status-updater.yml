@@ -1,0 +1,143 @@
+name: Update Roadmap Status
+
+on:
+  issues:
+    types: [closed, reopened, labeled, unlabeled]
+  pull_request:
+    types: [closed, merged]
+  schedule:
+    # Run every Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  update-roadmap-status:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get enhancement issues
+        id: get-issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'enhancement',
+              state: 'all',
+              per_page: 100
+            });
+
+            const enhancements = issues.data
+              .filter(issue => issue.title.includes('#124') ||
+                              issue.title.includes('#125') ||
+                              issue.title.includes('#126') ||
+                              issue.title.includes('#127') ||
+                              issue.title.includes('#128') ||
+                              issue.title.includes('#129') ||
+                              issue.title.includes('#130') ||
+                              issue.title.includes('#131') ||
+                              issue.title.includes('#132') ||
+                              issue.title.includes('#133'))
+              .map(issue => ({
+                number: issue.number,
+                title: issue.title,
+                state: issue.state,
+                labels: issue.labels.map(l => l.name),
+                milestone: issue.milestone?.title || 'None',
+                assignee: issue.assignee?.login || 'Unassigned'
+              }));
+
+            return enhancements;
+
+      - name: Generate status update
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const enhancements = ${{ steps.get-issues.outputs.result }};
+
+            const getStatus = (issue) => {
+              if (issue.state === 'closed') return '✅ Complete';
+              if (issue.labels.includes('in-progress')) return '🟢 In Progress';
+              if (issue.labels.includes('blocked')) return '🔴 Blocked';
+              if (issue.assignee !== 'Unassigned') return '🟡 Planning';
+              return '⚪ Not Started';
+            };
+
+            const getPriority = (issue) => {
+              if (issue.labels.includes('P0-critical')) return 'P0';
+              if (issue.labels.includes('P1-high')) return 'P1';
+              if (issue.labels.includes('P2-medium')) return 'P2';
+              return 'P3';
+            };
+
+            let statusReport = `# Roadmap Status - Auto-Generated\n\n`;
+            statusReport += `**Last Updated**: ${new Date().toISOString().split('T')[0]}\n`;
+            statusReport += `**Status**: Auto-generated from GitHub issues\n\n`;
+            statusReport += `## Enhancement Status Summary\n\n`;
+            statusReport += `| Issue | Enhancement | Priority | Status | Assignee | Milestone |\n`;
+            statusReport += `|-------|-------------|----------|--------|----------|----------|\n`;
+
+            for (const issue of enhancements) {
+              const status = getStatus(issue);
+              const priority = getPriority(issue);
+              statusReport += `| #${issue.number} | ${issue.title.slice(0, 40)} | ${priority} | ${status} | ${issue.assignee} | ${issue.milestone} |\n`;
+            }
+
+            statusReport += `\n## Completion Statistics\n\n`;
+            const total = enhancements.length;
+            const completed = enhancements.filter(i => i.state === 'closed').length;
+            const inProgress = enhancements.filter(i => i.labels.includes('in-progress')).length;
+
+            statusReport += `- Total Enhancements: ${total}\n`;
+            statusReport += `- Completed: ${completed} (${Math.round(completed/total*100)}%)\n`;
+            statusReport += `- In Progress: ${inProgress}\n`;
+            statusReport += `- Not Started: ${total - completed - inProgress}\n`;
+
+            console.log(statusReport);
+            return statusReport;
+
+      - name: Update ROADMAP_STATUS.md
+        run: |
+          # This is a placeholder - in production, would write to ROADMAP_STATUS.md
+          # and create a PR with the updates
+          echo "Roadmap status auto-update would run here"
+          echo "In production: update docs/ROADMAP_STATUS.md with latest issue statuses"
+
+      - name: Comment on relevant issues
+        if: github.event_name == 'issues' && github.event.action == 'closed'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+
+            // Only comment on enhancement issues
+            if (!issue.labels.some(l => l.name === 'enhancement')) {
+              return;
+            }
+
+            const body = `🎉 **Enhancement Complete!**
+
+This enhancement has been marked as complete.
+
+**Next Steps**:
+- [ ] Update [Roadmap Status](../docs/ROADMAP_STATUS.md) to reflect completion
+- [ ] Measure actual ROI vs. projected (see [Cost-Benefit Analysis](../specs/ENHANCEMENT_COST_BENEFIT_ANALYSIS.md))
+- [ ] Document any learnings in [DISCOVERIES.md](../.claude/context/DISCOVERIES.md)
+- [ ] Update OKRs in [Quarterly OKRs](../docs/QUARTERLY_OKRS.md)
+
+**See**: [Enhancement Roadmap](../docs/ENHANCEMENT_ROADMAP.md) for strategic context`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: body
+            });

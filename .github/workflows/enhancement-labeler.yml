@@ -1,0 +1,65 @@
+name: Auto-label Enhancement Issues
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+
+    steps:
+      - name: Auto-label by title keywords
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const title = issue.title.toLowerCase();
+            const body = issue.body ? issue.body.toLowerCase() : '';
+
+            const labels = [];
+
+            // Priority detection
+            if (title.includes('p0:') || body.includes('priority: p0')) {
+              labels.push('P0-critical');
+            } else if (title.includes('p1:') || body.includes('priority: p1')) {
+              labels.push('P1-high');
+            } else if (title.includes('p2:') || body.includes('priority: p2')) {
+              labels.push('P2-medium');
+            }
+
+            // Category detection
+            if (title.includes('security') || body.includes('security')) {
+              labels.push('security');
+            }
+            if (title.includes('telemetry') || title.includes('siem') || body.includes('telemetry')) {
+              labels.push('telemetry');
+            }
+            if (title.includes('cost') || title.includes('budget') || body.includes('cost')) {
+              labels.push('cost-optimization');
+            }
+            if (title.includes('infrastructure') || title.includes('deployment') || body.includes('infrastructure')) {
+              labels.push('infrastructure');
+            }
+            if (title.includes('developer') || title.includes('dev mode') || title.includes('local') || body.includes('developer')) {
+              labels.push('developer-experience');
+            }
+
+            // Add enhancement label if it's an enhancement
+            if (title.includes('enhancement') || title.includes('feature') || title.includes('implement')) {
+              labels.push('enhancement');
+            }
+
+            // Apply labels
+            if (labels.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: labels
+              });
+
+              console.log(`Added labels: ${labels.join(', ')}`);
+            }
