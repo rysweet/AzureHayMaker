@@ -183,7 +183,7 @@ class EndpointManager:
                     logger.warning(f"Cloud PC failed for {worker.worker_id}: {reason}")
 
             except Exception as e:
-                reason = str(e)
+                reason = type(e).__name__
                 failures.append(("Cloud PC", reason))
                 logger.warning(f"Cloud PC failed for {worker.worker_id}: {e}")
 
@@ -221,7 +221,7 @@ class EndpointManager:
                     }
 
             except Exception as e:
-                reason = str(e)
+                reason = type(e).__name__
                 failures.append(("Windows VM", reason))
                 logger.warning(f"Windows VM failed for {worker.worker_id}: {e}")
 
@@ -259,7 +259,7 @@ class EndpointManager:
                     }
 
             except Exception as e:
-                reason = str(e)
+                reason = type(e).__name__
                 failures.append(("Container", reason))
                 logger.error(f"Container failed for {worker.worker_id}: {e}")
 

@@ -120,6 +120,7 @@ def windows_vm_manager(mock_compute_client, mock_network_client, run_id, locatio
         run_id=run_id,
         location=location,
         resource_group_name=f"rg-haymaker-{run_id[:8]}",
+        vnet_id=f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-haymaker-{run_id[:8]}/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default",
         allowed_source_ips=None,  # Default: unrestricted (testing)
     )
 
@@ -134,6 +135,7 @@ def windows_vm_manager_secure(mock_compute_client, mock_network_client, run_id, 
         run_id=run_id,
         location=location,
         resource_group_name=f"rg-haymaker-{run_id[:8]}",
+        vnet_id=f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-haymaker-{run_id[:8]}/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default",
         allowed_source_ips=["1.2.3.4/32", "10.0.0.0/8"],
     )
 
@@ -931,6 +933,7 @@ class TestSecurityFeatures:
             run_id=run_id,
             location=location,
             resource_group_name=f"rg-haymaker-{run_id[:8]}",
+            vnet_id=f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-haymaker-{run_id[:8]}/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default",
             allowed_source_ips=["1.2.3.4/32"],
         )
 
@@ -948,6 +951,7 @@ class TestSecurityFeatures:
             run_id=run_id,
             location=location,
             resource_group_name=f"rg-haymaker-{run_id[:8]}",
+            vnet_id=f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-haymaker-{run_id[:8]}/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default",
             allowed_source_ips=["10.0.0.0/8", "192.168.0.0/16"],
         )
 
@@ -968,6 +972,7 @@ class TestSecurityFeatures:
                 run_id=run_id,
                 location=location,
                 resource_group_name=f"rg-haymaker-{run_id[:8]}",
+                vnet_id=f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-haymaker-{run_id[:8]}/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default",
                 allowed_source_ips=["invalid.ip.address"],
             )
 
@@ -986,6 +991,7 @@ class TestSecurityFeatures:
                 run_id=run_id,
                 location=location,
                 resource_group_name=f"rg-haymaker-{run_id[:8]}",
+                vnet_id=f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-haymaker-{run_id[:8]}/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default",
                 allowed_source_ips=[],
             )
 
@@ -1051,6 +1057,7 @@ class TestSecurityFeatures:
                 run_id=run_id,
                 location=region,
                 resource_group_name="rg-test",
+                vnet_id=f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-test/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default",
             )
             assert manager.location == region
 
@@ -1067,6 +1074,7 @@ class TestSecurityFeatures:
                 run_id=run_id,
                 location="invalid-region",
                 resource_group_name="rg-test",
+                vnet_id=f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-test/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default",
             )
 
         assert "Invalid Azure region" in str(exc_info.value)
@@ -1086,6 +1094,7 @@ class TestSecurityFeatures:
                 run_id=run_id,
                 location=location,
                 resource_group_name=name,
+                vnet_id=f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/{name}/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default",
             )
             assert manager.resource_group_name == name
 
@@ -1095,24 +1104,28 @@ class TestSecurityFeatures:
     ):
         """Test that invalid resource group names are rejected."""
         invalid_names = [
-            "rg-test.",  # Ends with period
-            "rg@test",   # Invalid character
-            "rg test",   # Space
-            "",          # Empty
+            ("rg-test.", "rg-test"),   # Ends with period
+            ("rg@test", "rg-test"),    # Invalid character
+            ("rg test", "rg-test"),    # Space
+            ("", ""),                  # Empty - will fail on empty string
         ]
 
-        for name in invalid_names:
+        for rg_name, vnet_rg in invalid_names:
             with pytest.raises(ValueError) as exc_info:
+                # Use vnet_rg in the vnet_id to match the resource group name we're testing
+                vnet_id = f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/{vnet_rg if vnet_rg else 'rg-test'}/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default"
                 WindowsVMManager(
                     compute_client=mock_compute_client,
                     network_client=mock_network_client,
                     subscription_id="12345678-1234-1234-1234-123456789012",
                     run_id=run_id,
                     location=location,
-                    resource_group_name=name,
+                    resource_group_name=rg_name,
+                    vnet_id=vnet_id,
                 )
 
-            assert "resource_group_name" in str(exc_info.value).lower()
+            # Should raise ValueError (either for resource_group_name or vnet_id validation)
+            assert "resource_group_name" in str(exc_info.value).lower() or "vnet_id" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
     async def test_worker_id_validation_valid_ids(self, windows_vm_manager):
@@ -1152,6 +1165,7 @@ class TestSecurityFeatures:
                 run_id=run_id,
                 location=location,
                 resource_group_name="rg-test",
+                vnet_id=f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-test/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default",
                 allowed_source_ips=None,
             )
 

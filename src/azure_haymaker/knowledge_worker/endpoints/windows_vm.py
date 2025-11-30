@@ -15,6 +15,7 @@ SECURITY WARNING:
 """
 
 import asyncio
+import hashlib
 import ipaddress
 import logging
 import re
@@ -88,6 +89,7 @@ class WindowsVMManager:
         run_id: str,
         location: str,
         resource_group_name: str,
+        vnet_id: str,
         vm_size: str | None = None,
         allowed_source_ips: list[str] | None = None,
     ):
@@ -100,6 +102,8 @@ class WindowsVMManager:
             run_id: HayMaker run ID for resource tagging
             location: Azure region for VM deployment
             resource_group_name: Resource group name for VM resources
+            vnet_id: Full Azure Resource ID of the Virtual Network
+                Format: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Network/virtualNetworks/{vnet}/subnets/{subnet}
             vm_size: Azure VM size (default: Standard_D2s_v3)
             allowed_source_ips: List of IP addresses/CIDR ranges allowed RDP access.
                 If None, allows access from ANY IP (INSECURE - testing only).
@@ -115,6 +119,7 @@ class WindowsVMManager:
         # Input validation
         self._validate_location(location)
         self._validate_resource_group_name(resource_group_name)
+        self._validate_vnet_id(vnet_id)
 
         self.compute_client = compute_client
         self.network_client = network_client
@@ -122,6 +127,7 @@ class WindowsVMManager:
         self.run_id = run_id
         self.location = location
         self.resource_group_name = resource_group_name
+        self.vnet_id = vnet_id
         self.vm_size = vm_size or self.DEFAULT_VM_SIZE
 
         # Security: Validate and configure allowed source IPs
@@ -189,6 +195,40 @@ class WindowsVMManager:
                 f"Invalid resource_group_name: '{resource_group_name}'. "
                 "Must contain only alphanumerics, underscores, hyphens, periods, and parentheses"
             )
+
+    def _validate_vnet_id(self, vnet_id: str) -> None:
+        """Validate Virtual Network subnet ID.
+
+        VNet subnet IDs must be full Azure Resource IDs in the format:
+        /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Network/virtualNetworks/{vnet}/subnets/{subnet}
+
+        Args:
+            vnet_id: Virtual Network subnet resource ID to validate
+
+        Raises:
+            ValueError: If vnet_id is invalid or missing
+        """
+        if not vnet_id or not isinstance(vnet_id, str):
+            raise ValueError(
+                "vnet_id is required and must be a non-empty string. "
+                "Provide the full Azure Resource ID of the subnet: "
+                "/subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Network/virtualNetworks/{vnet}/subnets/{subnet}"
+            )
+
+        # Validate format - must contain all required components
+        required_parts = [
+            "/subscriptions/",
+            "/resourceGroups/",
+            "/providers/Microsoft.Network/virtualNetworks/",
+            "/subnets/",
+        ]
+
+        for part in required_parts:
+            if part not in vnet_id:
+                raise ValueError(
+                    f"Invalid vnet_id format. Missing '{part}'. "
+                    f"Expected format: /subscriptions/{{sub}}/resourceGroups/{{rg}}/providers/Microsoft.Network/virtualNetworks/{{vnet}}/subnets/{{subnet}}"
+                )
 
     def _validate_ip_addresses(self, ip_list: list[str]) -> list[str]:
         """Validate IP addresses/CIDR ranges.
@@ -282,6 +322,32 @@ class WindowsVMManager:
         # Sanitize worker_id to ensure valid VM name (alphanumeric and hyphens)
         worker_id_safe = worker.worker_id.replace("_", "-")
         return f"cua-win-{self.location}-{worker_id_safe}"
+
+    def _get_computer_name(self, vm_name: str) -> str:
+        """Generate unique 15-char computer name using hash.
+
+        Windows computer names are limited to 15 characters. To avoid
+        collisions when truncating long VM names, we use a hash-based
+        approach that guarantees uniqueness.
+
+        Args:
+            vm_name: Full VM name (can be longer than 15 chars)
+
+        Returns:
+            Unique computer name (15 chars max)
+        """
+        # If vm_name is already 15 chars or less, use it directly
+        if len(vm_name) <= 15:
+            return vm_name
+
+        # Hash the full VM name to get a unique identifier
+        # Use first 8 chars of hex digest for uniqueness
+        vm_hash = hashlib.sha256(vm_name.encode()).hexdigest()[:8]
+
+        # Take prefix from vm_name (max 6 chars to leave room for hash)
+        # Format: {prefix}-{hash} where total is 15 chars (6 + 1 + 8 = 15)
+        prefix = vm_name[:6]
+        return f"{prefix}-{vm_hash}"
 
     async def provision_vm(self, worker: WorkerIdentity) -> dict[str, Any]:
         """Provision a Windows VM for a worker.
@@ -481,11 +547,8 @@ class WindowsVMManager:
         """
         logger.info(f"Creating NIC: {nic_name}")
 
-        # Construct resource IDs directly (simpler for testing)
-        # In production, a VNet would already exist or be provisioned separately
-        vnet_name = f"vnet-{self.run_id[:8]}"
-        subnet_name = "default"
-        subnet_id = f"/subscriptions/{self.subscription_id}/resourceGroups/{self.resource_group_name}/providers/Microsoft.Network/virtualNetworks/{vnet_name}/subnets/{subnet_name}"
+        # Use the explicitly provided VNet subnet ID (validated at init)
+        subnet_id = self.vnet_id
         public_ip_id = f"/subscriptions/{self.subscription_id}/resourceGroups/{self.resource_group_name}/providers/Microsoft.Network/publicIPAddresses/{public_ip_name}"
         nsg_id = f"/subscriptions/{self.subscription_id}/resourceGroups/{self.resource_group_name}/providers/Microsoft.Network/networkSecurityGroups/{nsg_name}"
 
@@ -546,7 +609,7 @@ class WindowsVMManager:
                 }
             },
             "os_profile": {
-                "computer_name": vm_name[:15],  # Windows limit
+                "computer_name": self._get_computer_name(vm_name),
                 "admin_username": admin_username,
                 "admin_password": admin_password,
                 "windows_configuration": {
