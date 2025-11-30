@@ -358,7 +358,9 @@ class TestEmailOperations:
 
         # Assert
         assert result["success"] is True
-        page.click.assert_any_call('[aria-label="New mail"]')
+        # Check New mail button was clicked (with timeout parameter)
+        new_mail_calls = [call for call in page.click.call_args_list if "New mail" in str(call)]
+        assert len(new_mail_calls) >= 1
         page.fill.assert_any_call('[aria-label="To"]', "recipient@tenant.com")
         page.fill.assert_any_call('[aria-label="Subject"]', "Test Email")
         # Send button clicked
