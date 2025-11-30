@@ -21,9 +21,9 @@ import sys
 import time
 from datetime import datetime
 
-from azure.identity import DefaultAzureCredential
-from azure.mgmt.compute import ComputeManagementClient
-from azure.mgmt.network import NetworkManagementClient
+from azure.identity.aio import DefaultAzureCredential
+from azure.mgmt.compute.aio import ComputeManagementClient
+from azure.mgmt.network.aio import NetworkManagementClient
 
 # Add project to path
 sys.path.insert(0, '/home/azureuser/src/h2/worktrees/feat-issue-120-windows-vm-fallback')
@@ -72,6 +72,54 @@ async def validate_azure_connectivity():
         return None
 
 
+async def _ensure_vnet_exists(subscription_id, resource_group, location):
+    """Ensure VNet exists for testing, create if needed."""
+    import subprocess
+
+    # Check if VNet exists
+    result = subprocess.run(
+        ['az', 'network', 'vnet', 'list', '--resource-group', resource_group, '--query', '[0].id', '-o', 'tsv'],
+        capture_output=True, text=True
+    )
+
+    if result.returncode == 0 and result.stdout.strip():
+        vnet_id = result.stdout.strip()
+        print(f"Using existing VNet: {vnet_id}")
+        # Get default subnet
+        result = subprocess.run(
+            ['az', 'network', 'vnet', 'subnet', 'list', '--resource-group', resource_group,
+             '--vnet-name', vnet_id.split('/')[-1], '--query', '[0].id', '-o', 'tsv'],
+            capture_output=True, text=True, check=True
+        )
+        return result.stdout.strip()
+
+    # Create minimal VNet for testing
+    print(f"Creating test VNet in {resource_group}...")
+    vnet_name = f"vnet-test-{int(time.time())}"
+    subprocess.run(
+        ['az', 'network', 'vnet', 'create',
+         '--resource-group', resource_group,
+         '--name', vnet_name,
+         '--address-prefix', '10.0.0.0/16',
+         '--subnet-name', 'default',
+         '--subnet-prefix', '10.0.0.0/24',
+         '--location', location],
+        check=True, capture_output=True
+    )
+
+    # Get subnet ID
+    result = subprocess.run(
+        ['az', 'network', 'vnet', 'subnet', 'show',
+         '--resource-group', resource_group,
+         '--vnet-name', vnet_name,
+         '--name', 'default',
+         '--query', 'id', '-o', 'tsv'],
+        capture_output=True, text=True, check=True
+    )
+
+    return result.stdout.strip()
+
+
 async def test_vm_manager_initialization(subscription_id, credential, compute_client, network_client):
     """Test WindowsVMManager initialization."""
     print("\n" + "=" * 80)
@@ -81,8 +129,13 @@ async def test_vm_manager_initialization(subscription_id, credential, compute_cl
     try:
         # Pick a resource group (or create test RG)
         resource_group = "rg-haymaker-test"  # You may need to create this
-        location = "eastus"
+        location = "eastus"  # Same as RG location
         run_id = f"integration-test-{int(time.time())}"
+
+        # Create or get VNet for testing
+        print(f"Checking for VNet in {resource_group}...")
+        vnet_id = await _ensure_vnet_exists(subscription_id, resource_group, location)
+        print(f"✅ VNet ID: {vnet_id}")
 
         # Initialize manager
         manager = WindowsVMManager(
@@ -92,7 +145,8 @@ async def test_vm_manager_initialization(subscription_id, credential, compute_cl
             resource_group_name=resource_group,
             location=location,
             run_id=run_id,
-            vm_size="Standard_B1s",  # Smallest/cheapest size for testing
+            vnet_id=vnet_id,  # Required parameter
+            vm_size="Standard_B2s",  # Available in most regions
             allowed_source_ips=None,  # Will log security warning
         )
 
@@ -126,6 +180,7 @@ async def test_vm_provisioning(manager, run_id):
         worker = WorkerIdentity(
             worker_id=f"integration-test-{int(time.time())}",
             display_name="Integration Test Worker",
+            department="engineering",  # Required field
             persona=WorkerPersona.EXECUTIVE,
             endpoint_type=EndpointType.WINDOWS_VM,
             user_principal_name=f"test-{int(time.time())}@test.local",

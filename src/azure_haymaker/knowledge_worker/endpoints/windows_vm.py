@@ -21,11 +21,16 @@ import logging
 import re
 import secrets
 import socket
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from azure.mgmt.compute.aio import ComputeManagementClient
+    from azure.mgmt.network.aio import NetworkManagementClient
 
 from azure_haymaker.knowledge_worker.models.worker import WorkerIdentity
 
 logger = logging.getLogger(__name__)
+
 
 
 class WindowsVMManager:
@@ -440,13 +445,14 @@ class WindowsVMManager:
             },
         }
 
+        # Azure async SDK - await the poller directly
         poller = await self.network_client.public_ip_addresses.begin_create_or_update(
             resource_group_name=self.resource_group_name,
             public_ip_address_name=public_ip_name,
             parameters=public_ip_params,
         )
 
-        public_ip_result = await poller.result()
+        public_ip_result = await poller
         ip_address = public_ip_result.ip_address
 
         logger.info(f"Public IP created: {public_ip_name} ({ip_address})")
@@ -521,7 +527,7 @@ class WindowsVMManager:
                 parameters=nsg_params,
             )
 
-            await poller.result()
+            await poller
             logger.info(f"NSG created: {nsg_name} with {len(security_rules)} rule(s)")
 
         except Exception as e:
@@ -574,7 +580,7 @@ class WindowsVMManager:
             parameters=nic_params,
         )
 
-        nic_result = await poller.result()
+        nic_result = await poller
         logger.info(f"NIC created: {nic_name}")
         return nic_result.id
 
@@ -632,7 +638,7 @@ class WindowsVMManager:
             vm_params,
         )
 
-        await poller.result()
+        await poller
         logger.info(f"VM created: {vm_name}")
 
     async def delete_vm(
@@ -655,7 +661,8 @@ class WindowsVMManager:
                 resource_group_name=self.resource_group_name,
                 vm_name=vm_name,
             )
-            await poller.result()
+
+            await poller
             logger.info(f"VM deleted: {vm_name}")
 
             # Delete network resources if requested
@@ -688,7 +695,8 @@ class WindowsVMManager:
                 resource_group_name=self.resource_group_name,
                 network_interface_name=nic_name,
             )
-            await poller.result()
+
+            await poller
             logger.info(f"NIC deleted: {nic_name}")
         except Exception as e:
             logger.info(f"NIC cleanup skipped ({nic_name}): {e}")
@@ -699,7 +707,8 @@ class WindowsVMManager:
                 resource_group_name=self.resource_group_name,
                 public_ip_address_name=public_ip_name,
             )
-            await poller.result()
+
+            await poller
             logger.info(f"Public IP deleted: {public_ip_name}")
         except Exception as e:
             logger.info(f"Public IP cleanup skipped ({public_ip_name}): {e}")
@@ -710,7 +719,8 @@ class WindowsVMManager:
                 resource_group_name=self.resource_group_name,
                 network_security_group_name=nsg_name,
             )
-            await poller.result()
+
+            await poller
             logger.info(f"NSG deleted: {nsg_name}")
         except Exception as e:
             logger.info(f"NSG cleanup skipped ({nsg_name}): {e}")

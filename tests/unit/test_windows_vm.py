@@ -52,6 +52,19 @@ pytestmark = pytest.mark.skipif(
 # ==============================================================================
 
 
+def _create_awaitable_mock(return_value):
+    """Helper to create a mock that can be awaited (like Azure SDK pollers).
+
+    Azure async SDK pollers are directly awaitable and return the result.
+    This creates a coroutine that can be directly awaited.
+    """
+    async def awaitable():
+        return return_value
+
+    # Return the coroutine directly (not wrapped in a mock)
+    return awaitable()
+
+
 @pytest.fixture
 def mock_compute_client():
     """Fixture: Mock Azure Compute Management client.
@@ -62,6 +75,7 @@ def mock_compute_client():
     client = MagicMock()
 
     # Setup virtual_machines operations
+    # For async SDK, pollers are directly awaitable
     client.virtual_machines.begin_create_or_update = AsyncMock()
     client.virtual_machines.get = AsyncMock()
     client.virtual_machines.begin_delete = AsyncMock()
@@ -195,29 +209,27 @@ class TestVMProvisioning:
         mock_public_ip_response,
     ):
         """Test provision_vm creates VM successfully with correct configuration."""
-        # Mock the provisioning process
-        poller = AsyncMock()
-        poller.result = AsyncMock(return_value=mock_vm_response)
-        poller.done = MagicMock(return_value=True)
+        # Mock the provisioning process - Azure async SDK pollers are directly awaitable
         mock_compute_client.virtual_machines.begin_create_or_update.return_value = (
-            poller
+            _create_awaitable_mock(mock_vm_response)
         )
 
         # Mock public IP creation
-        ip_poller = AsyncMock()
-        ip_poller.result = AsyncMock(return_value=mock_public_ip_response)
-        ip_poller.done = MagicMock(return_value=True)
         mock_network_client.public_ip_addresses.begin_create_or_update.return_value = (
-            ip_poller
+            _create_awaitable_mock(mock_public_ip_response)
+        )
+
+        # Mock NSG creation
+        mock_nsg = MagicMock()
+        mock_network_client.network_security_groups.begin_create_or_update.return_value = (
+            _create_awaitable_mock(mock_nsg)
         )
 
         # Mock network interface creation
-        nic_poller = AsyncMock()
         nic_response = MagicMock()
         nic_response.id = "/subscriptions/sub-id/resourceGroups/rg-test/providers/Microsoft.Network/networkInterfaces/nic-test"
-        nic_poller.result = AsyncMock(return_value=nic_response)
         mock_network_client.network_interfaces.begin_create_or_update.return_value = (
-            nic_poller
+            _create_awaitable_mock(nic_response)
         )
 
         result = await windows_vm_manager.provision_vm(worker=worker_identity)
@@ -243,37 +255,46 @@ class TestVMProvisioning:
     ):
         """Test that provision_vm generates secure random passwords meeting requirements."""
         # Mock successful provisioning
-        poller = AsyncMock()
         mock_vm = MagicMock()
         mock_vm.provisioning_state = "Succeeded"
-        poller.result = AsyncMock(return_value=mock_vm)
-        poller.done = MagicMock(return_value=True)
+
         mock_compute_client.virtual_machines.begin_create_or_update.return_value = (
-            poller
+
+            _create_awaitable_mock(mock_vm)
+
         )
 
         # Mock network components
-        ip_poller = AsyncMock()
         ip_response = MagicMock()
         ip_response.ip_address = "52.168.1.100"
-        ip_poller.result = AsyncMock(return_value=ip_response)
+
         mock_network_client.public_ip_addresses.begin_create_or_update.return_value = (
-            ip_poller
+
+            _create_awaitable_mock(ip_response)
+
         )
 
-        nsg_poller = AsyncMock()
         nsg_response = MagicMock()
-        nsg_poller.result = AsyncMock(return_value=nsg_response)
+
+
         mock_network_client.network_security_groups.begin_create_or_update.return_value = (
-            nsg_poller
+
+
+            _create_awaitable_mock(nsg_response)
+
+
         )
 
-        nic_poller = AsyncMock()
         nic_response = MagicMock()
         nic_response.id = "/subscriptions/sub-id/nic-id"
-        nic_poller.result = AsyncMock(return_value=nic_response)
+
+
         mock_network_client.network_interfaces.begin_create_or_update.return_value = (
-            nic_poller
+
+
+            _create_awaitable_mock(nic_response)
+
+
         )
 
         result = await windows_vm_manager.provision_vm(worker=worker_identity)
@@ -292,10 +313,25 @@ class TestVMProvisioning:
 
     @pytest.mark.asyncio
     async def test_provision_vm_with_azure_api_error_quota_exceeded(
-        self, windows_vm_manager, worker_identity, mock_compute_client
+        self, windows_vm_manager, worker_identity, mock_compute_client, mock_network_client
     ):
         """Test provision_vm handles Azure API errors (quota exceeded) gracefully."""
-        # Mock quota exceeded error
+        # Mock network resources (need to pass these steps before hitting the error)
+        ip_response = MagicMock()
+        ip_response.ip_address = "52.168.1.100"
+        mock_network_client.public_ip_addresses.begin_create_or_update.return_value = (
+            _create_awaitable_mock(ip_response)
+        )
+        mock_network_client.network_security_groups.begin_create_or_update.return_value = (
+            _create_awaitable_mock(MagicMock())
+        )
+        nic_response = MagicMock()
+        nic_response.id = "/subscriptions/sub-id/nic-id"
+        mock_network_client.network_interfaces.begin_create_or_update.return_value = (
+            _create_awaitable_mock(nic_response)
+        )
+
+        # Mock quota exceeded error on VM creation
         mock_compute_client.virtual_machines.begin_create_or_update.side_effect = (
             Exception("QuotaExceeded: Regional quota limit exceeded")
         )
@@ -309,10 +345,25 @@ class TestVMProvisioning:
 
     @pytest.mark.asyncio
     async def test_provision_vm_with_azure_api_error_invalid_location(
-        self, windows_vm_manager, worker_identity, mock_compute_client
+        self, windows_vm_manager, worker_identity, mock_compute_client, mock_network_client
     ):
         """Test provision_vm handles Azure API errors (invalid location) gracefully."""
-        # Mock invalid location error
+        # Mock network resources (need to pass these steps before hitting the error)
+        ip_response = MagicMock()
+        ip_response.ip_address = "52.168.1.100"
+        mock_network_client.public_ip_addresses.begin_create_or_update.return_value = (
+            _create_awaitable_mock(ip_response)
+        )
+        mock_network_client.network_security_groups.begin_create_or_update.return_value = (
+            _create_awaitable_mock(MagicMock())
+        )
+        nic_response = MagicMock()
+        nic_response.id = "/subscriptions/sub-id/nic-id"
+        mock_network_client.network_interfaces.begin_create_or_update.return_value = (
+            _create_awaitable_mock(nic_response)
+        )
+
+        # Mock invalid location error on VM creation
         mock_compute_client.virtual_machines.begin_create_or_update.side_effect = (
             Exception("InvalidLocation: Location 'invalid' is not available")
         )
@@ -330,37 +381,46 @@ class TestVMProvisioning:
     ):
         """Test that provision_vm tags all resources with run_id for tracking."""
         # Mock successful provisioning
-        poller = AsyncMock()
         mock_vm = MagicMock()
         mock_vm.provisioning_state = "Succeeded"
-        poller.result = AsyncMock(return_value=mock_vm)
-        poller.done = MagicMock(return_value=True)
+
         mock_compute_client.virtual_machines.begin_create_or_update.return_value = (
-            poller
+
+            _create_awaitable_mock(mock_vm)
+
         )
 
         # Mock network components
-        ip_poller = AsyncMock()
         ip_response = MagicMock()
         ip_response.ip_address = "52.168.1.100"
-        ip_poller.result = AsyncMock(return_value=ip_response)
+
         mock_network_client.public_ip_addresses.begin_create_or_update.return_value = (
-            ip_poller
+
+            _create_awaitable_mock(ip_response)
+
         )
 
-        nsg_poller = AsyncMock()
         nsg_response = MagicMock()
-        nsg_poller.result = AsyncMock(return_value=nsg_response)
+
+
         mock_network_client.network_security_groups.begin_create_or_update.return_value = (
-            nsg_poller
+
+
+            _create_awaitable_mock(nsg_response)
+
+
         )
 
-        nic_poller = AsyncMock()
         nic_response = MagicMock()
         nic_response.id = "/subscriptions/sub-id/nic-id"
-        nic_poller.result = AsyncMock(return_value=nic_response)
+
+
         mock_network_client.network_interfaces.begin_create_or_update.return_value = (
-            nic_poller
+
+
+            _create_awaitable_mock(nic_response)
+
+
         )
 
         await windows_vm_manager.provision_vm(worker=worker_identity)
@@ -384,37 +444,46 @@ class TestVMProvisioning:
     ):
         """Test that provision_vm uses Standard_D2s_v3 VM size as specified."""
         # Mock successful provisioning
-        poller = AsyncMock()
         mock_vm = MagicMock()
         mock_vm.provisioning_state = "Succeeded"
-        poller.result = AsyncMock(return_value=mock_vm)
-        poller.done = MagicMock(return_value=True)
+
         mock_compute_client.virtual_machines.begin_create_or_update.return_value = (
-            poller
+
+            _create_awaitable_mock(mock_vm)
+
         )
 
         # Mock network components
-        ip_poller = AsyncMock()
         ip_response = MagicMock()
         ip_response.ip_address = "52.168.1.100"
-        ip_poller.result = AsyncMock(return_value=ip_response)
+
         mock_network_client.public_ip_addresses.begin_create_or_update.return_value = (
-            ip_poller
+
+            _create_awaitable_mock(ip_response)
+
         )
 
-        nsg_poller = AsyncMock()
         nsg_response = MagicMock()
-        nsg_poller.result = AsyncMock(return_value=nsg_response)
+
+
         mock_network_client.network_security_groups.begin_create_or_update.return_value = (
-            nsg_poller
+
+
+            _create_awaitable_mock(nsg_response)
+
+
         )
 
-        nic_poller = AsyncMock()
         nic_response = MagicMock()
         nic_response.id = "/subscriptions/sub-id/nic-id"
-        nic_poller.result = AsyncMock(return_value=nic_response)
+
+
         mock_network_client.network_interfaces.begin_create_or_update.return_value = (
-            nic_poller
+
+
+            _create_awaitable_mock(nic_response)
+
+
         )
 
         await windows_vm_manager.provision_vm(worker=worker_identity)
@@ -439,37 +508,46 @@ class TestVMProvisioning:
     ):
         """Test that provision_vm uses Windows Server 2022 Datacenter image."""
         # Mock successful provisioning
-        poller = AsyncMock()
         mock_vm = MagicMock()
         mock_vm.provisioning_state = "Succeeded"
-        poller.result = AsyncMock(return_value=mock_vm)
-        poller.done = MagicMock(return_value=True)
+
         mock_compute_client.virtual_machines.begin_create_or_update.return_value = (
-            poller
+
+            _create_awaitable_mock(mock_vm)
+
         )
 
         # Mock network components
-        ip_poller = AsyncMock()
         ip_response = MagicMock()
         ip_response.ip_address = "52.168.1.100"
-        ip_poller.result = AsyncMock(return_value=ip_response)
+
         mock_network_client.public_ip_addresses.begin_create_or_update.return_value = (
-            ip_poller
+
+            _create_awaitable_mock(ip_response)
+
         )
 
-        nsg_poller = AsyncMock()
         nsg_response = MagicMock()
-        nsg_poller.result = AsyncMock(return_value=nsg_response)
+
+
         mock_network_client.network_security_groups.begin_create_or_update.return_value = (
-            nsg_poller
+
+
+            _create_awaitable_mock(nsg_response)
+
+
         )
 
-        nic_poller = AsyncMock()
         nic_response = MagicMock()
         nic_response.id = "/subscriptions/sub-id/nic-id"
-        nic_poller.result = AsyncMock(return_value=nic_response)
+
+
         mock_network_client.network_interfaces.begin_create_or_update.return_value = (
-            nic_poller
+
+
+            _create_awaitable_mock(nic_response)
+
+
         )
 
         await windows_vm_manager.provision_vm(worker=worker_identity)
@@ -506,13 +584,12 @@ class TestVMDeletion:
         """Test delete_vm removes VM successfully."""
         vm_name = "cua-win-eastus-kw-test-001"
 
-        # Mock successful deletion
-        poller = AsyncMock()
-        poller.result = AsyncMock(return_value=None)
-        poller.done = MagicMock(return_value=True)
-        mock_compute_client.virtual_machines.begin_delete.return_value = poller
+        # Mock successful deletion (no cleanup_network so only VM delete is called)
+        mock_compute_client.virtual_machines.begin_delete.return_value = (
+            _create_awaitable_mock(None)
+        )
 
-        result = await windows_vm_manager.delete_vm(vm_name=vm_name)
+        result = await windows_vm_manager.delete_vm(vm_name=vm_name, cleanup_network=False)
 
         assert result is True
         mock_compute_client.virtual_machines.begin_delete.assert_called_once()
@@ -541,22 +618,19 @@ class TestVMDeletion:
         vm_name = "cua-win-eastus-kw-test-001"
 
         # Mock VM deletion
-        vm_poller = AsyncMock()
-        vm_poller.result = AsyncMock(return_value=None)
-        vm_poller.done = MagicMock(return_value=True)
-        mock_compute_client.virtual_machines.begin_delete.return_value = vm_poller
-
-        # Mock network resource deletion
-        nic_poller = AsyncMock()
-        nic_poller.result = AsyncMock(return_value=None)
-        mock_network_client.network_interfaces.begin_delete = AsyncMock(
-            return_value=nic_poller
+        mock_compute_client.virtual_machines.begin_delete.return_value = (
+            _create_awaitable_mock(None)
         )
 
-        ip_poller = AsyncMock()
-        ip_poller.result = AsyncMock(return_value=None)
-        mock_network_client.public_ip_addresses.begin_delete = AsyncMock(
-            return_value=ip_poller
+        # Mock network resource deletion
+        mock_network_client.network_interfaces.begin_delete.return_value = (
+            _create_awaitable_mock(None)
+        )
+        mock_network_client.public_ip_addresses.begin_delete.return_value = (
+            _create_awaitable_mock(None)
+        )
+        mock_network_client.network_security_groups.begin_delete.return_value = (
+            _create_awaitable_mock(None)
         )
 
         result = await windows_vm_manager.delete_vm(
@@ -1002,11 +1076,12 @@ class TestSecurityFeatures:
         self, windows_vm_manager_secure, worker_identity, mock_network_client
     ):
         """Test NSG creation with restricted source IPs."""
-        nsg_poller = AsyncMock()
         nsg_response = MagicMock()
-        nsg_poller.result = AsyncMock(return_value=nsg_response)
+
         mock_network_client.network_security_groups.begin_create_or_update.return_value = (
-            nsg_poller
+
+            _create_awaitable_mock(nsg_response)
+
         )
 
         await windows_vm_manager_secure._create_nsg("test-nsg", worker_identity)
@@ -1029,11 +1104,12 @@ class TestSecurityFeatures:
         self, windows_vm_manager, worker_identity, mock_network_client, caplog
     ):
         """Test NSG creation without restricted IPs logs security warning."""
-        nsg_poller = AsyncMock()
         nsg_response = MagicMock()
-        nsg_poller.result = AsyncMock(return_value=nsg_response)
+
         mock_network_client.network_security_groups.begin_create_or_update.return_value = (
-            nsg_poller
+
+            _create_awaitable_mock(nsg_response)
+
         )
 
         with caplog.at_level(logging.WARNING):
