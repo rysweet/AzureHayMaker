@@ -91,6 +91,23 @@ class ComputerUseConfig(KnowledgeWorkerConfig):
     vm_username: str = ""
     vm_password: str = ""
 
+    def __repr__(self) -> str:
+        """Return string representation with passwords masked.
+
+        Returns sanitized representation that masks password fields
+        to prevent credential leakage in logs and debug output.
+        """
+        # Get all fields from dataclass
+        fields = []
+        for field_name, field_value in self.__dict__.items():
+            # Mask password fields
+            if 'password' in field_name.lower():
+                fields.append(f"{field_name}='***'")
+            else:
+                fields.append(f"{field_name}={repr(field_value)}")
+
+        return f"{self.__class__.__name__}({', '.join(fields)})"
+
 
 class ComputerUseKnowledgeWorkerAgent(KnowledgeWorkerAgent):
     """Computer Use Knowledge Worker Agent.
