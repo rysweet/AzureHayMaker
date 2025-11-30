@@ -156,3 +156,4 @@ class ProfileConfig(BaseModel):
         if not v or not isinstance(v, str):
             raise ValueError("name must be a non-empty string")
         return v
+
