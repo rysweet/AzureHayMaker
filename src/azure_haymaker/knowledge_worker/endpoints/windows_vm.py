@@ -21,11 +21,10 @@ import logging
 import re
 import secrets
 import socket
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from azure.mgmt.compute.aio import ComputeManagementClient
-    from azure.mgmt.network.aio import NetworkManagementClient
+    pass
 
 from azure_haymaker.knowledge_worker.models.worker import WorkerIdentity
 
