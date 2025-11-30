@@ -17,7 +17,6 @@ Key features:
 import re
 from typing import Any
 
-
 # SECURITY: Patterns for detecting sensitive data
 # Each pattern should match the entire sensitive portion including the keyword
 SENSITIVE_PATTERNS = [
