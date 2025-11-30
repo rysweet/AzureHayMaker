@@ -735,7 +735,6 @@ def deploy(
 
         # Run deployment (sync wrapper around async)
         import asyncio
-
         asyncio.run(orchestrator.start_deployment(run_id))
 
         # Get final state

@@ -156,7 +156,6 @@ from haymaker_cli.report import report
 
 cli.add_command(report)
 
-
 # Agents command group
 
 
