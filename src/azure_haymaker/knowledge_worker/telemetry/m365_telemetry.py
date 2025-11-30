@@ -13,6 +13,9 @@ from azure_haymaker.knowledge_worker.models.worker import WorkerIdentity
 
 logger = logging.getLogger(__name__)
 
+# Constants
+MAX_MESSAGES_PER_QUERY = 1000
+
 
 @dataclass
 class EmailEvidence:
@@ -147,7 +150,7 @@ class M365TelemetryCollector:
                 request_config = {
                     "query_parameters": {
                         "filter": " and ".join(filter_parts),
-                        "top": 1000,  # Limit to 1000 messages
+                        "top": MAX_MESSAGES_PER_QUERY,
                     }
                 }
 
@@ -223,7 +226,7 @@ class M365TelemetryCollector:
                 request_config = {
                     "query_parameters": {
                         "filter": " and ".join(filter_parts),
-                        "top": 1000,
+                        "top": MAX_MESSAGES_PER_QUERY,
                     }
                 }
 

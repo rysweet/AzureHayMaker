@@ -6,7 +6,7 @@ rich desktop telemetry.
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from azure_haymaker.knowledge_worker.models.worker import WorkerIdentity
@@ -51,6 +51,7 @@ class Windows365CloudPCManager:
         """
         self.graph_client = graph_client
         self.run_id = run_id
+        self._permission_fallbacks: list[dict[str, Any]] = []
 
     async def ensure_provisioning_policy(
         self,
@@ -123,12 +124,14 @@ class Windows365CloudPCManager:
         Cloud PCs are provisioned by assigning users to policy assignment groups.
         The actual provisioning happens asynchronously via Windows 365 service.
 
+        Gracefully handles permission errors by falling back to mock provisioning.
+
         Args:
             worker: Worker identity to assign Cloud PC
             policy_id: Provisioning policy ID
 
         Returns:
-            Cloud PC ID (placeholder until async provisioning completes)
+            Cloud PC ID (placeholder until async provisioning completes, or mock ID on fallback)
         """
         try:
             logger.info(
@@ -150,9 +153,15 @@ class Windows365CloudPCManager:
 
             # Return placeholder ID - actual Cloud PC ID will be available
             # after async provisioning completes
-            return f"cloudpc-{worker.worker_id}"
+            return f"pending-{worker.worker_id}"
 
         except Exception as e:
+            # Check if this is a permission error
+            error_msg = str(e).lower()
+            if "insufficient privileges" in error_msg or "403" in error_msg or "unauthorized" in error_msg:
+                return await self._handle_permission_fallback(worker, policy_id, e)
+
+            # For other errors, re-raise
             logger.error(
                 f"Failed to provision Cloud PC for {worker.worker_id}: {e}"
             )
@@ -505,3 +514,60 @@ class Windows365CloudPCManager:
         except Exception as e:
             logger.error(f"Failed to assign group {group_id} to policy {policy_id}: {e}")
             raise
+
+    async def _handle_permission_fallback(
+        self,
+        worker: WorkerIdentity,
+        policy_id: str,
+        error: Exception,
+    ) -> str:
+        """Handle graceful degradation when CloudPC permissions missing.
+
+        When CloudPC.ReadWrite.All permission is not available, this method
+        provides mock provisioning to allow framework testing to continue.
+
+        Args:
+            worker: Worker identity
+            policy_id: Provisioning policy ID (unused in fallback)
+            error: The permission error that triggered fallback
+
+        Returns:
+            Mock Cloud PC ID for tracking
+        """
+        logger.warning(
+            f"CloudPC.ReadWrite.All permission not available: {error}. "
+            f"Using mock provisioning for {worker.worker_id}"
+        )
+
+        mock_id = f"mock-cloudpc-{worker.worker_id}"
+        self._track_permission_fallback("CloudPC.ReadWrite.All", worker.worker_id)
+
+        return mock_id
+
+    def _track_permission_fallback(self, permission: str, resource_id: str) -> None:
+        """Track permission fallback for audit.
+
+        Args:
+            permission: Permission that was missing
+            resource_id: Resource ID that triggered fallback
+        """
+        self._permission_fallbacks.append({
+            "permission": permission,
+            "resource_id": resource_id,
+            "timestamp": datetime.now(UTC).isoformat(),
+        })
+
+    def get_permission_status(self) -> dict[str, Any]:
+        """Get permission fallback status report.
+
+        Returns:
+            Dictionary with:
+            - has_cloudpc_permission: True if no fallbacks occurred
+            - fallback_count: Number of permission fallbacks
+            - fallbacks: List of fallback events
+        """
+        return {
+            "has_cloudpc_permission": len(self._permission_fallbacks) == 0,
+            "fallback_count": len(self._permission_fallbacks),
+            "fallbacks": self._permission_fallbacks.copy(),
+        }

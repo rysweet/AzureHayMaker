@@ -15,18 +15,15 @@ Uses pytest with AsyncMock for Graph API interactions.
 """
 
 from datetime import UTC, datetime, timedelta
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
-from pydantic import BaseModel
 
 # Import the modules under test
-# Note: These imports will fail until M365TelemetryCollector is implemented
 try:
-    from azure_haymaker.knowledge_worker.operations.base import M365Client
     from azure_haymaker.knowledge_worker.models.worker import WorkerIdentity
+    from azure_haymaker.knowledge_worker.operations.base import M365Client
 
     # Telemetry evidence models (to be implemented)
     from azure_haymaker.knowledge_worker.telemetry import (
@@ -48,7 +45,7 @@ except ImportError:
 
 
 pytestmark = pytest.mark.skipif(
-    not TELEMETRY_AVAILABLE, reason="M365TelemetryCollector not yet implemented"
+    not TELEMETRY_AVAILABLE, reason="M365TelemetryCollector module not available"
 )
 
 
