@@ -564,7 +564,7 @@ class KnowledgeWorkerCleanupManager:
         or Security & Compliance Center API integration. This operation
         logs a warning and returns False until integrated.
 
-        TODO: Implement using one of:
+        Implementation options for future:
         - Exchange Online PowerShell module
         - Microsoft Graph Security API
         - Security & Compliance Center API
