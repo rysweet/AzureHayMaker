@@ -123,17 +123,14 @@ jobs:
               return;
             }
 
-            const body = `🎉 **Enhancement Complete!**
-
-This enhancement has been marked as complete.
-
-**Next Steps**:
-- [ ] Update [Roadmap Status](../docs/ROADMAP_STATUS.md) to reflect completion
-- [ ] Measure actual ROI vs. projected (see [Cost-Benefit Analysis](../specs/ENHANCEMENT_COST_BENEFIT_ANALYSIS.md))
-- [ ] Document any learnings in [DISCOVERIES.md](../.claude/context/DISCOVERIES.md)
-- [ ] Update OKRs in [Quarterly OKRs](../docs/QUARTERLY_OKRS.md)
-
-**See**: [Enhancement Roadmap](../docs/ENHANCEMENT_ROADMAP.md) for strategic context`;
+            const body = "🎉 **Enhancement Complete!**\n\n" +
+              "This enhancement has been marked as complete.\n\n" +
+              "**Next Steps**:\n" +
+              "- [ ] Update [Roadmap Status](../docs/ROADMAP_STATUS.md) to reflect completion\n" +
+              "- [ ] Measure actual ROI vs. projected (see [Cost-Benefit Analysis](../specs/ENHANCEMENT_COST_BENEFIT_ANALYSIS.md))\n" +
+              "- [ ] Document any learnings in [DISCOVERIES.md](../.claude/context/DISCOVERIES.md)\n" +
+              "- [ ] Update OKRs in [Quarterly OKRs](../docs/QUARTERLY_OKRS.md)\n\n" +
+              "**See**: [Enhancement Roadmap](../docs/ENHANCEMENT_ROADMAP.md) for strategic context";
 
             await github.rest.issues.createComment({
               owner: context.repo.owner,
