@@ -481,7 +481,15 @@ class BrowserAutomation:
         try:
             logger.info("Closing browser")
 
+            # SECURITY: Clear cookies and sensitive data before closing
             if self._context:
+                try:
+                    await self._context.clear_cookies()
+                    logger.debug("Cleared browser cookies")
+                except Exception as e:
+                    sanitized_error = sanitize_error(str(e))
+                    logger.warning(f"Failed to clear cookies: {sanitized_error}")
+
                 await self._context.close()
                 self._context = None
 

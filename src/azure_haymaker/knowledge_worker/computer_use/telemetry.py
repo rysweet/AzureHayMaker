@@ -11,7 +11,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from azure_haymaker.knowledge_worker.computer_use.security_utils import sanitize_error
+from azure_haymaker.knowledge_worker.computer_use.security_utils import (
+    sanitize_dict,
+    sanitize_error,
+)
 from azure_haymaker.knowledge_worker.models.worker import WorkerIdentity
 
 logger = logging.getLogger(__name__)
@@ -135,13 +138,16 @@ class ComputerUseTelemetryCollector:
         if not operation or not operation.strip():
             raise ValueError("Operation name cannot be empty")
 
+        # SECURITY: Sanitize metadata to prevent credential leakage in logs
+        sanitized_metadata = sanitize_dict(metadata or {})
+
         log_entry = OperationLog(
             operation=operation,
             status=status,
             duration_ms=duration_ms,
             timestamp=timestamp or datetime.now(UTC),
             worker_id=self.worker_identity.worker_id,
-            metadata=metadata or {},
+            metadata=sanitized_metadata,
         )
 
         self.logs.append(log_entry)
@@ -248,6 +254,77 @@ class ComputerUseTelemetryCollector:
             del metrics["total_duration_ms"]
 
         return metrics_by_op
+
+    def prepare_export_data(self) -> list[dict[str, Any]]:
+        """Prepare logs for export with sensitive data removed.
+
+        SECURITY: Sanitizes all log entries before export to ensure no sensitive
+        data (passwords, tokens, keys) is included in exported telemetry.
+        Completely removes sensitive fields rather than redacting them.
+
+        Returns:
+            List of sanitized log dictionaries safe for export
+
+        Example:
+            >>> collector.log_operation("login", "success", 1000, {"password": "secret", "user": "admin"})
+            >>> export_data = collector.prepare_export_data()
+            >>> # export_data will NOT contain the "password" key at all
+        """
+        from azure_haymaker.knowledge_worker.computer_use.security_utils import SENSITIVE_KEYWORDS
+
+        sanitized_logs = []
+
+        for log in self.logs:
+            # Convert log to dict
+            log_dict = log.to_dict()
+
+            # Remove sensitive fields from metadata entirely (don't just redact)
+            if "metadata" in log_dict and isinstance(log_dict["metadata"], dict):
+                # Create new metadata dict without sensitive keys
+                sanitized_metadata = {}
+                for key, value in log_dict["metadata"].items():
+                    # Check if key indicates sensitive data
+                    key_lower = key.lower()
+                    is_sensitive = any(keyword in key_lower for keyword in SENSITIVE_KEYWORDS)
+
+                    if not is_sensitive:
+                        # Keep non-sensitive fields
+                        if isinstance(value, dict):
+                            # Recursively sanitize nested dicts
+                            sanitized_metadata[key] = self._remove_sensitive_fields(value)
+                        else:
+                            sanitized_metadata[key] = value
+                    # Sensitive fields are simply not included in export
+
+                log_dict["metadata"] = sanitized_metadata
+
+            sanitized_logs.append(log_dict)
+
+        return sanitized_logs
+
+    def _remove_sensitive_fields(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Recursively remove sensitive fields from nested dictionaries.
+
+        Args:
+            data: Dictionary to process
+
+        Returns:
+            New dictionary with sensitive fields removed
+        """
+        from azure_haymaker.knowledge_worker.computer_use.security_utils import SENSITIVE_KEYWORDS
+
+        result = {}
+        for key, value in data.items():
+            key_lower = key.lower()
+            is_sensitive = any(keyword in key_lower for keyword in SENSITIVE_KEYWORDS)
+
+            if not is_sensitive:
+                if isinstance(value, dict):
+                    result[key] = self._remove_sensitive_fields(value)
+                else:
+                    result[key] = value
+
+        return result
 
     async def export_logs(
         self,

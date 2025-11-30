@@ -170,9 +170,13 @@ class WinRMConnection:
         Raises:
             WinRMConnectionError: If not connected
             WinRMTimeoutError: If command times out
+            ValueError: If command contains dangerous patterns (command injection attempt)
         """
         if not self.is_connected or not self._protocol or not self._shell_id:
             raise WinRMConnectionError("Not connected. Call connect() first.")
+
+        # SECURITY: Validate command to prevent injection attacks
+        self._validate_command(command)
 
         try:
             logger.debug(f"Executing command: {command[:100]}...")
@@ -353,6 +357,47 @@ class WinRMConnection:
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         """Context manager exit - automatic cleanup."""
         self.disconnect()
+
+    @staticmethod
+    def _validate_command(command: str) -> None:
+        """Validate command for security issues.
+
+        SECURITY: Prevents command injection attacks by detecting dangerous patterns
+        in PowerShell commands. Blocks commands with multiple command separators
+        and dangerous deletion/removal operations chained together.
+
+        Args:
+            command: PowerShell command to validate
+
+        Raises:
+            ValueError: If command contains dangerous patterns indicating injection attempt
+
+        Example:
+            >>> _validate_command("Get-Process")  # OK
+            >>> _validate_command("Get-Process; Remove-Item C:\\* -Recurse -Force")  # Raises ValueError
+        """
+        if not command:
+            raise ValueError("Command cannot be empty")
+
+        # SECURITY: Detect command injection patterns
+        # Pattern 1: Multiple command separators (; or newline) with dangerous commands
+        dangerous_patterns = [
+            r";.*(?:Remove-Item|rm).*-Recurse",  # ; followed by recursive deletion
+            r";.*(?:Remove-Item|rm).*\*",  # ; followed by wildcard deletion
+            r"\|.*(?:Remove-Item|del|rd).*\*",  # | piped to deletion with wildcard
+            r"&&.*(?:Remove-Item|del|rd)",  # && chained to deletion
+            r";.*(?:Stop-Process|taskkill)",  # ; followed by process killing
+            r"\|.*(?:Invoke-Expression|iex)",  # | piped to code execution
+            r";.*(?:Invoke-WebRequest|wget|curl).*\|.*(?:Invoke-Expression|iex)",  # Download and execute
+        ]
+
+        import re
+        for pattern in dangerous_patterns:
+            if re.search(pattern, command, re.IGNORECASE):
+                raise ValueError(
+                    f"Command contains dangerous pattern and appears to be a command injection attempt. "
+                    f"Multiple operations with dangerous commands are not allowed."
+                )
 
     @staticmethod
     def _sanitize_for_log(text: str) -> str:

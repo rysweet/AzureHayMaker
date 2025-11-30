@@ -315,3 +315,66 @@ class ComputerUseKnowledgeWorkerAgent(KnowledgeWorkerAgent):
             super().on_cleanup(exit_code=exit_code)
 
         logger.info(f"Computer Use agent {self.worker_identity.worker_id} cleanup complete")
+
+    def get_worker_stats(self) -> dict[str, Any]:
+        """Get worker statistics without exposing credentials.
+
+        SECURITY: Returns safe statistics that exclude all password and credential fields
+        to prevent accidental credential leakage in logs or monitoring systems.
+
+        Returns:
+            Dict with worker statistics:
+                - worker_id: Worker identifier
+                - display_name: Worker display name
+                - config_type: Configuration type ("computer_use")
+                - vm_hostname: VM hostname (safe to expose)
+                - vm_username: VM username (safe to expose)
+                - m365_username: M365 username (safe to expose)
+                - browser_running: Whether browser is currently running
+                - is_authenticated: Whether authenticated to M365
+                - current_service: Current M365 service (outlook, teams, etc)
+                - telemetry_summary: Telemetry metrics summary
+
+        Example:
+            >>> agent = ComputerUseKnowledgeWorkerAgent(...)
+            >>> stats = agent.get_worker_stats()
+            >>> print(stats)
+            {
+                'worker_id': 'kw-test-001',
+                'vm_hostname': 'vm.cloudapp.azure.com',
+                'vm_username': 'kwadmin',
+                # Note: vm_password and m365_password are NOT included
+            }
+        """
+        # Get telemetry metrics
+        telemetry_metrics = self.telemetry_collector.get_metrics_summary()
+
+        # Build stats dict with only safe fields (no passwords)
+        stats = {
+            # Worker identity (safe)
+            "worker_id": self.worker_identity.worker_id,
+            "display_name": self.worker_identity.display_name,
+            "department": self.worker_identity.department,
+            "persona": self.worker_identity.persona,
+            # Configuration (safe fields only, NO passwords)
+            "config_type": self.config_type,
+            "vm_hostname": self.worker_config.vm_hostname,
+            "vm_username": self.worker_config.vm_username,
+            # Note: vm_password is intentionally excluded
+            "m365_username": self.worker_config.m365_username,
+            # Note: m365_password is intentionally excluded
+            # Browser state (safe)
+            "browser_running": self._browser_started,
+            "is_authenticated": self.browser.is_authenticated if self._browser_started else False,
+            "current_service": self.browser.current_service if self._browser_started else None,
+            # Telemetry summary (safe)
+            "telemetry_summary": {
+                "total_operations": telemetry_metrics.total_operations,
+                "successful_operations": telemetry_metrics.successful_operations,
+                "failed_operations": telemetry_metrics.failed_operations,
+                "average_duration_ms": telemetry_metrics.average_duration_ms,
+                "success_rate": telemetry_metrics.success_rate,
+            },
+        }
+
+        return stats
