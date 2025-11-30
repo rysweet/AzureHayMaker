@@ -289,8 +289,9 @@ class KnowledgeWorkerAgent(AgentBase):
     def _initialize_m365_client(self) -> None:
         """Initialize M365 client connection with client secret auth.
 
-        Connects to Microsoft Graph using client secret credentials
+        SECURITY: Connects to Microsoft Graph using client secret credentials
         from environment variables (KW_APP_ID, KW_CLIENT_SECRET, KW_TENANT_ID).
+        Credentials are NEVER stored in config files or plaintext.
         """
         try:
             # Import here to avoid dependency issues if not installed

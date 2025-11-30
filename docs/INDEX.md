@@ -26,6 +26,7 @@ Comprehensive architecture documentation for understanding the system design.
 - [Knowledge Worker Architecture](knowledge-worker-framework/ARCHITECTURE.md) - Framework design and components
 - [Windows 365 Cloud PC Provisioning](knowledge-worker-framework/WINDOWS365_CLOUD_PC.md) - Cloud PC endpoint provisioning
 - [Windows VM Fallback Strategy](knowledge-worker-framework/WINDOWS_VM_FALLBACK.md) - Cascade fallback for resilient provisioning
+- [Computer Use Knowledge Worker Agents](knowledge-worker-framework/COMPUTER_USE_AGENTS.md) - Browser automation agents for M365 web apps on Windows VMs
 
 ## 💻 Implementation
 
