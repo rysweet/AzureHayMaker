@@ -285,12 +285,15 @@ class TestTelemetryExport:
 
         with patch(
             "azure.storage.blob.BlobServiceClient"
-        ) as mock_blob:
+        ) as mock_blob_class:
+            # Mock the BlobServiceClient instance
             mock_service_client = MagicMock()
-            mock_blob.from_connection_string.return_value = mock_service_client
+            mock_blob_class.return_value = mock_service_client
+
+            # Mock the blob client returned by get_blob_client
             mock_blob_client = MagicMock()
             mock_service_client.get_blob_client.return_value = mock_blob_client
-            mock_blob_client.upload_blob = AsyncMock()
+            mock_blob_client.upload_blob = MagicMock()  # Not async
 
             # Act
             result = await telemetry_collector.export_logs(
@@ -313,8 +316,9 @@ class TestTelemetryExport:
 
         with patch(
             "azure.storage.blob.BlobServiceClient"
-        ) as mock_blob:
-            mock_blob.from_connection_string.side_effect = Exception("Storage unavailable")
+        ) as mock_blob_class:
+            # Mock BlobServiceClient constructor to raise exception
+            mock_blob_class.side_effect = Exception("Storage unavailable")
 
             # Act & Assert
             with pytest.raises(Exception) as exc_info:
