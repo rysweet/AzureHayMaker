@@ -315,17 +315,37 @@ class WindowsVMManager:
     def _generate_secure_password(self) -> str:
         """Generate a secure random password for VM admin account.
 
-        Uses secrets.token_urlsafe to generate a cryptographically secure
-        password that meets Azure VM password requirements:
+        Uses secrets to generate a cryptographically secure password that meets
+        Azure VM password requirements:
         - At least 16 characters
-        - Contains uppercase, lowercase, digits, and special characters
+        - Contains uppercase, lowercase, digits
+        - URL-safe characters only (alphanumeric + - and _)
+
+        The method ensures all required character types by:
+        1. Taking random bytes and encoding with urlsafe base64
+        2. Verifying it contains uppercase, lowercase, and digits
+        3. Retrying if needed (extremely rare)
 
         Returns:
-            Secure random password
+            Secure random password (32+ characters)
         """
-        # token_urlsafe(24) generates ~32 character URL-safe string
-        # which meets all Azure password complexity requirements
-        return secrets.token_urlsafe(24)
+        # Generate URL-safe base64 token (no +/ or = padding characters)
+        # token_urlsafe(24) generates a ~32 character string
+        while True:
+            password = secrets.token_urlsafe(24)
+
+            # Verify it meets complexity requirements
+            has_upper = any(c.isupper() for c in password)
+            has_lower = any(c.islower() for c in password)
+            has_digit = any(c.isdigit() for c in password)
+
+            # token_urlsafe produces valid URL-safe chars: A-Za-z0-9_-
+            # All characters are automatically valid
+
+            if has_upper and has_lower and has_digit:
+                return password
+            # Retry if rare case where needed types are missing
+            # With ~10^40 possible values, probability of retry is negligible
 
     def _get_vm_name(self, worker: WorkerIdentity) -> str:
         """Generate VM name following naming convention.
