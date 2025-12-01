@@ -219,7 +219,7 @@ class TestProvisioningPolicy:
             AsyncMock(side_effect=Exception("Graph API error"))
         )
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(Exception, match=".") as exc_info:
             await cloud_pc_manager.ensure_provisioning_policy()
 
         assert "Graph API error" in str(exc_info.value)
@@ -290,7 +290,7 @@ class TestCloudPCProvisioning:
             side_effect=Exception("Network timeout")
         )
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(Exception, match=".") as exc_info:
             await cloud_pc_manager.provision_cloud_pc(
                 worker=worker_identity, policy_id=policy_id
             )

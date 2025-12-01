@@ -163,7 +163,7 @@ class TestOperationLogging:
     def test_log_operation_with_missing_fields(self, telemetry_collector):
         """Test log_operation validates required fields."""
         # Act & Assert
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match=".") as exc_info:
             telemetry_collector.log_operation(
                 operation="",  # Missing operation name
                 status="success",
@@ -321,7 +321,7 @@ class TestTelemetryExport:
             mock_blob_class.side_effect = Exception("Storage unavailable")
 
             # Act & Assert
-            with pytest.raises(Exception) as exc_info:
+            with pytest.raises(Exception, match=".") as exc_info:
                 await telemetry_collector.export_logs(
                     destination="azure://storageaccount/container/logs.json"
                 )

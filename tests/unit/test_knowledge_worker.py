@@ -38,7 +38,7 @@ class TestOrchestratorCredentials:
         Critical path: Error message must provide actionable guidance on
         which environment variables to set for M365 authentication.
         """
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match=".") as exc_info:
             KnowledgeWorkerOrchestrator(None)
 
         error_msg = str(exc_info.value)
@@ -52,7 +52,7 @@ class TestOrchestratorCredentials:
         Critical path: Users must understand this orchestrator only works
         with real M365 operations, not simulation.
         """
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match=".") as exc_info:
             KnowledgeWorkerOrchestrator(None)
 
         error_msg = str(exc_info.value)

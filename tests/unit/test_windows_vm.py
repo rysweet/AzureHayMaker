@@ -335,7 +335,7 @@ class TestVMProvisioning:
             Exception("QuotaExceeded: Regional quota limit exceeded")
         )
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(Exception, match=".") as exc_info:
             await windows_vm_manager.provision_vm(worker=worker_identity)
 
         assert "QuotaExceeded" in str(exc_info.value) or "quota" in str(
@@ -367,7 +367,7 @@ class TestVMProvisioning:
             Exception("InvalidLocation: Location 'invalid' is not available")
         )
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(Exception, match=".") as exc_info:
             await windows_vm_manager.provision_vm(worker=worker_identity)
 
         assert "InvalidLocation" in str(exc_info.value) or "location" in str(
@@ -1037,7 +1037,7 @@ class TestSecurityFeatures:
         self, mock_compute_client, mock_network_client, run_id, location
     ):
         """Test that invalid IP addresses are rejected."""
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match=".") as exc_info:
             WindowsVMManager(
                 compute_client=mock_compute_client,
                 network_client=mock_network_client,
@@ -1056,7 +1056,7 @@ class TestSecurityFeatures:
         self, mock_compute_client, mock_network_client, run_id, location
     ):
         """Test that empty list is rejected."""
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match=".") as exc_info:
             WindowsVMManager(
                 compute_client=mock_compute_client,
                 network_client=mock_network_client,
@@ -1075,7 +1075,7 @@ class TestSecurityFeatures:
         self, mock_compute_client, mock_network_client, run_id, location
     ):
         """Test that wildcard '*' is rejected."""
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match=".") as exc_info:
             WindowsVMManager(
                 compute_client=mock_compute_client,
                 network_client=mock_network_client,
@@ -1094,7 +1094,7 @@ class TestSecurityFeatures:
         self, mock_compute_client, mock_network_client, run_id, location
     ):
         """Test that wildcard CIDR '0.0.0.0/0' is rejected."""
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match=".") as exc_info:
             WindowsVMManager(
                 compute_client=mock_compute_client,
                 network_client=mock_network_client,
@@ -1113,7 +1113,7 @@ class TestSecurityFeatures:
         self, mock_compute_client, mock_network_client, run_id, location
     ):
         """Test that IPv6 wildcard '::/0' is rejected."""
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match=".") as exc_info:
             WindowsVMManager(
                 compute_client=mock_compute_client,
                 network_client=mock_network_client,
@@ -1181,7 +1181,7 @@ class TestSecurityFeatures:
         self, mock_compute_client, mock_network_client, run_id
     ):
         """Test that invalid Azure regions are rejected."""
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match=".") as exc_info:
             WindowsVMManager(
                 compute_client=mock_compute_client,
                 network_client=mock_network_client,
@@ -1228,9 +1228,10 @@ class TestSecurityFeatures:
         ]
 
         for rg_name, vnet_rg in invalid_names:
-            with pytest.raises(ValueError) as exc_info:
-                # Use vnet_rg in the vnet_id to match the resource group name we're testing
-                vnet_id = f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/{vnet_rg if vnet_rg else 'rg-test'}/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default"
+            # Use vnet_rg in the vnet_id to match the resource group name we're testing
+            vnet_id = f"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/{vnet_rg if vnet_rg else 'rg-test'}/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/default"
+
+            with pytest.raises(ValueError, match=".") as exc_info:
                 WindowsVMManager(
                     compute_client=mock_compute_client,
                     network_client=mock_network_client,
@@ -1265,7 +1266,7 @@ class TestSecurityFeatures:
         ]
 
         for worker_id in invalid_ids:
-            with pytest.raises(ValueError) as exc_info:
+            with pytest.raises(ValueError, match=".") as exc_info:
                 windows_vm_manager._validate_worker_id(worker_id)
 
             assert "worker_id" in str(exc_info.value).lower()

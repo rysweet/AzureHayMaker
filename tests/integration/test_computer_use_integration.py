@@ -432,11 +432,10 @@ class TestErrorHandlingIntegration:
         mock_vm_manager.provision_vm.side_effect = Exception("Quota exceeded")
 
         # Act & Assert
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(Exception, match="(?i)quota"):
             await mock_vm_manager.provision_vm(
                 worker_identity=worker_identity, vm_size="Standard_D4s_v3"
             )
-        assert "quota" in str(exc_info.value).lower()
 
     @requires_vm
     @pytest.mark.asyncio
@@ -462,7 +461,7 @@ class TestErrorHandlingIntegration:
         deployer = AgentDeployer(connection=winrm_conn)
 
         # Act & Assert
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="."):
             deployer.deploy_agent(worker_identity=worker_identity, workflows=workflows)
 
         # Cleanup should still work

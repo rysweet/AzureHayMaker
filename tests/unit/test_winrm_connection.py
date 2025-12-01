@@ -364,7 +364,7 @@ class TestSecurityControls:
         local_file.write_text("content")
 
         # Act & Assert - should reject path traversal
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match=".") as exc_info:
             conn.copy_file(str(local_file), "C:\\..\\..\\etc\\passwd")
         assert "dangerous pattern" in str(exc_info.value)
 
@@ -404,7 +404,7 @@ class TestSecurityControls:
         local_file.write_text("content")
 
         # Act & Assert
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match=".") as exc_info:
             conn.copy_file(str(local_file), "C:\\test\0.txt")
         assert "null byte" in str(exc_info.value)
 
@@ -429,7 +429,7 @@ class TestSecurityControls:
         local_file.write_text("content")
 
         # Act & Assert - Unix-style path should be rejected
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match=".") as exc_info:
             conn.copy_file(str(local_file), "/etc/passwd")
         assert "Invalid Windows path format" in str(exc_info.value)
 

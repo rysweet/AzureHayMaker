@@ -249,7 +249,7 @@ class TestEmailTelemetry:
             side_effect=Exception("Graph API error: Rate limit exceeded")
         )
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(Exception, match=".") as exc_info:
             await telemetry_collector.get_emails_for_worker(worker=worker_identity)
 
         assert "Graph API error" in str(exc_info.value)

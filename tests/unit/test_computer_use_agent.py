@@ -174,7 +174,7 @@ class TestAgentInitialization:
         )
 
         # Act & Assert
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match=".") as exc_info:
             ComputerUseKnowledgeWorkerAgent(
                 worker_config=config, worker_identity=worker_identity
             )
@@ -208,7 +208,7 @@ class TestAgentLifecycle:
         mock_browser_automation.launch_browser.side_effect = Exception("Browser launch failed")
 
         # Act & Assert
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(Exception, match=".") as exc_info:
             computer_use_agent.on_start()
         assert "launch" in str(exc_info.value).lower()
 
@@ -220,7 +220,7 @@ class TestAgentLifecycle:
         mock_browser_automation.login_m365.side_effect = Exception("Invalid credentials")
 
         # Act & Assert
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(Exception, match=".") as exc_info:
             computer_use_agent.on_start()
         assert "credential" in str(exc_info.value).lower()
 
@@ -318,7 +318,7 @@ class TestWorkflowExecution:
         computer_use_agent.on_start()
 
         # Act & Assert
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match=".") as exc_info:
             await computer_use_agent.execute_workflow(
                 workflow_name="unknown_workflow", params={}
             )
@@ -377,7 +377,7 @@ class TestTelemetryLogging:
         )
 
         # Act
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="."):
             await computer_use_agent.execute_workflow(
                 workflow_name="email_workflow",
                 params={"to": "test@tenant.com", "subject": "Test", "body": "Test"},

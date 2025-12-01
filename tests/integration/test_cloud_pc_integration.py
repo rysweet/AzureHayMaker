@@ -532,7 +532,7 @@ class TestIntegrationErrorHandling:
         )
 
         # Should succeed after retry
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="Transient error"):
             # First call fails
             await cloud_pc_manager.ensure_provisioning_policy()
 

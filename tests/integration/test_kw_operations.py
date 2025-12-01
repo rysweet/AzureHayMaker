@@ -801,7 +801,7 @@ class TestOperationErrorHandling:
         )
 
         # Should handle error and not crash
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="(?i)graph api error"):
             await email_ops.send_email(
                 to=["kw-test123-engi-002@haymaker.onmicrosoft.com"],
                 subject="Test",

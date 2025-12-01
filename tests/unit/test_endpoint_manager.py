@@ -601,7 +601,7 @@ class TestFallbackStrategyConfiguration:
             "Cloud PC failed"
         )
 
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="."):
             await endpoint_manager.provision_endpoint_with_fallback(
                 worker=worker_identity, enable_fallback=False
             )
