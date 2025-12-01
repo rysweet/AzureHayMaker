@@ -1,3 +1,5 @@
+# STARTER FILE - Template for implementation, not production code
+
 """Starter code template for SIEM Telemetry Export (Issue #124).
 
 This file provides a skeleton implementation to help contributors get started.

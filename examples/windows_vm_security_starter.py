@@ -1,3 +1,5 @@
+# STARTER FILE - Template for implementation, not production code
+
 """Starter code template for Windows VM Security Hardening (Issue #125).
 
 This file shows the BEFORE and AFTER for key security fixes.
