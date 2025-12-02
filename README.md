@@ -31,6 +31,36 @@ Azure HayMaker is an orchestration service that simulates realistic Azure tenant
 - **Cost Tracking** via Azure Cost Management API integration
 - **Webhook Notifications** for execution events (started, completed, failed)
 
+## Knowledge Worker Framework
+
+The **Knowledge Worker Activity Framework** extends Azure HayMaker to simulate 50-300 knowledge workers performing everyday Microsoft 365 activities. This generates realistic benign telemetry for cybersecurity analysis and security product testing.
+
+### What It Does
+
+- **Simulates Realistic M365 Activity**: Workers send emails, post Teams messages, create documents, and schedule meetings
+- **Distinct Endpoints**: Each worker operates from a unique machine identity (Windows 365 Cloud PC or CLI container)
+- **Team-Based Organization**: Workers are organized into departments (Executive, Legal, Engineering, HR, Finance, Sales, Operations, Marketing)
+- **Internal-Only Communications**: All activity stays within your tenant - multiple safety layers prevent external communications
+- **Full Cleanup**: All resources (users, groups, endpoints) are tagged and can be deleted at any time
+
+### Key Capabilities
+
+- **Email Operations**: Send, read, reply, organize (via Microsoft Graph API)
+- **Teams Collaboration**: Channel posts, direct messages, thread replies, reactions
+- **Document Management**: Create and share Word/Excel/PowerPoint documents
+- **Calendar Events**: Schedule meetings, accept/decline invitations
+
+### Hybrid Endpoint Strategy
+
+- **Windows 365 Cloud PCs**: Rich telemetry with full desktop activity (10-50 workers) - ideal for executives and key personas
+- **M365 CLI Containers**: Cost-efficient API-based activity (50-250 workers) - ideal for scale
+
+### Learn More
+
+- **[Knowledge Worker Architecture](docs/knowledge-worker-framework/ARCHITECTURE.md)** - Complete framework design
+- **[Windows 365 E2E Demo](docs/knowledge-worker-framework/WINDOWS365_E2E_DEMO.md)** - End-to-end demonstration
+- **[SIEM Telemetry Export](docs/knowledge-worker-framework/SIEM_TELEMETRY_EXPORT.md)** - Export activity to Azure Sentinel
+
 ## Quick Start
 
 ### 1. Install Dependencies
