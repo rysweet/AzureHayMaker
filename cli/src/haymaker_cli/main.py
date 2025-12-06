@@ -4,9 +4,13 @@ import time
 from typing import Any
 
 import click
+from dotenv import load_dotenv
 from rich.console import Console
 
 from haymaker_cli.cli_utils import get_client, handle_error
+
+# Load environment variables from .env file
+load_dotenv()
 from haymaker_cli.config import (
     get_config_value,
     list_config,
