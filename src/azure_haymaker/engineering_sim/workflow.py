@@ -145,7 +145,7 @@ class Workflow:
         """Estimate workflow duration in seconds.
 
         Returns:
-            Estimated duration (placeholder implementation)
+            Estimated duration based on brick count (60s per brick)
         """
         # Rough estimate: 60 seconds per brick
         return len(self.bricks) * 60.0
