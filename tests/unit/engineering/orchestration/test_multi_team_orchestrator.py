@@ -124,17 +124,20 @@ class TestThreeTeamParallelExecution:
             team_configs=team_configs,
         )
 
-        # Mock team sprint execution
+        # Mock team sprint execution - need different team_ids for each call
         with patch.object(orchestrator, "_execute_team_sprint", new_callable=AsyncMock) as mock_exec:
-            mock_exec.return_value = TeamResult(
-                team_id="team_alpha",
-                sprint_id="sprint_44",
-                phase_results=[],
-                total_workflows=10,
-                successful_workflows=9,
-                failed_workflows=1,
-                aggregated_telemetry={"commits": 40},
-            )
+            # Return different TeamResults based on which team_config is passed
+            def create_team_result(team_config):
+                return TeamResult(
+                    team_id=team_config.team_id,  # Use actual team_id from config
+                    sprint_id="sprint_44",
+                    phase_results=[],
+                    total_workflows=10,
+                    successful_workflows=9,
+                    failed_workflows=1,
+                    aggregated_telemetry={"commits": 40},
+                )
+            mock_exec.side_effect = create_team_result
 
             result = await orchestrator.execute_sprint()
 
