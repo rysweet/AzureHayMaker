@@ -9,18 +9,16 @@ This brick handles:
 """
 
 import logging
-import random
 import time
-from typing import Dict, List, Optional
 from datetime import datetime
 
 from azure_haymaker.engineering_sim.bricks.base import (
-    WorkflowBrick,
     BrickContext,
-    BrickResult,
     BrickExecutionError,
+    BrickResult,
+    WorkflowBrick,
 )
-from azure_haymaker.engineering_sim.github_client import GitHubClient, GitHubAPIError
+from azure_haymaker.engineering_sim.github_client import GitHubAPIError, GitHubClient
 
 logger = logging.getLogger(__name__)
 
@@ -62,11 +60,11 @@ class CommitBrick(WorkflowBrick):
     def __init__(
         self,
         github_client: GitHubClient,
-        file_paths: Optional[List[str]] = None,
-        file_contents: Optional[Dict[str, str]] = None,
-        commit_message: Optional[str] = None,
-        author_name: Optional[str] = None,
-        author_email: Optional[str] = None,
+        file_paths: list[str] | None = None,
+        file_contents: dict[str, str] | None = None,
+        commit_message: str | None = None,
+        author_name: str | None = None,
+        author_email: str | None = None,
         generate_realistic_changes: bool = True
     ):
         self.github_client = github_client
@@ -140,7 +138,7 @@ class CommitBrick(WorkflowBrick):
             except GitHubAPIError as e:
                 raise BrickExecutionError(
                     f"Failed to create commit: {str(e)}"
-                )
+                ) from e
 
             # Extract commit details
             commit_sha = commit_response["sha"]
@@ -187,9 +185,9 @@ class CommitBrick(WorkflowBrick):
             duration = time.time() - start_time
             raise BrickExecutionError(
                 f"Unexpected error in CommitBrick: {str(e)}"
-            )
+            ) from e
 
-    def _prepare_files(self) -> Dict[str, str]:
+    def _prepare_files(self) -> dict[str, str]:
         """Prepare file contents for commit.
 
         Returns:
@@ -317,7 +315,7 @@ result = process_data({"key": "value"})
 - Tests passing
 '''
 
-    def _generate_commit_message(self, files: Dict[str, str]) -> str:
+    def _generate_commit_message(self, files: dict[str, str]) -> str:
         """Generate commit message based on files changed.
 
         Args:

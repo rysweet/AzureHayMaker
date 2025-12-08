@@ -1,14 +1,13 @@
 """Workflow composition engine - combines bricks into executable workflows."""
 
 import logging
-from typing import List
 
 from azure_haymaker.engineering_sim.bricks.base import (
-    WorkflowBrick,
     BrickContext,
-    BrickResult,
     BrickExecutionError,
+    BrickResult,
     BrickValidationError,
+    WorkflowBrick,
 )
 
 logger = logging.getLogger(__name__)
@@ -24,7 +23,7 @@ class Workflow:
 
     def __init__(self, name: str, stop_on_failure: bool = True):
         self.name = name
-        self.bricks: List[WorkflowBrick] = []
+        self.bricks: list[WorkflowBrick] = []
         self.stop_on_failure = stop_on_failure
 
     def add_brick(self, brick: WorkflowBrick) -> "Workflow":
@@ -126,7 +125,7 @@ class Workflow:
             duration_seconds=total_duration
         )
 
-    def validate_all(self, context: BrickContext) -> List[str]:
+    def validate_all(self, context: BrickContext) -> list[str]:
         """Validate all bricks can execute with given context.
 
         Args:

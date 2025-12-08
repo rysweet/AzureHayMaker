@@ -10,16 +10,15 @@ This brick handles:
 
 import logging
 import time
-from typing import List, Optional
 from datetime import datetime
 
 from azure_haymaker.engineering_sim.bricks.base import (
-    WorkflowBrick,
     BrickContext,
-    BrickResult,
     BrickExecutionError,
+    BrickResult,
+    WorkflowBrick,
 )
-from azure_haymaker.engineering_sim.github_client import GitHubClient, GitHubAPIError
+from azure_haymaker.engineering_sim.github_client import GitHubAPIError, GitHubClient
 
 logger = logging.getLogger(__name__)
 
@@ -42,13 +41,13 @@ class PullRequestBrick(WorkflowBrick):
     def __init__(
         self,
         github_client: GitHubClient,
-        title: Optional[str] = None,
-        body: Optional[str] = None,
-        head_branch: Optional[str] = None,
+        title: str | None = None,
+        body: str | None = None,
+        head_branch: str | None = None,
         base_branch: str = "main",
-        labels: Optional[List[str]] = None,
-        assignees: Optional[List[str]] = None,
-        reviewers: Optional[List[str]] = None,
+        labels: list[str] | None = None,
+        assignees: list[str] | None = None,
+        reviewers: list[str] | None = None,
         draft: bool = False
     ):
         self.github_client = github_client
@@ -125,7 +124,7 @@ class PullRequestBrick(WorkflowBrick):
             except GitHubAPIError as e:
                 raise BrickExecutionError(
                     f"Failed to create pull request: {str(e)}"
-                )
+                ) from e
 
             # Extract PR details
             pr_number = pr_response["number"]
@@ -171,7 +170,7 @@ class PullRequestBrick(WorkflowBrick):
             duration = time.time() - start_time
             raise BrickExecutionError(
                 f"Unexpected error in PullRequestBrick: {str(e)}"
-            )
+            ) from e
 
     def _generate_title(self, branch_name: str) -> str:
         """Generate PR title from branch name.

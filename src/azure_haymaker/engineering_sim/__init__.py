@@ -14,10 +14,10 @@ self-contained components that can be combined into complex workflows.
 
 from azure_haymaker.engineering_sim.bricks.base import (
     BrickContext,
-    BrickResult,
-    WorkflowBrick,
     BrickExecutionError,
+    BrickResult,
     BrickValidationError,
+    WorkflowBrick,
 )
 
 __all__ = [

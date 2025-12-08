@@ -2,16 +2,15 @@
 
 import logging
 import time
-from typing import Optional
 from datetime import datetime
 
 from azure_haymaker.engineering_sim.bricks.base import (
-    WorkflowBrick,
     BrickContext,
-    BrickResult,
     BrickExecutionError,
+    BrickResult,
+    WorkflowBrick,
 )
-from azure_haymaker.engineering_sim.github_client import GitHubClient, GitHubAPIError
+from azure_haymaker.engineering_sim.github_client import GitHubAPIError, GitHubClient
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +29,9 @@ class MergeBrick(WorkflowBrick):
         self,
         github_client: GitHubClient = None,
         merge_method: str = "squash",
-        merge_strategy: Optional[str] = None,  # Alias for merge_method
-        commit_title: Optional[str] = None,
-        commit_message: Optional[str] = None
+        merge_strategy: str | None = None,  # Alias for merge_method
+        commit_title: str | None = None,
+        commit_message: str | None = None
     ):
         self.github_client = github_client
         # Support both merge_method and merge_strategy parameter names
@@ -89,7 +88,7 @@ class MergeBrick(WorkflowBrick):
             except GitHubAPIError as e:
                 raise BrickExecutionError(
                     f"Failed to merge pull request: {str(e)}"
-                )
+                ) from e
 
             # Extract merge details
             merge_sha = merge_response.get("sha", "unknown")
@@ -130,4 +129,4 @@ class MergeBrick(WorkflowBrick):
             duration = time.time() - start_time
             raise BrickExecutionError(
                 f"Unexpected error in MergeBrick: {str(e)}"
-            )
+            ) from e

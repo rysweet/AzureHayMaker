@@ -3,14 +3,13 @@
 import logging
 import random
 import time
-from typing import Optional
 from datetime import datetime
 
 from azure_haymaker.engineering_sim.bricks.base import (
-    WorkflowBrick,
     BrickContext,
-    BrickResult,
     BrickExecutionError,
+    BrickResult,
+    WorkflowBrick,
 )
 
 logger = logging.getLogger(__name__)
@@ -31,12 +30,12 @@ class CIPipelineBrick(WorkflowBrick):
         self,
         github_client=None,  # Optional, for consistency with other bricks
         pipeline_name: str = "ci",
-        workflow_name: Optional[str] = None,  # Alias for pipeline_name
+        workflow_name: str | None = None,  # Alias for pipeline_name
         test_suite: str = "full",
         failure_rate: float = 0.0,
-        failure_probability: Optional[float] = None,  # Alias for failure_rate
-        duration_seconds: Optional[float] = None,
-        test_count_range: Optional[tuple] = None  # Optional test count range
+        failure_probability: float | None = None,  # Alias for failure_rate
+        duration_seconds: float | None = None,
+        test_count_range: tuple | None = None  # Optional test count range
     ):
         self.github_client = github_client
         self.pipeline_name = workflow_name or pipeline_name
@@ -70,11 +69,7 @@ class CIPipelineBrick(WorkflowBrick):
                 )
 
             # Determine pipeline duration
-            if self.duration_seconds:
-                duration = self.duration_seconds
-            else:
-                # Random duration between 30 and 120 seconds
-                duration = random.uniform(30, 120)
+            duration = self.duration_seconds or random.uniform(30, 120)
 
             # Simulate pipeline execution (don't actually wait)
             # In real simulation, you might await asyncio.sleep(duration)
@@ -145,4 +140,4 @@ class CIPipelineBrick(WorkflowBrick):
             duration = time.time() - start_time
             raise BrickExecutionError(
                 f"Unexpected error in CIPipelineBrick: {str(e)}"
-            )
+            ) from e

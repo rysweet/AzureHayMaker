@@ -2,10 +2,10 @@
 
 from azure_haymaker.engineering_sim.bricks.base import (
     BrickContext,
-    BrickResult,
-    WorkflowBrick,
     BrickExecutionError,
+    BrickResult,
     BrickValidationError,
+    WorkflowBrick,
 )
 
 __all__ = [

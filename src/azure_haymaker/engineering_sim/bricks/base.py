@@ -11,7 +11,7 @@ Following the brick philosophy: small, composable, self-contained components.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, replace
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class BrickExecutionError(Exception):
@@ -44,11 +44,11 @@ class BrickContext:
     team_id: str
     sprint_id: str
     repo_name: str
-    branch_name: Optional[str] = None
-    pr_number: Optional[int] = None
-    commit_sha: Optional[str] = None
+    branch_name: str | None = None
+    pr_number: int | None = None
+    commit_sha: str | None = None
     base_branch: str = "main"
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """Ensure metadata is never None."""
@@ -96,8 +96,8 @@ class BrickResult:
     """
     success: bool
     context: BrickContext
-    telemetry: Dict[str, Any]
-    error: Optional[str] = None
+    telemetry: dict[str, Any]
+    error: str | None = None
     duration_seconds: float = 0.0
 
     def merge_telemetry(self, other: "BrickResult") -> "BrickResult":

@@ -3,16 +3,16 @@
 import logging
 import random
 import time
-from typing import Dict, List, Optional, Any
 from datetime import datetime
+from typing import Any
 
 from azure_haymaker.engineering_sim.bricks.base import (
-    WorkflowBrick,
     BrickContext,
-    BrickResult,
     BrickExecutionError,
+    BrickResult,
+    WorkflowBrick,
 )
-from azure_haymaker.engineering_sim.github_client import GitHubClient, GitHubAPIError
+from azure_haymaker.engineering_sim.github_client import GitHubAPIError, GitHubClient
 
 logger = logging.getLogger(__name__)
 
@@ -31,12 +31,12 @@ class ReviewBrick(WorkflowBrick):
     def __init__(
         self,
         github_client: GitHubClient = None,
-        reviewer_name: Optional[str] = None,
+        reviewer_name: str | None = None,
         review_type: str = "APPROVE",
-        review_body: Optional[str] = None,
-        body: Optional[str] = None,  # Alias for review_body
-        line_comments: Optional[List[Dict[str, Any]]] = None,
-        comments: Optional[List[Dict[str, Any]]] = None  # Alias for line_comments
+        review_body: str | None = None,
+        body: str | None = None,  # Alias for review_body
+        line_comments: list[dict[str, Any]] | None = None,
+        comments: list[dict[str, Any]] | None = None  # Alias for line_comments
     ):
         self.github_client = github_client
         self.reviewer_name = reviewer_name
@@ -89,7 +89,7 @@ class ReviewBrick(WorkflowBrick):
             except GitHubAPIError as e:
                 raise BrickExecutionError(
                     f"Failed to create review: {str(e)}"
-                )
+                ) from e
 
             # Extract review details
             review_id = review_response["id"]
@@ -128,7 +128,7 @@ class ReviewBrick(WorkflowBrick):
             duration = time.time() - start_time
             raise BrickExecutionError(
                 f"Unexpected error in ReviewBrick: {str(e)}"
-            )
+            ) from e
 
     def _generate_review_body(self, review_type: str) -> str:
         """Generate review comment based on type."""

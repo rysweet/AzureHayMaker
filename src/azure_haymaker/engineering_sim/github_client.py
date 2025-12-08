@@ -12,8 +12,8 @@ This client wraps GitHub API calls needed for engineering simulations.
 import asyncio
 import logging
 import time
-from typing import Any, Dict, List, Optional
-from datetime import datetime
+from typing import Any
+
 import aiohttp
 
 logger = logging.getLogger(__name__)
@@ -63,17 +63,17 @@ class GitHubClient:
         self.base_url = base_url
         self.max_retries = max_retries
         self.retry_delay = retry_delay
-        self._rate_limit_cache: Optional[Dict[str, Any]] = None
+        self._rate_limit_cache: dict[str, Any] | None = None
         self._last_rate_limit_check: float = 0
 
     async def create_commit(
         self,
         repo: str,
         branch: str,
-        files: Dict[str, str],
+        files: dict[str, str],
         message: str,
-        author: Optional[Dict[str, str]] = None
-    ) -> Dict[str, Any]:
+        author: dict[str, str] | None = None
+    ) -> dict[str, Any]:
         """Create a commit with file changes.
 
         Args:
@@ -111,9 +111,9 @@ class GitHubClient:
         body: str,
         head: str,
         base: str,
-        labels: Optional[List[str]] = None,
+        labels: list[str] | None = None,
         draft: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create a pull request.
 
         Args:
@@ -154,8 +154,8 @@ class GitHubClient:
         pr_number: int,
         event: str,
         body: str,
-        comments: Optional[List[Dict[str, Any]]] = None
-    ) -> Dict[str, Any]:
+        comments: list[dict[str, Any]] | None = None
+    ) -> dict[str, Any]:
         """Create a pull request review.
 
         Args:
@@ -190,9 +190,9 @@ class GitHubClient:
         repo: str,
         pr_number: int,
         merge_method: str = "merge",
-        commit_title: Optional[str] = None,
-        commit_message: Optional[str] = None
-    ) -> Dict[str, Any]:
+        commit_title: str | None = None,
+        commit_message: str | None = None
+    ) -> dict[str, Any]:
         """Merge a pull request.
 
         Args:
@@ -229,8 +229,8 @@ class GitHubClient:
         repo: str,
         workflow: str,
         ref: str,
-        inputs: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        inputs: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Trigger a GitHub Actions workflow.
 
         Args:
@@ -263,8 +263,8 @@ class GitHubClient:
         repo: str,
         check_run_id: int,
         status: str,
-        conclusion: Optional[str] = None
-    ) -> Dict[str, Any]:
+        conclusion: str | None = None
+    ) -> dict[str, Any]:
         """Update a GitHub check run.
 
         Args:
@@ -292,7 +292,7 @@ class GitHubClient:
         endpoint = f"/repos/{self.org}/{repo}/check-runs/{check_run_id}"
         return await self._make_request("PATCH", endpoint, payload)
 
-    async def get_rate_limit(self) -> Dict[str, Any]:
+    async def get_rate_limit(self) -> dict[str, Any]:
         """Get current rate limit status.
 
         Returns:
@@ -305,7 +305,7 @@ class GitHubClient:
         # Don't use retry wrapper for rate limit checks
         return await self._make_request("GET", endpoint, {})
 
-    async def _check_rate_limit(self) -> Dict[str, int]:
+    async def _check_rate_limit(self) -> dict[str, int]:
         """Check rate limit and handle according to strategy.
 
         Returns:
@@ -318,9 +318,8 @@ class GitHubClient:
         current_time = time.time()
 
         # Only check every 10 seconds to avoid excessive API calls
-        if current_time - self._last_rate_limit_check < 10:
-            if self._rate_limit_cache:
-                return self._rate_limit_cache
+        if current_time - self._last_rate_limit_check < 10 and self._rate_limit_cache:
+            return self._rate_limit_cache
 
         try:
             rate_limit_data = await self.get_rate_limit()
@@ -362,8 +361,8 @@ class GitHubClient:
         self,
         method: str,
         endpoint: str,
-        payload: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        payload: dict[str, Any]
+    ) -> dict[str, Any]:
         """Make HTTP request with retry logic for transient errors.
 
         Args:
@@ -388,15 +387,14 @@ class GitHubClient:
                 error_str = str(e)
 
                 # Check if error is retryable (5xx errors)
-                if any(code in error_str for code in ["503", "502", "500"]):
-                    if attempt < self.max_retries - 1:
-                        delay = self.retry_delay * (2 ** attempt)  # Exponential backoff
-                        logger.warning(
-                            f"Request failed with {error_str}, "
-                            f"retrying in {delay}s (attempt {attempt + 1}/{self.max_retries})"
-                        )
-                        await asyncio.sleep(delay)
-                        continue
+                if any(code in error_str for code in ["503", "502", "500"]) and attempt < self.max_retries - 1:
+                    delay = self.retry_delay * (2 ** attempt)  # Exponential backoff
+                    logger.warning(
+                        f"Request failed with {error_str}, "
+                        f"retrying in {delay}s (attempt {attempt + 1}/{self.max_retries})"
+                    )
+                    await asyncio.sleep(delay)
+                    continue
 
                 # Non-retryable error or max retries reached
                 raise
@@ -413,8 +411,8 @@ class GitHubClient:
         self,
         method: str,
         endpoint: str,
-        payload: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        payload: dict[str, Any]
+    ) -> dict[str, Any]:
         """Make HTTP request to GitHub API using aiohttp.
 
         Args:
@@ -441,37 +439,36 @@ class GitHubClient:
         logger.debug(f"GitHub API {method} {endpoint} headers={safe_headers}")
 
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.request(
-                    method=method,
-                    url=url,
-                    json=payload if payload else None,
-                    headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=30)
-                ) as response:
-                    # Log response status
-                    logger.debug(f"GitHub API response: {response.status}")
+            async with aiohttp.ClientSession() as session, session.request(
+                method=method,
+                url=url,
+                json=payload if payload else None,
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=30)
+            ) as response:
+                # Log response status
+                logger.debug(f"GitHub API response: {response.status}")
 
-                    # Handle HTTP errors
-                    if response.status >= 400:
-                        error_text = await response.text()
-                        raise GitHubAPIError(
-                            f"GitHub API error {response.status}: {error_text}"
-                        )
+                # Handle HTTP errors
+                if response.status >= 400:
+                    error_text = await response.text()
+                    raise GitHubAPIError(
+                        f"GitHub API error {response.status}: {error_text}"
+                    )
 
-                    # Return JSON response for non-204 responses
-                    if response.status == 204:
-                        # No content (e.g., successful DELETE)
-                        return {"status": "success"}
+                # Return JSON response for non-204 responses
+                if response.status == 204:
+                    # No content (e.g., successful DELETE)
+                    return {"status": "success"}
 
-                    return await response.json()
+                return await response.json()
 
         except aiohttp.ClientError as e:
             logger.error(f"HTTP client error: {e}")
-            raise GitHubAPIError(f"HTTP request failed: {e}")
-        except asyncio.TimeoutError:
+            raise GitHubAPIError(f"HTTP request failed: {e}") from e
+        except TimeoutError as e:
             logger.error(f"Request timeout for {endpoint}")
-            raise GitHubAPIError(f"Request timeout: {endpoint}")
+            raise GitHubAPIError(f"Request timeout: {endpoint}") from e
         except Exception as e:
             logger.error(f"Unexpected error during GitHub API request: {e}")
-            raise GitHubAPIError(f"Unexpected error: {e}")
+            raise GitHubAPIError(f"Unexpected error: {e}") from e
