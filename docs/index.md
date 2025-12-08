@@ -201,6 +201,10 @@ Every component implements real functionality with no stubs, TODOs, or placehold
     <span class="icon">📊</span>
     <span>Reporting & Telemetry</span>
   </a>
+  <a href="/AzureHayMaker/engineering-simulation-framework/TUTORIAL" class="quick-link">
+    <span class="icon">🎓</span>
+    <span>Engineering Simulation Tutorial</span>
+  </a>
   <a href="/AzureHayMaker/reference/faq" class="quick-link">
     <span class="icon">❓</span>
     <span>FAQ</span>

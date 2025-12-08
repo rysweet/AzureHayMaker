@@ -112,6 +112,7 @@ print(f"Generated {len(result.telemetry)} telemetry events")
 
 ### Learn More
 
+- **[Complete Tutorial](docs/engineering-simulation-framework/TUTORIAL.md)** - End-to-end tutorial from installation to multi-team sprints
 - **[Engineering Simulation Examples](examples/mock_sprint_simulation.py)** - Outside-in demonstration
 - **[Test Documentation](tests/README.md)** - Comprehensive testing guide
 - **[Issue #145](https://github.com/rysweet/AzureHayMaker/issues/145)** - Complete architectural proposals
