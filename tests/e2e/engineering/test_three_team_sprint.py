@@ -81,7 +81,7 @@ class TestThreeTeamSprintSimulation:
         )
 
         # Mock workflow execution
-        with patch('azure_haymaker.engineering_sim.sprint.Workflow') as MockWorkflow:
+        with patch('azure_haymaker.engineering_sim.workflow.Workflow') as MockWorkflow:
             mock_workflow = Mock()
             mock_workflow.execute = AsyncMock(return_value=Mock(
                 success=True,
@@ -99,18 +99,18 @@ class TestThreeTeamSprintSimulation:
             MockWorkflow.return_value = mock_workflow
 
             # Execute sprint
-            results = await orchestrator.execute_sprint(duration_days=10)
+            result = await orchestrator.execute_sprint()
 
             # Verify all teams completed sprint
-            assert len(results) == 3
-            assert "team_alpha" in results
-            assert "team_beta" in results
-            assert "team_gamma" in results
+            assert len(result.team_results) == 3
+            assert "team_alpha" in result.team_results
+            assert "team_beta" in result.team_results
+            assert "team_gamma" in result.team_results
 
             # Verify each team has results
-            for team_id, result in results.items():
-                assert result.features_completed >= 0
-                assert result.telemetry is not None
+            for team_id, team_result in result.team_results.items():
+                assert team_result.total_workflows >= 0
+                assert team_result.aggregated_telemetry is not None
 
     @pytest.mark.asyncio
     async def test_sprint_telemetry_aggregation(self, mock_github_client, team_configs):
@@ -149,8 +149,15 @@ class TestThreeTeamSprintSimulation:
         # Mock execution
         with patch.object(orchestrator, '_execute_team_sprint', new_callable=AsyncMock) as mock_execute:
             mock_execute.return_value = Mock(
-                features_completed=9,
-                hotfixes_completed=2,
+                total_workflows=11,
+                successful_workflows=9,
+                failed_workflows=2,
+                aggregated_telemetry={
+                    "total_commits": 47,
+                    "total_prs": 11,
+                    "total_reviews": 23,
+                    "ci_runs": 19
+                },
                 telemetry={
                     "total_commits": 47,
                     "total_prs": 11,
@@ -159,11 +166,11 @@ class TestThreeTeamSprintSimulation:
                 }
             )
 
-            results = await orchestrator.execute_sprint(duration_days=10)
+            result = await orchestrator.execute_sprint()
 
             # Aggregate telemetry
-            total_commits = sum(r.telemetry["total_commits"] for r in results.values())
-            total_prs = sum(r.telemetry["total_prs"] for r in results.values())
+            total_commits = sum(r.aggregated_telemetry["total_commits"] for r in result.team_results.values())
+            total_prs = sum(r.aggregated_telemetry["total_prs"] for r in result.team_results.values())
 
             # With 3 teams, should have 3x the telemetry
             assert total_commits == 47 * 3
@@ -206,7 +213,7 @@ class TestThreeTeamSprintSimulation:
         sprint_start = datetime(2025, 12, 8, 9, 0, 0)  # Monday 9 AM
         sprint_duration = 10  # 10 work days (2 weeks)
 
-        with patch('azure_haymaker.engineering_sim.sprint.WorkflowScheduler') as MockScheduler:
+        with patch('azure_haymaker.engineering_sim.orchestration.workflow_scheduler.WorkflowScheduler') as MockScheduler:
             mock_scheduler = Mock()
 
             # Generate schedule with timing
@@ -226,7 +233,7 @@ class TestThreeTeamSprintSimulation:
             MockScheduler.return_value = mock_scheduler
 
             # Execute with timing constraints
-            results = await orchestrator.execute_sprint(duration_days=sprint_duration)
+            results = await orchestrator.execute_sprint()
 
             # Verify scheduling was used
             assert mock_scheduler.generate_schedule.called
@@ -518,18 +525,20 @@ class TestFullSystemIntegration:
         telemetry_output = tmp_path / "sprint_telemetry.json"
 
         with patch.object(orchestrator, 'execute_sprint', new_callable=AsyncMock) as mock_sprint:
-            mock_sprint.return_value = {
-                "team_alpha": Mock(
-                    features_completed=9,
-                    telemetry={"commits": 47, "prs": 11}
-                ),
-                "team_beta": Mock(
-                    features_completed=8,
-                    telemetry={"commits": 42, "prs": 10}
-                )
-            }
+            mock_sprint.return_value = Mock(
+                team_results={
+                    "team_alpha": Mock(
+                        total_workflows=9,
+                        aggregated_telemetry={"commits": 47, "prs": 11}
+                    ),
+                    "team_beta": Mock(
+                        total_workflows=8,
+                        aggregated_telemetry={"commits": 42, "prs": 10}
+                    )
+                }
+            )
 
-            results = await orchestrator.execute_sprint(duration_days=10)
+            results = await orchestrator.execute_sprint()
 
             # Export telemetry
             with patch('azure_haymaker.engineering_sim.telemetry.TelemetryExporter') as MockExporter:
@@ -578,11 +587,11 @@ class TestFullSystemIntegration:
             github_client=mock_github_client,
         )
 
-        results = await orchestrator.execute_sprint(duration_days=10)
+        result = await orchestrator.execute_sprint()
 
         # Verify comprehensive results
-        assert len(results) == 3
-        for team_id, result in results.items():
-            assert result.features_completed > 0
-            assert result.telemetry["total_commits"] > 20
-            assert result.telemetry["total_prs"] > 5
+        assert len(result.team_results) == 3
+        for team_id, team_result in result.team_results.items():
+            assert team_result.total_workflows > 0
+            assert team_result.aggregated_telemetry["total_commits"] > 20
+            assert team_result.aggregated_telemetry["total_prs"] > 5
