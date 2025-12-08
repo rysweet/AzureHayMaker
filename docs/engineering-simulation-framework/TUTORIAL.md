@@ -237,10 +237,10 @@ async def main():
 
     # Telemetry was generated
     print(f"\n📊 Telemetry generated:")
-    print(f"   Type: {result.telemetry['type']}")
+    print(f"   Type: {result.telemetry.get('brick_type', 'unknown')}")
     print(f"   SHA: {result.telemetry['commit_sha'][:7]}")
-    print(f"   Files: {len(result.telemetry['files'])} changed")
-    print(f"   URL: {result.telemetry['html_url']}")
+    print(f"   Files: {len(result.telemetry.get('files', []))} changed")
+    print(f"   URL: {result.telemetry.get('html_url', 'N/A')}")
 
     print("\n" + "=" * 60)
     print("Key Concepts:")
@@ -526,7 +526,7 @@ async def main():
     print(f"\n6️⃣  Telemetry generated:")
     brick_telemetry = result.telemetry.get("bricks", [])
     for i, event in enumerate(brick_telemetry, 1):
-        event_type = event.get("type", "unknown")
+        event_type = event.get("brick_type", "unknown")
         print(f"   {i}. {event_type.upper()}")
 
     print("\n" + "=" * 60)
@@ -786,9 +786,9 @@ async def main():
     sprint_config = SprintConfig(
         sprint_id="sprint_42",
         duration_days=10,  # 2 weeks (excluding weekends)
+        start_date=datetime.now(),
         work_hours_start=9,
-        work_hours_end=17,  # 9 AM to 5 PM
-        enable_realistic_timing=True
+        work_hours_end=18  # 9 AM to 6 PM
     )
 
     print(f"   Sprint ID: {sprint_config.sprint_id}")
@@ -809,8 +809,10 @@ async def main():
     print("\n2️⃣  Configuring Team Alpha...")
     team_config = TeamConfig(
         team_id="team_alpha",
-        team_name="Alpha Squad",
-        repo_name="backend-api",
+        team_size=5,
+        focus="backend",
+        repo="backend-api",
+        velocity_points=30,
         workflows=[
             {"type": "feature", "count": 5},      # 5 feature workflows
             {"type": "bugfix", "count": 3},       # 3 bugfix workflows
@@ -818,8 +820,11 @@ async def main():
         ]
     )
 
-    print(f"   Team: {team_config.team_name} ({team_config.team_id})")
-    print(f"   Repository: {team_config.repo_name}")
+    print(f"   Team: {team_config.team_id}")
+    print(f"   Team Size: {team_config.team_size}")
+    print(f"   Focus: {team_config.focus}")
+    print(f"   Repository: {team_config.repo}")
+    print(f"   Velocity: {team_config.velocity_points} points")
     print(f"   Total workflows: {sum(w['count'] for w in team_config.workflows)}")
     for wf in team_config.workflows:
         print(f"   • {wf['type']}: {wf['count']}")
@@ -894,17 +899,20 @@ Single Team Sprint Simulation
 1️⃣  Configuring 2-week sprint...
    Sprint ID: sprint_42
    Duration: 10 work days
-   Work hours: 9:00 - 17:00
+   Work hours: 9:00 - 18:00
 
    Phase breakdown:
-   • Planning: 8.0h (10%)
-   • Development: 56.0h (70%)
-   • Code Freeze: 12.0h (15%)
-   • Retrospective: 4.0h (5%)
+   • Planning: 9.0h (10%)
+   • Development: 63.0h (70%)
+   • Code Freeze: 13.5h (15%)
+   • Retrospective: 4.5h (5%)
 
 2️⃣  Configuring Team Alpha...
-   Team: Alpha Squad (team_alpha)
+   Team: team_alpha
+   Team Size: 5
+   Focus: backend
    Repository: backend-api
+   Velocity: 30 points
    Total workflows: 9
    • feature: 5
    • bugfix: 3
@@ -952,6 +960,7 @@ Let's export the telemetry for analysis:
 # File: export_telemetry.py
 import asyncio
 import json
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, AsyncMock
 
@@ -963,10 +972,17 @@ async def main():
     print("=" * 60)
 
     # Configure and run sprint (abbreviated)
-    sprint_config = SprintConfig(sprint_id="sprint_42", duration_days=10)
+    sprint_config = SprintConfig(
+        sprint_id="sprint_42",
+        duration_days=10,
+        start_date=datetime.now()
+    )
     team_config = TeamConfig(
         team_id="team_alpha",
-        repo_name="backend-api",
+        team_size=5,
+        focus="backend",
+        repo="backend-api",
+        velocity_points=30,
         workflows=[{"type": "feature", "count": 3}]
     )
 
@@ -1065,6 +1081,7 @@ The `MultiTeamOrchestrator` coordinates multiple teams:
 ```python
 # File: multi_team_sprint.py
 import asyncio
+from datetime import datetime
 from unittest.mock import MagicMock, AsyncMock
 
 from azure_haymaker.engineering_sim.orchestration.types import (
@@ -1088,8 +1105,9 @@ async def main():
     sprint_config = SprintConfig(
         sprint_id="q4_sprint_1",
         duration_days=10,
+        start_date=datetime.now(),
         work_hours_start=9,
-        work_hours_end=17
+        work_hours_end=18
     )
     print(f"   Sprint: {sprint_config.sprint_id}")
     print(f"   Duration: {sprint_config.duration_days} days")
@@ -1100,8 +1118,10 @@ async def main():
     team_configs = [
         TeamConfig(
             team_id="team_alpha",
-            team_name="Alpha Squad (Backend)",
-            repo_name="backend-api",
+            team_size=5,
+            focus="backend",
+            repo="backend-api",
+            velocity_points=30,
             workflows=[
                 {"type": "feature", "count": 4},
                 {"type": "bugfix", "count": 2}
@@ -1109,8 +1129,10 @@ async def main():
         ),
         TeamConfig(
             team_id="team_beta",
-            team_name="Beta Squad (Frontend)",
-            repo_name="frontend-web",
+            team_size=4,
+            focus="frontend",
+            repo="frontend-web",
+            velocity_points=25,
             workflows=[
                 {"type": "feature", "count": 3},
                 {"type": "refactoring", "count": 2}
@@ -1118,8 +1140,10 @@ async def main():
         ),
         TeamConfig(
             team_id="team_gamma",
-            team_name="Gamma Squad (Infrastructure)",
-            repo_name="infrastructure",
+            team_size=3,
+            focus="infrastructure",
+            repo="infrastructure",
+            velocity_points=20,
             workflows=[
                 {"type": "feature", "count": 2},
                 {"type": "bugfix", "count": 1}
@@ -1129,8 +1153,10 @@ async def main():
 
     for i, team in enumerate(team_configs, 1):
         total_workflows = sum(w['count'] for w in team.workflows)
-        print(f"   {i}. {team.team_name}")
-        print(f"      Repository: {team.repo_name}")
+        print(f"   {i}. {team.team_id} ({team.focus})")
+        print(f"      Repository: {team.repo}")
+        print(f"      Team Size: {team.team_size}")
+        print(f"      Velocity: {team.velocity_points} points")
         print(f"      Workflows: {total_workflows}")
 
     # Step 3: Create rate limit manager
@@ -1229,14 +1255,20 @@ Multi-Team Sprint Simulation
    Duration: 10 days
 
 2️⃣  Configuring 3 teams...
-   1. Alpha Squad (Backend)
+   1. team_alpha (backend)
       Repository: backend-api
+      Team Size: 5
+      Velocity: 30 points
       Workflows: 6
-   2. Beta Squad (Frontend)
+   2. team_beta (frontend)
       Repository: frontend-web
+      Team Size: 4
+      Velocity: 25 points
       Workflows: 5
-   3. Gamma Squad (Infrastructure)
+   3. team_gamma (infrastructure)
       Repository: infrastructure
+      Team Size: 3
+      Velocity: 20 points
       Workflows: 3
 
 3️⃣  Configuring rate limit manager...
@@ -1297,8 +1329,8 @@ Key Benefits:
 # File: export_multi_team.py
 import asyncio
 import json
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 from unittest.mock import MagicMock, AsyncMock
 
 from azure_haymaker.engineering_sim.orchestration.types import SprintConfig, TeamConfig
@@ -1309,11 +1341,21 @@ async def main():
     print("=" * 60)
 
     # Configure and run (abbreviated for example)
-    sprint_config = SprintConfig(sprint_id="q4_sprint_1", duration_days=10)
+    sprint_config = SprintConfig(
+        sprint_id="q4_sprint_1",
+        duration_days=10,
+        start_date=datetime.now()
+    )
 
     team_configs = [
-        TeamConfig(team_id=f"team_{i}", repo_name=f"repo-{i}",
-                  workflows=[{"type": "feature", "count": 2}])
+        TeamConfig(
+            team_id=f"team_{i}",
+            team_size=5,
+            focus="backend",
+            repo=f"repo-{i}",
+            velocity_points=30,
+            workflows=[{"type": "feature", "count": 2}]
+        )
         for i in range(1, 4)
     ]
 
@@ -1474,7 +1516,7 @@ class DeploymentBrick(WorkflowBrick):
 
         # Generate telemetry
         telemetry = {
-            "type": "deployment",
+            "brick_type": "deployment",
             "environment": self.environment,
             "commit_sha": context.commit_sha,
             "status": "deployed",
@@ -1543,7 +1585,7 @@ async def main():
 
     # Check telemetry
     brick_telemetry = result.telemetry.get("bricks", [])
-    deployment_telemetry = [t for t in brick_telemetry if t.get("type") == "deployment"][0]
+    deployment_telemetry = [t for t in brick_telemetry if t.get("brick_type") == "deployment"][0]
 
     print(f"\n4️⃣  Deployment telemetry:")
     print(f"   Environment: {deployment_telemetry['environment']}")
@@ -1601,47 +1643,6 @@ To create your own bricks:
   3. Return BrickResult with updated context
   4. Generate telemetry for tracking
 ============================================================
-```
-
-### Realistic Timing Configuration
-
-Control timing for realistic simulations:
-
-```python
-# File: realistic_timing.py
-from azure_haymaker.engineering_sim.orchestration.types import SprintConfig
-
-# Fast simulation (for testing)
-fast_config = SprintConfig(
-    sprint_id="test_sprint",
-    duration_days=2,
-    work_hours_start=9,
-    work_hours_end=17,
-    enable_realistic_timing=False  # No delays
-)
-
-# Realistic simulation (for production telemetry)
-realistic_config = SprintConfig(
-    sprint_id="prod_sprint",
-    duration_days=10,
-    work_hours_start=9,
-    work_hours_end=17,
-    enable_realistic_timing=True,  # Add delays
-    min_delay_seconds=30,
-    max_delay_seconds=300
-)
-
-print("Timing Configuration Examples")
-print("=" * 60)
-print("\n1. Fast (testing):")
-print(f"   Realistic timing: {fast_config.enable_realistic_timing}")
-print(f"   Use case: Unit tests, development")
-
-print("\n2. Realistic (production):")
-print(f"   Realistic timing: {realistic_config.enable_realistic_timing}")
-print(f"   Delay range: {realistic_config.min_delay_seconds}-{realistic_config.max_delay_seconds}s")
-print(f"   Use case: Production telemetry generation")
-print("=" * 60)
 ```
 
 ### Troubleshooting Common Issues
@@ -1723,7 +1724,7 @@ asyncio.run(test_auth())
 ### What You've Learned
 
 - How to create custom bricks by extending WorkflowBrick
-- How to configure realistic vs fast timing
+- How to properly configure SprintConfig with required parameters
 - Common issues and their solutions
 - How to validate workflows before execution
 - How to test GitHub authentication
