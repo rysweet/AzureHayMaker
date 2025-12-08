@@ -241,9 +241,18 @@ class TestRateLimitCoordination:
 
         # Each team should use shared rate limit
         async def mock_team_sprint(team_config):
+            from azure_haymaker.engineering_sim.orchestration.types import TeamResult
             # Acquire some budget
             await orchestrator.rate_limit_manager.acquire(100, team_id=team_config.team_id)
-            return Mock(team_id=team_config.team_id)
+            return TeamResult(
+                team_id=team_config.team_id,
+                sprint_id="sprint_46",
+                phase_results=[],
+                total_workflows=5,
+                successful_workflows=5,
+                failed_workflows=0,
+                aggregated_telemetry={"commits": 20},
+            )
 
         with patch.object(orchestrator, "_execute_team_sprint", side_effect=mock_team_sprint):
             await orchestrator.execute_sprint()
@@ -288,6 +297,7 @@ class TestRateLimitCoordination:
         waited_teams = []
 
         async def mock_team_sprint(team_config):
+            from azure_haymaker.engineering_sim.orchestration.types import TeamResult
             # First team depletes budget
             if team_config.team_id == "team_alpha":
                 await orchestrator.rate_limit_manager.acquire(100, team_id=team_config.team_id)
@@ -298,7 +308,15 @@ class TestRateLimitCoordination:
                 )
                 if not success:
                     waited_teams.append(team_config.team_id)
-            return Mock(team_id=team_config.team_id)
+            return TeamResult(
+                team_id=team_config.team_id,
+                sprint_id="sprint_47",
+                phase_results=[],
+                total_workflows=5,
+                successful_workflows=5,
+                failed_workflows=0,
+                aggregated_telemetry={"commits": 20},
+            )
 
         with patch.object(orchestrator, "_execute_team_sprint", side_effect=mock_team_sprint):
             await orchestrator.execute_sprint()
