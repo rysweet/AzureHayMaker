@@ -3,22 +3,14 @@
 Tests the complete sprint orchestration across multiple teams.
 This is the highest-level integration test, simulating a real sprint.
 
-NOTE: This module requires SprintOrchestrator (Part 4) which is not yet implemented.
-Tests are skipped until Part 4 is complete.
+These tests use TDD approach - they define the expected API but will FAIL
+until the implementation is complete (red phase of TDD).
 """
 
 import pytest
 
-# Skip all tests in this module until Part 4 (SprintOrchestrator) is implemented
-pytestmark = pytest.mark.skip(reason="Part 4: SprintOrchestrator not yet implemented")
-
 from unittest.mock import AsyncMock, Mock, patch
 from datetime import datetime, timedelta
-
-# from azure_haymaker.engineering_sim.sprint import (
-#     SprintOrchestrator,
-#     MultiTeamOrchestrator,
-# )
 from azure_haymaker.engineering_sim.workflow import Workflow
 
 
@@ -57,7 +49,36 @@ class TestThreeTeamSprintSimulation:
     @pytest.mark.asyncio
     async def test_complete_sprint_three_teams(self, mock_github_client, team_configs):
         """Test complete 2-week sprint with three teams."""
-        orchestrator = MultiTeamOrchestrator(teams=team_configs)
+        from azure_haymaker.engineering_sim.orchestration.multi_team_orchestrator import (
+            MultiTeamOrchestrator,
+        )
+        from azure_haymaker.engineering_sim.orchestration.types import (
+            SprintConfig,
+            TeamConfig,
+        )
+
+        sprint_config = SprintConfig(
+            sprint_id="sprint_e2e_01",
+            duration_days=10,
+            start_date=datetime(2025, 12, 8, 9, 0, 0),
+        )
+
+        team_configs_typed = [
+            TeamConfig(
+                team_id=tc["id"],
+                team_size=tc["size"],
+                focus=tc["focus"],
+                repo=tc["repo"],
+                velocity_points=tc["velocity_points"],
+            )
+            for tc in team_configs
+        ]
+
+        orchestrator = MultiTeamOrchestrator(
+            sprint_config=sprint_config,
+            team_configs=team_configs_typed,
+            github_client=mock_github_client,
+        )
 
         # Mock workflow execution
         with patch('azure_haymaker.engineering_sim.sprint.Workflow') as MockWorkflow:
@@ -94,7 +115,36 @@ class TestThreeTeamSprintSimulation:
     @pytest.mark.asyncio
     async def test_sprint_telemetry_aggregation(self, mock_github_client, team_configs):
         """Test telemetry is properly aggregated across teams."""
-        orchestrator = MultiTeamOrchestrator(teams=team_configs)
+        from azure_haymaker.engineering_sim.orchestration.multi_team_orchestrator import (
+            MultiTeamOrchestrator,
+        )
+        from azure_haymaker.engineering_sim.orchestration.types import (
+            SprintConfig,
+            TeamConfig,
+        )
+
+        sprint_config = SprintConfig(
+            sprint_id="sprint_e2e_02",
+            duration_days=10,
+            start_date=datetime(2025, 12, 8, 9, 0, 0),
+        )
+
+        team_configs_typed = [
+            TeamConfig(
+                team_id=tc["id"],
+                team_size=tc["size"],
+                focus=tc["focus"],
+                repo=tc["repo"],
+                velocity_points=tc["velocity_points"],
+            )
+            for tc in team_configs
+        ]
+
+        orchestrator = MultiTeamOrchestrator(
+            sprint_config=sprint_config,
+            team_configs=team_configs_typed,
+            github_client=mock_github_client,
+        )
 
         # Mock execution
         with patch.object(orchestrator, '_execute_team_sprint', new_callable=AsyncMock) as mock_execute:
@@ -122,7 +172,36 @@ class TestThreeTeamSprintSimulation:
     @pytest.mark.asyncio
     async def test_sprint_with_realistic_timing(self, mock_github_client, team_configs):
         """Test sprint respects realistic timing constraints."""
-        orchestrator = MultiTeamOrchestrator(teams=team_configs)
+        from azure_haymaker.engineering_sim.orchestration.multi_team_orchestrator import (
+            MultiTeamOrchestrator,
+        )
+        from azure_haymaker.engineering_sim.orchestration.types import (
+            SprintConfig,
+            TeamConfig,
+        )
+
+        sprint_config = SprintConfig(
+            sprint_id="sprint_e2e_03",
+            duration_days=10,
+            start_date=datetime(2025, 12, 8, 9, 0, 0),
+        )
+
+        team_configs_typed = [
+            TeamConfig(
+                team_id=tc["id"],
+                team_size=tc["size"],
+                focus=tc["focus"],
+                repo=tc["repo"],
+                velocity_points=tc["velocity_points"],
+            )
+            for tc in team_configs
+        ]
+
+        orchestrator = MultiTeamOrchestrator(
+            sprint_config=sprint_config,
+            team_configs=team_configs_typed,
+            github_client=mock_github_client,
+        )
 
         sprint_start = datetime(2025, 12, 8, 9, 0, 0)  # Monday 9 AM
         sprint_duration = 10  # 10 work days (2 weeks)
@@ -178,65 +257,77 @@ class TestSingleTeamSprintOrchestration:
     @pytest.mark.asyncio
     async def test_single_team_sprint_execution(self, mock_github_client, team_config):
         """Test complete sprint for single team."""
-        orchestrator = SprintOrchestrator(
-            team_id=team_config["team_id"],
-            team_size=team_config["team_size"],
-            sprint_duration_days=team_config["sprint_duration_days"],
-            velocity_points=team_config["velocity_points"]
+        from azure_haymaker.engineering_sim.orchestration.sprint_orchestrator import (
+            SprintOrchestrator,
+        )
+        from azure_haymaker.engineering_sim.orchestration.types import (
+            SprintConfig,
+            TeamConfig,
         )
 
-        with patch.object(orchestrator, '_build_workflows', return_value=[]) as mock_build:
-            with patch.object(orchestrator, '_execute_workflows', new_callable=AsyncMock) as mock_execute:
-                mock_execute.return_value = Mock(
-                    features_completed=9,
-                    hotfixes_completed=2,
-                    telemetry={
-                        "total_commits": 47,
-                        "total_prs": 11
-                    }
-                )
+        sprint_config = SprintConfig(
+            sprint_id="sprint_e2e_04",
+            duration_days=team_config["sprint_duration_days"],
+            start_date=datetime(2025, 12, 8, 9, 0, 0),
+        )
 
-                result = await orchestrator.execute_sprint(team_config)
+        team_config_typed = TeamConfig(
+            team_id=team_config["team_id"],
+            team_size=team_config["team_size"],
+            focus=team_config["focus"],
+            repo=team_config["repo"],
+            velocity_points=team_config["velocity_points"],
+            workflows=team_config["workflows"],
+        )
 
-                assert result.features_completed == 9
-                assert result.hotfixes_completed == 2
-                assert result.telemetry["total_commits"] == 47
+        orchestrator = SprintOrchestrator(
+            sprint_config=sprint_config,
+            team_config=team_config_typed,
+            github_client=mock_github_client,
+        )
+
+        result = await orchestrator.execute_sprint()
+
+        assert result.total_workflows > 0
+        assert result.successful_workflows >= 0
 
     @pytest.mark.asyncio
     async def test_sprint_generates_realistic_metrics(self, mock_github_client, team_config):
         """Test sprint generates realistic telemetry metrics."""
-        orchestrator = SprintOrchestrator(
-            team_id="team_alpha",
-            team_size=6,
-            sprint_duration_days=10,
-            velocity_points=40
+        from azure_haymaker.engineering_sim.orchestration.sprint_orchestrator import (
+            SprintOrchestrator,
+        )
+        from azure_haymaker.engineering_sim.orchestration.types import (
+            SprintConfig,
+            TeamConfig,
         )
 
-        # Mock workflow results with realistic metrics
-        mock_results = []
-        for i in range(11):  # 9 features + 2 hotfixes
-            mock_results.append(Mock(
-                success=True,
-                telemetry={
-                    "commits": 3 + i % 3,
-                    "prs": 1,
-                    "reviews": 2,
-                    "ci_runs": 2 + i % 2
-                }
-            ))
+        sprint_config = SprintConfig(
+            sprint_id="sprint_e2e_05",
+            duration_days=10,
+            start_date=datetime(2025, 12, 8, 9, 0, 0),
+        )
 
-        with patch.object(orchestrator, '_execute_workflows', new_callable=AsyncMock) as mock_execute:
-            mock_execute.return_value = Mock(
-                features_completed=9,
-                hotfixes_completed=2,
-                telemetry={"results": mock_results}
-            )
+        team_config_typed = TeamConfig(
+            team_id="team_alpha",
+            team_size=6,
+            focus="backend",
+            repo="backend-api",
+            velocity_points=40,
+            workflows=[{"type": "feature_development", "count": 9}, {"type": "hotfix", "count": 2}],
+        )
 
-            result = await orchestrator.execute_sprint(team_config)
+        orchestrator = SprintOrchestrator(
+            sprint_config=sprint_config,
+            team_config=team_config_typed,
+            github_client=mock_github_client,
+        )
 
-            # Verify realistic numbers
-            assert result.features_completed >= 0
-            assert result.features_completed <= 15  # Reasonable for 6-person team
+        result = await orchestrator.execute_sprint()
+
+        # Verify realistic numbers
+        assert result.total_workflows >= 0
+        assert result.total_workflows <= 20  # Reasonable for 6-person team, 10-day sprint
 
 
 @pytest.mark.e2e
@@ -246,88 +337,149 @@ class TestSprintPhasesAndTiming:
     @pytest.mark.asyncio
     async def test_sprint_planning_phase(self, mock_github_client):
         """Test sprint planning phase (Day 1)."""
-        orchestrator = SprintOrchestrator(
-            team_id="team_alpha",
-            team_size=6,
-            sprint_duration_days=10
+        from azure_haymaker.engineering_sim.orchestration.sprint_orchestrator import (
+            SprintOrchestrator,
+        )
+        from azure_haymaker.engineering_sim.orchestration.types import (
+            SprintConfig,
+            TeamConfig,
+            SprintPhase,
         )
 
-        # Mock planning phase
-        with patch.object(orchestrator, '_execute_planning_phase', new_callable=AsyncMock) as mock_planning:
-            mock_planning.return_value = {
-                "planned_features": 9,
-                "planned_hotfixes": 2,
-                "story_points": 40
-            }
+        sprint_config = SprintConfig(
+            sprint_id="sprint_e2e_06",
+            duration_days=10,
+            start_date=datetime(2025, 12, 8, 9, 0, 0),
+        )
 
-            planning_result = await orchestrator._execute_planning_phase({})
+        team_config = TeamConfig(
+            team_id="team_alpha",
+            team_size=6,
+            focus="backend",
+            repo="backend-api",
+            velocity_points=40,
+        )
 
-            assert planning_result["planned_features"] == 9
-            assert planning_result["story_points"] == 40
+        orchestrator = SprintOrchestrator(
+            sprint_config=sprint_config,
+            team_config=team_config,
+            github_client=mock_github_client,
+        )
+
+        result = await orchestrator.execute_phase(SprintPhase.PLANNING)
+
+        assert result.phase == SprintPhase.PLANNING
+        assert "planned_features" in result.telemetry or result.workflows_executed == 0
 
     @pytest.mark.asyncio
     async def test_sprint_development_phase(self, mock_github_client):
         """Test development phase (Days 2-8)."""
-        orchestrator = SprintOrchestrator(
-            team_id="team_alpha",
-            team_size=6,
-            sprint_duration_days=10
+        from azure_haymaker.engineering_sim.orchestration.sprint_orchestrator import (
+            SprintOrchestrator,
+        )
+        from azure_haymaker.engineering_sim.orchestration.types import (
+            SprintConfig,
+            TeamConfig,
+            SprintPhase,
         )
 
-        # Mock development phase with multiple workflow executions
-        with patch.object(orchestrator, '_execute_development_phase', new_callable=AsyncMock) as mock_dev:
-            mock_dev.return_value = {
-                "workflows_executed": 11,
-                "commits_created": 47,
-                "prs_opened": 11
-            }
+        sprint_config = SprintConfig(
+            sprint_id="sprint_e2e_07",
+            duration_days=10,
+            start_date=datetime(2025, 12, 8, 9, 0, 0),
+        )
 
-            dev_result = await orchestrator._execute_development_phase([])
+        team_config = TeamConfig(
+            team_id="team_alpha",
+            team_size=6,
+            focus="backend",
+            repo="backend-api",
+            velocity_points=40,
+            workflows=[{"type": "feature_development", "count": 5}],
+        )
 
-            assert dev_result["workflows_executed"] == 11
-            assert dev_result["commits_created"] == 47
+        orchestrator = SprintOrchestrator(
+            sprint_config=sprint_config,
+            team_config=team_config,
+            github_client=mock_github_client,
+        )
+
+        result = await orchestrator.execute_phase(SprintPhase.DEVELOPMENT)
+
+        assert result.phase == SprintPhase.DEVELOPMENT
+        assert result.workflows_executed >= 0
 
     @pytest.mark.asyncio
     async def test_sprint_code_freeze_phase(self, mock_github_client):
         """Test code freeze phase (Day 9)."""
-        orchestrator = SprintOrchestrator(
-            team_id="team_alpha",
-            team_size=6,
-            sprint_duration_days=10
+        from azure_haymaker.engineering_sim.orchestration.sprint_orchestrator import (
+            SprintOrchestrator,
+        )
+        from azure_haymaker.engineering_sim.orchestration.types import (
+            SprintConfig,
+            TeamConfig,
+            SprintPhase,
         )
 
-        # During code freeze, only merges and critical hotfixes allowed
-        with patch.object(orchestrator, '_execute_code_freeze_phase', new_callable=AsyncMock) as mock_freeze:
-            mock_freeze.return_value = {
-                "prs_merged": 9,
-                "hotfixes_allowed": 1
-            }
+        sprint_config = SprintConfig(
+            sprint_id="sprint_e2e_08",
+            duration_days=10,
+            start_date=datetime(2025, 12, 8, 9, 0, 0),
+        )
 
-            freeze_result = await orchestrator._execute_code_freeze_phase([])
+        team_config = TeamConfig(
+            team_id="team_alpha",
+            team_size=6,
+            focus="backend",
+            repo="backend-api",
+            velocity_points=40,
+        )
 
-            assert freeze_result["prs_merged"] >= 0
+        orchestrator = SprintOrchestrator(
+            sprint_config=sprint_config,
+            team_config=team_config,
+            github_client=mock_github_client,
+        )
+
+        result = await orchestrator.execute_phase(SprintPhase.CODE_FREEZE)
+
+        assert result.phase == SprintPhase.CODE_FREEZE
 
     @pytest.mark.asyncio
     async def test_sprint_retrospective_phase(self, mock_github_client):
         """Test retrospective phase (Day 10)."""
-        orchestrator = SprintOrchestrator(
-            team_id="team_alpha",
-            team_size=6,
-            sprint_duration_days=10
+        from azure_haymaker.engineering_sim.orchestration.sprint_orchestrator import (
+            SprintOrchestrator,
+        )
+        from azure_haymaker.engineering_sim.orchestration.types import (
+            SprintConfig,
+            TeamConfig,
+            SprintPhase,
         )
 
-        # Retrospective should aggregate metrics
-        with patch.object(orchestrator, '_execute_retrospective_phase', new_callable=AsyncMock) as mock_retro:
-            mock_retro.return_value = {
-                "velocity_achieved": 38,
-                "features_completed": 9,
-                "success_rate": 0.95
-            }
+        sprint_config = SprintConfig(
+            sprint_id="sprint_e2e_09",
+            duration_days=10,
+            start_date=datetime(2025, 12, 8, 9, 0, 0),
+        )
 
-            retro_result = await orchestrator._execute_retrospective_phase({})
+        team_config = TeamConfig(
+            team_id="team_alpha",
+            team_size=6,
+            focus="backend",
+            repo="backend-api",
+            velocity_points=40,
+        )
 
-            assert retro_result["velocity_achieved"] > 0
-            assert 0 <= retro_result["success_rate"] <= 1.0
+        orchestrator = SprintOrchestrator(
+            sprint_config=sprint_config,
+            team_config=team_config,
+            github_client=mock_github_client,
+        )
+
+        result = await orchestrator.execute_phase(SprintPhase.RETROSPECTIVE)
+
+        assert result.phase == SprintPhase.RETROSPECTIVE
 
 
 @pytest.mark.e2e
@@ -338,10 +490,30 @@ class TestFullSystemIntegration:
     @pytest.mark.asyncio
     async def test_end_to_end_sprint_with_telemetry_export(self, mock_github_client, tmp_path):
         """Test complete sprint with telemetry export."""
-        orchestrator = MultiTeamOrchestrator(teams=[
-            {"id": "team_alpha", "size": 6, "focus": "backend"},
-            {"id": "team_beta", "size": 5, "focus": "frontend"}
-        ])
+        from azure_haymaker.engineering_sim.orchestration.multi_team_orchestrator import (
+            MultiTeamOrchestrator,
+        )
+        from azure_haymaker.engineering_sim.orchestration.types import (
+            SprintConfig,
+            TeamConfig,
+        )
+
+        sprint_config = SprintConfig(
+            sprint_id="sprint_e2e_full_01",
+            duration_days=10,
+            start_date=datetime(2025, 12, 8, 9, 0, 0),
+        )
+
+        team_configs = [
+            TeamConfig(team_id="team_alpha", team_size=6, focus="backend", repo="backend-api", velocity_points=40),
+            TeamConfig(team_id="team_beta", team_size=5, focus="frontend", repo="frontend-app", velocity_points=35),
+        ]
+
+        orchestrator = MultiTeamOrchestrator(
+            sprint_config=sprint_config,
+            team_configs=team_configs,
+            github_client=mock_github_client,
+        )
 
         telemetry_output = tmp_path / "sprint_telemetry.json"
 
@@ -376,15 +548,35 @@ class TestFullSystemIntegration:
     )
     async def test_full_realistic_sprint(self, mock_github_client):
         """Test fully realistic sprint (requires opt-in, very slow)."""
+        from azure_haymaker.engineering_sim.orchestration.multi_team_orchestrator import (
+            MultiTeamOrchestrator,
+        )
+        from azure_haymaker.engineering_sim.orchestration.types import (
+            SprintConfig,
+            TeamConfig,
+        )
+
         # This is the ultimate integration test
         # Runs complete 2-week sprint with realistic timing, failures, retries
         # Only run in CI or with explicit environment variable
 
-        orchestrator = MultiTeamOrchestrator(teams=[
-            {"id": "team_alpha", "size": 6, "focus": "backend"},
-            {"id": "team_beta", "size": 5, "focus": "frontend"},
-            {"id": "team_gamma", "size": 4, "focus": "infrastructure"}
-        ])
+        sprint_config = SprintConfig(
+            sprint_id="sprint_e2e_full_realistic",
+            duration_days=10,
+            start_date=datetime(2025, 12, 8, 9, 0, 0),
+        )
+
+        team_configs = [
+            TeamConfig(team_id="team_alpha", team_size=6, focus="backend", repo="backend-api", velocity_points=40),
+            TeamConfig(team_id="team_beta", team_size=5, focus="frontend", repo="frontend-app", velocity_points=35),
+            TeamConfig(team_id="team_gamma", team_size=4, focus="infrastructure", repo="infra-config", velocity_points=28),
+        ]
+
+        orchestrator = MultiTeamOrchestrator(
+            sprint_config=sprint_config,
+            team_configs=team_configs,
+            github_client=mock_github_client,
+        )
 
         results = await orchestrator.execute_sprint(duration_days=10)
 
