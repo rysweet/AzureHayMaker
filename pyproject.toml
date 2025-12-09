@@ -102,6 +102,9 @@ python_functions = ["test_*"]
 markers = [
     "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "security: marks tests as security-focused tests",
+    "tenant_isolation: marks tests for tenant isolation validation",
+    "cross_tenant: marks tests for cross-tenant orchestration",
 ]
 addopts = [
     "--strict-markers",

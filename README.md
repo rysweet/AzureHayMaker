@@ -24,6 +24,7 @@ Azure HayMaker is an orchestration service that simulates realistic Azure tenant
 
 - **50+ Azure Scenarios** across 10 technology areas (AI/ML, Analytics, Compute, Containers, Databases, etc.)
 - **Autonomous Agents** that self-manage deployments and troubleshoot issues
+- **Cross-Tenant Orchestration** - Manage workloads across multiple Azure tenants from a single orchestrator
 - **Scheduled Execution** with configurable cron-based schedules (default: 4x daily)
 - **Complete Automation** using Azure CLI, Terraform, and Bicep
 - **Automatic Cleanup** with resource tracking and forced removal
@@ -60,6 +61,51 @@ The **Knowledge Worker Activity Framework** extends Azure HayMaker to simulate 5
 - **[Knowledge Worker Architecture](docs/knowledge-worker-framework/ARCHITECTURE.md)** - Complete framework design
 - **[Windows 365 E2E Demo](docs/knowledge-worker-framework/WINDOWS365_E2E_DEMO.md)** - End-to-end demonstration
 - **[SIEM Telemetry Export](docs/knowledge-worker-framework/SIEM_TELEMETRY_EXPORT.md)** - Export activity to Azure Sentinel
+
+## Cross-Tenant Orchestration
+
+Azure HayMaker supports **cross-tenant orchestration**, enabling you to manage workloads across multiple Azure tenants from a centralized orchestrator. This is ideal for:
+
+- **Managed Service Providers (MSPs)**: Manage 5-50+ customer tenants from a single control plane
+- **Enterprise IT**: Separate dev/test/prod environments across distinct tenants
+- **Security Testing**: Generate isolated telemetry across organizational boundaries
+
+### Key Capabilities
+
+- **Tenant Isolation**: Complete resource and credential separation per tenant
+- **Concurrent Execution**: Run scenarios in multiple tenants simultaneously
+- **Centralized Management**: Single CLI/API to control all tenants
+- **Secure Credentials**: All credentials stored in Azure Key Vault
+- **Aggregate Monitoring**: Unified view of all tenant operations
+
+### Quick Start: Multi-Tenant Setup
+
+```bash
+# Add first target tenant
+haymaker orch tenant add \
+  --name customer-a \
+  --tenant-id <tenant-id> \
+  --subscription-id <subscription-id> \
+  --keyvault-prefix tenant-a
+
+# Add second target tenant
+haymaker orch tenant add \
+  --name customer-b \
+  --tenant-id <tenant-id> \
+  --subscription-id <subscription-id> \
+  --keyvault-prefix tenant-b
+
+# Start orchestration across all tenants
+haymaker orch start --all-tenants
+```
+
+### Documentation
+
+- **[Cross-Tenant Orchestration Guide](docs/guides/cross-tenant-orchestration.md)** - Complete setup and configuration guide
+- **[First Multi-Tenant Setup Tutorial](docs/tutorials/first-multi-tenant-setup.md)** - 30-minute step-by-step tutorial
+- **[Multi-Tenant CLI Commands](docs/cli/multi-tenant-commands.md)** - Complete CLI reference
+- **[Multi-Tenant Configuration](docs/configuration/multi-tenant-config.md)** - Configuration schema and examples
+- **[Cross-Tenant Security Guide](docs/security/cross-tenant-security.md)** - Security architecture and best practices
 
 ## Quick Start
 

@@ -80,6 +80,10 @@ Azure HayMaker generates benign telemetry (the "Hay") in which to hide cybersecu
     <span class="icon">💻</span>
     <span>CLI Guide</span>
   </a>
+  <a href="/AzureHayMaker/guides/cross-tenant-orchestration/" class="quick-link">
+    <span class="icon">🌐</span>
+    <span>Multi-Tenant Setup</span>
+  </a>
   <a href="/AzureHayMaker/reporting-telemetry/" class="quick-link">
     <span class="icon">📊</span>
     <span>Reports & Metrics</span>
@@ -183,6 +187,54 @@ Every component implements real functionality with no stubs, TODOs, or placehold
 - Secrets managed via Azure Key Vault - see [keyvault.bicep](https://github.com/rysweet/AzureHayMaker/blob/main/infra/bicep/modules/keyvault.bicep)
 - Least privilege access patterns
 - Comprehensive audit logging - see [event_bus.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/event_bus.py)
+
+---
+
+## Cross-Tenant Orchestration
+
+{: .highlight }
+> **NEW:** Azure HayMaker now supports cross-tenant orchestration, enabling you to manage workloads across multiple Azure tenants from a single orchestrator.
+
+### Use Cases
+
+- **Managed Service Providers (MSPs)**: Manage 5-50+ customer tenants from centralized control plane
+- **Enterprise IT**: Separate dev/test/prod environments across distinct Azure tenants
+- **Security Testing**: Generate isolated telemetry across organizational boundaries
+- **Multi-Region Deployments**: Deploy scenarios in different geographic tenants
+
+### Quick Start
+
+```bash
+# Add target tenants
+haymaker orch tenant add --name customer-a --tenant-id <id> --subscription-id <id> --keyvault-prefix tenant-a
+haymaker orch tenant add --name customer-b --tenant-id <id> --subscription-id <id> --keyvault-prefix tenant-b
+
+# Start orchestration across all tenants
+haymaker orch start --all-tenants
+
+# Monitor status
+haymaker orch status --all-tenants
+```
+
+### Key Features
+
+- **Complete Tenant Isolation**: Separate credentials, resources, and telemetry per tenant
+- **Concurrent Execution**: Run scenarios in multiple tenants simultaneously
+- **Centralized Management**: Single CLI/API to control all tenants
+- **Secure Credentials**: All tenant credentials stored in Azure Key Vault
+- **Aggregate Monitoring**: Unified view of operations across all tenants
+
+### Documentation
+
+| Document | Description |
+|:---------|:------------|
+| [Cross-Tenant Orchestration Guide](/AzureHayMaker/guides/cross-tenant-orchestration/) | Complete setup and configuration guide |
+| [First Multi-Tenant Setup Tutorial](/AzureHayMaker/tutorials/first-multi-tenant-setup/) | 30-minute step-by-step tutorial |
+| [Multi-Tenant CLI Commands](/AzureHayMaker/cli/multi-tenant/) | Complete CLI command reference |
+| [Multi-Tenant Configuration](/AzureHayMaker/configuration/multi-tenant/) | Configuration schema and examples |
+| [Cross-Tenant Security Guide](/AzureHayMaker/security/cross-tenant/) | Security architecture and best practices |
+
+[Get Started with Multi-Tenant Setup →](/AzureHayMaker/tutorials/first-multi-tenant-setup/){: .btn .btn-primary }
 
 ---
 
