@@ -368,9 +368,8 @@ async def delete_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
         # Determine which credentials to use based on tenant context
         if tenant_context:
             # Cross-tenant mode: Use target tenant credentials
-            import os
-
             from azure.identity import ClientSecretCredential
+
             from azure_haymaker.orchestrator.tenant_auth import TenantCredential
 
             if 'credential' in tenant_context and isinstance(tenant_context['credential'], TenantCredential):
