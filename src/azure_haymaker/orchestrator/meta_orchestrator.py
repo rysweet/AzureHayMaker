@@ -11,12 +11,9 @@ Design Pattern: Fan-out/Fan-in
 Phase 2: Orchestrator Integration
 """
 
-import json
 import logging
-from datetime import datetime
 from typing import Any
 
-import azure.durable_functions as df
 from azure.durable_functions import DurableOrchestrationContext
 
 from azure_haymaker.orchestrator.models.tenant_config import (
@@ -67,8 +64,15 @@ def orchestrate_multi_tenant_run(context: DurableOrchestrationContext) -> dict[s
             "status": "completed"
         }
     """
-    # Extract input
+    # Extract and validate input
     input_data = context.get_input()
+
+    # Validate required fields present
+    if "meta_run_id" not in input_data or not input_data["meta_run_id"]:
+        raise ValueError("meta_run_id is required in orchestration input")
+    if "meta_config" not in input_data or not input_data["meta_config"]:
+        raise ValueError("meta_config is required in orchestration input")
+
     meta_run_id = input_data["meta_run_id"]
     meta_config_dict = input_data["meta_config"]
 
