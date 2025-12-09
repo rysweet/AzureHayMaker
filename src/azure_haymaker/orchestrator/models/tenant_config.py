@@ -7,10 +7,10 @@ Phase 1 (MVP) - Foundation: Cross-tenant authentication and configuration.
 """
 
 import re
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 def validate_uuid_format(value: str, field_name: str) -> str:
@@ -30,8 +30,8 @@ def validate_uuid_format(value: str, field_name: str) -> str:
         # Attempt to parse as UUID to validate format
         UUID(value)
         return value
-    except (ValueError, AttributeError):
-        raise ValueError(f"{field_name} must be a valid UUID format")
+    except (ValueError, AttributeError) as e:
+        raise ValueError(f"{field_name} must be a valid UUID format") from e
 
 
 def validate_cron_expression(value: str) -> str:
@@ -129,7 +129,7 @@ class TargetTenantConfig(BaseModel):
 
     name: str = Field(..., description="Unique tenant identifier")
     display_name: str = Field(..., description="Human-readable display name")
-    description: Optional[str] = Field(default=None, description="Tenant description")
+    description: str | None = Field(default=None, description="Tenant description")
 
     tenant_id: str = Field(..., description="Azure tenant UUID")
     subscription_id: str = Field(..., description="Azure subscription UUID")
@@ -143,7 +143,7 @@ class TargetTenantConfig(BaseModel):
     scenario_selection_mode: str = Field(default="all", description="Scenario selection mode")
     max_scenarios_per_execution: int = Field(default=10, ge=1, description="Max scenarios per execution")
 
-    schedule: Optional[dict] = Field(default=None, description="Cron-based schedule configuration")
+    schedule: dict | None = Field(default=None, description="Cron-based schedule configuration")
 
     resource_tags: dict[str, str] = Field(default_factory=dict, description="Resource tags")
     resource_naming: dict = Field(default_factory=dict, description="Resource naming configuration")
@@ -174,7 +174,7 @@ class TargetTenantConfig(BaseModel):
 
     @field_validator('schedule')
     @classmethod
-    def validate_schedule(cls, v: Optional[dict]) -> Optional[dict]:
+    def validate_schedule(cls, v: dict | None) -> dict | None:
         """Validate schedule configuration contains valid cron expression."""
         if v is None:
             return v
@@ -215,11 +215,11 @@ class MetaOrchestratorConfig(BaseModel):
     """
 
     # Allow both nested and flat structure via model_validate
-    meta_orchestrator: Optional[dict] = Field(default=None, exclude=True)
+    meta_orchestrator: dict | None = Field(default=None, exclude=True)
 
-    name: Optional[str] = Field(default=None, description="Orchestrator instance name")
+    name: str | None = Field(default=None, description="Orchestrator instance name")
 
-    infrastructure_tenant_id: Optional[str] = Field(
+    infrastructure_tenant_id: str | None = Field(
         default=None,
         description="Infrastructure tenant UUID (where orchestrator runs)"
     )
@@ -278,12 +278,12 @@ class MetaOrchestratorConfig(BaseModel):
         description="Circuit breaker failure threshold"
     )
 
-    storage_account_name: Optional[str] = Field(
+    storage_account_name: str | None = Field(
         default=None,
         description="Infrastructure storage account name"
     )
 
-    application_insights_key: Optional[str] = Field(
+    application_insights_key: str | None = Field(
         default=None,
         description="Application Insights instrumentation key"
     )
@@ -332,7 +332,7 @@ class MetaOrchestratorConfig(BaseModel):
 
     @field_validator('infrastructure_tenant_id')
     @classmethod
-    def validate_infrastructure_tenant_id(cls, v: Optional[str]) -> Optional[str]:
+    def validate_infrastructure_tenant_id(cls, v: str | None) -> str | None:
         """Validate infrastructure_tenant_id is valid UUID format."""
         if v is None:
             return v
@@ -373,7 +373,7 @@ class MetaOrchestratorConfig(BaseModel):
         """
         return len(self.target_tenants) <= 1
 
-    def get_tenant_by_name(self, tenant_name: str) -> Optional[TargetTenantConfig]:
+    def get_tenant_by_name(self, tenant_name: str) -> TargetTenantConfig | None:
         """Get target tenant configuration by name.
 
         Args:
@@ -387,7 +387,7 @@ class MetaOrchestratorConfig(BaseModel):
                 return tenant
         return None
 
-    def get_tenant_by_id(self, tenant_id: str) -> Optional[TargetTenantConfig]:
+    def get_tenant_by_id(self, tenant_id: str) -> TargetTenantConfig | None:
         """Get target tenant configuration by ID.
 
         Args:
@@ -432,7 +432,7 @@ class MetaOrchestratorConfig(BaseModel):
         }
 
         # Remove these from top level
-        for key in meta_orchestrator_fields.keys():
+        for key in meta_orchestrator_fields:
             data.pop(key, None)
 
         # Return nested structure

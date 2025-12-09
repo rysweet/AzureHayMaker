@@ -6,8 +6,6 @@ Azure tenants using Key Vault-backed credential storage with caching.
 Phase 1 (MVP) - Foundation: Cross-tenant authentication and credential retrieval.
 """
 
-from typing import Dict, List, Optional
-
 from azure.core.exceptions import AzureError, ResourceNotFoundError
 from pydantic import BaseModel, SecretStr
 
@@ -42,7 +40,7 @@ class TenantCredential(BaseModel):
     tenant_id: str
     subscription_id: str
 
-    def to_dict(self) -> Dict[str, str]:
+    def to_dict(self) -> dict[str, str]:
         """Convert to dictionary (for storage or serialization).
 
         Returns:
@@ -88,7 +86,7 @@ class TenantCredentialManager:
             keyvault_client: Azure Key Vault SecretClient instance
         """
         self.kv_client = keyvault_client
-        self._credential_cache: Dict[str, TenantCredential] = {}
+        self._credential_cache: dict[str, TenantCredential] = {}
 
     async def get_tenant_credential(self, tenant_name: str) -> TenantCredential:
         """Retrieve credential for target tenant from Key Vault.
@@ -176,17 +174,14 @@ class TenantCredentialManager:
             credential = await self.get_tenant_credential(tenant_name)
 
             # Basic validation: check that all fields are present and non-empty
-            if (
-                not credential.client_id
-                or not credential.client_secret.get_secret_value()
-                or not credential.tenant_id
-                or not credential.subscription_id
-            ):
-                return False
-
             # In full implementation, would test actual Azure access here
             # For now, return True if credentials are retrievable and complete
-            return True
+            return bool(
+                credential.client_id
+                and credential.client_secret.get_secret_value()
+                and credential.tenant_id
+                and credential.subscription_id
+            )
 
         except (CredentialNotFoundError, InvalidCredentialError):
             return False
@@ -246,7 +241,7 @@ class TenantCredentialManager:
         # Invalidate cache
         self.invalidate_cache(tenant_name)
 
-    def invalidate_cache(self, tenant_name: Optional[str] = None) -> None:
+    def invalidate_cache(self, tenant_name: str | None = None) -> None:
         """Invalidate credential cache.
 
         Args:
@@ -257,7 +252,7 @@ class TenantCredentialManager:
         else:
             self._credential_cache.clear()
 
-    async def get_all_tenant_names(self) -> List[str]:
+    async def get_all_tenant_names(self) -> list[str]:
         """List all tenant identifiers that have credentials stored.
 
         Queries Key Vault for secrets matching the pattern {tenant-name}-client-id
@@ -280,4 +275,4 @@ class TenantCredentialManager:
                 tenant_name = secret_name[: -len("-client-id")]
                 tenant_names.add(tenant_name)
 
-        return sorted(list(tenant_names))
+        return sorted(tenant_names)

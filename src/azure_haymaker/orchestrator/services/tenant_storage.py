@@ -6,7 +6,7 @@ apply tenant-specific prefixes and filters to ensure data isolation across tenan
 Phase 1 (MVP) - Foundation: Tenant-aware storage with path/partition isolation.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID
 
 
@@ -24,7 +24,7 @@ class TenantAwareBlobClient:
         tenant_context: Optional tenant context (dict) for multi-tenant isolation
     """
 
-    def __init__(self, blob_client, tenant_context: Optional[Dict[str, Any]]):
+    def __init__(self, blob_client, tenant_context: dict[str, Any] | None):
         """Initialize tenant-aware blob client.
 
         Args:
@@ -96,7 +96,7 @@ class TenantAwareBlobClient:
             download_stream = await blob_client.download_blob()
             return await download_stream.readall()
 
-    async def list_blobs(self, name_starts_with: Optional[str] = None) -> List[str]:
+    async def list_blobs(self, name_starts_with: str | None = None) -> list[str]:
         """List blobs filtered by tenant prefix.
 
         Args:
@@ -108,10 +108,7 @@ class TenantAwareBlobClient:
         # Build full prefix
         if self.tenant_context:
             tenant_id = self.tenant_context["tenant_id"]
-            if name_starts_with:
-                prefix = f"{tenant_id}/{name_starts_with}"
-            else:
-                prefix = f"{tenant_id}/"
+            prefix = f"{tenant_id}/{name_starts_with}" if name_starts_with else f"{tenant_id}/"
         else:
             prefix = name_starts_with
 
@@ -146,7 +143,7 @@ class TenantAwareTableClient:
         tenant_context: Optional tenant context (dict) for multi-tenant isolation
     """
 
-    def __init__(self, table_client, tenant_context: Optional[Dict[str, Any]]):
+    def __init__(self, table_client, tenant_context: dict[str, Any] | None):
         """Initialize tenant-aware table client.
 
         Args:
@@ -186,7 +183,7 @@ class TenantAwareTableClient:
             return f"{tenant_id}#{base_key}"
         return base_key
 
-    async def create_entity(self, entity: Dict[str, Any]) -> None:
+    async def create_entity(self, entity: dict[str, Any]) -> None:
         """Create table entity with tenant-prefixed partition key.
 
         Args:
@@ -219,7 +216,7 @@ class TenantAwareTableClient:
 
         await self.table_client.create_entity(entity_copy)
 
-    async def query_entities(self, query_filter: str) -> List[Dict[str, Any]]:
+    async def query_entities(self, query_filter: str) -> list[dict[str, Any]]:
         """Query entities filtered by tenant_id.
 
         Args:
@@ -232,11 +229,7 @@ class TenantAwareTableClient:
         if self.tenant_context:
             tenant_id = self.tenant_context["tenant_id"]
             tenant_filter = f"PartitionKey ge '{tenant_id}#' and PartitionKey lt '{tenant_id}$'"
-
-            if query_filter:
-                full_filter = f"({query_filter}) and {tenant_filter}"
-            else:
-                full_filter = tenant_filter
+            full_filter = f"({query_filter}) and {tenant_filter}" if query_filter else tenant_filter
         else:
             full_filter = query_filter
 
@@ -275,7 +268,7 @@ class TenantAwareCosmosClient:
     def __init__(
         self,
         cosmos_client,
-        tenant_context: Optional[Dict[str, Any]],
+        tenant_context: dict[str, Any] | None,
         partition_key_path: str = "/tenant_id",
     ):
         """Initialize tenant-aware Cosmos client.
@@ -305,7 +298,7 @@ class TenantAwareCosmosClient:
         self.tenant_context = tenant_context
         self.partition_key_path = partition_key_path
 
-    async def create_item(self, item: Dict[str, Any]) -> Dict[str, Any]:
+    async def create_item(self, item: dict[str, Any]) -> dict[str, Any]:
         """Create document with tenant_id field.
 
         Args:
@@ -326,8 +319,8 @@ class TenantAwareCosmosClient:
         return created
 
     async def query_items(
-        self, query: str, parameters: Optional[List[Dict[str, Any]]] = None
-    ) -> List[Dict[str, Any]]:
+        self, query: str, parameters: list[dict[str, Any]] | None = None
+    ) -> list[dict[str, Any]]:
         """Query documents filtered by tenant_id using parameterized queries.
 
         Args:
