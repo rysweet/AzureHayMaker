@@ -17,6 +17,11 @@ Design Pattern: Long-Running Orchestration
 - Handles failures gracefully
 - Supports replays (idempotent)
 
+Multi-Tenant Support (Phase 2):
+- Accepts optional tenant_context in input
+- Passes tenant context to activities for tenant-aware operations
+- Backward compatible (None tenant_context = single-tenant mode)
+
 Dependencies:
 - orchestrator_app: Shared FunctionApp instance
 - activities/*: Activity functions (called by name)
@@ -26,6 +31,7 @@ import logging
 from datetime import timedelta
 from typing import Any
 
+from azure_haymaker.orchestrator.models.tenant_config import TenantContext
 from azure_haymaker.orchestrator.orchestrator_app import app
 
 logger = logging.getLogger(__name__)
@@ -49,6 +55,27 @@ def orchestrate_haymaker_run(context: Any) -> Any:
     6. Forced Cleanup: Force-delete remaining resources (if needed)
     7. Reporting: Generate execution report
 
+    Multi-Tenant Support:
+    Accepts optional tenant_context in input for tenant-aware operations.
+    When tenant_context is None, operates in single-tenant mode (backward compatible).
+
+    Input format:
+        {
+            "run_id": "unique-run-id",
+            "started_at": "2025-12-09T12:00:00Z",
+            "tenant_context": {  // Optional - for multi-tenant mode
+                "tenant_id": "...",
+                "tenant_name": "...",
+                "subscription_id": "...",
+                "region": "..."
+            },
+            "config": {  // Optional - orchestrator config
+                "scenarios": [...],
+                "max_scenarios": 10,
+                ...
+            }
+        }
+
     Args:
         context: Durable orchestration context
 
@@ -62,7 +89,22 @@ def orchestrate_haymaker_run(context: Any) -> Any:
     """
     run_id = context.input.get("run_id")
     started_at = context.input.get("started_at")
-    logger.info(f"Orchestration started for run_id={run_id}")
+
+    # Extract tenant context (None for single-tenant mode)
+    tenant_context_dict = context.input.get("tenant_context")
+    tenant_context = (
+        TenantContext(**tenant_context_dict) if tenant_context_dict else None
+    )
+
+    # Log startup with tenant info
+    if tenant_context:
+        logger.info(
+            f"Orchestration started for run_id={run_id} "
+            f"(tenant={tenant_context.tenant_name}, "
+            f"tenant_id={tenant_context.tenant_id})"
+        )
+    else:
+        logger.info(f"Orchestration started for run_id={run_id} (single-tenant mode)")
 
     execution_report = {
         "run_id": run_id,
@@ -70,6 +112,15 @@ def orchestrate_haymaker_run(context: Any) -> Any:
         "status": "in_progress",
         "phases": {},
     }
+
+    # Add tenant context to report if present
+    if tenant_context:
+        execution_report["tenant_context"] = {
+            "tenant_id": tenant_context.tenant_id,
+            "tenant_name": tenant_context.tenant_name,
+            "subscription_id": tenant_context.subscription_id,
+            "region": tenant_context.region,
+        }
 
     try:
         # ========================================================================

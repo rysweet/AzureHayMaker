@@ -4,6 +4,7 @@ This module provides configuration models for the meta-orchestrator pattern,
 enabling orchestration across multiple Azure tenants with tenant isolation.
 
 Phase 1 (MVP) - Foundation: Cross-tenant authentication and configuration.
+Phase 2 - Orchestration: Meta-orchestrator integration and activity wrapper.
 """
 
 import re
@@ -440,3 +441,24 @@ class MetaOrchestratorConfig(BaseModel):
             "meta_orchestrator": meta_orchestrator_fields,
             "target_tenants": data["target_tenants"],
         }
+
+
+class ActivityInput(BaseModel):
+    """Wrapper for all activity inputs to support tenant context.
+
+    This wrapper enables backward compatibility while adding multi-tenant support.
+    When tenant_context is None, activities operate in single-tenant mode.
+
+    Attributes:
+        tenant_context: Optional tenant context for multi-tenant operations
+        activity_data: Activity-specific input data
+    """
+
+    tenant_context: TenantContext | None = Field(
+        default=None,
+        description="Optional tenant context for multi-tenant operations"
+    )
+    activity_data: dict[str, Any] = Field(
+        ...,
+        description="Activity-specific input data"
+    )

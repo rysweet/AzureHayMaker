@@ -121,12 +121,22 @@ def orch():
     deployed on Azure Container Apps. Includes status checks, replica
     management, log viewing, and health monitoring.
 
+    Multi-tenant support:
+        haymaker orch tenant add/list/update/remove
+        haymaker orch status --tenant <name>
+        haymaker orch start --all-tenants
+
     Example:
         haymaker orch status
         haymaker orch replicas --revision my-app--rev1
         haymaker orch logs --follow
         haymaker orch health --deep
     """
+
+
+# Register tenant command group
+from haymaker_cli.orch.tenant_commands import tenant_group
+orch.add_command(tenant_group)
 
 
 @orch.command()
@@ -145,6 +155,15 @@ def orch():
 @click.option(
     "--revision",
     help="Show specific revision only",
+)
+@click.option(
+    "--tenant",
+    help="Filter by specific tenant name (multi-tenant mode)",
+)
+@click.option(
+    "--all-tenants",
+    is_flag=True,
+    help="Show status for all configured tenants (multi-tenant mode)",
 )
 @click.option(
     "--format",
@@ -166,6 +185,8 @@ def status(
     subscription_id: str | None,
     resource_group: str | None,
     revision: str | None,
+    tenant: str | None,
+    all_tenants: bool,
     output_format: str,
     verbose: bool,
 ):
@@ -176,6 +197,13 @@ def status(
     - Overall provisioning and running status
     - Active revisions with traffic weights
     - Replica counts and health state
+
+    Multi-tenant mode:
+        # Show status for specific tenant
+        haymaker orch status --tenant prod-east
+
+        # Show status for all tenants
+        haymaker orch status --all-tenants
 
     Examples:
         # Show status with default config
@@ -191,6 +219,47 @@ def status(
         haymaker orch status --verbose
     """
     try:
+        # Handle multi-tenant mode
+        if tenant or all_tenants:
+            from haymaker_cli.orch.tenant_config_utils import (
+                TenantConfigError,
+                list_tenant_configs,
+            )
+
+            try:
+                tenants = list_tenant_configs()
+
+                if not tenants:
+                    console.print("[yellow]No tenants configured.[/yellow]")
+                    console.print("Use 'haymaker orch tenant add' to configure tenants.")
+                    sys.exit(1)
+
+                # Filter by tenant name if specified
+                if tenant:
+                    tenants = [t for t in tenants if t["name"] == tenant]
+                    if not tenants:
+                        console.print(f"[red]Error:[/red] Tenant '{tenant}' not found", err=True)
+                        sys.exit(1)
+
+                # Show status for each tenant
+                console.print(f"[cyan]Orchestrator Status - Multi-Tenant Mode[/cyan]")
+                console.print(f"[dim]Showing {len(tenants)} tenant(s)[/dim]\n")
+
+                # Note: This is a placeholder - actual implementation would query
+                # the meta-orchestrator API for real-time status
+                console.print("[yellow]Multi-tenant status querying not yet implemented.[/yellow]")
+                console.print("This feature will query the meta-orchestrator for real-time status.\n")
+
+                # For now, show configuration
+                for t in tenants:
+                    status_indicator = "[green]Enabled[/green]" if t.get("enabled", True) else "[dim]Disabled[/dim]"
+                    console.print(f"  {t['name']:20} {status_indicator:20} Region: {t.get('region', 'N/A'):10}")
+
+                return
+
+            except TenantConfigError as e:
+                console.print(f"[red]Configuration error:[/red] {e}", err=True)
+                sys.exit(1)
         # Load configuration
         config = load_orchestrator_config(
             subscription_id=subscription_id,
@@ -696,4 +765,112 @@ def health(
         handle_orch_error(e)
 
 
-__all__ = ["orch", "status", "replicas", "logs", "health"]
+@orch.command()
+@click.option(
+    "--tenant",
+    help="Start orchestration for specific tenant (multi-tenant mode)",
+)
+@click.option(
+    "--all-tenants",
+    is_flag=True,
+    help="Start orchestration for all enabled tenants (multi-tenant mode)",
+)
+@click.option(
+    "--scenario",
+    help="Start specific scenario only",
+)
+@click.pass_context
+def start(
+    ctx: click.Context,
+    tenant: str | None,
+    all_tenants: bool,
+    scenario: str | None,
+):
+    """Start orchestration execution.
+
+    Triggers orchestration execution either for single-tenant mode
+    or multi-tenant mode depending on options provided.
+
+    Multi-tenant mode:
+        # Start specific tenant
+        haymaker orch start --tenant prod-east
+
+        # Start all enabled tenants
+        haymaker orch start --all-tenants
+
+        # Start specific scenario on tenant
+        haymaker orch start --tenant prod-east --scenario compute-01
+
+    Examples:
+        # Start orchestration (single-tenant mode)
+        haymaker orch start
+
+        # Start all tenants (multi-tenant mode)
+        haymaker orch start --all-tenants
+
+        # Start specific tenant
+        haymaker orch start --tenant prod-east
+    """
+    try:
+        # Handle multi-tenant mode
+        if tenant or all_tenants:
+            from haymaker_cli.orch.tenant_config_utils import (
+                TenantConfigError,
+                list_tenant_configs,
+            )
+
+            try:
+                tenants = list_tenant_configs()
+
+                if not tenants:
+                    console.print("[yellow]No tenants configured.[/yellow]")
+                    console.print("Use 'haymaker orch tenant add' to configure tenants.")
+                    sys.exit(1)
+
+                # Filter by tenant name if specified
+                if tenant:
+                    tenants = [t for t in tenants if t["name"] == tenant]
+                    if not tenants:
+                        console.print(f"[red]Error:[/red] Tenant '{tenant}' not found", err=True)
+                        sys.exit(1)
+                else:
+                    # Filter to enabled tenants only
+                    tenants = [t for t in tenants if t.get("enabled", True)]
+
+                if not tenants:
+                    console.print("[yellow]No enabled tenants found.[/yellow]")
+                    sys.exit(1)
+
+                # Show what will be started
+                console.print(f"[cyan]Starting orchestration for {len(tenants)} tenant(s)...[/cyan]\n")
+
+                for t in tenants:
+                    console.print(f"  - {t['name']} (Region: {t.get('region', 'N/A')})")
+
+                console.print()
+                console.print("[yellow]Multi-tenant orchestration start not yet implemented.[/yellow]")
+                console.print("This feature will call the meta-orchestrator API to start execution.\n")
+                console.print("[dim]In Phase 4, this will:[/dim]")
+                console.print("[dim]  1. Call POST /api/orchestrator/start with tenant filter[/dim]")
+                console.print("[dim]  2. Meta-orchestrator spawns child orchestrators[/dim]")
+                console.print("[dim]  3. Track execution IDs and status[/dim]")
+
+                return
+
+            except TenantConfigError as e:
+                console.print(f"[red]Configuration error:[/red] {e}", err=True)
+                sys.exit(1)
+
+        # Single-tenant mode (existing behavior)
+        console.print("[cyan]Starting orchestration (single-tenant mode)...[/cyan]")
+        console.print("[yellow]Single-tenant start not yet implemented.[/yellow]")
+        console.print("This would call the orchestrator API to start execution.")
+
+    except KeyboardInterrupt:
+        console.print("\n[dim]Interrupted by user[/dim]")
+        sys.exit(0)
+    except Exception as e:
+        handle_orch_error(e)
+
+
+__all__ = ["orch", "status", "replicas", "logs", "health", "start"]

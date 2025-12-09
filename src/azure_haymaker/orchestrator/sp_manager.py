@@ -109,6 +109,7 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
     roles: list[str],
     key_vault_client: SecretClient,
     secret_validity_days: int = DEFAULT_SECRET_VALIDITY_DAYS,
+    tenant_context: dict | None = None,
 ) -> ServicePrincipalDetails:
     """Create ephemeral service principal for scenario execution.
 
@@ -116,12 +117,18 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
     'AzureHayMaker-{scenario_name}-admin', assigns the specified roles,
     stores the secret in Key Vault, and returns the SP details.
 
+    Supports both single-tenant and cross-tenant modes:
+    - Single-tenant (tenant_context=None): Creates SP in infrastructure tenant
+    - Cross-tenant (tenant_context provided): Creates SP in target tenant
+
     Args:
         scenario_name: Name of the scenario (used in SP name)
         subscription_id: Azure subscription ID for role assignments
         roles: List of role names to assign (e.g., ["Contributor", "Reader"])
         key_vault_client: Key Vault client for storing SP secret
         secret_validity_days: Number of days until secret expires (default 30)
+        tenant_context: Optional tenant context dict with tenant_id, subscription_id, and credentials
+                       If provided, creates SP in target tenant (cross-tenant mode)
 
     Returns:
         ServicePrincipalDetails with client_id, principal_id, secret reference and expiration
@@ -140,11 +147,37 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
 
         from azure.identity import ClientSecretCredential
 
-        tenant_id = os.getenv("AZURE_TENANT_ID")
-        client_id = os.getenv("AZURE_CLIENT_ID")
-        client_secret = os.getenv("AZURE_CLIENT_SECRET")
+        # Determine which credentials to use based on tenant context
+        if tenant_context:
+            # Cross-tenant mode: Use target tenant credentials from tenant_context
+            # Extract credentials from TenantCredential structure
+            from azure_haymaker.orchestrator.tenant_auth import TenantCredential
 
-        logger.info(f"Creating SP for {scenario_name} using client_id={(client_id or '')[:8]}...")
+            # tenant_context is a dict that may contain a 'credential' key with TenantCredential
+            # or direct credential fields
+            if 'credential' in tenant_context and isinstance(tenant_context['credential'], TenantCredential):
+                tenant_cred = tenant_context['credential']
+                tenant_id = tenant_cred.tenant_id
+                client_id = tenant_cred.client_id
+                client_secret = tenant_cred.client_secret.get_secret_value()
+            else:
+                # Direct fields in tenant_context
+                tenant_id = tenant_context.get('tenant_id')
+                client_id = tenant_context.get('sp_client_id')
+                client_secret = tenant_context.get('sp_client_secret')
+
+            # Override subscription_id if provided in tenant context
+            if 'subscription_id' in tenant_context:
+                subscription_id = tenant_context['subscription_id']
+
+            logger.info(f"Creating SP for {scenario_name} in target tenant {tenant_id[:8]}... using client_id={(client_id or '')[:8]}...")
+        else:
+            # Single-tenant mode: Use infrastructure tenant credentials from environment
+            tenant_id = os.getenv("AZURE_TENANT_ID")
+            client_id = os.getenv("AZURE_CLIENT_ID")
+            client_secret = os.getenv("AZURE_CLIENT_SECRET")
+
+            logger.info(f"Creating SP for {scenario_name} using client_id={(client_id or '')[:8]}...")
 
         credential = ClientSecretCredential(
             tenant_id=tenant_id,
@@ -309,15 +342,22 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
 async def delete_service_principal(  # pyright: ignore[reportGeneralTypeIssues,reportUnnecessaryComparison,reportAttributeAccessIssue]
     sp_name: str,
     key_vault_client: SecretClient,
+    tenant_context: dict | None = None,
 ) -> None:
     """Delete service principal and its secret from Key Vault.
 
     This function deletes the service principal and removes its secret
     from Key Vault. It handles cases where the SP or secret doesn't exist gracefully.
 
+    Supports both single-tenant and cross-tenant modes:
+    - Single-tenant (tenant_context=None): Deletes SP from infrastructure tenant
+    - Cross-tenant (tenant_context provided): Deletes SP from target tenant
+
     Args:
         sp_name: Name of the service principal to delete
         key_vault_client: Key Vault client for deleting SP secret
+        tenant_context: Optional tenant context dict with credentials
+                       If provided, deletes SP from target tenant
 
     Raises:
         ServicePrincipalError: If deletion encounters a fatal error
@@ -325,7 +365,31 @@ async def delete_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
     secret_name = sp_name.replace("AzureHayMaker-", "scenario-sp-").replace("-admin", "-secret")
 
     try:
-        credential = get_credential()
+        # Determine which credentials to use based on tenant context
+        if tenant_context:
+            # Cross-tenant mode: Use target tenant credentials
+            import os
+
+            from azure.identity import ClientSecretCredential
+            from azure_haymaker.orchestrator.tenant_auth import TenantCredential
+
+            if 'credential' in tenant_context and isinstance(tenant_context['credential'], TenantCredential):
+                tenant_cred = tenant_context['credential']
+                credential = ClientSecretCredential(
+                    tenant_id=tenant_cred.tenant_id,
+                    client_id=tenant_cred.client_id,
+                    client_secret=tenant_cred.client_secret.get_secret_value()
+                )
+            else:
+                credential = ClientSecretCredential(
+                    tenant_id=tenant_context.get('tenant_id'),
+                    client_id=tenant_context.get('sp_client_id'),
+                    client_secret=tenant_context.get('sp_client_secret')
+                )
+        else:
+            # Single-tenant mode: Use infrastructure tenant credentials
+            credential = get_credential()
+
         graph_client = GraphServiceClient(credential)
 
         # Find service principal by display name
@@ -570,17 +634,24 @@ async def rotate_service_principal_secret(  # pyright: ignore[reportGeneralTypeI
     key_vault_client: SecretClient,
     secret_validity_days: int = DEFAULT_SECRET_VALIDITY_DAYS,
     remove_old_secrets: bool = True,
+    tenant_context: dict | None = None,
 ) -> ServicePrincipalDetails:
     """Rotate the secret for an existing service principal.
 
     Creates a new secret for the service principal, stores it in Key Vault,
     and optionally removes old secrets.
 
+    Supports both single-tenant and cross-tenant modes:
+    - Single-tenant (tenant_context=None): Rotates SP in infrastructure tenant
+    - Cross-tenant (tenant_context provided): Rotates SP in target tenant
+
     Args:
         sp_name: Name of the service principal to rotate
         key_vault_client: Key Vault client for storing new secret
         secret_validity_days: Number of days until new secret expires
         remove_old_secrets: Whether to remove old password credentials
+        tenant_context: Optional tenant context dict with credentials
+                       If provided, rotates SP in target tenant
 
     Returns:
         ServicePrincipalDetails with updated secret reference and expiration
@@ -595,15 +666,36 @@ async def rotate_service_principal_secret(  # pyright: ignore[reportGeneralTypeI
 
         from azure.identity import ClientSecretCredential
 
-        tenant_id = os.getenv("AZURE_TENANT_ID")
-        client_id = os.getenv("AZURE_CLIENT_ID")
-        client_secret = os.getenv("AZURE_CLIENT_SECRET")
+        # Determine which credentials to use based on tenant context
+        if tenant_context:
+            # Cross-tenant mode: Use target tenant credentials
+            from azure_haymaker.orchestrator.tenant_auth import TenantCredential
 
-        credential = ClientSecretCredential(
-            tenant_id=tenant_id,
-            client_id=client_id,
-            client_secret=client_secret
-        )
+            if 'credential' in tenant_context and isinstance(tenant_context['credential'], TenantCredential):
+                tenant_cred = tenant_context['credential']
+                credential = ClientSecretCredential(
+                    tenant_id=tenant_cred.tenant_id,
+                    client_id=tenant_cred.client_id,
+                    client_secret=tenant_cred.client_secret.get_secret_value()
+                )
+            else:
+                credential = ClientSecretCredential(
+                    tenant_id=tenant_context.get('tenant_id'),
+                    client_id=tenant_context.get('sp_client_id'),
+                    client_secret=tenant_context.get('sp_client_secret')
+                )
+        else:
+            # Single-tenant mode: Use infrastructure tenant credentials
+            tenant_id = os.getenv("AZURE_TENANT_ID")
+            client_id = os.getenv("AZURE_CLIENT_ID")
+            client_secret = os.getenv("AZURE_CLIENT_SECRET")
+
+            credential = ClientSecretCredential(
+                tenant_id=tenant_id,
+                client_id=client_id,
+                client_secret=client_secret
+            )
+
         graph_client = GraphServiceClient(credential)
 
         # Find the application by display name

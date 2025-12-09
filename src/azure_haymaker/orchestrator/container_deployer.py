@@ -32,11 +32,13 @@ class ContainerDeployer:
     - Azure Container Apps API orchestration
     """
 
-    def __init__(self, config: OrchestratorConfig):
+    def __init__(self, config: OrchestratorConfig, tenant_context: dict | None = None):
         """Initialize ContainerDeployer with configuration.
 
         Args:
             config: OrchestratorConfig with deployment settings
+            tenant_context: Optional tenant context dict for cross-tenant deployment
+                           If provided, deploys to target tenant
 
         Raises:
             ValueError: If configuration is invalid
@@ -45,8 +47,15 @@ class ContainerDeployer:
             raise ValueError("Configuration is required")
 
         self.config = config
-        self.resource_group_name = config.resource_group_name
-        self.subscription_id = config.target_subscription_id
+        self.tenant_context = tenant_context
+
+        # Use tenant context values if provided, otherwise use config
+        if tenant_context:
+            self.resource_group_name = tenant_context.get('resource_group_name', config.resource_group_name)
+            self.subscription_id = tenant_context.get('subscription_id', config.target_subscription_id)
+        else:
+            self.resource_group_name = config.resource_group_name
+            self.subscription_id = config.target_subscription_id
 
         # Validate resource constraints
         self._validate_resources()
@@ -91,11 +100,31 @@ class ContainerDeployer:
 
             from azure.identity import ClientSecretCredential
 
-            credential = ClientSecretCredential(
-                tenant_id=os.getenv("AZURE_TENANT_ID"),
-                client_id=os.getenv("AZURE_CLIENT_ID"),
-                client_secret=os.getenv("AZURE_CLIENT_SECRET")
-            )
+            # Determine which credentials to use based on tenant context
+            if self.tenant_context:
+                # Cross-tenant mode: Use target tenant credentials
+                from azure_haymaker.orchestrator.tenant_auth import TenantCredential
+
+                if 'credential' in self.tenant_context and isinstance(self.tenant_context['credential'], TenantCredential):
+                    tenant_cred = self.tenant_context['credential']
+                    credential = ClientSecretCredential(
+                        tenant_id=tenant_cred.tenant_id,
+                        client_id=tenant_cred.client_id,
+                        client_secret=tenant_cred.client_secret.get_secret_value()
+                    )
+                else:
+                    credential = ClientSecretCredential(
+                        tenant_id=self.tenant_context.get('tenant_id'),
+                        client_id=self.tenant_context.get('sp_client_id'),
+                        client_secret=self.tenant_context.get('sp_client_secret')
+                    )
+            else:
+                # Single-tenant mode: Use infrastructure tenant credentials
+                credential = ClientSecretCredential(
+                    tenant_id=os.getenv("AZURE_TENANT_ID"),
+                    client_id=os.getenv("AZURE_CLIENT_ID"),
+                    client_secret=os.getenv("AZURE_CLIENT_SECRET")
+                )
 
             # Build container configuration
             container = self._build_container(app_name, sp)

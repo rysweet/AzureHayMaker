@@ -94,6 +94,17 @@ from haymaker_cli.orch.models import (
     RevisionInfo,
     ServerError,
 )
+from haymaker_cli.orch.tenant_config_utils import (
+    TenantConfigError,
+    add_tenant_to_config,
+    get_tenant_config_path,
+    list_tenant_configs,
+    load_tenant_config,
+    remove_tenant_from_config,
+    save_tenant_config,
+    update_tenant_in_config,
+    validate_tenant_config,
+)
 
 __all__ = [
     # Models
@@ -128,4 +139,14 @@ __all__ = [
     "check_replica_health",
     "check_http_health_endpoint",
     "run_health_checks",
+    # Tenant Configuration
+    "TenantConfigError",
+    "get_tenant_config_path",
+    "load_tenant_config",
+    "save_tenant_config",
+    "validate_tenant_config",
+    "list_tenant_configs",
+    "add_tenant_to_config",
+    "update_tenant_in_config",
+    "remove_tenant_from_config",
 ]

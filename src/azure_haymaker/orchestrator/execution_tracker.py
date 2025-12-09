@@ -47,6 +47,10 @@ class ExecutionTracker:
     Stores execution state with PartitionKey=execution_id and RowKey=timestamp.
     Supports create, update, query, and status retrieval operations.
 
+    Supports both single-tenant and cross-tenant modes:
+    - Single-tenant (tenant_context=None): Uses standard table storage
+    - Cross-tenant (tenant_context provided): Uses tenant-aware storage with isolation
+
     Example:
         >>> table_client = TableClient.from_connection_string(conn_str, "Executions")
         >>> tracker = ExecutionTracker(table_client)
@@ -56,13 +60,22 @@ class ExecutionTracker:
         ... )
     """
 
-    def __init__(self, table_client: TableClient):
+    def __init__(self, table_client: TableClient, tenant_context: dict | None = None):
         """Initialize execution tracker.
 
         Args:
             table_client: Azure Table Storage client for execution tracking
+            tenant_context: Optional tenant context dict for multi-tenant isolation
+                           If provided, enables tenant-aware storage operations
         """
-        self.table = table_client
+        self.tenant_context = tenant_context
+
+        # Wrap table client with tenant-aware client if context provided
+        if tenant_context:
+            from azure_haymaker.orchestrator.services.tenant_storage import TenantAwareTableClient
+            self.table = TenantAwareTableClient(table_client, tenant_context)
+        else:
+            self.table = table_client
 
     async def create_execution(
         self,
