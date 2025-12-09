@@ -75,7 +75,8 @@ def format_tenant_list(tenants: list[dict], format_type: str = "table") -> None:
         table.add_column("Status")
 
         for tenant in tenants:
-            status = "[green]Enabled[/green]" if tenant.get("enabled", True) else "[dim]Disabled[/dim]"
+            enabled = tenant.get("enabled", True)
+            status = "[green]Enabled[/green]" if enabled else "[dim]Disabled[/dim]"
             scenario_count = len(tenant.get("scenarios", []))
 
             table.add_row(
@@ -167,26 +168,26 @@ def tenant_group():
 @click.option(
     "--keyvault-prefix",
     required=True,
-    help="Key Vault secret prefix for tenant credentials"
+    help="Key Vault secret prefix for tenant credentials",
 )
 @click.option("--display-name", help="Human-readable display name")
 @click.option("--description", help="Tenant description")
 @click.option(
     "--scenarios",
     multiple=True,
-    help="Scenario identifiers (can be specified multiple times)"
+    help="Scenario identifiers (can be specified multiple times)",
 )
 @click.option("--schedule", help="Cron schedule expression (e.g., '0 */6 * * *')")
 @click.option("--enabled/--disabled", default=True, help="Enable tenant (default: enabled)")
 @click.option(
     "--max-workers",
     type=int,
-    help="Maximum knowledge workers"
+    help="Maximum knowledge workers",
 )
 @click.option(
     "--max-concurrent",
     type=int,
-    help="Maximum concurrent scenarios"
+    help="Maximum concurrent scenarios",
 )
 def add_tenant(
     tenant_name,
@@ -246,7 +247,7 @@ def add_tenant(
             "region": region,
             "resource_group_name": resource_group,
             "credentials": {
-                "keyvault_secret_prefix": keyvault_prefix
+                "keyvault_secret_prefix": keyvault_prefix,
             },
             "enabled": enabled,
             "scenarios": list(scenarios) if scenarios else [],
@@ -258,7 +259,7 @@ def add_tenant(
         if schedule:
             tenant_config["schedule"] = {
                 "cron": schedule,
-                "enabled": True
+                "enabled": True,
             }
 
         # Build limits if specified
@@ -294,12 +295,12 @@ def add_tenant(
     "output_format",
     type=click.Choice(["table", "json", "yaml"], case_sensitive=False),
     default="table",
-    help="Output format"
+    help="Output format",
 )
 @click.option(
     "--filter-enabled/--filter-all",
     default=False,
-    help="Show only enabled tenants"
+    help="Show only enabled tenants",
 )
 def list_tenants(output_format, filter_enabled):
     """List all configured tenants.
@@ -344,7 +345,7 @@ def list_tenants(output_format, filter_enabled):
     "output_format",
     type=click.Choice(["table", "json", "yaml"], case_sensitive=False),
     default="table",
-    help="Output format"
+    help="Output format",
 )
 def tenant_status(tenant_name, output_format):
     """Show detailed status for a specific tenant.
@@ -391,12 +392,12 @@ def tenant_status(tenant_name, output_format):
 @click.option(
     "--add-scenario",
     multiple=True,
-    help="Add scenario (can be specified multiple times)"
+    help="Add scenario (can be specified multiple times)",
 )
 @click.option(
     "--remove-scenario",
     multiple=True,
-    help="Remove scenario (can be specified multiple times)"
+    help="Remove scenario (can be specified multiple times)",
 )
 def update_tenant(
     tenant_name,
@@ -511,7 +512,7 @@ def update_tenant(
 @click.option(
     "--confirm",
     is_flag=True,
-    help="Skip confirmation prompt"
+    help="Skip confirmation prompt",
 )
 def remove_tenant(tenant_name, confirm):
     """Remove tenant from configuration.
@@ -545,7 +546,11 @@ def remove_tenant(tenant_name, confirm):
 
         # Confirmation prompt
         if not confirm:
-            console.print(f"[yellow]Warning:[/yellow] You are about to remove tenant '{tenant_name}'")
+            warning_msg = (
+                f"[yellow]Warning:[/yellow] "
+                f"You are about to remove tenant '{tenant_name}'"
+            )
+            console.print(warning_msg)
             console.print("\n[dim]Current configuration:[/dim]")
             format_tenant_status(tenant, "table")
             console.print()
