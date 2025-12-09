@@ -54,46 +54,54 @@ class TestCrossTenantSPManager:
 
     async def test_create_sp_single_tenant_mode(self, mock_key_vault_client):
         """Test SP creation in single-tenant mode (backward compatibility)."""
-        with patch(
-            "azure_haymaker.orchestrator.sp_manager.GraphServiceClient"
-        ) as mock_graph:
-            # Mock Graph API responses
-            mock_app = MagicMock()
-            mock_app.id = "app-object-id"
-            mock_app.app_id = "app-client-id"
+        # Mock environment variables for single-tenant mode
+        mock_env = {
+            "AZURE_TENANT_ID": "infra-tenant-id",
+            "AZURE_CLIENT_ID": "infra-client-id",
+            "AZURE_CLIENT_SECRET": "infra-client-secret"
+        }
 
-            mock_sp = MagicMock()
-            mock_sp.id = "sp-object-id"
-
-            mock_password = MagicMock()
-            mock_password.secret_text = "generated-secret"
-
-            mock_graph_instance = mock_graph.return_value
-            mock_graph_instance.applications.post = AsyncMock(return_value=mock_app)
-            mock_graph_instance.applications.by_application_id.return_value.get = (
-                AsyncMock(return_value=mock_app)
-            )
-            mock_graph_instance.service_principals.post = AsyncMock(return_value=mock_sp)
-            mock_graph_instance.applications.by_application_id.return_value.add_password.post = AsyncMock(
-                return_value=mock_password
-            )
-
+        with patch.dict("os.environ", mock_env):
             with patch(
-                "azure_haymaker.orchestrator.sp_manager.AuthorizationManagementClient"
-            ) as mock_auth:
-                mock_auth_instance = mock_auth.return_value
-                mock_auth_instance.role_assignments.create = MagicMock()
+                "azure_haymaker.orchestrator.sp_manager.GraphServiceClient"
+            ) as mock_graph:
+                # Mock Graph API responses
+                mock_app = MagicMock()
+                mock_app.id = "app-object-id"
+                mock_app.app_id = "app-client-id"
 
-                with patch("asyncio.to_thread", side_effect=lambda f, *args, **kwargs: f(*args, **kwargs)):
-                    with patch("asyncio.sleep", return_value=None):
-                        # Test without tenant_context (single-tenant mode)
-                        result = await create_service_principal(
-                            scenario_name="test-scenario",
-                            subscription_id="sub-123",
-                            roles=["Contributor"],
-                            key_vault_client=mock_key_vault_client,
-                            tenant_context=None,  # Single-tenant mode
-                        )
+                mock_sp = MagicMock()
+                mock_sp.id = "sp-object-id"
+
+                mock_password = MagicMock()
+                mock_password.secret_text = "generated-secret"
+
+                mock_graph_instance = mock_graph.return_value
+                mock_graph_instance.applications.post = AsyncMock(return_value=mock_app)
+                mock_graph_instance.applications.by_application_id.return_value.get = (
+                    AsyncMock(return_value=mock_app)
+                )
+                mock_graph_instance.service_principals.post = AsyncMock(return_value=mock_sp)
+                mock_graph_instance.applications.by_application_id.return_value.add_password.post = AsyncMock(
+                    return_value=mock_password
+                )
+
+                with patch(
+                    "azure_haymaker.orchestrator.sp_manager.AuthorizationManagementClient"
+                ) as mock_auth:
+                    mock_auth_instance = mock_auth.return_value
+                    mock_auth_instance.role_assignments.create = MagicMock()
+
+                    with patch("asyncio.to_thread", side_effect=lambda f, *args, **kwargs: f(*args, **kwargs)):
+                        with patch("asyncio.sleep", return_value=None):
+                            # Test without tenant_context (single-tenant mode)
+                            result = await create_service_principal(
+                                scenario_name="test-scenario",
+                                subscription_id="sub-123",
+                                roles=["Contributor"],
+                                key_vault_client=mock_key_vault_client,
+                                tenant_context=None,  # Single-tenant mode
+                            )
 
                         assert result.client_id == "app-client-id"
                         assert result.principal_id == "sp-object-id"
@@ -229,7 +237,8 @@ class TestCrossTenantExecutionTracker:
 
         # Verify PartitionKey has tenant prefix in cross-tenant mode
         call_args = mock_table_client.create_entity.call_args
-        entity = call_args[1]["entity"]
+        # TenantAwareTableClient passes entity as first positional arg
+        entity = call_args[0][0]  # args[0]
         tenant_id = mock_tenant_context["tenant_id"]
         assert entity["PartitionKey"].startswith(
             f"{tenant_id}#"
@@ -244,8 +253,15 @@ class TestCrossTenantContainerDeployer:
 
     async def test_container_deployer_single_tenant_mode(self):
         """Test container deployer in single-tenant mode."""
-        from azure_haymaker.models.config import OrchestratorConfig
-        from azure_haymaker.models.scenario import ScenarioMetadata
+        from azure_haymaker.models.config import (
+            CosmosDBConfig,
+            LogAnalyticsConfig,
+            OrchestratorConfig,
+            SimulationSize,
+            StorageConfig,
+            TableStorageConfig,
+        )
+        from pydantic import SecretStr
 
         config = OrchestratorConfig(
             resource_group_name="rg-test",
@@ -257,6 +273,32 @@ class TestCrossTenantContainerDeployer:
             container_registry="myregistry.azurecr.io",
             container_image="haymaker:latest",
             main_sp_client_id="sp-123",
+            main_sp_client_secret=SecretStr("secret-123"),
+            anthropic_api_key=SecretStr("api-key-123"),
+            service_bus_namespace="sb-namespace",
+            simulation_size=SimulationSize.SMALL,
+            storage=StorageConfig(
+                account_name="storage123",
+                container_logs="logs",
+                container_state="state",
+                container_reports="reports",
+                container_scenarios="scenarios",
+            ),
+            table_storage=TableStorageConfig(
+                account_name="tables123",
+                table_execution_runs="runs",
+                table_scenario_status="scenario_status",
+                table_resource_inventory="resource_inventory",
+            ),
+            cosmosdb=CosmosDBConfig(
+                endpoint="https://cosmos.documents.azure.com:443/",
+                database_name="haymaker",
+                container_metrics="metrics",
+            ),
+            log_analytics=LogAnalyticsConfig(
+                workspace_id="workspace-123",
+                workspace_key=SecretStr("workspace-key-123"),
+            ),
             vnet_integration_enabled=False,
         )
 
@@ -269,7 +311,15 @@ class TestCrossTenantContainerDeployer:
 
     async def test_container_deployer_cross_tenant_mode(self, mock_tenant_context):
         """Test container deployer in cross-tenant mode."""
-        from azure_haymaker.models.config import OrchestratorConfig
+        from azure_haymaker.models.config import (
+            CosmosDBConfig,
+            LogAnalyticsConfig,
+            OrchestratorConfig,
+            SimulationSize,
+            StorageConfig,
+            TableStorageConfig,
+        )
+        from pydantic import SecretStr
 
         config = OrchestratorConfig(
             resource_group_name="rg-infra",
@@ -281,6 +331,32 @@ class TestCrossTenantContainerDeployer:
             container_registry="myregistry.azurecr.io",
             container_image="haymaker:latest",
             main_sp_client_id="sp-infra",
+            main_sp_client_secret=SecretStr("secret-infra"),
+            anthropic_api_key=SecretStr("api-key-infra"),
+            service_bus_namespace="sb-namespace",
+            simulation_size=SimulationSize.SMALL,
+            storage=StorageConfig(
+                account_name="storage123",
+                container_logs="logs",
+                container_state="state",
+                container_reports="reports",
+                container_scenarios="scenarios",
+            ),
+            table_storage=TableStorageConfig(
+                account_name="tables123",
+                table_execution_runs="runs",
+                table_scenario_status="scenario_status",
+                table_resource_inventory="resource_inventory",
+            ),
+            cosmosdb=CosmosDBConfig(
+                endpoint="https://cosmos.documents.azure.com:443/",
+                database_name="haymaker",
+                container_metrics="metrics",
+            ),
+            log_analytics=LogAnalyticsConfig(
+                workspace_id="workspace-123",
+                workspace_key=SecretStr("workspace-key-123"),
+            ),
             vnet_integration_enabled=False,
         )
 
@@ -361,7 +437,15 @@ class TestEndToEndCrossTenantOrchestration:
         assert execution_id.startswith("exec-")
 
         # Step 3: Verify container deployer uses tenant context
-        from azure_haymaker.models.config import OrchestratorConfig
+        from azure_haymaker.models.config import (
+            CosmosDBConfig,
+            LogAnalyticsConfig,
+            OrchestratorConfig,
+            SimulationSize,
+            StorageConfig,
+            TableStorageConfig,
+        )
+        from pydantic import SecretStr
 
         config = OrchestratorConfig(
             resource_group_name="rg-infra",
@@ -373,6 +457,32 @@ class TestEndToEndCrossTenantOrchestration:
             container_registry="myregistry.azurecr.io",
             container_image="haymaker:latest",
             main_sp_client_id="sp-infra",
+            main_sp_client_secret=SecretStr("secret-infra"),
+            anthropic_api_key=SecretStr("api-key-infra"),
+            service_bus_namespace="sb-namespace",
+            simulation_size=SimulationSize.SMALL,
+            storage=StorageConfig(
+                account_name="storage123",
+                container_logs="logs",
+                container_state="state",
+                container_reports="reports",
+                container_scenarios="scenarios",
+            ),
+            table_storage=TableStorageConfig(
+                account_name="tables123",
+                table_execution_runs="runs",
+                table_scenario_status="scenario_status",
+                table_resource_inventory="resource_inventory",
+            ),
+            cosmosdb=CosmosDBConfig(
+                endpoint="https://cosmos.documents.azure.com:443/",
+                database_name="haymaker",
+                container_metrics="metrics",
+            ),
+            log_analytics=LogAnalyticsConfig(
+                workspace_id="workspace-123",
+                workspace_key=SecretStr("workspace-key-123"),
+            ),
             vnet_integration_enabled=False,
         )
 
