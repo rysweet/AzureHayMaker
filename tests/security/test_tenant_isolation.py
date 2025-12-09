@@ -187,8 +187,12 @@ class TestCredentialIsolation:
         # Store credentials for both tenants
         mock_kv_client.set_secret(f"{tenant_a_name}-client-id", str(uuid4()))
         mock_kv_client.set_secret(f"{tenant_a_name}-client-secret", "secret-a")
+        mock_kv_client.set_secret(f"{tenant_a_name}-tenant-id", str(uuid4()))
+        mock_kv_client.set_secret(f"{tenant_a_name}-subscription-id", str(uuid4()))
         mock_kv_client.set_secret(f"{tenant_b_name}-client-id", str(uuid4()))
         mock_kv_client.set_secret(f"{tenant_b_name}-client-secret", "secret-b")
+        mock_kv_client.set_secret(f"{tenant_b_name}-tenant-id", str(uuid4()))
+        mock_kv_client.set_secret(f"{tenant_b_name}-subscription-id", str(uuid4()))
 
         credential_manager = TenantCredentialManager(mock_kv_client)
 
@@ -196,8 +200,8 @@ class TestCredentialIsolation:
         tenant_a_creds = await credential_manager.get_tenant_credential(tenant_a_name)
 
         # Assert - Should only have access to Tenant A credentials
-        assert tenant_a_creds.client_secret == "secret-a"
-        assert tenant_a_creds.client_secret != "secret-b"
+        assert tenant_a_creds.client_secret.get_secret_value() == "secret-a"
+        assert tenant_a_creds.client_secret.get_secret_value() != "secret-b"
 
     @pytest.mark.asyncio
     async def test_keyvault_secrets_scoped_to_correct_tenant(self, mock_kv_client):
@@ -205,6 +209,9 @@ class TestCredentialIsolation:
         # Arrange
         tenant_name = "tenant-secure"
         mock_kv_client.set_secret(f"{tenant_name}-client-id", "correct-client-id")
+        mock_kv_client.set_secret(f"{tenant_name}-client-secret", "correct-secret")
+        mock_kv_client.set_secret(f"{tenant_name}-tenant-id", str(uuid4()))
+        mock_kv_client.set_secret(f"{tenant_name}-subscription-id", str(uuid4()))
 
         credential_manager = TenantCredentialManager(mock_kv_client)
 
