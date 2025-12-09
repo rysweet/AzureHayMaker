@@ -194,6 +194,8 @@ Every component implements real functionality with no stubs, TODOs, or placehold
 
 {: .highlight }
 > **NEW:** Azure HayMaker now supports cross-tenant orchestration, enabling you to manage workloads across multiple Azure tenants from a single orchestrator.
+>
+> 📖 **[Feature Highlight & Architecture Overview](/AzureHayMaker/CROSS_TENANT_FEATURE_HIGHLIGHT/)** - Quick executive summary
 
 ### Use Cases
 
