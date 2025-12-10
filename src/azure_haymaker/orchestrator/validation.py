@@ -95,9 +95,8 @@ async def validate_anthropic_api(config: OrchestratorConfig) -> ValidationResult
     try:
         client = AsyncAnthropic(api_key=config.anthropic_api_key.get_secret_value())
 
-        # Make minimal test request
-        await client.messages.create(
-            model="claude-sonnet-4-20250514",
+        # Make minimal test request (using SDK default model)
+        response = await client.messages.create(
             max_tokens=10,
             messages=[{"role": "user", "content": "Hello"}],
         )
@@ -105,7 +104,7 @@ async def validate_anthropic_api(config: OrchestratorConfig) -> ValidationResult
         return ValidationResult(
             check_name="anthropic_api",
             passed=True,
-            details={"model": "claude-sonnet-4-20250514"},
+            details={"model": response.model},  # Use actual model from response
         )
 
     except Exception as e:
