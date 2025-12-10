@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from anthropic import Anthropic, AnthropicError, RateLimitError
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from azure_haymaker.knowledge_worker.content.prompts import (
     build_system_prompt,
@@ -107,10 +107,7 @@ class EmailGenerationConfig(BaseModel):
     temperature: float = 0.7
     timeout_seconds: int = 30
 
-    class Config:
-        """Pydantic configuration."""
-
-        frozen = False
+    model_config = {"frozen": False}
 
 
 class EmailContentGenerator:

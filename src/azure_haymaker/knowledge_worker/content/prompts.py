@@ -6,7 +6,6 @@ Knowledge Worker email content with custom directives.
 
 import re
 
-
 # Security: Dangerous patterns in directives that could lead to prompt injection
 DANGEROUS_DIRECTIVE_PATTERNS = [
     r"ignore\s+(all\s+)?(previous|above|prior)\s+(instructions|directives|rules)",
@@ -45,8 +44,8 @@ def validate_directive(directive: str | None) -> str | None:
     for pattern in DANGEROUS_DIRECTIVE_PATTERNS:
         if re.search(pattern, directive_lower, re.IGNORECASE):
             raise ValueError(
-                f"Invalid directive: contains potentially malicious pattern. "
-                f"Directives should only contain simple instructions for email style."
+                "Invalid directive: contains potentially malicious pattern. "
+                "Directives should only contain simple instructions for email style."
             )
 
     # Length check to prevent extremely long directives
