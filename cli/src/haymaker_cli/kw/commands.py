@@ -630,7 +630,6 @@ def _display_email_config(
     marker_style: str,
     marker_format: str,
     enable_ai_generation: bool,
-    ai_model: str | None,
     email_directive: str | None,
     workers: int | None = None,
     duration: int | None = None,
@@ -647,10 +646,7 @@ def _display_email_config(
     # AI configuration
     if enable_ai_generation:
         console.print(f"  AI Email Generation: Enabled")
-        if ai_model:
-            console.print(f"    - Model: {ai_model}")
-        else:
-            console.print(f"    - Model: Default (Claude SDK)")
+        console.print(f"    - Model: Anthropic SDK default")
         if email_directive:
             console.print(f"    - Directive: {_truncate_directive(email_directive)}")
         else:
@@ -733,11 +729,6 @@ def _display_email_config(
     help="Custom directive for AI email generation (e.g., 'Include a limerick')",
 )
 @click.option(
-    "--ai-model",
-    default=None,
-    help="Claude model to use for email generation (uses SDK default if not specified)",
-)
-@click.option(
     "--dry-run",
     is_flag=True,
     help="Show what would be deployed without executing",
@@ -756,7 +747,6 @@ def deploy(
     marker_format: str,
     enable_ai_generation: bool,
     email_directive: str | None,
-    ai_model: str | None,
     dry_run: bool,
 ):
     """Deploy a knowledge worker simulation.
@@ -810,7 +800,7 @@ def deploy(
         # Display email configuration
         _display_email_config(
             enable_markers, marker_style, marker_format,
-            enable_ai_generation, ai_model, email_directive,
+            enable_ai_generation, email_directive,
             workers, duration
         )
 
@@ -820,7 +810,6 @@ def deploy(
         email_gen_config = EmailGenerationConfig(
             enabled=enable_ai_generation,
             api_key=os.getenv("ANTHROPIC_API_KEY") if enable_ai_generation else None,
-            model=ai_model,
             directive=email_directive,
         )
 
@@ -868,7 +857,7 @@ def deploy(
             console.print("\n[cyan]Email Configuration:[/cyan]")
             _display_email_config(
                 enable_markers, marker_style, marker_format,
-                enable_ai_generation, ai_model, email_directive,
+                enable_ai_generation, email_directive,
                 workers, duration
             )
 
