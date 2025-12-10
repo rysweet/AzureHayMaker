@@ -16,6 +16,7 @@ Example:
     >>> haymaker kw test --persona engineering
 """
 
+import os
 import sys
 from typing import Any
 
@@ -24,6 +25,20 @@ from rich.console import Console
 from rich.table import Table
 
 console = Console()
+
+# Try to import KW framework components (for test mocking and functionality)
+# These imports are optional - command will fail gracefully if not available
+try:
+    from azure_haymaker.knowledge_worker import (
+        DeploymentConfig,
+        KnowledgeWorkerOrchestrator,
+    )
+    from azure_haymaker.knowledge_worker.content import EmailGenerationConfig
+except ImportError:
+    # Framework not available - will be caught in command execution
+    DeploymentConfig = None  # type: ignore
+    KnowledgeWorkerOrchestrator = None  # type: ignore
+    EmailGenerationConfig = None  # type: ignore
 
 
 def format_json(data: Any) -> str:
@@ -603,6 +618,56 @@ def _display_status_table(status: dict[str, Any]) -> None:
         console.print(f"\n[dim]Personas available: {status['persona_count']}[/dim]")
 
 
+def _truncate_directive(directive: str, max_length: int = 80) -> str:
+    """Truncate directive for display if needed."""
+    if len(directive) <= max_length:
+        return directive
+    return directive[:max_length - 3] + "..."
+
+
+def _display_email_config(
+    enable_markers: bool,
+    marker_style: str,
+    marker_format: str,
+    enable_ai_generation: bool,
+    ai_model: str | None,
+    email_directive: str | None,
+    workers: int | None = None,
+    duration: int | None = None,
+) -> None:
+    """Display email configuration including markers and AI settings."""
+    # Marker configuration
+    if enable_markers:
+        console.print(f"  Email Markers: Enabled")
+        console.print(f"    - Format: {marker_format}")
+        console.print(f"    - Style: {marker_style}")
+    else:
+        console.print(f"  Email Markers: Disabled")
+
+    # AI configuration
+    if enable_ai_generation:
+        console.print(f"  AI Email Generation: Enabled")
+        if ai_model:
+            console.print(f"    - Model: {ai_model}")
+        else:
+            console.print(f"    - Model: Default (Claude SDK)")
+        if email_directive:
+            console.print(f"    - Directive: {_truncate_directive(email_directive)}")
+        else:
+            console.print(f"    - Directive: Default (department-based)")
+
+        # Show cost estimate if deployment details provided
+        if workers is not None and duration is not None:
+            estimated_emails = workers * 4 * duration  # 4 emails/hour default
+            console.print(f"\n[yellow]  ⚠️  API Cost Estimation:[/yellow]")
+            console.print(f"[yellow]    - Estimated emails: ~{estimated_emails} ({workers} workers × 4/hr × {duration}h)[/yellow]")
+            console.print(f"[yellow]    - API calls: ~{estimated_emails}[/yellow]")
+            console.print(f"[yellow]    - Estimated cost: Variable (depends on model and token usage)[/yellow]")
+            console.print(f"[dim]      Check Anthropic pricing for details[/dim]")
+    else:
+        console.print("  AI Email Generation: Disabled (using templates)")
+
+
 @kw.command()
 @click.option(
     "--name",
@@ -642,6 +707,37 @@ def _display_status_table(status: dict[str, Any]) -> None:
     help="Endpoint type for worker execution (default: cli_container)",
 )
 @click.option(
+    "--enable-markers/--no-enable-markers",
+    default=True,
+    help="Enable email markers for tracking (default: enabled)",
+)
+@click.option(
+    "--marker-style",
+    type=click.Choice(["subject", "hidden", "both"], case_sensitive=False),
+    default="subject",
+    help="Marker placement style (default: subject)",
+)
+@click.option(
+    "--marker-format",
+    default="MARKER",
+    help="Format string for markers (default: MARKER)",
+)
+@click.option(
+    "--enable-ai-generation",
+    is_flag=True,
+    help="Enable AI-powered email generation using Claude API",
+)
+@click.option(
+    "--email-directive",
+    default=None,
+    help="Custom directive for AI email generation (e.g., 'Include a limerick')",
+)
+@click.option(
+    "--ai-model",
+    default=None,
+    help="Claude model to use for email generation (uses SDK default if not specified)",
+)
+@click.option(
     "--dry-run",
     is_flag=True,
     help="Show what would be deployed without executing",
@@ -655,6 +751,12 @@ def deploy(
     tenant_domain: str,
     duration: int,
     endpoint_type: str,
+    enable_markers: bool,
+    marker_style: str,
+    marker_format: str,
+    enable_ai_generation: bool,
+    email_directive: str | None,
+    ai_model: str | None,
     dry_run: bool,
 ):
     """Deploy a knowledge worker simulation.
@@ -667,12 +769,35 @@ def deploy(
         haymaker kw deploy --workers 10 --department sales --duration 4
         haymaker kw deploy --workers 5 --endpoint-type windows_vm
         haymaker kw deploy --workers 20 --endpoint-type cloud_pc --department executive
+        haymaker kw deploy --workers 25 --enable-ai-generation --email-directive "Focus on IT ops"
+        haymaker kw deploy --workers 10 --marker-format "TEST-ID" --marker-style hidden
     """
+    # Input validation (before imports to fail fast)
+    if email_directive is not None and not email_directive.strip():
+        console.print("[yellow]Warning: Empty directive provided, will use default[/yellow]")
+        email_directive = None
+
+    if email_directive is not None and len(email_directive) > 1000:
+        console.print(f"[red]Error: Email directive must be 1000 characters or less (current: {len(email_directive)})[/red]")
+        sys.exit(1)
+
+    if len(marker_format) > 50:
+        console.print(f"[red]Error: Marker format must be 50 characters or less (current: {len(marker_format)})[/red]")
+        sys.exit(1)
+
+    if enable_ai_generation and not os.getenv("ANTHROPIC_API_KEY", "").strip():
+        console.print("[red]Error: ANTHROPIC_API_KEY environment variable required for AI generation[/red]")
+        console.print("[dim]Set with: export ANTHROPIC_API_KEY='your-key-here'[/dim]")
+        sys.exit(1)
+
+    # Warn if directive provided without AI enabled
+    if email_directive is not None and not enable_ai_generation:
+        console.print("[yellow]Warning: --email-directive ignored without --enable-ai-generation[/yellow]")
+
     try:
-        from azure_haymaker.knowledge_worker import (
-            DeploymentConfig,
-            KnowledgeWorkerOrchestrator,
-        )
+        # Check if KW framework is available
+        if DeploymentConfig is None or KnowledgeWorkerOrchestrator is None or EmailGenerationConfig is None:
+            raise ImportError("KW framework components not available")
 
         console.print("[cyan]Preparing KW deployment...[/cyan]")
         console.print(f"  Name: {name}")
@@ -681,7 +806,23 @@ def deploy(
         console.print(f"  Tenant Domain: {tenant_domain}")
         console.print(f"  Duration: {duration}h")
         console.print(f"  Endpoint Type: {endpoint_type}")
+
+        # Display email configuration
+        _display_email_config(
+            enable_markers, marker_style, marker_format,
+            enable_ai_generation, ai_model, email_directive,
+            workers, duration
+        )
+
         console.print()
+
+        # Create email generation config
+        email_gen_config = EmailGenerationConfig(
+            enabled=enable_ai_generation,
+            api_key=os.getenv("ANTHROPIC_API_KEY") if enable_ai_generation else None,
+            model=ai_model,
+            directive=email_directive,
+        )
 
         # Create deployment config
         config = DeploymentConfig(
@@ -701,6 +842,10 @@ def deploy(
             },
             duration_hours=duration,
             tenant_domain=tenant_domain,
+            email_markers_enabled=enable_markers,
+            marker_style=marker_style,
+            marker_format=marker_format,
+            email_generation=email_gen_config,
         )
 
         if dry_run:
@@ -718,11 +863,18 @@ def deploy(
             }
             endpoint_desc = endpoint_descriptions.get(endpoint_type, "Endpoints")
             console.print(f"  - {endpoint_desc} for each worker")
+
+            # Email configuration section (uses helper function)
+            console.print("\n[cyan]Email Configuration:[/cyan]")
+            _display_email_config(
+                enable_markers, marker_style, marker_format,
+                enable_ai_generation, ai_model, email_directive,
+                workers, duration
+            )
+
             return
 
         # Get credentials from environment
-        import os
-
         tenant_id = os.getenv("KW_TENANT_ID")
         app_id = os.getenv("KW_APP_ID")
         client_secret = os.getenv("KW_CLIENT_SECRET")
