@@ -636,6 +636,12 @@ def _display_status_table(status: dict[str, Any]) -> None:
     help="Duration in hours to run activities",
 )
 @click.option(
+    "--endpoint-type",
+    type=click.Choice(["cli_container", "windows_vm", "cloud_pc"], case_sensitive=False),
+    default="cli_container",
+    help="Endpoint type for worker execution (default: cli_container)",
+)
+@click.option(
     "--dry-run",
     is_flag=True,
     help="Show what would be deployed without executing",
@@ -648,6 +654,7 @@ def deploy(
     department: str,
     tenant_domain: str,
     duration: int,
+    endpoint_type: str,
     dry_run: bool,
 ):
     """Deploy a knowledge worker simulation.
@@ -658,7 +665,8 @@ def deploy(
     Examples:
         haymaker kw deploy --name test --workers 5
         haymaker kw deploy --workers 10 --department sales --duration 4
-        haymaker kw deploy --dry-run
+        haymaker kw deploy --workers 5 --endpoint-type windows_vm
+        haymaker kw deploy --workers 20 --endpoint-type cloud_pc --department executive
     """
     try:
         from azure_haymaker.knowledge_worker import (
@@ -672,6 +680,7 @@ def deploy(
         console.print(f"  Department: {department}")
         console.print(f"  Tenant Domain: {tenant_domain}")
         console.print(f"  Duration: {duration}h")
+        console.print(f"  Endpoint Type: {endpoint_type}")
         console.print()
 
         # Create deployment config
@@ -681,7 +690,7 @@ def deploy(
             departments={
                 department: {
                     "count": workers,
-                    "endpoint_type": "cli_container",
+                    "endpoint_type": endpoint_type,
                     "activity": {
                         "email_per_hour": 4,
                         "teams_messages_per_hour": 10,
@@ -698,9 +707,17 @@ def deploy(
             console.print("[yellow]Dry run - deployment not started[/yellow]")
             console.print("\n[cyan]Would create:[/cyan]")
             console.print(f"  - {workers} {department} workers")
+            console.print(f"  - Endpoint type: {endpoint_type}")
             console.print("  - Security groups for workers")
             console.print("  - Transport rules (external email blocking)")
-            console.print("  - CLI containers for each worker")
+            # Dynamic endpoint description based on selected type
+            endpoint_descriptions = {
+                "cli_container": "CLI containers",
+                "windows_vm": "Windows VMs",
+                "cloud_pc": "Cloud PCs"
+            }
+            endpoint_desc = endpoint_descriptions.get(endpoint_type, "Endpoints")
+            console.print(f"  - {endpoint_desc} for each worker")
             return
 
         # Get credentials from environment
