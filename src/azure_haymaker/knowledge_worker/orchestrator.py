@@ -22,6 +22,7 @@ Example:
 """
 
 import asyncio
+import html
 import logging
 import random
 from dataclasses import dataclass, field
@@ -35,6 +36,12 @@ from azure_haymaker.knowledge_worker.agent import (
     KnowledgeWorkerConfig,
 )
 from azure_haymaker.knowledge_worker.cleanup import KnowledgeWorkerResourceInventory
+from azure_haymaker.knowledge_worker.content import (
+    EmailContent,
+    EmailContentGenerator,
+    EmailGenerationConfig,
+    FallbackEmailGenerator,
+)
 from azure_haymaker.knowledge_worker.models.worker import (
     WorkerConfig,
     WorkerPersona,
@@ -83,12 +90,17 @@ class DeploymentConfig:
         duration_hours: How long to run activities
         tenant_domain: M365 tenant domain
         m365_app_id: M365 application client ID (optional)
+        email_markers_enabled: Enable email markers for tracking
+        marker_format: Format for markers (e.g., "MARKER", "TAG")
+        marker_style: Where to place markers ("subject", "hidden", "both")
+        email_generation: AI email generation configuration
 
     Note:
         Requires the following environment variables:
         - KW_TENANT_ID: Azure AD tenant ID
         - KW_APP_ID: Application (client) ID with Graph permissions
         - KW_CLIENT_SECRET: Client secret for application
+        - ANTHROPIC_API_KEY: Anthropic API key (if email_generation.enabled=True)
     """
 
     name: str = "kw-deployment"
@@ -97,6 +109,16 @@ class DeploymentConfig:
     duration_hours: int = 8
     tenant_domain: str = ""
     m365_app_id: str = ""
+
+    # Email marker configuration
+    email_markers_enabled: bool = True
+    marker_format: str = "MARKER"
+    marker_style: str = "subject"  # "subject", "hidden", "both"
+
+    # AI email generation configuration
+    email_generation: EmailGenerationConfig = field(
+        default_factory=lambda: EmailGenerationConfig(enabled=False)
+    )
 
     def __post_init__(self) -> None:
         """Set default departments if not provided."""
@@ -178,11 +200,14 @@ class KnowledgeWorkerOrchestrator:
         >>> await orchestrator.start_deployment(run_id)
     """
 
-    def __init__(self, graph_client: "GraphServiceClient") -> None:
+    def __init__(
+        self, graph_client: "GraphServiceClient", config: DeploymentConfig | None = None
+    ) -> None:
         """Initialize the orchestrator.
 
         Args:
             graph_client: Microsoft Graph API client (REQUIRED)
+            config: Optional deployment configuration for initialization
 
         Raises:
             ValueError: If graph_client is None
@@ -198,6 +223,21 @@ class KnowledgeWorkerOrchestrator:
         self._worker_tasks: dict[str, list[asyncio.Task]] = {}
         self._user_manager: EntraUserManager | None = None
         self._worker_registry: WorkerRegistry | None = None
+
+        # Store config for email generation
+        self.config = config or DeploymentConfig()
+        self.current_run_id: str | None = None
+
+        # Initialize email generators
+        self.email_generator: EmailContentGenerator | None = None
+        self.fallback_generator = FallbackEmailGenerator()
+
+        if self.config.email_generation.enabled:
+            try:
+                self.email_generator = EmailContentGenerator(self.config.email_generation)
+                logger.info("AI email generation enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize AI email generator: {e}. Using fallback.")
 
     def create_deployment(self, config: DeploymentConfig) -> str:
         """Create a new deployment.
@@ -266,6 +306,20 @@ class KnowledgeWorkerOrchestrator:
         try:
             state.status = DeploymentStatus.RUNNING
             state.started_at = datetime.now(UTC)
+            self.current_run_id = run_id
+
+            # Update config if different from initialization
+            if state.config != self.config:
+                self.config = state.config
+                # Reinitialize email generator if needed
+                if self.config.email_generation.enabled and not self.email_generator:
+                    try:
+                        self.email_generator = EmailContentGenerator(self.config.email_generation)
+                        logger.info("AI email generation enabled for deployment")
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to initialize AI email generator: {e}. Using fallback."
+                        )
 
             # Phase 1: Setup
             await self._phase_setup(state)
@@ -581,10 +635,27 @@ class KnowledgeWorkerOrchestrator:
                     recipients = worker.get_allowed_recipients()
                     if recipients:
                         to = [random.choice(recipients)]
-                        subject = f"Activity {activity_count + 1} from {worker_id}"
-                        body = f"<p>Automated activity generated at {datetime.now(UTC).isoformat()}</p>"
 
-                        await worker.send_email(to=to, subject=subject, body=body)
+                        # Generate email content (AI or fallback)
+                        email_content = await self._generate_email_content(
+                            worker_id=worker_id,
+                            activity_count=activity_count,
+                            recipient=to[0],
+                            department=worker.worker_config.department,
+                        )
+
+                        # Add markers if enabled
+                        if self.config.email_markers_enabled:
+                            email_content = self._add_email_markers(
+                                email_content,
+                                worker_id=worker_id,
+                                activity_count=activity_count,
+                                run_id=self.current_run_id,
+                            )
+
+                        await worker.send_email(
+                            to=to, subject=email_content.subject, body=email_content.body
+                        )
                         logger.info(f"Worker {worker_id} sent email to {to[0]}")
                     else:
                         logger.debug(f"Worker {worker_id}: no recipients available")
@@ -614,6 +685,106 @@ class KnowledgeWorkerOrchestrator:
                 await asyncio.sleep(5)  # Brief pause on error
 
         logger.info(f"Worker {worker_id} completed {activity_count} activities")
+
+    async def _generate_email_content(
+        self,
+        worker_id: str,
+        activity_count: int,
+        recipient: str,
+        department: str,
+    ) -> EmailContent:
+        """Generate email content with three-level fallback strategy.
+
+        Strategy:
+        1. Try AI generation (if enabled)
+        2. Fall back to simple generator on AI failure
+        3. Fall back to hardcoded content on any error
+
+        Args:
+            worker_id: Worker identifier
+            activity_count: Current activity count
+            recipient: Recipient email address
+            department: Department name
+
+        Returns:
+            EmailContent with subject and body
+        """
+        # Level 1: Try AI generation if enabled
+        if self.email_generator:
+            try:
+                return await self.email_generator.generate_email(
+                    worker_id=worker_id,
+                    department=department,
+                    recipient=recipient,
+                    activity_count=activity_count,
+                    run_id=self.current_run_id,
+                )
+            except Exception as e:
+                logger.warning(
+                    f"AI email generation failed for {worker_id}: {e}. Using fallback."
+                )
+
+        # Level 2 & 3: Use fallback generator
+        return self.fallback_generator.generate_email(
+            worker_id=worker_id,
+            activity_count=activity_count,
+            department=department,
+            run_id=self.current_run_id,
+        )
+
+    def _add_email_markers(
+        self,
+        email_content: EmailContent,
+        worker_id: str,
+        activity_count: int,
+        run_id: str | None,
+    ) -> EmailContent:
+        """Add tracking markers to email content.
+
+        Adds markers based on configuration (subject, hidden, or both).
+
+        Args:
+            email_content: Original email content
+            worker_id: Worker identifier
+            activity_count: Current activity count
+            run_id: Deployment run ID
+
+        Returns:
+            EmailContent with markers added
+        """
+        # Security: Escape all marker components to prevent HTML injection
+        safe_format = html.escape(self.config.marker_format)
+        safe_run_id = html.escape(run_id or "unknown")
+        safe_worker_id = html.escape(worker_id)
+        safe_count = html.escape(str(activity_count + 1))
+
+        marker_text = f"[{safe_format}:{safe_run_id}:{safe_worker_id}:{safe_count}]"
+
+        subject = email_content.subject
+        body = email_content.body
+
+        # Add to subject if configured
+        if self.config.marker_style in ("subject", "both"):
+            subject = f"{marker_text} {subject}"
+
+        # Add hidden marker to body if configured
+        if self.config.marker_style in ("hidden", "both"):
+            # Security: HTML comment injection prevention
+            # Escape the marker to prevent breaking out of comments with -->
+            # Double escaping here is intentional - once for the marker text itself,
+            # and the marker_text is already escaped above
+            body = f"<!-- {marker_text} -->\n{body}"
+
+        # Update metadata
+        metadata = email_content.metadata.copy()
+        metadata["marker"] = marker_text
+        metadata["marker_style"] = self.config.marker_style
+
+        return EmailContent(
+            subject=subject,
+            body=body,
+            metadata=metadata,
+        )
 
 
 __all__ = [
