@@ -18,6 +18,7 @@ Example:
 import asyncio
 import html
 import logging
+import os
 import random
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -36,6 +37,7 @@ from azure_haymaker.knowledge_worker.content import (
     EmailGenerationConfig,
     FallbackEmailGenerator,
 )
+from azure_haymaker.knowledge_worker.identity import PermissionGranter
 from azure_haymaker.knowledge_worker.models.worker import (
     WorkerConfig,
     WorkerPersona,
@@ -476,9 +478,44 @@ class KnowledgeWorkerOrchestrator:
         # Setup security infrastructure
         # TODO: Implement security group creation
         # TODO: Implement transport rules via Exchange Online API
-        # TODO: Configure app permissions
+
+        # Grant Mail.ReadWrite permission if needed
+        await self._ensure_mail_permission_granted(state)
 
         logger.info(f"[{state.run_id}] Setup phase complete")
+
+    async def _ensure_mail_permission_granted(self, state: DeploymentState) -> None:
+        """Ensure Mail.ReadWrite permission is granted to the KW app.
+
+        Idempotent - safe to call multiple times. Logs warning on failure
+        but does not block deployment.
+
+        Args:
+            state: Deployment state
+        """
+        try:
+            # Get app ID from config or environment
+            app_id = state.config.m365_app_id or os.getenv("KW_APP_ID", "")
+            if not app_id:
+                logger.warning(
+                    f"[{state.run_id}] No app ID configured. "
+                    "Skipping Mail.ReadWrite permission grant."
+                )
+                return
+
+            logger.info(f"[{state.run_id}] Ensuring Mail.ReadWrite permission for app {app_id}")
+
+            granter = PermissionGranter(self._graph_client, app_id)
+            success = await granter.ensure_mail_permission()
+
+            if not success:
+                logger.warning(
+                    f"[{state.run_id}] Failed to grant Mail.ReadWrite permission. "
+                    "Email operations may fail."
+                )
+
+        except Exception as e:
+            logger.error(f"[{state.run_id}] Permission grant error: {e}")
 
     async def _phase_provision(self, state: DeploymentState) -> None:
         """Provision phase: Create Entra users and initialize workers.
@@ -791,9 +828,7 @@ class KnowledgeWorkerOrchestrator:
                     run_id=self.current_run_id,
                 )
             except Exception as e:
-                logger.warning(
-                    f"AI email generation failed for {worker_id}: {e}. Using fallback."
-                )
+                logger.warning(f"AI email generation failed for {worker_id}: {e}. Using fallback.")
 
         # Level 2 & 3: Use fallback generator
         return self.fallback_generator.generate_email(

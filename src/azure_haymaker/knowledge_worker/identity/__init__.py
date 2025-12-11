@@ -5,6 +5,9 @@ simulated knowledge workers.
 """
 
 from azure_haymaker.knowledge_worker.identity.group_manager import EntraGroupManager
+from azure_haymaker.knowledge_worker.identity.permission_granter import (
+    PermissionGranter,
+)
 from azure_haymaker.knowledge_worker.identity.transport_rules import (
     TransportRuleManager,
 )
@@ -14,4 +17,5 @@ __all__ = [
     "EntraUserManager",
     "EntraGroupManager",
     "TransportRuleManager",
+    "PermissionGranter",
 ]
