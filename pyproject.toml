@@ -111,4 +111,3 @@ addopts = [
     "--cov-report=html",
     "--cov-fail-under=0",
 ]
-asyncio_mode = "auto"
