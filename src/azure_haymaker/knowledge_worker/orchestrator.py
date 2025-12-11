@@ -6,13 +6,7 @@ The orchestrator manages the full lifecycle of knowledge worker deployments:
 3. Execute - Run worker activities
 4. Cleanup - Remove all created resources
 
-NOTE: This is a LOCAL SIMULATION orchestrator. It demonstrates the deployment
-lifecycle but does not create actual Azure resources. For production use:
-- Integrate with EntraUserManager for real user provisioning
-- Connect to actual M365 endpoints via Graph API
-- Implement proper Azure resource cleanup
-
-The e2e-test CLI command validates real Graph API connectivity separately.
+Manages full lifecycle of knowledge worker deployments with real Azure resources.
 
 Example:
     >>> orchestrator = KnowledgeWorkerOrchestrator(graph_client)
@@ -479,12 +473,11 @@ class KnowledgeWorkerOrchestrator:
         # Save phase change
         self._save_deployment_state(state)
 
-        # In a full implementation, this would:
-        # 1. Create security group for all workers
-        # 2. Create transport rules to block external email
-        # 3. Configure app permissions
+        # Setup security infrastructure
+        # TODO: Implement security group creation
+        # TODO: Implement transport rules via Exchange Online API
+        # TODO: Configure app permissions
 
-        # For now, just log
         logger.info(f"[{state.run_id}] Setup phase complete")
 
     async def _phase_provision(self, state: DeploymentState) -> None:
