@@ -1,9 +1,27 @@
-"""Automatic Graph API permission granting for Knowledge Worker deployments."""
+"""Automatic Graph API permission granting for Knowledge Worker deployments.
+
+SECURITY NOTE: This module handles OData filter construction and requires
+proper input sanitization to prevent injection attacks. All user-controlled
+inputs MUST be sanitized using _sanitize_odata_value() before use in filters.
+"""
 
 import logging
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+def _sanitize_odata_value(value: str) -> str:
+    """Sanitize input for OData/Graph API query filters to prevent injection attacks.
+
+    Args:
+        value: Input string to sanitize
+
+    Returns:
+        Sanitized string safe for use in OData filters
+    """
+    # Escape single quotes by doubling them (OData standard)
+    return value.replace("'", "''")
 
 
 class PermissionGranter:
@@ -69,8 +87,21 @@ class PermissionGranter:
     async def _get_service_principal(self, app_id: str) -> Any:
         """Get service principal by app ID."""
         try:
+            from kiota_abstractions.base_request_configuration import RequestConfiguration
+            from msgraph.generated.service_principals.service_principals_request_builder import (
+                ServicePrincipalsRequestBuilder,
+            )
+
+            query_params = (
+                ServicePrincipalsRequestBuilder.ServicePrincipalsRequestBuilderGetQueryParameters(
+                    filter=f"appId eq '{_sanitize_odata_value(app_id)}'"
+                )
+            )
+            request_config = RequestConfiguration()
+            request_config.query_parameters = query_params
+
             result = await self.graph_client.service_principals.get(
-                request_configuration={"query_parameters": {"filter": f"appId eq '{app_id}'"}}
+                request_configuration=request_config
             )
 
             if result and result.value and len(result.value) > 0:
