@@ -80,6 +80,10 @@ def load_config_file(file_path: str) -> ConfigResult:
     if not path.exists():
         return ConfigResult(error=f"Config file not found: {file_path}")
 
+    # Security: Reject symlinks to prevent reading sensitive files
+    if path.is_symlink():
+        return ConfigResult(error=f"Config file cannot be a symlink: {file_path}")
+
     # Check file is readable
     if not path.is_file():
         return ConfigResult(error=f"Config path is not a file: {file_path}")
