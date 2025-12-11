@@ -150,7 +150,7 @@ marker_format: LIMERICK      # Custom marker prefix
 email_generation:
   enabled: true
   directive: "Write all emails as limericks about office work, meetings, and IT operations"
-  # model: claude-3-5-sonnet-20241022  # Optional: override default
+  # model: claude-sonnet-4-5-20250929  # Optional: override default
 ```
 
 **Edit the file**:
@@ -272,7 +272,7 @@ haymaker kw deploy \
 [OK] Authentication successful
 
 [INFO] Creating deployment configuration...
-[INFO] AI email generation enabled (model: claude-3-5-sonnet-20241022)
+[INFO] AI email generation enabled (model: claude-sonnet-4-5-20250929)
 [INFO] Estimated cost: ~$1.25 for ~250 emails
 
 [INFO] Creating 25 operations workers...
@@ -509,7 +509,7 @@ Documents: 50
   Marker format: LIMERICK
   Marker style: subject
   Average email length: 148 tokens
-  AI model used: claude-3-5-sonnet-20241022
+  AI model used: claude-sonnet-4-5-20250929
 
 [cyan]Cost Breakdown:[/cyan]
   Total API calls: 247
@@ -555,7 +555,7 @@ cat limerick-report.json | jq '.'
   },
   "ai_generation": {
     "enabled": true,
-    "model": "claude-3-5-sonnet-20241022",
+    "model": "claude-sonnet-4-5-20250929",
     "total_calls": 247,
     "input_tokens": 12350,
     "output_tokens": 36556,

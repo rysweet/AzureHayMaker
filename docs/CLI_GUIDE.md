@@ -87,7 +87,12 @@ default_profile: default
 export HAYMAKER_ENDPOINT=https://haymaker-dev.azurewebsites.net
 export HAYMAKER_API_KEY=your-api-key
 export HAYMAKER_PROFILE=default
+
+# Optional: Configure Anthropic model for AI email generation
+export ANTHROPIC_MODEL=claude-sonnet-4-5-20250929
 ```
+
+See [Configure Anthropic Model](/AzureHayMaker/howto/configure-anthropic-model) for details on model selection and configuration.
 
 ### Using the Config Command
 
@@ -572,6 +577,7 @@ done
 ## Related Documentation
 
 For detailed documentation, see:
+- [Configure Anthropic Model](/AzureHayMaker/howto/configure-anthropic-model) - Select and configure Claude models for AI email generation
 - [Reporting & Telemetry Guide](/AzureHayMaker/reporting-telemetry/) - Comprehensive reporting, metrics, and dashboard documentation
 - [API Reference](/AzureHayMaker/api/) - REST API endpoints and examples
 - [Architecture Documentation](/AzureHayMaker/architecture/) - System design and components

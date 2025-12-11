@@ -743,6 +743,11 @@ def _display_email_config(
     help="Custom directive for AI email generation (overrides config file)",
 )
 @click.option(
+    "--ai-model",
+    default=None,
+    help="Anthropic model name for AI generation (overrides config file and ANTHROPIC_MODEL env var)",
+)
+@click.option(
     "--dry-run",
     is_flag=True,
     help="Show what would be deployed without executing",
@@ -762,6 +767,7 @@ def deploy(
     marker_format: str | None,
     enable_ai_generation: bool | None,
     email_directive: str | None,
+    ai_model: str | None,
     dry_run: bool,
 ):
     """Deploy a knowledge worker simulation.
@@ -776,6 +782,7 @@ def deploy(
         haymaker kw deploy --workers 20 --endpoint-type cloud_pc --department executive
         haymaker kw deploy --workers 25 --enable-ai-generation --email-directive "Focus on IT ops"
         haymaker kw deploy --workers 10 --marker-format "TEST-ID" --marker-style hidden
+        haymaker kw deploy --workers 10 --enable-ai-generation --ai-model claude-opus-4-5-20251101
         haymaker kw deploy --config-file examples/kw-deployments/kw-25-mixed.yaml
         haymaker kw deploy --config-file config.yaml --duration 2  # Override duration from file
     """
@@ -837,6 +844,7 @@ def deploy(
         marker_format=marker_format,
         enable_ai_generation=enable_ai_generation,
         email_directive=email_directive,
+        ai_model=ai_model,
     )
 
     # Handle department CLI override (special case for single-dept deployments)
@@ -947,10 +955,21 @@ def deploy(
 
         console.print()
 
+        # Determine model with priority: CLI > config > env var > default
+        # The EmailGenerationConfig and email_generator.py will handle None -> default
+        final_ai_model = None
+        if email_gen_config and isinstance(email_gen_config, dict):
+            final_ai_model = email_gen_config.get("model")
+
+        # If not in config, check env var
+        if not final_ai_model:
+            final_ai_model = os.getenv("ANTHROPIC_MODEL")
+
         # Create email generation config
         email_gen_obj = EmailGenerationConfig(
             enabled=final_enable_ai,
             api_key=os.getenv("ANTHROPIC_API_KEY") if final_enable_ai else None,
+            model=final_ai_model,
             directive=final_email_directive,
         )
 

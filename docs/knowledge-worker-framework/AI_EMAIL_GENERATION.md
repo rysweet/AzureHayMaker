@@ -1,11 +1,8 @@
-# [PLANNED - Implementation Pending]
-
 # AI-Generated Knowledge Worker Emails
 
 **Purpose**: Generate realistic email content using AI models to enhance Knowledge Worker simulations with context-appropriate messaging.
 
-**Last Updated**: 2025-12-10
-**Status**: Planned Feature
+**Last Updated**: 2025-12-11
 
 ---
 
@@ -117,42 +114,49 @@ haymaker kw deploy \
 
 ---
 
-#### `--ai-model MODEL_NAME`
+#### Model Configuration
 
-Override the default AI model for email generation.
+Configure which Anthropic Claude model to use for email generation.
 
+**Environment Variable**:
 ```bash
-# Use Claude 3.5 Sonnet (Anthropic)
+# Set model via environment variable (recommended)
+export ANTHROPIC_MODEL=claude-sonnet-4-5-20250929
+
+haymaker kw deploy \
+  --workers 10 \
+  --enable-ai-generation
+```
+
+**Configuration File**:
+```bash
+# Or set in .env file
+echo "ANTHROPIC_MODEL=claude-sonnet-4-5-20250929" >> .env
+
 haymaker kw deploy \
   --workers 10 \
   --enable-ai-generation \
-  --ai-model claude-3-5-sonnet-20241022
-
-# Use GPT-3.5 Turbo (faster, cheaper)
-haymaker kw deploy \
-  --workers 50 \
-  --enable-ai-generation \
-  --ai-model gpt-3.5-turbo
-
-# Use GPT-4o (highest quality)
-haymaker kw deploy \
-  --workers 5 \
-  --enable-ai-generation \
-  --ai-model gpt-4o
+  --env-file .env
 ```
 
-**Default**: SDK default model (gpt-4-turbo or claude-3-5-sonnet)
+**Default**: `claude-sonnet-4-5-20250929`
+
 **Supported Models**:
-- Claude: `claude-3-5-sonnet-20241022`, `claude-3-opus-20240229`
-- OpenAI: `gpt-4o`, `gpt-4-turbo`, `gpt-3.5-turbo`
+- `claude-sonnet-4-5-20250929` (recommended - best balance)
+- `claude-3-5-sonnet-20240620` (previous version)
+- `claude-3-opus-20240229` (highest quality, most expensive)
+- `claude-3-sonnet-20240229` (legacy)
+- `claude-3-haiku-20240307` (fastest, cheapest)
 
 **Cost Comparison**:
 | Model | Cost per Email | Quality | Speed |
 |-------|---------------|---------|-------|
-| gpt-3.5-turbo | ~$0.002 | Good | Fast |
-| gpt-4-turbo | ~$0.01 | Excellent | Medium |
-| gpt-4o | ~$0.015 | Best | Medium |
-| claude-3-5-sonnet | ~$0.015 | Best | Medium |
+| claude-3-haiku | ~$0.002 | Good | Fast |
+| claude-3-sonnet | ~$0.015 | Very Good | Medium |
+| claude-3-5-sonnet | ~$0.015 | Excellent | Medium |
+| claude-3-opus | ~$0.075 | Outstanding | Slow |
+
+**See Also**: [Configure Anthropic Model](/AzureHayMaker/howto/configure-anthropic-model) - Complete guide to model selection and configuration
 
 ---
 

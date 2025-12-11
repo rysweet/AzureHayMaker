@@ -216,7 +216,8 @@ class EmailContentGenerator:
             )
 
             # Use specified model or default to Claude Sonnet 4.5
-            model = self.config.model if self.config.model else "claude-sonnet-4-5-20250929"
+            # Handle empty/whitespace strings by falling back to default
+            model = self.config.model.strip() if self.config.model and self.config.model.strip() else "claude-sonnet-4-5-20250929"
 
             response = self.client.messages.create(
                 model=model,
@@ -240,7 +241,7 @@ class EmailContentGenerator:
             # Create metadata
             metadata = {
                 "source": "anthropic_claude",
-                "model": self.config.model,
+                "model": model,  # Use the actual model that was used
                 "worker_id": worker_id,
                 "department": department,
                 "activity_count": activity_count,
