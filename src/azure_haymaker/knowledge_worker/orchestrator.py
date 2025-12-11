@@ -46,6 +46,7 @@ from azure_haymaker.knowledge_worker.models.worker import (
     WorkerConfig,
     WorkerPersona,
 )
+from azure_haymaker.knowledge_worker.state_manager import DeploymentStateManager
 from azure_haymaker.knowledge_worker.worker_registry import WorkerRegistry
 
 if TYPE_CHECKING:
@@ -232,6 +233,9 @@ class KnowledgeWorkerOrchestrator:
         self.email_generator: EmailContentGenerator | None = None
         self.fallback_generator = FallbackEmailGenerator()
 
+        # Initialize state manager for persistence
+        self._state_manager = DeploymentStateManager()
+
         if self.config.email_generation.enabled:
             try:
                 self.email_generator = EmailContentGenerator(self.config.email_generation)
@@ -258,6 +262,22 @@ class KnowledgeWorkerOrchestrator:
 
         self._deployments[run_id] = state
         logger.info(f"Created deployment {run_id}: {config.name}")
+
+        # Persist deployment state to disk
+        self._state_manager.save_deployment(
+            run_id=run_id,
+            name=config.name,
+            phase=state.phase.value,
+            status=state.status.value,
+            worker_count=len(state.workers),
+            started_at=state.started_at,
+            config={
+                "total_workers": config.total_workers,
+                "duration_hours": config.duration_hours,
+                "tenant_domain": config.tenant_domain,
+                "departments": config.departments,
+            },
+        )
 
         return run_id
 
@@ -308,6 +328,9 @@ class KnowledgeWorkerOrchestrator:
             state.started_at = datetime.now(UTC)
             self.current_run_id = run_id
 
+            # Save initial running state
+            self._save_deployment_state(state)
+
             # Update config if different from initialization
             if state.config != self.config:
                 self.config = state.config
@@ -337,6 +360,10 @@ class KnowledgeWorkerOrchestrator:
             state.status = DeploymentStatus.FAILED
             state.phase = DeploymentPhase.FAILED
             state.error = str(e)
+
+            # Save failed state
+            self._save_deployment_state(state)
+
             return False
 
     async def stop_deployment(self, run_id: str) -> bool:
@@ -356,6 +383,9 @@ class KnowledgeWorkerOrchestrator:
         state.phase = DeploymentPhase.STOPPING
         logger.info(f"Stopping deployment: {run_id}")
 
+        # Save phase change
+        self._save_deployment_state(state)
+
         # Cancel worker tasks
         tasks = self._worker_tasks.get(run_id, [])
         for task in tasks:
@@ -368,6 +398,9 @@ class KnowledgeWorkerOrchestrator:
         state.phase = DeploymentPhase.COMPLETED
         state.status = DeploymentStatus.COMPLETED
         state.completed_at = datetime.now(UTC)
+
+        # Save final state
+        self._save_deployment_state(state)
 
         logger.info(f"Deployment stopped: {run_id}")
         return True
@@ -389,6 +422,9 @@ class KnowledgeWorkerOrchestrator:
         state.phase = DeploymentPhase.CLEANUP
         logger.info(f"Cleaning up deployment: {run_id}")
 
+        # Save phase change
+        self._save_deployment_state(state)
+
         # In a full implementation, this would:
         # 1. Stop containers
         # 2. Delete Cloud PCs
@@ -400,9 +436,36 @@ class KnowledgeWorkerOrchestrator:
         state.workers.clear()
 
         state.phase = DeploymentPhase.COMPLETED
+
+        # Save final state
+        self._save_deployment_state(state)
+
         logger.info(f"Deployment cleanup complete: {run_id}")
 
         return True
+
+    def _save_deployment_state(self, state: DeploymentState) -> None:
+        """Save deployment state to disk.
+
+        Args:
+            state: Deployment state to save
+        """
+        self._state_manager.save_deployment(
+            run_id=state.run_id,
+            name=state.config.name,
+            phase=state.phase.value,
+            status=state.status.value,
+            worker_count=len(state.workers),
+            started_at=state.started_at,
+            completed_at=state.completed_at,
+            error=state.error,
+            config={
+                "total_workers": state.config.total_workers,
+                "duration_hours": state.config.duration_hours,
+                "tenant_domain": state.config.tenant_domain,
+                "departments": state.config.departments,
+            },
+        )
 
     async def _phase_setup(self, state: DeploymentState) -> None:
         """Setup phase: Create security infrastructure.
@@ -412,6 +475,9 @@ class KnowledgeWorkerOrchestrator:
         """
         state.phase = DeploymentPhase.SETUP
         logger.info(f"[{state.run_id}] Starting setup phase")
+
+        # Save phase change
+        self._save_deployment_state(state)
 
         # In a full implementation, this would:
         # 1. Create security group for all workers
@@ -436,6 +502,9 @@ class KnowledgeWorkerOrchestrator:
         state.phase = DeploymentPhase.PROVISIONING
         logger.info(f"[{state.run_id}] Starting provisioning phase")
 
+        # Save phase change
+        self._save_deployment_state(state)
+
         # Validate tenant configuration
         if not state.config.tenant_domain:
             raise ValueError(
@@ -445,6 +514,9 @@ class KnowledgeWorkerOrchestrator:
         await self._provision_users(state)
 
         logger.info(f"[{state.run_id}] Provisioning complete: {len(state.workers)} workers created")
+
+        # Save updated state with workers
+        self._save_deployment_state(state)
 
     async def _provision_users(self, state: DeploymentState) -> None:
         """Provision real Entra users for M365 operations.
@@ -501,6 +573,9 @@ class KnowledgeWorkerOrchestrator:
                 # Register in worker registry
                 self._worker_registry.register(identity)
 
+                # Save worker to state manager
+                self._state_manager.save_worker(state.run_id, identity)
+
                 # Create worker config using provisioned identity
                 worker_config = KnowledgeWorkerConfig(
                     worker_id=identity.worker_id,
@@ -551,6 +626,9 @@ class KnowledgeWorkerOrchestrator:
         """
         state.phase = DeploymentPhase.EXECUTING
         logger.info(f"[{state.run_id}] Starting execution phase")
+
+        # Save phase change
+        self._save_deployment_state(state)
 
         # Create worker tasks
         tasks = []
