@@ -215,8 +215,11 @@ class EmailContentGenerator:
                 f"(activity #{activity_count})"
             )
 
+            # Use specified model or default to claude-3-5-sonnet-latest
+            model = self.config.model if self.config.model else "claude-3-5-sonnet-latest"
+
             response = self.client.messages.create(
-                model=self.config.model,
+                model=model,
                 max_tokens=self.config.max_tokens,
                 temperature=self.config.temperature,
                 system=system_prompt,

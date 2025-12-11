@@ -151,14 +151,51 @@ class EmailOperations(M365OperationBase):
 
         try:
             # Send via Graph API
+            from msgraph.generated.users.item.send_mail.send_mail_post_request_body import SendMailPostRequestBody
+            from msgraph.generated.models.message import Message
+            from msgraph.generated.models.recipient import Recipient
+            from msgraph.generated.models.email_address import EmailAddress
+            from msgraph.generated.models.item_body import ItemBody
+
+            # Create proper Message object with proper nested objects
+            message = Message()
+            message.subject = message_data["subject"]
+
+            # Create ItemBody object (not dict)
+            body_obj = ItemBody()
+            body_obj.content_type = message_data["body"]["contentType"]
+            body_obj.content = message_data["body"]["content"]
+            message.body = body_obj
+
+            # Create Recipient objects (not dicts)
+            message.to_recipients = [
+                Recipient(email_address=EmailAddress(address=addr["emailAddress"]["address"]))
+                for addr in message_data["toRecipients"]
+            ]
+
+            if "ccRecipients" in message_data:
+                message.cc_recipients = [
+                    Recipient(email_address=EmailAddress(address=addr["emailAddress"]["address"]))
+                    for addr in message_data["ccRecipients"]
+                ]
+
+            if "bccRecipients" in message_data:
+                message.bcc_recipients = [
+                    Recipient(email_address=EmailAddress(address=addr["emailAddress"]["address"]))
+                    for addr in message_data["bccRecipients"]
+                ]
+
+            message.importance = message_data.get("importance", "normal")
+
+            # Create request body
+            request_body = SendMailPostRequestBody(
+                message=message,
+                save_to_sent_items=save_to_sent
+            )
+
             result = await self.client.graph.users.by_user_id(
                 self.worker.entra_object_id
-            ).send_mail.post(
-                body={
-                    "message": message_data,
-                    "saveToSentItems": save_to_sent,
-                }
-            )
+            ).send_mail.post(request_body)
 
             self._log_operation(
                 "email_send",
