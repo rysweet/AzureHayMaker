@@ -1,0 +1,100 @@
+# Knowledge Worker Deployment Configuration: Enterprise Scale (50+ Workers)
+#
+# This example demonstrates a large-scale enterprise deployment with
+# multiple departments, varied endpoint types, and AI email generation.
+#
+# COST WARNING: This deployment will incur significant Azure costs.
+# Review pricing for Windows VMs, Cloud PCs, and Claude API usage.
+#
+# Use with:
+#   export ANTHROPIC_API_KEY="your-key"
+#   haymaker kw deploy --config-file examples/kw-deployments/kw-enterprise.yaml
+
+name: "enterprise-multi-department"
+total_workers: 60
+tenant_domain: "contoso.onmicrosoft.com"  # CHANGE THIS
+duration_hours: 4  # Shorter duration to control costs
+
+# Executive team: High-value targets, realistic simulation
+departments:
+  executive:
+    count: 5
+    endpoint_type: "cloud_pc"  # Full Windows 365 experience
+    activity:
+      email_per_hour: 8
+      teams_messages_per_hour: 5
+      documents_per_day: 2
+      meetings_per_day: 6
+
+  # Legal team: Document-heavy, moderate email
+  legal:
+    count: 10
+    endpoint_type: "windows_vm"
+    activity:
+      email_per_hour: 6
+      teams_messages_per_hour: 3
+      documents_per_day: 8
+      meetings_per_day: 3
+
+  # Engineering team: High Teams usage, code collaboration
+  engineering:
+    count: 20
+    endpoint_type: "cli_container"  # Cost-effective for scale
+    activity:
+      email_per_hour: 4
+      teams_messages_per_hour: 15
+      documents_per_day: 5
+      meetings_per_day: 4
+
+  # Sales team: High email and meeting volume
+  sales:
+    count: 15
+    endpoint_type: "cli_container"
+    activity:
+      email_per_hour: 12
+      teams_messages_per_hour: 10
+      documents_per_day: 3
+      meetings_per_day: 8
+
+  # HR team: Moderate across all channels
+  hr:
+    count: 5
+    endpoint_type: "windows_vm"
+    activity:
+      email_per_hour: 10
+      teams_messages_per_hour: 8
+      documents_per_day: 4
+      meetings_per_day: 5
+
+  # Finance team: Document and email heavy
+  finance:
+    count: 5
+    endpoint_type: "windows_vm"
+    activity:
+      email_per_hour: 7
+      teams_messages_per_hour: 4
+      documents_per_day: 6
+      meetings_per_day: 4
+
+# Enable tracking markers in email subjects
+email_markers_enabled: true
+marker_style: "subject"
+marker_format: "ENTERPRISE-TEST"
+
+# AI-powered email generation for realistic content
+# Requires ANTHROPIC_API_KEY environment variable
+email_generation:
+  enabled: true
+  directive: |
+    Generate professional emails appropriate for an enterprise environment.
+    Focus on project updates, meeting coordination, and cross-team collaboration.
+    Use business-appropriate language and formatting.
+
+# Cost Estimates (approximate):
+# - Cloud PCs: $31/user/month = ~$0.04/hour × 5 users × 4 hours = $0.80
+# - Windows VMs: ~$0.15/hour × 20 VMs × 4 hours = $12
+# - CLI Containers: ~$0.01/hour × 35 containers × 4 hours = $1.40
+# - API calls: ~960 emails × $0.001 = ~$1
+# Total estimated: ~$15-20 for 4-hour run
+#
+# Adjust duration_hours to control costs.
