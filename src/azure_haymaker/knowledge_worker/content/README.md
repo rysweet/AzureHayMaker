@@ -52,7 +52,7 @@ from azure_haymaker.knowledge_worker.content import EmailGenerationConfig
 config = EmailGenerationConfig(
     enabled=True,
     api_key="sk-ant-...",  # Optional, uses ANTHROPIC_API_KEY env var
-    model="claude-3-5-sonnet-20241022",
+    model="claude-sonnet-4-5-20250929",
     directive="Include a humorous limerick in your signature",
     max_tokens=1024,
     temperature=0.7,
@@ -264,7 +264,7 @@ assert "Activity 1" in email.subject
 
 # Test config
 config = EmailGenerationConfig(enabled=False)
-assert config.model == "claude-3-5-sonnet-20241022"
+assert config.model is None  # Uses SDK default
 ```
 
 ## Future Enhancements

@@ -243,6 +243,12 @@ Every component implements real functionality with no stubs, TODOs, or placehold
   </a>
 </div>
 
+### How-To Guides
+
+Task-focused guides for specific operations:
+
+- [Configure Anthropic Model](/AzureHayMaker/howto/configure-anthropic-model) - Select and configure Claude models for AI email generation
+
 ---
 
 ## Contributing

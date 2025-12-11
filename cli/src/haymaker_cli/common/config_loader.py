@@ -226,6 +226,7 @@ def get_cli_overrides(
     marker_format: str | None = None,
     enable_ai_generation: bool | None = None,
     email_directive: str | None = None,
+    ai_model: str | None = None,
 ) -> dict[str, Any]:
     """Extract CLI arguments that should override config file values.
 
@@ -244,6 +245,7 @@ def get_cli_overrides(
         marker_format: Marker format
         enable_ai_generation: Enable AI generation
         email_directive: AI generation directive
+        ai_model: Anthropic model name
 
     Returns:
         Dictionary of non-None CLI arguments
@@ -283,6 +285,8 @@ def get_cli_overrides(
         email_gen_overrides["enabled"] = enable_ai_generation
     if email_directive is not None:
         email_gen_overrides["directive"] = email_directive
+    if ai_model is not None:
+        email_gen_overrides["model"] = ai_model
 
     if email_gen_overrides:
         cli_overrides["email_generation"] = email_gen_overrides

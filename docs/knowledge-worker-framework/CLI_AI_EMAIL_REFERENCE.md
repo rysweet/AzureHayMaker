@@ -128,15 +128,15 @@ Override AI model for email generation.
 haymaker kw deploy \
   --workers 10 \
   --enable-ai-generation \
-  --ai-model claude-3-5-sonnet-20241022
+  --ai-model claude-sonnet-4-5-20250929
 ```
 
 **Supported Models**:
 
 **Anthropic (Claude)**:
-- `claude-3-5-sonnet-20241022` - Latest Sonnet, best quality
-- `claude-3-opus-20240229` - Highest intelligence, slowest
-- `claude-3-sonnet-20240229` - Previous Sonnet version
+- `claude-sonnet-4-5-20250929` - Latest Sonnet, best quality
+- `claude-sonnet-4-5-20250929` - Previous Sonnet version
+- `claude-3-opus-20240229` - Older opus version
 - `claude-3-haiku-20240307` - Fastest, cheapest (not recommended for emails)
 
 **OpenAI (GPT)**:
@@ -147,7 +147,7 @@ haymaker kw deploy \
 
 **Model Selection Logic**:
 1. If `--ai-model` specified: Use that model
-2. Else if `ANTHROPIC_API_KEY` set: Use `claude-3-5-sonnet-20241022`
+2. Else if `ANTHROPIC_API_KEY` set: Use `claude-sonnet-4-5-20250929`
 3. Else if `OPENAI_API_KEY` set: Use `gpt-4-turbo`
 4. Else: Error (no API key found)
 
@@ -417,7 +417,7 @@ haymaker kw deploy \
   --department executive \
   --duration 4 \
   --enable-ai-generation \
-  --ai-model claude-3-5-sonnet-20241022 \
+  --ai-model claude-sonnet-4-5-20250929 \
   --email-directive "Write strategic emails about business initiatives" \
   --marker-style both \
   --marker-format RT-EXEC-Q1
