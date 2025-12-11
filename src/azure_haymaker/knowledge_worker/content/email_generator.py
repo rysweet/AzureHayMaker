@@ -215,8 +215,8 @@ class EmailContentGenerator:
                 f"(activity #{activity_count})"
             )
 
-            # Use specified model or default to claude-3-5-sonnet-latest
-            model = self.config.model if self.config.model else "claude-3-5-sonnet-latest"
+            # Use specified model or default to current Sonnet model
+            model = self.config.model if self.config.model else "claude-3-5-sonnet-20241022"
 
             response = self.client.messages.create(
                 model=model,
