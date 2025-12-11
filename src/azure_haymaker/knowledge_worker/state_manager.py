@@ -241,10 +241,9 @@ class DeploymentStateManager:
             count += 1
 
         # Remove directory if empty
-        try:
+        import contextlib
+        with contextlib.suppress(OSError):
             worker_run_dir.rmdir()
-        except OSError:
-            pass
 
         logger.info(f"Deleted {count} worker files for {run_id}")
         return count
