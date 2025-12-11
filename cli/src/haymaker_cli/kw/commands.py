@@ -1043,6 +1043,12 @@ def deploy(
             console.print(f"  Run ID: {state.run_id}")
             console.print(f"  Phase: {state.phase.value}")
             console.print(f"  Workers: {len(state.workers)}")
+
+            # Set as active deployment
+            from haymaker_cli.kw.resolver import RunIdResolver
+
+            RunIdResolver.set_active(run_id)
+            console.print(f"\n[dim]Active deployment set to: {run_id}[/dim]")
         else:
             console.print("[red]Deployment state not found[/red]")
             sys.exit(1)
@@ -1056,6 +1062,21 @@ def deploy(
 
         console.print(f"[dim]{traceback.format_exc()}[/dim]")
         sys.exit(1)
+
+
+# Import monitoring commands
+from haymaker_cli.kw.monitoring import (
+    check_telemetry_command,
+    list_resources_command,
+    list_workers_command,
+    monitor_command,
+)
+
+# Register monitoring commands
+kw.add_command(list_workers_command, name="list-workers")
+kw.add_command(check_telemetry_command, name="check-telemetry")
+kw.add_command(monitor_command, name="monitor")
+kw.add_command(list_resources_command, name="list-resources")
 
 
 @kw.command("e2e-test")
