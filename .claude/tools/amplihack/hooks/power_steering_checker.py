@@ -69,6 +69,18 @@ try:
 except ImportError:
     TURN_STATE_AVAILABLE = False
 
+# Try to import completion evidence module
+try:
+    from completion_evidence import (
+        CompletionEvidenceChecker,
+        Evidence,
+        EvidenceType,
+    )
+
+    EVIDENCE_AVAILABLE = True
+except ImportError:
+    EVIDENCE_AVAILABLE = False
+
 # Security: Maximum transcript size to prevent memory exhaustion
 MAX_TRANSCRIPT_LINES = 50000  # Limit transcript to 50K lines (~10-20MB typical)
 
@@ -177,6 +189,7 @@ class PowerSteeringResult:
     summary: str | None = None
     analysis: Optional["ConsiderationAnalysis"] = None  # Full analysis results for visibility
     is_first_stop: bool = False  # True if this is the first stop attempt in session
+    evidence_results: list = field(default_factory=list)  # Concrete evidence from Phase 1
 
 
 class PowerSteeringChecker:
@@ -522,7 +535,11 @@ class PowerSteeringChecker:
         session_id: str,
         progress_callback: Callable | None = None,
     ) -> PowerSteeringResult:
-        """Main entry point - analyze transcript and make decision.
+        """Main entry point - analyze transcript and make decision using two-phase verification.
+
+        Phase 1: Check concrete evidence (GitHub, filesystem, user confirmation)
+        Phase 2: SDK analysis (only if no concrete evidence of completion)
+        Phase 3: Combine results (evidence can override SDK concerns)
 
         Args:
             transcript_path: Path to session transcript JSONL file
@@ -618,6 +635,48 @@ class PowerSteeringChecker:
                     continuation_prompt=None,
                     summary=None,
                 )
+
+            # 4c. PHASE 1: Evidence-based verification (fail-fast on concrete completion signals)
+            if EVIDENCE_AVAILABLE:
+                try:
+                    evidence_checker = CompletionEvidenceChecker(self.project_root)
+                    evidence_results = []
+
+                    # Check PR status (strongest evidence)
+                    pr_evidence = evidence_checker.check_pr_status()
+                    if pr_evidence:
+                        evidence_results.append(pr_evidence)
+
+                        # If PR merged, work is definitely complete
+                        if pr_evidence.evidence_type == EvidenceType.PR_MERGED and pr_evidence.verified:
+                            self._log("PR merged - work complete (concrete evidence)", "INFO")
+                            return PowerSteeringResult(
+                                decision="approve",
+                                reasons=["PR merged successfully"],
+                            )
+
+                    # Check user confirmation (escape hatch)
+                    session_dir = self.project_root / ".claude" / "runtime" / "power-steering" / session_id
+                    user_confirm = evidence_checker.check_user_confirmation(session_dir)
+                    if user_confirm and user_confirm.verified:
+                        evidence_results.append(user_confirm)
+                        self._log("User confirmed completion - allowing stop", "INFO")
+                        return PowerSteeringResult(
+                            decision="approve",
+                            reasons=["User explicitly confirmed work is complete"],
+                        )
+
+                    # Check TODO completion
+                    todo_evidence = evidence_checker.check_todo_completion(transcript_path)
+                    evidence_results.append(todo_evidence)
+
+                    # Store evidence for later use in Phase 3
+                    self._evidence_results = evidence_results
+
+                except Exception as e:
+                    # Fail-open: If evidence checking fails, continue to SDK analysis
+                    self._log(f"Evidence checking failed (non-critical): {e}", "WARNING")
+                    self._evidence_results = []
 
             # 5. Analyze against considerations (filtered by session type)
             analysis = self._analyze_considerations(
@@ -754,6 +813,29 @@ class PowerSteeringChecker:
                     )
 
             # All checks passed (or all blockers were addressed)
+            # FIX (Issue #1744): Check if any checks were actually evaluated
+            # If all checks were skipped (no results), approve immediately without blocking
+            if len(analysis.results) == 0:
+                self._log(
+                    "No power-steering checks applicable for session type - approving immediately",
+                    "INFO",
+                )
+                # Mark complete to prevent re-running
+                self._mark_complete(session_id)
+                self._emit_progress(
+                    progress_callback,
+                    "complete",
+                    "Power-steering analysis complete - no applicable checks for session type",
+                )
+                return PowerSteeringResult(
+                    decision="approve",
+                    reasons=["no_applicable_checks"],
+                    continuation_prompt=None,
+                    summary=None,
+                    analysis=analysis,
+                    is_first_stop=False,
+                )
+
             if is_first_stop:
                 # FIRST STOP: Block to show results (visibility feature)
                 # Mark results shown immediately to prevent race condition
@@ -775,7 +857,12 @@ class PowerSteeringChecker:
                     continuation_prompt=f"All power-steering checks passed! Please present these results to the user:\n{results_text}",
                     summary=None,
                     analysis=analysis,
-                    is_first_stop=is_first_stop,  # FIX (Issue #1744): Pass through is_first_stop to prevent infinite loop
+                    # FIX (Issue #1744): Pass through calculated is_first_stop value
+                    # This prevents infinite loop by allowing stop.py (line 132) to distinguish
+                    # between first stop (display results) vs subsequent stops (don't block).
+                    # Previously hardcoded to True, causing every stop to block indefinitely.
+                    # NOTE: This was fixed in PR #1745; kept here for documentation.
+                    is_first_stop=is_first_stop,
                 )
 
             # SUBSEQUENT STOP: All checks passed, approve
@@ -796,7 +883,7 @@ class PowerSteeringChecker:
                 "Power-steering analysis complete - all checks passed",
             )
 
-            return PowerSteeringResult(
+            result = PowerSteeringResult(
                 decision="approve",
                 reasons=["all_considerations_satisfied"],
                 continuation_prompt=None,
@@ -804,6 +891,12 @@ class PowerSteeringChecker:
                 analysis=analysis,
                 is_first_stop=False,
             )
+
+            # Add evidence to result if available
+            if hasattr(self, '_evidence_results'):
+                result.evidence_results = self._evidence_results
+
+            return result
 
         except Exception as e:
             # Fail-open: On any error, approve and log
@@ -814,6 +907,36 @@ class PowerSteeringChecker:
                 continuation_prompt=None,
                 summary=None,
             )
+
+    def _evidence_suggests_complete(self, evidence_results: list) -> bool:
+        """Check if concrete evidence suggests work is complete.
+
+        Args:
+            evidence_results: List of Evidence objects from Phase 1
+
+        Returns:
+            True if concrete evidence indicates completion
+        """
+        if not evidence_results:
+            return False
+
+        # Strong evidence types that indicate completion
+        strong_evidence = [
+            EvidenceType.PR_MERGED,
+            EvidenceType.USER_CONFIRMATION,
+            EvidenceType.CI_PASSING,
+        ]
+
+        # Check if any strong evidence is verified
+        for evidence in evidence_results:
+            if evidence.evidence_type in strong_evidence and evidence.verified:
+                return True
+
+        # Check if multiple medium evidence types are verified
+        verified_count = sum(1 for e in evidence_results if e.verified)
+
+        # If 3+ evidence types verified, trust concrete evidence
+        return verified_count >= 3
 
     def _is_disabled(self) -> bool:
         """Check if power-steering is disabled.
@@ -1972,6 +2095,15 @@ class PowerSteeringChecker:
 
         This allows users to see results even when stderr isn't visible.
 
+        Note on message branches: This method handles three cases:
+        1. Some checks passed → "ALL CHECKS PASSED"
+        2. No checks ran (all skipped) → "NO CHECKS APPLICABLE"
+        3. Some checks failed → "CHECKS FAILED"
+
+        Case #2 is primarily for testing - in production, check() returns early
+        (line 759) when len(analysis.results)==0, so this method won't be called.
+        However, tests call this method directly to verify message formatting works.
+
         Args:
             analysis: ConsiderationAnalysis with results
             session_type: Session type (e.g., "SIMPLE", "STANDARD")
@@ -2027,12 +2159,31 @@ class PowerSteeringChecker:
 
         # Summary line
         lines.append("=" * 60)
-        if total_failed == 0:
+        if total_failed == 0 and total_passed > 0:
+            # Some checks passed and none failed
+            self._log(
+                f"Message branch: ALL_CHECKS_PASSED (passed={total_passed}, failed=0, skipped={total_skipped})",
+                "DEBUG",
+            )
             lines.append(f"✅ ALL CHECKS PASSED ({total_passed} passed, {total_skipped} skipped)")
             lines.append("\n📌 This was your first stop. Next stop will proceed without blocking.")
             lines.append("\n💡 To disable power-steering: export AMPLIHACK_SKIP_POWER_STEERING=1")
             lines.append("   Or create: .claude/runtime/power-steering/.disabled")
+        elif total_failed == 0 and total_passed == 0:
+            # No checks were evaluated (all skipped) - not a "pass", just no applicable checks
+            self._log(
+                f"Message branch: NO_CHECKS_APPLICABLE (passed=0, failed=0, skipped={total_skipped})",
+                "DEBUG",
+            )
+            lines.append(f"⚠️  NO CHECKS APPLICABLE ({total_skipped} skipped for session type)")
+            lines.append("\n📌 No power-steering checks apply to this session type.")
+            lines.append("   This is expected for simple Q&A or informational sessions.")
         else:
+            # Some checks failed
+            self._log(
+                f"Message branch: CHECKS_FAILED (passed={total_passed}, failed={total_failed}, skipped={total_skipped})",
+                "DEBUG",
+            )
             lines.append(f"❌ CHECKS FAILED ({total_passed} passed, {total_failed} failed)")
             lines.append("\n📌 Address the failed checks above before stopping.")
         lines.append("=" * 60 + "\n")

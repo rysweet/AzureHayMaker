@@ -19,7 +19,7 @@ for slide_idx, slide in enumerate(prs.slides):
                         if url_end == -1:
                             url_end = len(text)
                         url = text[url_start:url_end]
-                        
+
                         # Add hyperlink
                         for run in paragraph.runs:
                             if url in run.text:

@@ -1,0 +1,26 @@
+{
+  "name": "kw-5-test-20251212-0358",
+  "total_workers": 5,
+  "departments": {
+    "engineering": {
+      "count": 3,
+      "endpoint_type": "cli_container",
+      "activity": {
+        "email_per_hour": 6,
+        "teams_messages_per_hour": 10
+      }
+    },
+    "sales": {
+      "count": 2,
+      "endpoint_type": "cli_container",
+      "activity": {
+        "email_per_hour": 8,
+        "teams_messages_per_hour": 8
+      }
+    }
+  },
+  "ai_enabled": true,
+  "directive": "Include a humorous limerick about working in the age of AI in your email signature",
+  "markers_enabled": true,
+  "timestamp": "2025-12-12T03:58:06.606314+00:00"
+}

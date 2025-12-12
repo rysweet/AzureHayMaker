@@ -1,0 +1,29 @@
+❌ kw-kw-bb353-engi-000@DefenderATEVET12.onmicrosoft.com:
+        APIError
+        Code: 404
+        message: None
+        error: MainError(additional_data={}, code='MailboxNotEnabledForRESTAPI', details=Non
+❌ kw-kw-bb353-engi-001@DefenderATEVET12.onmicrosoft.com:
+        APIError
+        Code: 404
+        message: None
+        error: MainError(additional_data={}, code='MailboxNotEnabledForRESTAPI', details=Non
+❌ kw-kw-bb353-engi-002@DefenderATEVET12.onmicrosoft.com:
+        APIError
+        Code: 404
+        message: None
+        error: MainError(additional_data={}, code='MailboxNotEnabledForRESTAPI', details=Non
+❌ kw-kw-bb353-sale-000@DefenderATEVET12.onmicrosoft.com:
+        APIError
+        Code: 404
+        message: None
+        error: MainError(additional_data={}, code='MailboxNotEnabledForRESTAPI', details=Non
+❌ kw-kw-bb353-sale-001@DefenderATEVET12.onmicrosoft.com:
+        APIError
+        Code: 404
+        message: None
+        error: MainError(additional_data={}, code='MailboxNotEnabledForRESTAPI', details=Non
+
+📊 Evidence saved: evidence/email_evidence.json
+   Workers checked: 5
+   Workers with emails: 0

@@ -1,0 +1,55 @@
+# Knowledge Worker Test Deployment: 5 Workers with AI Limericks
+#
+# Purpose: Test deployment to validate:
+# - AI email generation with limerick directive
+# - Email markers for tracking
+# - Multi-department setup
+# - Monitoring commands
+#
+# Use with:
+#   haymaker kw deploy --config-file examples/kw-deployments/kw-5-test-limericks.yaml
+
+name: "kw-5-test-limericks"
+total_workers: 5
+tenant_domain: "DefenderATEVET12.onmicrosoft.com"
+duration_hours: 1  # 1 hour test run
+
+# Multi-department configuration (small scale)
+departments:
+  # Engineering department: 3 workers on CLI containers
+  engineering:
+    count: 3
+    endpoint_type: "cli_container"
+    activity:
+      email_per_hour: 6  # Higher rate for faster testing
+      teams_messages_per_hour: 10
+      documents_per_day: 2
+      meetings_per_day: 2
+
+  # Sales department: 2 workers on CLI containers
+  sales:
+    count: 2
+    endpoint_type: "cli_container"
+    activity:
+      email_per_hour: 8
+      teams_messages_per_hour: 8
+      documents_per_day: 1
+      meetings_per_day: 3
+
+# Email marker configuration for tracking
+email_markers_enabled: true
+marker_style: "both"  # Visible in subject + hidden metadata
+marker_format: "TEST-RUN"
+
+# AI email generation with limerick directive
+email_generation:
+  enabled: true
+  directive: "Include a humorous limerick about working in the age of AI in your email signature. The limerick should be clever, lighthearted, and relate to the email's content or workplace context."
+
+# Expected behavior:
+# - 5 Entra ID users created (kw-xxx-engi-001, 002, 003, kw-xxx-sale-001, 002)
+# - 5 M365 E5 licenses assigned
+# - 5 CLI containers deployed
+# - Emails generated with AI including limericks in signatures
+# - Email subjects include [TEST-RUN:run-id:worker-id:sequence] markers
+# - ~30 emails total over 1 hour (5 workers × 6-8 emails/hour)
