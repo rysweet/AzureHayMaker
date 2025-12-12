@@ -87,7 +87,7 @@ class TestOrchestratorCredentials:
 class TestLicenseAssignment:
     """Test suite for license assignment functionality."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_assign_license_success(self):
         """Test successful license assignment.
 
@@ -121,7 +121,7 @@ class TestLicenseAssignment:
         mock_client.users.by_user_id.assert_called_once_with("user-id-123")
         mock_user_item.assign_license.post.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_assign_license_with_custom_sku(self):
         """Test license assignment with custom SKU ID.
 
@@ -150,7 +150,7 @@ class TestLicenseAssignment:
         expected_custom_uuid = UUID(custom_sku)
         assert captured_body.add_licenses[0].sku_id == expected_custom_uuid
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_assign_license_default_sku_is_e5(self):
         """Test that default SKU is Microsoft 365 E5.
 
@@ -189,7 +189,7 @@ class TestLicenseAssignment:
         expected_e5_uuid = UUID("06ebc4ee-1bb5-47dd-8120-11324bc54e06")
         assert captured_body.add_licenses[0].sku_id == expected_e5_uuid
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_assign_license_failure_returns_false(self):
         """Test that license assignment failure returns False.
 
@@ -206,7 +206,7 @@ class TestLicenseAssignment:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_assign_license_failure_logs_warning(self, caplog):
         """Test that license failure logs warning with details.
 
@@ -242,7 +242,7 @@ class TestLicenseAssignment:
         assert any("Failed to assign license" in record.message for record in caplog.records)
         assert any(error_msg in record.message for record in caplog.records)
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_provision_worker_calls_assign_license(self):
         """Test that provision_worker calls assign_license.
 
@@ -276,6 +276,19 @@ class TestLicenseAssignment:
 
         manager = EntraUserManager(mock_client, "run-123", "test.onmicrosoft.com")
 
+        # Mock mailbox waiter to prevent polling (added in PR #167)
+        from azure_haymaker.knowledge_worker.identity.mailbox_waiter import (
+            MailboxStatus,
+            MailboxWaitResult,
+        )
+
+        mock_wait_result = MailboxWaitResult(
+            status=MailboxStatus.READY, elapsed_seconds=0.1, attempts=1
+        )
+        manager.mailbox_waiter.wait_for_mailbox = AsyncMock(
+            return_value=mock_wait_result
+        )
+
         identity = await manager.provision_worker(
             department="engineering",
             index=0,
@@ -291,7 +304,12 @@ class TestLicenseAssignment:
         assert mock_client.users.by_user_id.call_count == 2  # Called for patch and license
         mock_user_item.assign_license.post.assert_called_once()
 
-    @pytest.mark.asyncio
+        # Verify mailbox waiter was called
+        manager.mailbox_waiter.wait_for_mailbox.assert_called_once_with(
+            "new-user-id", timeout_seconds=900
+        )
+
+    @pytest.mark.anyio
     async def test_license_failure_does_not_prevent_user_creation(self):
         """Test that license assignment failure doesn't fail provisioning.
 
@@ -461,7 +479,7 @@ class TestEntraUserManagerNaming:
 class TestIntegration:
     """Integration tests for orchestrator and user manager interaction."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_orchestrator_uses_user_manager_for_provisioning(self):
         """Test that orchestrator delegates provisioning to EntraUserManager.
 

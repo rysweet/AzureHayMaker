@@ -52,7 +52,7 @@ class TestPermissionGranterHappyPath:
         mock_graph.service_principals.get = AsyncMock()
 
         async def mock_get_sp(request_configuration=None):
-            filter_param = request_configuration["query_parameters"]["filter"]
+            filter_param = request_configuration.query_parameters.filter
             if app_id in filter_param:
                 result = Mock()
                 result.value = [our_sp]
@@ -120,7 +120,7 @@ class TestPermissionGranterHappyPath:
 
         # Mock service principal lookups
         async def mock_get_sp(request_configuration=None):
-            filter_param = request_configuration["query_parameters"]["filter"]
+            filter_param = request_configuration.query_parameters.filter
             if app_id in filter_param:
                 result = Mock()
                 result.value = [our_sp]
@@ -215,7 +215,7 @@ class TestPermissionGranterErrorHandling:
 
         # Mock service principal lookups
         async def mock_get_sp(request_configuration=None):
-            filter_param = request_configuration["query_parameters"]["filter"]
+            filter_param = request_configuration.query_parameters.filter
             if app_id in filter_param:
                 result = Mock()
                 result.value = [our_sp]
@@ -381,8 +381,7 @@ class TestPermissionGranterHelperMethods:
 
         # Act
         has_perm = await granter._has_permission(
-            sp_object_id,
-            PermissionGranter.MAIL_READWRITE_ROLE_ID
+            sp_object_id, PermissionGranter.MAIL_READWRITE_ROLE_ID
         )
 
         # Assert
@@ -410,8 +409,7 @@ class TestPermissionGranterHelperMethods:
 
         # Act
         has_perm = await granter._has_permission(
-            sp_object_id,
-            PermissionGranter.MAIL_READWRITE_ROLE_ID
+            sp_object_id, PermissionGranter.MAIL_READWRITE_ROLE_ID
         )
 
         # Assert
@@ -436,8 +434,7 @@ class TestPermissionGranterHelperMethods:
 
         # Act
         has_perm = await granter._has_permission(
-            sp_object_id,
-            PermissionGranter.MAIL_READWRITE_ROLE_ID
+            sp_object_id, PermissionGranter.MAIL_READWRITE_ROLE_ID
         )
 
         # Assert
