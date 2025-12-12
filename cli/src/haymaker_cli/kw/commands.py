@@ -645,29 +645,29 @@ def _display_email_config(
     """Display email configuration including markers and AI settings."""
     # Marker configuration
     if enable_markers:
-        console.print(f"  Email Markers: Enabled")
+        console.print("  Email Markers: Enabled")
         console.print(f"    - Format: {marker_format}")
         console.print(f"    - Style: {marker_style}")
     else:
-        console.print(f"  Email Markers: Disabled")
+        console.print("  Email Markers: Disabled")
 
     # AI configuration
     if enable_ai_generation:
-        console.print(f"  AI Email Generation: Enabled")
-        console.print(f"    - Model: Anthropic SDK default")
+        console.print("  AI Email Generation: Enabled")
+        console.print("    - Model: Anthropic SDK default")
         if email_directive:
             console.print(f"    - Directive: {_truncate_directive(email_directive)}")
         else:
-            console.print(f"    - Directive: Default (department-based)")
+            console.print("    - Directive: Default (department-based)")
 
         # Show cost estimate if deployment details provided
         if workers is not None and duration is not None:
             estimated_emails = workers * 4 * duration  # 4 emails/hour default
-            console.print(f"\n[yellow]  ⚠️  API Cost Estimation:[/yellow]")
+            console.print("\n[yellow]  ⚠️  API Cost Estimation:[/yellow]")
             console.print(f"[yellow]    - Estimated emails: ~{estimated_emails} ({workers} workers × 4/hr × {duration}h)[/yellow]")
             console.print(f"[yellow]    - API calls: ~{estimated_emails}[/yellow]")
-            console.print(f"[yellow]    - Estimated cost: Variable (depends on model and token usage)[/yellow]")
-            console.print(f"[dim]      Check Anthropic pricing for details[/dim]")
+            console.print("[yellow]    - Estimated cost: Variable (depends on model and token usage)[/yellow]")
+            console.print("[dim]      Check Anthropic pricing for details[/dim]")
     else:
         console.print("  AI Email Generation: Disabled (using templates)")
 
@@ -1084,6 +1084,11 @@ def deploy(
 
 
 # Import monitoring commands
+# Import license management commands
+from haymaker_cli.kw.licenses import (
+    list_licenses_command,
+    reclaim_licenses_command,
+)
 from haymaker_cli.kw.monitoring import (
     check_telemetry_command,
     list_resources_command,
@@ -1096,6 +1101,10 @@ kw.add_command(list_workers_command, name="list-workers")
 kw.add_command(check_telemetry_command, name="check-telemetry")
 kw.add_command(monitor_command, name="monitor")
 kw.add_command(list_resources_command, name="list-resources")
+
+# Register license management commands
+kw.add_command(list_licenses_command, name="list-licenses")
+kw.add_command(reclaim_licenses_command, name="reclaim-licenses")
 
 
 @kw.command("e2e-test")
@@ -1390,11 +1399,12 @@ def telemetry_report(run_id: str, format: str, output: str | None):
         haymaker kw telemetry-report --run-id kw-abc12345
         haymaker kw telemetry-report --run-id kw-abc12345 --format json --output report.json
     """
-    import os
     import asyncio
+    import os
+
     from azure.identity import ClientSecretCredential
-    from msgraph.graph_service_client import GraphServiceClient
     from azure_haymaker.knowledge_worker.telemetry.m365_telemetry import M365TelemetryCollector
+    from msgraph.graph_service_client import GraphServiceClient
 
     tenant_id = os.getenv("KW_TENANT_ID")
     app_id = os.getenv("KW_APP_ID")
