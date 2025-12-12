@@ -1,0 +1,94 @@
+Checking telemetry for 25 workers...
+Querying last 24 hours
+
+Failed to get emails for kw-kw-6b5f0-sale-000: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-sale-000: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-engi-000: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-engi-000: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-sale-010: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-sale-010: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-sale-004: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-sale-004: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-sale-009: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-sale-009: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-sale-008: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-sale-008: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-sale-002: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-sale-002: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-sale-013: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-sale-013: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-exec-003: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-exec-003: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-engi-004: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-engi-004: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-sale-006: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-sale-006: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-sale-012: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-sale-012: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-sale-001: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-sale-001: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-exec-000: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-exec-000: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-sale-011: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-sale-011: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-exec-002: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-exec-002: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-sale-007: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-sale-007: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-exec-001: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-exec-001: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-sale-014: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-sale-014: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-sale-003: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-sale-003: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-exec-004: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-exec-004: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-engi-002: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-engi-002: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-sale-005: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-sale-005: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-engi-001: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-engi-001: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-6b5f0-engi-003: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-6b5f0-engi-003: 'GraphServiceClient' object has no attribute 'graph'
+   Telemetry Summary for   
+        kw-6b5f0d4f        
+┏━━━━━━━━━━━━━━━━━┳━━━━━━━┓
+┃ Metric          ┃ Count ┃
+┡━━━━━━━━━━━━━━━━━╇━━━━━━━┩
+│ Workers         │    25 │
+│ Emails          │     0 │
+│ Calendar Events │     0 │
+│ Teams Messages  │     0 │
+└─────────────────┴───────┘
+
+Per-Worker Breakdown:
+┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━┓
+┃ Worker               ┃ Emails ┃ Calendar ┃ Teams ┃
+┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━┩
+│ kw-kw-6b5f0-sale-000 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-engi-000 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-sale-010 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-sale-004 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-sale-009 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-sale-008 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-sale-002 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-sale-013 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-exec-003 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-engi-004 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-sale-006 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-sale-012 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-sale-001 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-exec-000 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-sale-011 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-exec-002 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-sale-007 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-exec-001 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-sale-014 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-sale-003 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-exec-004 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-engi-002 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-sale-005 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-engi-001 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-6b5f0-engi-003 │  ERROR │    ERROR │ ERROR │
+└──────────────────────┴────────┴──────────┴───────┘

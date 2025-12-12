@@ -1,0 +1,37 @@
+                            Workers for kw-6b5f0d4f                             
+┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┓
+┃ Worker ID      ┃ Display Name   ┃ Persona     ┃ Department  ┃ UPN            ┃
+┡━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━┩
+│ kw-kw-6b5f0-s… │ KW Sales 1     │ sales       │ sales       │ kw-kw-6b5f0-s… │
+│ kw-kw-6b5f0-e… │ KW Engineering │ engineering │ engineering │ kw-kw-6b5f0-e… │
+│                │ 1              │             │             │                │
+│ kw-kw-6b5f0-s… │ KW Sales 11    │ sales       │ sales       │ kw-kw-6b5f0-s… │
+│ kw-kw-6b5f0-s… │ KW Sales 5     │ sales       │ sales       │ kw-kw-6b5f0-s… │
+│ kw-kw-6b5f0-s… │ KW Sales 10    │ sales       │ sales       │ kw-kw-6b5f0-s… │
+│ kw-kw-6b5f0-s… │ KW Sales 9     │ sales       │ sales       │ kw-kw-6b5f0-s… │
+│ kw-kw-6b5f0-s… │ KW Sales 3     │ sales       │ sales       │ kw-kw-6b5f0-s… │
+│ kw-kw-6b5f0-s… │ KW Sales 14    │ sales       │ sales       │ kw-kw-6b5f0-s… │
+│ kw-kw-6b5f0-e… │ KW Executive 4 │ executive   │ executive   │ kw-kw-6b5f0-e… │
+│ kw-kw-6b5f0-e… │ KW Engineering │ engineering │ engineering │ kw-kw-6b5f0-e… │
+│                │ 5              │             │             │                │
+│ kw-kw-6b5f0-s… │ KW Sales 7     │ sales       │ sales       │ kw-kw-6b5f0-s… │
+│ kw-kw-6b5f0-s… │ KW Sales 13    │ sales       │ sales       │ kw-kw-6b5f0-s… │
+│ kw-kw-6b5f0-s… │ KW Sales 2     │ sales       │ sales       │ kw-kw-6b5f0-s… │
+│ kw-kw-6b5f0-e… │ KW Executive 1 │ executive   │ executive   │ kw-kw-6b5f0-e… │
+│ kw-kw-6b5f0-s… │ KW Sales 12    │ sales       │ sales       │ kw-kw-6b5f0-s… │
+│ kw-kw-6b5f0-e… │ KW Executive 3 │ executive   │ executive   │ kw-kw-6b5f0-e… │
+│ kw-kw-6b5f0-s… │ KW Sales 8     │ sales       │ sales       │ kw-kw-6b5f0-s… │
+│ kw-kw-6b5f0-e… │ KW Executive 2 │ executive   │ executive   │ kw-kw-6b5f0-e… │
+│ kw-kw-6b5f0-s… │ KW Sales 15    │ sales       │ sales       │ kw-kw-6b5f0-s… │
+│ kw-kw-6b5f0-s… │ KW Sales 4     │ sales       │ sales       │ kw-kw-6b5f0-s… │
+│ kw-kw-6b5f0-e… │ KW Executive 5 │ executive   │ executive   │ kw-kw-6b5f0-e… │
+│ kw-kw-6b5f0-e… │ KW Engineering │ engineering │ engineering │ kw-kw-6b5f0-e… │
+│                │ 3              │             │             │                │
+│ kw-kw-6b5f0-s… │ KW Sales 6     │ sales       │ sales       │ kw-kw-6b5f0-s… │
+│ kw-kw-6b5f0-e… │ KW Engineering │ engineering │ engineering │ kw-kw-6b5f0-e… │
+│                │ 2              │             │             │                │
+│ kw-kw-6b5f0-e… │ KW Engineering │ engineering │ engineering │ kw-kw-6b5f0-e… │
+│                │ 4              │             │             │                │
+└────────────────┴────────────────┴─────────────┴─────────────┴────────────────┘
+
+Total: 25 workers
