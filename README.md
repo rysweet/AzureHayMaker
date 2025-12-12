@@ -31,7 +31,7 @@ Azure HayMaker is an orchestration service that simulates realistic Azure tenant
 - **Cost Tracking** via Azure Cost Management API integration
 - **Webhook Notifications** for execution events (started, completed, failed)
 
-## Knowledge Worker Framework
+## Knowledge Worker Framework (Part 2)
 
 The **Knowledge Worker Activity Framework** extends Azure HayMaker to simulate 50-300 knowledge workers performing everyday Microsoft 365 activities. This generates realistic benign telemetry for cybersecurity analysis and security product testing.
 
@@ -60,6 +60,62 @@ The **Knowledge Worker Activity Framework** extends Azure HayMaker to simulate 5
 - **[Knowledge Worker Architecture](docs/knowledge-worker-framework/ARCHITECTURE.md)** - Complete framework design
 - **[Windows 365 E2E Demo](docs/knowledge-worker-framework/WINDOWS365_E2E_DEMO.md)** - End-to-end demonstration
 - **[SIEM Telemetry Export](docs/knowledge-worker-framework/SIEM_TELEMETRY_EXPORT.md)** - Export activity to Azure Sentinel
+
+## Software Engineering Team Simulation (Part 3)
+
+The **Software Engineering Team Simulation** framework enables simulation of realistic software development team activities, generating GitHub telemetry for cybersecurity analysis. Built using a compositional workflow engine based on the brick philosophy.
+
+### What It Does
+
+- **Simulates Dev Team Activities**: Commits, pull requests, code reviews, CI/CD pipelines, merges
+- **Compositional Workflows**: Combine atomic "brick" components into complete development workflows
+- **Realistic Telemetry**: Generates authentic GitHub activity patterns with configurable failure rates
+- **Multi-Team Coordination**: Simulate 3-50 engineering teams working in parallel
+- **Dynamic Modeling**: No flat files - workflows composed programmatically at runtime
+
+### Brick Philosophy
+
+Small, reusable workflow components that compose into larger workflows:
+
+```python
+from azure_haymaker.engineering_sim.workflow import Workflow
+from azure_haymaker.engineering_sim.bricks import *
+
+# Compose a feature development workflow from atomic bricks
+workflow = (Workflow("Feature Development")
+    .add_brick(CommitBrick(client))
+    .add_brick(PullRequestBrick(client))
+    .add_brick(CIPipelineBrick(client))
+    .add_brick(ReviewBrick(client))
+    .add_brick(MergeBrick(client)))
+
+# Execute workflow with context threading
+result = await workflow.execute(context)
+print(f"Generated {len(result.telemetry)} telemetry events")
+```
+
+### Core Bricks
+
+- **CommitBrick**: Creates GitHub commits with realistic file changes and messages
+- **PullRequestBrick**: Creates pull requests with auto-generated titles/descriptions
+- **ReviewBrick**: Submits code reviews (APPROVE/REQUEST_CHANGES/COMMENT)
+- **CIPipelineBrick**: Simulates CI/CD pipeline execution with configurable failure rates
+- **MergeBrick**: Merges approved pull requests with multiple strategies
+
+### Example Telemetry (3 teams, 2-week sprint)
+
+- **47 commits** across 6 branches
+- **11 pull requests** (9 merged, 1 closed, 1 open)
+- **19 CI pipeline runs** (2 failures for realism)
+- **23 PR comments and reviews**
+- **3 deployments** to development environment
+
+### Learn More
+
+- **[Complete Tutorial](docs/engineering-simulation-framework/TUTORIAL.md)** - End-to-end tutorial from installation to multi-team sprints
+- **[Engineering Simulation Examples](examples/mock_sprint_simulation.py)** - Outside-in demonstration
+- **[Test Documentation](tests/README.md)** - Comprehensive testing guide
+- **[Issue #145](https://github.com/rysweet/AzureHayMaker/issues/145)** - Complete architectural proposals
 
 ## Quick Start
 
