@@ -37,7 +37,10 @@ from azure_haymaker.knowledge_worker.content import (
     EmailGenerationConfig,
     FallbackEmailGenerator,
 )
-from azure_haymaker.knowledge_worker.identity import PermissionGranter
+from azure_haymaker.knowledge_worker.identity import (
+    EntraGroupManager,
+    PermissionGranter,
+)
 from azure_haymaker.knowledge_worker.models.worker import (
     WorkerConfig,
     WorkerPersona,
@@ -475,6 +478,9 @@ class KnowledgeWorkerOrchestrator:
         # Save phase change
         self._save_deployment_state(state)
 
+        # Create all-workers security group for deployment
+        await self._create_security_group(state)
+
         # Grant Mail.ReadWrite and Mail.Send permissions
         await self._ensure_mail_permission_granted(state)
 
@@ -512,6 +518,28 @@ class KnowledgeWorkerOrchestrator:
 
         except Exception as e:
             logger.error(f"[{state.run_id}] Permission grant error: {e}")
+
+    async def _create_security_group(self, state: DeploymentState) -> None:
+        """Create all-workers security group for deployment.
+
+        Creates a security group containing all workers for easier
+        management and potential transport rule application.
+
+        Args:
+            state: Deployment state
+        """
+        try:
+            group_manager = EntraGroupManager(self._graph_client, state.run_id)
+
+            group_id = await group_manager.create_all_workers_group(
+                description=f"All workers for deployment {state.config.name}"
+            )
+
+            logger.info(f"[{state.run_id}] Created all-workers security group: {group_id}")
+
+        except Exception as e:
+            logger.warning(f"[{state.run_id}] Failed to create security group: {e}")
+            logger.warning("Continuing without security group - not critical for functionality")
 
     async def _phase_provision(self, state: DeploymentState) -> None:
         """Provision phase: Create Entra users and initialize workers.
