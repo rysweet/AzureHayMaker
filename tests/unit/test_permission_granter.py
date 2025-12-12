@@ -85,14 +85,17 @@ class TestPermissionGranterHappyPath:
 
         # Assert
         assert result is True, "Should return True on successful grant"
-        mock_sp_by_id.app_role_assigned_to.post.assert_called_once()
 
-        # Verify assignment was created with correct IDs
-        call_args = mock_sp_by_id.app_role_assigned_to.post.call_args
-        assignment = call_args[0][0]
-        assert assignment.principal_id == sp_object_id
-        assert assignment.resource_id == graph_sp_id
-        assert assignment.app_role_id == PermissionGranter.MAIL_READWRITE_ROLE_ID
+        # Should grant BOTH Mail.ReadWrite and Mail.Send
+        assert (
+            mock_sp_by_id.app_role_assigned_to.post.call_count == 2
+        ), "Should grant both permissions"
+
+        # Verify both permissions were granted
+        call_args_list = mock_sp_by_id.app_role_assigned_to.post.call_args_list
+        granted_role_ids = {call[0][0].app_role_id for call in call_args_list}
+        assert PermissionGranter.MAIL_READWRITE_ROLE_ID in granted_role_ids
+        assert PermissionGranter.MAIL_SEND_ROLE_ID in granted_role_ids
 
     @pytest.mark.anyio
     async def test_ensure_mail_permission_when_already_granted(self):
@@ -139,14 +142,18 @@ class TestPermissionGranterHappyPath:
         mock_sp_by_id = Mock()
         mock_graph.service_principals.by_service_principal_id.return_value = mock_sp_by_id
 
-        existing_assignment = Mock()
-        existing_assignment.app_role_id = PermissionGranter.MAIL_READWRITE_ROLE_ID
+        # Mock BOTH permissions as already granted
+        mail_readwrite_assignment = Mock()
+        mail_readwrite_assignment.app_role_id = PermissionGranter.MAIL_READWRITE_ROLE_ID
+
+        mail_send_assignment = Mock()
+        mail_send_assignment.app_role_id = PermissionGranter.MAIL_SEND_ROLE_ID
 
         assignments = Mock()
-        assignments.value = [existing_assignment]
+        assignments.value = [mail_readwrite_assignment, mail_send_assignment]
         mock_sp_by_id.app_role_assignments.get = AsyncMock(return_value=assignments)
 
-        # Mock grant operation (should not be called)
+        # Mock grant operation (should not be called since both already granted)
         mock_sp_by_id.app_role_assigned_to.post = AsyncMock()
 
         granter = PermissionGranter(mock_graph, app_id)

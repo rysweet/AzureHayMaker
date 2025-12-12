@@ -27,8 +27,9 @@ def _sanitize_odata_value(value: str) -> str:
 class PermissionGranter:
     """Grant required Graph API permissions automatically."""
 
-    # Mail.ReadWrite app role ID (from Microsoft Graph)
-    MAIL_READWRITE_ROLE_ID = "e2a3a72e-5f79-4c64-b1b1-878b674786c9"
+    # Mail permissions (from Microsoft Graph)
+    MAIL_READWRITE_ROLE_ID = "e2a3a72e-5f79-4c64-b1b1-878b674786c9"  # Mail.ReadWrite
+    MAIL_SEND_ROLE_ID = "b633e1c5-b582-4048-a93e-9f11b44c7e96"  # Mail.Send (send on behalf)
 
     # Microsoft Graph resource app ID
     GRAPH_RESOURCE_APP_ID = "00000003-0000-0000-c000-000000000000"
@@ -44,12 +45,16 @@ class PermissionGranter:
         self.app_id = app_id
 
     async def ensure_mail_permission(self) -> bool:
-        """Ensure Mail.ReadWrite permission is granted.
+        """Ensure Mail.ReadWrite and Mail.Send permissions are granted.
+
+        Grants both permissions required for full email functionality:
+        - Mail.ReadWrite: Read and write mailboxes
+        - Mail.Send: Send mail on behalf of users
 
         Idempotent - safe to call multiple times.
 
         Returns:
-            True if permission granted or already exists
+            True if both permissions granted or already exist
         """
         try:
             # Get our service principal object ID
@@ -68,17 +73,23 @@ class PermissionGranter:
 
             graph_sp_id = graph_sp.id
 
-            # Check if Mail.ReadWrite already granted
-            if await self._has_permission(sp_object_id, self.MAIL_READWRITE_ROLE_ID):
+            # Check and grant Mail.ReadWrite
+            has_readwrite = await self._has_permission(sp_object_id, self.MAIL_READWRITE_ROLE_ID)
+            if not has_readwrite:
+                logger.info(f"Granting Mail.ReadWrite permission to {self.app_id}")
+                await self._grant_app_role(sp_object_id, graph_sp_id, self.MAIL_READWRITE_ROLE_ID)
+            else:
                 logger.info("Mail.ReadWrite permission already granted")
-                return True
 
-            # Grant Mail.ReadWrite
-            logger.info(f"Granting Mail.ReadWrite permission to {self.app_id}")
+            # Check and grant Mail.Send
+            has_send = await self._has_permission(sp_object_id, self.MAIL_SEND_ROLE_ID)
+            if not has_send:
+                logger.info(f"Granting Mail.Send permission to {self.app_id}")
+                await self._grant_app_role(sp_object_id, graph_sp_id, self.MAIL_SEND_ROLE_ID)
+            else:
+                logger.info("Mail.Send permission already granted")
 
-            return await self._grant_app_role(
-                sp_object_id, graph_sp_id, self.MAIL_READWRITE_ROLE_ID
-            )
+            return True
 
         except Exception as e:
             logger.error(f"Failed to ensure Mail permission: {e}")
