@@ -1,13 +1,13 @@
 """Mailbox provisioning waiter for Knowledge Worker deployments.
 
-Handles the asynchronous delay between E5 license assignment and 
+Handles the asynchronous delay between E5 license assignment and
 Exchange Online mailbox provisioning.
 """
 
-from enum import Enum
-from dataclasses import dataclass
 import asyncio
 import logging
+from dataclasses import dataclass
+from enum import Enum
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -32,10 +32,10 @@ class MailboxWaitResult:
 
 class MailboxReadinessChecker:
     """Check if a user's mailbox is ready for REST API operations."""
-    
+
     def __init__(self, graph_client: Any):
         self.graph_client = graph_client
-    
+
     async def is_ready(self, user_id: str) -> tuple[bool, str | None]:
         """Check if mailbox is accessible."""
         try:
@@ -55,15 +55,15 @@ class MailboxReadinessChecker:
 
 class MailboxProvisioningWaiter:
     """Wait for mailbox provisioning with exponential backoff."""
-    
+
     INITIAL_DELAY = 10
     MAX_RETRY_DELAY = 120
     BACKOFF_MULTIPLIER = 1.5
     DEFAULT_TIMEOUT = 900
-    
+
     def __init__(self, graph_client: Any):
         self.checker = MailboxReadinessChecker(graph_client)
-    
+
     async def wait_for_mailbox(
         self,
         user_id: str,
@@ -74,15 +74,15 @@ class MailboxProvisioningWaiter:
         start_time = asyncio.get_event_loop().time()
         attempts = 0
         delay = self.INITIAL_DELAY
-        
+
         logger.info(f"Waiting for mailbox: {user_id} (timeout: {timeout}s)")
-        
+
         await asyncio.sleep(self.INITIAL_DELAY)
-        
+
         while True:
             attempts += 1
             elapsed = asyncio.get_event_loop().time() - start_time
-            
+
             if elapsed >= timeout:
                 logger.warning(f"Mailbox timeout after {elapsed:.1f}s: {user_id}")
                 return MailboxWaitResult(
@@ -91,9 +91,9 @@ class MailboxProvisioningWaiter:
                     attempts=attempts,
                     error_message=f"Timeout after {timeout}s",
                 )
-            
+
             is_ready, error_code = await self.checker.is_ready(user_id)
-            
+
             if is_ready:
                 logger.info(f"Mailbox ready after {elapsed:.1f}s: {user_id}")
                 return MailboxWaitResult(
@@ -101,7 +101,7 @@ class MailboxProvisioningWaiter:
                     elapsed_seconds=elapsed,
                     attempts=attempts,
                 )
-            
+
             if error_code == "ResourceNotFound":
                 return MailboxWaitResult(
                     status=MailboxStatus.NOT_FOUND,
@@ -109,7 +109,7 @@ class MailboxProvisioningWaiter:
                     attempts=attempts,
                     error_message="User not found",
                 )
-            
+
             await asyncio.sleep(delay)
             delay = min(delay * self.BACKOFF_MULTIPLIER, self.MAX_RETRY_DELAY)
 
