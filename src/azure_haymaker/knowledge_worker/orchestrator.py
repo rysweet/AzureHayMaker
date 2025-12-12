@@ -475,11 +475,7 @@ class KnowledgeWorkerOrchestrator:
         # Save phase change
         self._save_deployment_state(state)
 
-        # Setup security infrastructure
-        # TODO: Implement security group creation
-        # TODO: Implement transport rules via Exchange Online API
-
-        # Grant Mail.ReadWrite permission if needed
+        # Grant Mail.ReadWrite and Mail.Send permissions
         await self._ensure_mail_permission_granted(state)
 
         logger.info(f"[{state.run_id}] Setup phase complete")
