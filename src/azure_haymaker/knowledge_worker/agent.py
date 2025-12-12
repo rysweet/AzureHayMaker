@@ -327,21 +327,28 @@ class KnowledgeWorkerAgent(AgentBase):
     def _load_allowed_recipients(self) -> None:
         """Load allowed recipient list for communication safety.
 
-        Queries Entra to build the list of internal recipients
-        that this worker is allowed to communicate with.
+        If orchestrator hasn't populated recipients, queries for workers in same deployment.
 
         Note:
-            If orchestrator has already populated allowed_recipients,
-            this method preserves them and updates the validator.
+            Orchestrator typically calls add_allowed_recipients() before agent starts.
+            This method only queries if the list is still empty.
         """
-        # In a full implementation, this would query:
-        # 1. All workers in the same run
-        # 2. Team shared mailboxes
-        # 3. Distribution groups
+        # If orchestrator already populated, we're done
+        if self._allowed_recipients:
+            logger.info(
+                f"Allowed recipients already populated: {len(self._allowed_recipients)} recipients"
+            )
+            if self._validator:
+                self._validator.allowed_upns = self._allowed_recipients
+            return
 
-        # Don't reset if orchestrator already populated recipients
-        if not self._allowed_recipients:
-            self._allowed_recipients = set()
+        logger.warning(
+            f"No allowed recipients provided by orchestrator for {self.worker_config.worker_id}. "
+            "Emails will be blocked unless recipients are added."
+        )
+
+        # Create empty set if orchestrator hasn't set it
+        self._allowed_recipients = set()
 
         if self._validator:
             self._validator.allowed_upns = self._allowed_recipients

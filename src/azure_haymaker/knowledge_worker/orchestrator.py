@@ -706,6 +706,7 @@ class KnowledgeWorkerOrchestrator:
             raise
         except Exception as e:
             logger.error(f"Worker {worker_id} error: {e}")
+            logger.error(f"Worker {worker_id} exception details:", exc_info=True)
             worker.on_cleanup(1)
 
     async def _run_activity_loop(
