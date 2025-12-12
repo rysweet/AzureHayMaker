@@ -13,6 +13,10 @@ from typing import Any
 from msgraph.generated.models.password_profile import PasswordProfile
 from msgraph.generated.models.user import User
 
+from azure_haymaker.knowledge_worker.identity.mailbox_waiter import (
+    MailboxProvisioningWaiter,
+    MailboxStatus,
+)
 from azure_haymaker.knowledge_worker.models.worker import (
     WorkerIdentity,
     WorkerPersona,
@@ -60,7 +64,6 @@ class EntraUserManager:
         self.tenant_domain = tenant_domain
 
         # Initialize mailbox provisioning waiter
-        from azure_haymaker.knowledge_worker.identity.mailbox_waiter import MailboxProvisioningWaiter
         self.mailbox_waiter = MailboxProvisioningWaiter(graph_client)
 
     async def provision_worker(
@@ -138,7 +141,6 @@ class EntraUserManager:
                 # Wait for mailbox provisioning
                 if license_assigned:
                     logger.info(f"Waiting for mailbox provisioning: {username}")
-                    from azure_haymaker.knowledge_worker.identity.mailbox_waiter import MailboxStatus
 
                     wait_result = await self.mailbox_waiter.wait_for_mailbox(created_user.id, timeout_seconds=900)
 
