@@ -8,6 +8,7 @@ import asyncio
 import json as json_mod
 import logging
 import os
+import re
 import shlex
 import subprocess
 from typing import Any
@@ -27,6 +28,100 @@ class ContainerDeploymentError(Exception):
     """Raised when container deployment operations fail."""
 
     pass
+
+
+def _validate_container_name(name: str) -> None:
+    """Validate container name to prevent shell injection.
+
+    Args:
+        name: Container name to validate
+
+    Raises:
+        ValueError: If name contains invalid characters
+    """
+    if not re.match(r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$", name):
+        raise ValueError(
+            f"Invalid container name: {name}. "
+            "Name must contain only lowercase letters, numbers, and hyphens, "
+            "and cannot start or end with a hyphen."
+        )
+    if len(name) > 63:
+        raise ValueError(f"Container name too long: {name} (max 63 characters)")
+
+
+def _validate_worker_id(worker_id: str) -> None:
+    """Validate worker ID to prevent injection attacks.
+
+    Args:
+        worker_id: Worker ID to validate
+
+    Raises:
+        ValueError: If worker_id contains invalid characters
+    """
+    if not re.match(r"^[a-zA-Z0-9_-]+$", worker_id):
+        raise ValueError(
+            "Invalid worker_id format. "
+            "Must contain only alphanumeric characters, underscores, and hyphens."
+        )
+    if len(worker_id) > 64:
+        raise ValueError("Worker ID too long (max 64 characters)")
+
+
+def _validate_env_var_value(key: str, value: str) -> None:
+    """Validate environment variable value for control characters.
+
+    Args:
+        key: Environment variable name
+        value: Environment variable value
+
+    Raises:
+        ValueError: If value contains control characters
+    """
+    if any(ord(c) < 32 and c not in "\t\n\r" for c in value):
+        raise ValueError(f"Environment variable {key} contains control characters")
+
+
+def _sanitize_error_message(error_msg: str) -> str:
+    """Sanitize error messages to prevent information disclosure.
+
+    Removes subscription IDs, resource paths, and other sensitive data.
+
+    Args:
+        error_msg: Raw error message
+
+    Returns:
+        Sanitized error message safe for user display
+    """
+    sanitized = error_msg
+
+    # Remove ACR credentials if accidentally logged (do this first)
+    sanitized = re.sub(
+        r'password["\s:=]+[^\s"]+', "password=[REDACTED]", sanitized, flags=re.IGNORECASE
+    )
+
+    # Remove subscription IDs (UUID format) - before resource paths
+    sanitized = re.sub(
+        r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+        "[SUBSCRIPTION_ID]",
+        sanitized,
+        flags=re.IGNORECASE,
+    )
+
+    # Remove full resource paths (do this after UUIDs are already replaced)
+    sanitized = re.sub(
+        r"/subscriptions/\[SUBSCRIPTION_ID\]/resourceGroups/[^/]+",
+        "/subscriptions/[REDACTED]/resourceGroups/[REDACTED]",
+        sanitized,
+    )
+
+    # Also catch resource paths that weren't in UUID format
+    sanitized = re.sub(
+        r"/subscriptions/[^/]+/resourceGroups/[^/]+",
+        "/subscriptions/[REDACTED]/resourceGroups/[REDACTED]",
+        sanitized,
+    )
+
+    return sanitized
 
 
 class M365CLIContainerManager:
@@ -82,8 +177,18 @@ class M365CLIContainerManager:
 
         Returns:
             Container App resource ID
+
+        Raises:
+            ValueError: If worker_id or container name is invalid
+            ContainerDeploymentError: If deployment fails
         """
+        # SECURITY: Validate worker_id before using in container name
+        _validate_worker_id(worker.worker_id)
+
         container_name = f"kw-{self.run_id[:8]}-{worker.worker_id}"
+
+        # SECURITY: Validate container name format
+        _validate_container_name(container_name)
 
         # Build environment variables
         env_vars = {
@@ -103,6 +208,10 @@ class M365CLIContainerManager:
             "WORK_END_HOUR": str(activity_config.work_end_hour),
         }
 
+        # SECURITY: Validate all environment variable values
+        for key, value in env_vars.items():
+            _validate_env_var_value(key, value)
+
         try:
             # Deploy container
             resource_id = await self._deploy_container_app(
@@ -113,13 +222,14 @@ class M365CLIContainerManager:
                 memory=self.DEFAULT_MEMORY,
             )
 
-            logger.info(f"CLI container deployed for worker: {worker.worker_id} -> {resource_id}")
+            logger.info("CLI container deployed successfully")
 
             return resource_id
 
         except Exception as e:
-            logger.error(f"Failed to deploy container for {worker.worker_id}: {e}")
-            raise
+            sanitized_error = _sanitize_error_message(str(e))
+            logger.error(f"Container deployment failed: {sanitized_error}")
+            raise ContainerDeploymentError(f"Failed to deploy container: {sanitized_error}") from e
 
     async def deploy_batch(
         self,
@@ -167,8 +277,12 @@ class M365CLIContainerManager:
             True if stopped successfully
 
         Raises:
+            ValueError: If container name is invalid
             ContainerDeploymentError: If stop operation fails
         """
+        # SECURITY: Validate container name
+        _validate_container_name(container_name)
+
         try:
             resource_group = getattr(self.config, "resource_group_name", "azure-haymaker-rg")
 
@@ -194,15 +308,21 @@ class M365CLIContainerManager:
 
             if result.returncode != 0:
                 error_msg = result.stderr or result.stdout
-                logger.error(f"Failed to stop container {container_name}: {error_msg}")
-                raise ContainerDeploymentError(f"Failed to stop container: {error_msg}")
+                sanitized_error = _sanitize_error_message(error_msg)
+                logger.error(f"Failed to stop container: {sanitized_error}")
+                raise ContainerDeploymentError(f"Failed to stop container: {sanitized_error}")
 
-            logger.info(f"Stopped container: {container_name}")
+            logger.info("Container stopped successfully")
             return True
 
+        except ValueError:
+            raise
+        except ContainerDeploymentError:
+            raise
         except Exception as e:
-            logger.error(f"Failed to stop container {container_name}: {e}")
-            raise ContainerDeploymentError(f"Failed to stop container: {e}") from e
+            sanitized_error = _sanitize_error_message(str(e))
+            logger.error(f"Failed to stop container: {sanitized_error}")
+            raise ContainerDeploymentError(f"Failed to stop container: {sanitized_error}") from e
 
     async def delete_container(
         self,
@@ -217,6 +337,7 @@ class M365CLIContainerManager:
             True if deleted successfully
 
         Raises:
+            ValueError: If container name is invalid
             ContainerDeploymentError: If delete operation fails
         """
         try:
@@ -225,6 +346,9 @@ class M365CLIContainerManager:
                 container_name = resource_id.split("/")[-1]
             else:
                 container_name = resource_id
+
+            # SECURITY: Validate container name
+            _validate_container_name(container_name)
 
             resource_group = getattr(self.config, "resource_group_name", "azure-haymaker-rg")
 
@@ -247,15 +371,21 @@ class M365CLIContainerManager:
 
             if result.returncode != 0:
                 error_msg = result.stderr or result.stdout
-                logger.error(f"Failed to delete container {container_name}: {error_msg}")
-                raise ContainerDeploymentError(f"Failed to delete container: {error_msg}")
+                sanitized_error = _sanitize_error_message(error_msg)
+                logger.error(f"Failed to delete container: {sanitized_error}")
+                raise ContainerDeploymentError(f"Failed to delete container: {sanitized_error}")
 
-            logger.info(f"Deleted container: {container_name}")
+            logger.info("Container deleted successfully")
             return True
 
+        except ValueError:
+            raise
+        except ContainerDeploymentError:
+            raise
         except Exception as e:
-            logger.error(f"Failed to delete container {resource_id}: {e}")
-            raise ContainerDeploymentError(f"Failed to delete container: {e}") from e
+            sanitized_error = _sanitize_error_message(str(e))
+            logger.error(f"Failed to delete container: {sanitized_error}")
+            raise ContainerDeploymentError(f"Failed to delete container: {sanitized_error}") from e
 
     async def list_containers_for_run(self) -> list[dict[str, Any]]:
         """List all containers for this run.
@@ -290,8 +420,9 @@ class M365CLIContainerManager:
 
             if result.returncode != 0:
                 error_msg = result.stderr or result.stdout
-                logger.error(f"Failed to list containers: {error_msg}")
-                raise ContainerDeploymentError(f"Failed to list containers: {error_msg}")
+                sanitized_error = _sanitize_error_message(error_msg)
+                logger.error(f"Failed to list containers: {sanitized_error}")
+                raise ContainerDeploymentError(f"Failed to list containers: {sanitized_error}")
 
             all_containers = json_mod.loads(result.stdout)
 
@@ -315,12 +446,15 @@ class M365CLIContainerManager:
                         }
                     )
 
-            logger.info(f"Listed {len(containers)} containers for run: {self.run_id[:8]}")
+            logger.info(f"Listed {len(containers)} containers successfully")
             return containers
 
+        except ContainerDeploymentError:
+            raise
         except Exception as e:
-            logger.error(f"Failed to list containers for run {self.run_id}: {e}")
-            raise ContainerDeploymentError(f"Failed to list containers: {e}") from e
+            sanitized_error = _sanitize_error_message(str(e))
+            logger.error(f"Failed to list containers: {sanitized_error}")
+            raise ContainerDeploymentError(f"Failed to list containers: {sanitized_error}") from e
 
     async def get_container_status(
         self,
@@ -338,8 +472,12 @@ class M365CLIContainerManager:
             Status dictionary with name, state, replicas, fqdn, or None if not found
 
         Raises:
+            ValueError: If container name is invalid
             ContainerDeploymentError: If status query fails
         """
+        # SECURITY: Validate container name
+        _validate_container_name(container_name)
+
         try:
             resource_group = getattr(self.config, "resource_group_name", "azure-haymaker-rg")
 
@@ -364,10 +502,11 @@ class M365CLIContainerManager:
             if result.returncode != 0:
                 error_msg = result.stderr or result.stdout
                 if "not found" in error_msg.lower():
-                    logger.warning(f"Container not found: {container_name}")
+                    logger.warning("Container not found")
                     return None
-                logger.error(f"Failed to get container status for {container_name}: {error_msg}")
-                raise ContainerDeploymentError(f"Failed to get container status: {error_msg}")
+                sanitized_error = _sanitize_error_message(error_msg)
+                logger.error(f"Failed to get container status: {sanitized_error}")
+                raise ContainerDeploymentError(f"Failed to get container status: {sanitized_error}")
 
             container_data = json_mod.loads(result.stdout)
             properties = container_data.get("properties", {})
@@ -380,12 +519,19 @@ class M365CLIContainerManager:
                 "resource_id": container_data.get("id"),
             }
 
-            logger.debug(f"Container status for {container_name}: {status['state']}")
+            logger.debug("Container status retrieved successfully")
             return status
 
+        except ValueError:
+            raise
+        except ContainerDeploymentError:
+            raise
         except Exception as e:
-            logger.error(f"Failed to get container status for {container_name}: {e}")
-            raise ContainerDeploymentError(f"Failed to get container status: {e}") from e
+            sanitized_error = _sanitize_error_message(str(e))
+            logger.error(f"Failed to get container status: {sanitized_error}")
+            raise ContainerDeploymentError(
+                f"Failed to get container status: {sanitized_error}"
+            ) from e
 
     async def _deploy_container_app(
         self,
@@ -493,9 +639,29 @@ class M365CLIContainerManager:
                 capture_output=True,
                 text=True,
             )
+
+            # SECURITY: Validate ACR credential retrieval
+            if acr_creds.returncode != 0:
+                raise ContainerDeploymentError(
+                    "Failed to retrieve ACR credentials. "
+                    "Ensure Azure CLI is authenticated and has access to the registry."
+                )
+
             acr_data = json_mod.loads(acr_creds.stdout)
+
+            # SECURITY: Validate credential data structure and values
+            if not acr_data.get("username"):
+                raise ContainerDeploymentError("ACR username not found in credentials")
+
+            if not acr_data.get("passwords") or not acr_data["passwords"]:
+                raise ContainerDeploymentError("ACR password not found in credentials")
+
             acr_username = acr_data["username"]
             acr_password = acr_data["passwords"][0]["value"]
+
+            # SECURITY: Validate password is not empty
+            if not acr_password:
+                raise ContainerDeploymentError("ACR password is empty")
 
             # Build environment variable arguments for Azure CLI
             env_args = []
@@ -562,18 +728,23 @@ class M365CLIContainerManager:
 
             if result.returncode != 0:
                 error_msg = result.stderr or result.stdout
-                logger.error(f"CLI deployment failed: {error_msg}")
-                raise ContainerDeploymentError(f"Failed to deploy via CLI: {error_msg}")
+                sanitized_error = _sanitize_error_message(error_msg)
+                logger.error(f"CLI deployment failed: {sanitized_error}")
+                raise ContainerDeploymentError(f"Failed to deploy via CLI: {sanitized_error}")
 
             fqdn = result.stdout.strip()
             deployed_id = f"/subscriptions/{subscription_id}/resourceGroups/{resource_group}/providers/Microsoft.App/containerApps/{name}"
 
-            logger.info(f"Successfully deployed M365 CLI container: {name}")
-            logger.info(f"  Resource ID: {deployed_id}")
-            logger.info(f"  FQDN: {fqdn}")
+            logger.info("Successfully deployed M365 CLI container")
+            logger.debug(f"  FQDN: {fqdn}")
 
             return deployed_id
 
+        except ContainerDeploymentError:
+            raise
         except Exception as e:
-            logger.error(f"Failed to deploy container app {name}: {e}")
-            raise ContainerDeploymentError(f"Failed to deploy container app: {e}") from e
+            sanitized_error = _sanitize_error_message(str(e))
+            logger.error(f"Failed to deploy container app: {sanitized_error}")
+            raise ContainerDeploymentError(
+                f"Failed to deploy container app: {sanitized_error}"
+            ) from e
