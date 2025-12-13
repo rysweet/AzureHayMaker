@@ -8,6 +8,7 @@ This file documents non-obvious problems, solutions, and patterns discovered dur
 
 ### Recent (December 2025)
 
+- [Complete Placeholder Removal from Knowledge Worker](#complete-placeholder-removal-2025-12-13)
 - [AI Agents Don't Need Human Psychology - No-Psych Winner](#ai-agents-dont-need-human-psychology-2025-12-02)
 - [Mandatory User Testing Validates Its Own Value](#mandatory-user-testing-validates-value-2025-12-02)
 - [System Metadata vs User Content in Git Conflict Detection](#system-metadata-vs-user-content-git-conflict-2025-12-01)
@@ -29,6 +30,52 @@ This file documents non-obvious problems, solutions, and patterns discovered dur
 - [Pattern Applicability Framework](#pattern-applicability-analysis-framework-2025-10-20)
 - [Socratic Questioning Pattern](#socratic-questioning-pattern-2025-10-18)
 - [Expert Agent Creation Pattern](#expert-agent-creation-pattern-2025-10-18)
+
+---
+
+## Complete Placeholder Removal from Knowledge Worker (2025-12-13)
+
+**Context**: Issues #161, #179 - Removed ALL placeholder code from Knowledge Worker and implemented real Azure integrations
+
+### Key Implementations
+
+**1. Container Apps Deployment** (`cli_container.py`)
+- Implemented real Azure Container Apps deployment using `azure-mgmt-appcontainers>=4.0.0`
+- Follows proven ContainerDeployer pattern (SDK + Azure CLI)
+- Complete lifecycle: deploy, stop, delete, list, status operations
+- 348 lines of real implementation replacing placeholders
+- Security: 4 validation functions prevent shell injection
+
+**2. Exchange Transport Rules** (`transport_rules.py`)
+- Graph API does NOT support Exchange transport rules (API limitation)
+- Replaced placeholders with `NotImplementedError` + manual setup guidance
+- Honest about limitations (Zero-BS philosophy)
+
+**3. Security Fixes**
+- Shell injection prevention (input validation)
+- Information disclosure prevention (error sanitization)
+- ACR credential validation
+- Environment variable sanitization
+- 15 security tests covering attack vectors
+
+### Key Learnings
+
+1. **Pattern Reuse Saves Time**: Reusing ContainerDeployer pattern ensured security consistency and reduced implementation time
+2. **Be Honest About API Limitations**: NotImplementedError with helpful guidance is better than fake implementations
+3. **Security-First for Azure Deployments**: Always validate inputs before shell commands, sanitize error messages
+4. **Q1 Milestone Achieved Early**: Both P0 issues (#124 SIEM, #125 Security) completed 3+ months before deadline
+
+### Files Changed
+- `src/azure_haymaker/knowledge_worker/endpoints/cli_container.py`: +348 lines
+- `src/azure_haymaker/knowledge_worker/identity/transport_rules.py`: refactored with NotImplementedError
+- `tests/unit/knowledge_worker/endpoints/test_cli_container_security.py`: +221 lines (15 tests)
+- `pyproject.toml`: Added azure-mgmt-appcontainers>=4.0.0
+
+### Related
+- PR #180: Placeholder removal implementation
+- PR #134: SIEM Export (merged)
+- Issue #161: Original KW simulation issue (closed)
+- Issue #179: Comprehensive placeholder removal (closed)
 
 ---
 
