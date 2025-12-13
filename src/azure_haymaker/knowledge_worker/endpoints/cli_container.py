@@ -5,8 +5,16 @@ CLI-based M365 activity execution.
 """
 
 import asyncio
+import json as json_mod
 import logging
+import os
+import re
+import shlex
+import subprocess
 from typing import Any
+
+from azure.identity import ClientSecretCredential
+from azure.mgmt.appcontainers import ContainerAppsAPIClient
 
 from azure_haymaker.knowledge_worker.models.worker import (
     WorkerConfig,
@@ -14,6 +22,106 @@ from azure_haymaker.knowledge_worker.models.worker import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class ContainerDeploymentError(Exception):
+    """Raised when container deployment operations fail."""
+
+    pass
+
+
+def _validate_container_name(name: str) -> None:
+    """Validate container name to prevent shell injection.
+
+    Args:
+        name: Container name to validate
+
+    Raises:
+        ValueError: If name contains invalid characters
+    """
+    if not re.match(r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$", name):
+        raise ValueError(
+            f"Invalid container name: {name}. "
+            "Name must contain only lowercase letters, numbers, and hyphens, "
+            "and cannot start or end with a hyphen."
+        )
+    if len(name) > 63:
+        raise ValueError(f"Container name too long: {name} (max 63 characters)")
+
+
+def _validate_worker_id(worker_id: str) -> None:
+    """Validate worker ID to prevent injection attacks.
+
+    Args:
+        worker_id: Worker ID to validate
+
+    Raises:
+        ValueError: If worker_id contains invalid characters
+    """
+    if not re.match(r"^[a-zA-Z0-9_-]+$", worker_id):
+        raise ValueError(
+            "Invalid worker_id format. "
+            "Must contain only alphanumeric characters, underscores, and hyphens."
+        )
+    if len(worker_id) > 64:
+        raise ValueError("Worker ID too long (max 64 characters)")
+
+
+def _validate_env_var_value(key: str, value: str) -> None:
+    """Validate environment variable value for control characters.
+
+    Args:
+        key: Environment variable name
+        value: Environment variable value
+
+    Raises:
+        ValueError: If value contains control characters
+    """
+    if any(ord(c) < 32 and c not in "\t\n\r" for c in value):
+        raise ValueError(f"Environment variable {key} contains control characters")
+
+
+def _sanitize_error_message(error_msg: str) -> str:
+    """Sanitize error messages to prevent information disclosure.
+
+    Removes subscription IDs, resource paths, and other sensitive data.
+
+    Args:
+        error_msg: Raw error message
+
+    Returns:
+        Sanitized error message safe for user display
+    """
+    sanitized = error_msg
+
+    # Remove ACR credentials if accidentally logged (do this first)
+    sanitized = re.sub(
+        r'password["\s:=]+[^\s"]+', "password=[REDACTED]", sanitized, flags=re.IGNORECASE
+    )
+
+    # Remove subscription IDs (UUID format) - before resource paths
+    sanitized = re.sub(
+        r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+        "[SUBSCRIPTION_ID]",
+        sanitized,
+        flags=re.IGNORECASE,
+    )
+
+    # Remove full resource paths (do this after UUIDs are already replaced)
+    sanitized = re.sub(
+        r"/subscriptions/\[SUBSCRIPTION_ID\]/resourceGroups/[^/]+",
+        "/subscriptions/[REDACTED]/resourceGroups/[REDACTED]",
+        sanitized,
+    )
+
+    # Also catch resource paths that weren't in UUID format
+    sanitized = re.sub(
+        r"/subscriptions/[^/]+/resourceGroups/[^/]+",
+        "/subscriptions/[REDACTED]/resourceGroups/[REDACTED]",
+        sanitized,
+    )
+
+    return sanitized
 
 
 class M365CLIContainerManager:
@@ -69,8 +177,18 @@ class M365CLIContainerManager:
 
         Returns:
             Container App resource ID
+
+        Raises:
+            ValueError: If worker_id or container name is invalid
+            ContainerDeploymentError: If deployment fails
         """
+        # SECURITY: Validate worker_id before using in container name
+        _validate_worker_id(worker.worker_id)
+
         container_name = f"kw-{self.run_id[:8]}-{worker.worker_id}"
+
+        # SECURITY: Validate container name format
+        _validate_container_name(container_name)
 
         # Build environment variables
         env_vars = {
@@ -90,6 +208,10 @@ class M365CLIContainerManager:
             "WORK_END_HOUR": str(activity_config.work_end_hour),
         }
 
+        # SECURITY: Validate all environment variable values
+        for key, value in env_vars.items():
+            _validate_env_var_value(key, value)
+
         try:
             # Deploy container
             resource_id = await self._deploy_container_app(
@@ -100,17 +222,14 @@ class M365CLIContainerManager:
                 memory=self.DEFAULT_MEMORY,
             )
 
-            logger.info(
-                f"CLI container deployed for worker: {worker.worker_id} -> {resource_id}"
-            )
+            logger.info("CLI container deployed successfully")
 
             return resource_id
 
         except Exception as e:
-            logger.error(
-                f"Failed to deploy container for {worker.worker_id}: {e}"
-            )
-            raise
+            sanitized_error = _sanitize_error_message(str(e))
+            logger.error(f"Container deployment failed: {sanitized_error}")
+            raise ContainerDeploymentError(f"Failed to deploy container: {sanitized_error}") from e
 
     async def deploy_batch(
         self,
@@ -132,10 +251,7 @@ class M365CLIContainerManager:
         for i in range(0, len(workers), max_parallel):
             batch = workers[i : i + max_parallel]
 
-            tasks = [
-                self.deploy_worker_container(worker, config)
-                for worker, config in batch
-            ]
+            tasks = [self.deploy_worker_container(worker, config) for worker, config in batch]
 
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -145,32 +261,68 @@ class M365CLIContainerManager:
                 else:
                     logger.error(f"Container deployment failed: {result}")
 
-        logger.info(
-            f"Deployed {len(resource_ids)} of {len(workers)} containers"
-        )
+        logger.info(f"Deployed {len(resource_ids)} of {len(workers)} containers")
         return resource_ids
 
     async def stop_container(
         self,
         container_name: str,
     ) -> bool:
-        """Stop a running container.
+        """Stop a running container by scaling to zero replicas.
 
         Args:
             container_name: Container app name
 
         Returns:
             True if stopped successfully
+
+        Raises:
+            ValueError: If container name is invalid
+            ContainerDeploymentError: If stop operation fails
         """
+        # SECURITY: Validate container name
+        _validate_container_name(container_name)
+
         try:
-            # In production, this would use the Container Apps API
-            # to stop the container revision
-            logger.info(f"Stopped container: {container_name}")
+            resource_group = getattr(self.config, "resource_group_name", "azure-haymaker-rg")
+
+            # Scale to zero replicas to stop the container
+            result = await asyncio.to_thread(
+                subprocess.run,
+                [
+                    "az",
+                    "containerapp",
+                    "update",
+                    "--name",
+                    container_name,
+                    "--resource-group",
+                    resource_group,
+                    "--min-replicas",
+                    "0",
+                    "--max-replicas",
+                    "0",
+                ],
+                capture_output=True,
+                text=True,
+            )
+
+            if result.returncode != 0:
+                error_msg = result.stderr or result.stdout
+                sanitized_error = _sanitize_error_message(error_msg)
+                logger.error(f"Failed to stop container: {sanitized_error}")
+                raise ContainerDeploymentError(f"Failed to stop container: {sanitized_error}")
+
+            logger.info("Container stopped successfully")
             return True
 
+        except ValueError:
+            raise
+        except ContainerDeploymentError:
+            raise
         except Exception as e:
-            logger.error(f"Failed to stop container {container_name}: {e}")
-            return False
+            sanitized_error = _sanitize_error_message(str(e))
+            logger.error(f"Failed to stop container: {sanitized_error}")
+            raise ContainerDeploymentError(f"Failed to stop container: {sanitized_error}") from e
 
     async def delete_container(
         self,
@@ -179,36 +331,130 @@ class M365CLIContainerManager:
         """Delete a container app.
 
         Args:
-            resource_id: Full Azure resource ID
+            resource_id: Full Azure resource ID or container name
 
         Returns:
             True if deleted successfully
+
+        Raises:
+            ValueError: If container name is invalid
+            ContainerDeploymentError: If delete operation fails
         """
         try:
-            # In production, this would use the Container Apps API
-            # or Azure Resource Manager to delete the container app
-            logger.info(f"Deleted container: {resource_id}")
+            # Extract container name from resource ID if full ID provided
+            if "/providers/Microsoft.App/containerApps/" in resource_id:
+                container_name = resource_id.split("/")[-1]
+            else:
+                container_name = resource_id
+
+            # SECURITY: Validate container name
+            _validate_container_name(container_name)
+
+            resource_group = getattr(self.config, "resource_group_name", "azure-haymaker-rg")
+
+            # Delete the container app
+            result = await asyncio.to_thread(
+                subprocess.run,
+                [
+                    "az",
+                    "containerapp",
+                    "delete",
+                    "--name",
+                    container_name,
+                    "--resource-group",
+                    resource_group,
+                    "--yes",
+                ],
+                capture_output=True,
+                text=True,
+            )
+
+            if result.returncode != 0:
+                error_msg = result.stderr or result.stdout
+                sanitized_error = _sanitize_error_message(error_msg)
+                logger.error(f"Failed to delete container: {sanitized_error}")
+                raise ContainerDeploymentError(f"Failed to delete container: {sanitized_error}")
+
+            logger.info("Container deleted successfully")
             return True
 
+        except ValueError:
+            raise
+        except ContainerDeploymentError:
+            raise
         except Exception as e:
-            logger.error(f"Failed to delete container {resource_id}: {e}")
-            return False
+            sanitized_error = _sanitize_error_message(str(e))
+            logger.error(f"Failed to delete container: {sanitized_error}")
+            raise ContainerDeploymentError(f"Failed to delete container: {sanitized_error}") from e
 
     async def list_containers_for_run(self) -> list[dict[str, Any]]:
         """List all containers for this run.
 
+        Uses naming convention (kw-{run_id[:8]}-*) to find containers
+        belonging to this HayMaker run.
+
         Returns:
-            List of container info dictionaries
+            List of container info dictionaries with name, state, and resource_id
+
+        Raises:
+            ContainerDeploymentError: If list operation fails
         """
         try:
-            # In production, this would query the Container Apps API
-            # filtering by naming convention or tags
-            logger.info(f"Listed containers for run: {self.run_id}")
-            return []
+            resource_group = getattr(self.config, "resource_group_name", "azure-haymaker-rg")
 
+            # List all container apps in resource group
+            result = await asyncio.to_thread(
+                subprocess.run,
+                [
+                    "az",
+                    "containerapp",
+                    "list",
+                    "--resource-group",
+                    resource_group,
+                    "-o",
+                    "json",
+                ],
+                capture_output=True,
+                text=True,
+            )
+
+            if result.returncode != 0:
+                error_msg = result.stderr or result.stdout
+                sanitized_error = _sanitize_error_message(error_msg)
+                logger.error(f"Failed to list containers: {sanitized_error}")
+                raise ContainerDeploymentError(f"Failed to list containers: {sanitized_error}")
+
+            all_containers = json_mod.loads(result.stdout)
+
+            # Filter containers by naming convention: kw-{run_id[:8]}-*
+            run_prefix = f"kw-{self.run_id[:8]}"
+            containers = []
+
+            for container in all_containers:
+                if container.get("name", "").startswith(run_prefix):
+                    containers.append(
+                        {
+                            "name": container["name"],
+                            "state": container.get("properties", {}).get(
+                                "provisioningState", "Unknown"
+                            ),
+                            "resource_id": container["id"],
+                            "fqdn": container.get("properties", {})
+                            .get("configuration", {})
+                            .get("ingress", {})
+                            .get("fqdn"),
+                        }
+                    )
+
+            logger.info(f"Listed {len(containers)} containers successfully")
+            return containers
+
+        except ContainerDeploymentError:
+            raise
         except Exception as e:
-            logger.error(f"Failed to list containers for run {self.run_id}: {e}")
-            return []
+            sanitized_error = _sanitize_error_message(str(e))
+            logger.error(f"Failed to list containers: {sanitized_error}")
+            raise ContainerDeploymentError(f"Failed to list containers: {sanitized_error}") from e
 
     async def get_container_status(
         self,
@@ -216,23 +462,76 @@ class M365CLIContainerManager:
     ) -> dict[str, Any] | None:
         """Get status of a container.
 
+        Queries Azure Container Apps API for detailed container status
+        including provisioning state, replica count, and FQDN.
+
         Args:
             container_name: Container app name
 
         Returns:
-            Status dictionary or None if not found
+            Status dictionary with name, state, replicas, fqdn, or None if not found
+
+        Raises:
+            ValueError: If container name is invalid
+            ContainerDeploymentError: If status query fails
         """
+        # SECURITY: Validate container name
+        _validate_container_name(container_name)
+
         try:
-            # In production, this would query the Container Apps API
-            return {
+            resource_group = getattr(self.config, "resource_group_name", "azure-haymaker-rg")
+
+            # Get container app details
+            result = await asyncio.to_thread(
+                subprocess.run,
+                [
+                    "az",
+                    "containerapp",
+                    "show",
+                    "--name",
+                    container_name,
+                    "--resource-group",
+                    resource_group,
+                    "-o",
+                    "json",
+                ],
+                capture_output=True,
+                text=True,
+            )
+
+            if result.returncode != 0:
+                error_msg = result.stderr or result.stdout
+                if "not found" in error_msg.lower():
+                    logger.warning("Container not found")
+                    return None
+                sanitized_error = _sanitize_error_message(error_msg)
+                logger.error(f"Failed to get container status: {sanitized_error}")
+                raise ContainerDeploymentError(f"Failed to get container status: {sanitized_error}")
+
+            container_data = json_mod.loads(result.stdout)
+            properties = container_data.get("properties", {})
+
+            status = {
                 "name": container_name,
-                "status": "running",
-                "replicas": 1,
+                "state": properties.get("provisioningState", "Unknown"),
+                "replicas": properties.get("template", {}).get("scale", {}).get("minReplicas", 0),
+                "fqdn": properties.get("configuration", {}).get("ingress", {}).get("fqdn"),
+                "resource_id": container_data.get("id"),
             }
 
+            logger.debug("Container status retrieved successfully")
+            return status
+
+        except ValueError:
+            raise
+        except ContainerDeploymentError:
+            raise
         except Exception as e:
-            logger.error(f"Failed to get container status for {container_name}: {e}")
-            return None
+            sanitized_error = _sanitize_error_message(str(e))
+            logger.error(f"Failed to get container status: {sanitized_error}")
+            raise ContainerDeploymentError(
+                f"Failed to get container status: {sanitized_error}"
+            ) from e
 
     async def _deploy_container_app(
         self,
@@ -242,33 +541,210 @@ class M365CLIContainerManager:
         cpu: str,
         memory: str,
     ) -> str:
-        """Internal method to deploy a container app.
+        """Deploy M365 CLI container app to Azure Container Apps.
 
-        This would use the Azure Container Apps SDK in production.
+        Uses Azure CLI for deployment with proper credential handling
+        and environment configuration.
 
         Args:
             name: Container app name
             image: Container image
             env_vars: Environment variables
-            cpu: CPU allocation
-            memory: Memory allocation
+            cpu: CPU allocation (e.g., "0.25")
+            memory: Memory allocation (e.g., "0.5Gi")
 
         Returns:
             Resource ID of deployed container
+
+        Raises:
+            ContainerDeploymentError: If deployment fails
         """
-        # Placeholder for actual Container Apps deployment
-        # In production, this would use:
-        # - azure-mgmt-appcontainers SDK
-        # - or the existing ContainerDeployer from HayMaker
+        try:
+            # Create credential for Azure SDK operations
+            credential = ClientSecretCredential(
+                tenant_id=os.getenv("AZURE_TENANT_ID"),
+                client_id=os.getenv("AZURE_CLIENT_ID"),
+                client_secret=os.getenv("AZURE_CLIENT_SECRET"),
+            )
 
-        resource_id = (
-            f"/subscriptions/placeholder/resourceGroups/placeholder/"
-            f"providers/Microsoft.App/containerApps/{name}"
-        )
+            # Validate required credentials exist
+            client_id = os.getenv("AZURE_CLIENT_ID", "")
+            tenant_id = os.getenv("AZURE_TENANT_ID", "")
+            client_secret = os.getenv("AZURE_CLIENT_SECRET", "")
 
-        logger.debug(
-            f"Deploying container app: {name} "
-            f"(image: {image}, cpu: {cpu}, memory: {memory})"
-        )
+            if not all([client_id, tenant_id, client_secret]):
+                raise ContainerDeploymentError(
+                    "Missing required Azure credentials: AZURE_CLIENT_ID, "
+                    "AZURE_CLIENT_SECRET, and AZURE_TENANT_ID must be set"
+                )
 
-        return resource_id
+            # Get Container Apps Environment (use haymaker-fastapi-cae like scenario containers)
+            resource_group = getattr(self.config, "resource_group_name", "azure-haymaker-rg")
+            subscription_id = getattr(self.config, "target_subscription_id", "")
+            environment_name = "haymaker-fastapi-cae"
+
+            # Verify environment exists using SDK
+            env_client = ContainerAppsAPIClient(
+                credential=credential, subscription_id=subscription_id
+            )
+
+            try:
+                env = await asyncio.to_thread(
+                    env_client.managed_environments.get,
+                    resource_group_name=resource_group,
+                    environment_name=environment_name,
+                )
+                logger.info(
+                    f"Verified Container Apps Environment: {env.name} (State: {env.provisioning_state})"
+                )
+            except Exception as env_error:
+                logger.error(f"Failed to verify Container Apps Environment: {env_error}")
+                raise ContainerDeploymentError(
+                    f"Container Apps Environment not accessible: {env_error}"
+                ) from env_error
+
+            # Build login command using env var for password to avoid cmdline exposure
+            login_shell_cmd = (
+                f"az login --service-principal "
+                f"-u {shlex.quote(client_id)} "
+                f"-t {shlex.quote(tenant_id)} "
+                f'-p "$AZURE_CLIENT_SECRET"'
+            )
+
+            login_result = await asyncio.to_thread(
+                subprocess.run,
+                login_shell_cmd,
+                shell=True,
+                capture_output=True,
+                text=True,
+                env=os.environ,
+            )
+            if login_result.returncode != 0:
+                logger.warning(
+                    f"CLI login warning (may already be logged in): {login_result.stderr}"
+                )
+
+            # Get ACR credentials for registry authentication
+            acr_creds = subprocess.run(
+                [
+                    "az",
+                    "acr",
+                    "credential",
+                    "show",
+                    "--name",
+                    "haymakerorchacr",
+                    "-o",
+                    "json",
+                ],
+                capture_output=True,
+                text=True,
+            )
+
+            # SECURITY: Validate ACR credential retrieval
+            if acr_creds.returncode != 0:
+                raise ContainerDeploymentError(
+                    "Failed to retrieve ACR credentials. "
+                    "Ensure Azure CLI is authenticated and has access to the registry."
+                )
+
+            acr_data = json_mod.loads(acr_creds.stdout)
+
+            # SECURITY: Validate credential data structure and values
+            if not acr_data.get("username"):
+                raise ContainerDeploymentError("ACR username not found in credentials")
+
+            if not acr_data.get("passwords") or not acr_data["passwords"]:
+                raise ContainerDeploymentError("ACR password not found in credentials")
+
+            acr_username = acr_data["username"]
+            acr_password = acr_data["passwords"][0]["value"]
+
+            # SECURITY: Validate password is not empty
+            if not acr_password:
+                raise ContainerDeploymentError("ACR password is empty")
+
+            # Build environment variable arguments for Azure CLI
+            env_args = []
+            for key, value in env_vars.items():
+                env_args.extend([f"{key}={value}"])
+
+            # Build container app command - pass registry password via env var
+            deploy_env = os.environ.copy()
+            deploy_env["ACR_PASSWORD"] = acr_password
+
+            cli_command = [
+                "az",
+                "containerapp",
+                "create",
+                "--name",
+                name,
+                "--resource-group",
+                resource_group,
+                "--environment",
+                environment_name,
+                "--image",
+                image,
+                "--cpu",
+                cpu,
+                "--memory",
+                memory,
+                "--ingress",
+                "internal",
+                "--target-port",
+                "80",
+                "--min-replicas",
+                "0",
+                "--max-replicas",
+                "1",
+                "--registry-server",
+                "haymakerorchacr.azurecr.io",
+                "--registry-username",
+                acr_username,
+                "--env-vars",
+                *env_args,
+                "--query",
+                "properties.latestRevisionFqdn",
+                "-o",
+                "tsv",
+            ]
+
+            # Build shell command with password from env var
+            base_cmd = " ".join(shlex.quote(arg) for arg in cli_command)
+            shell_cmd = f'{base_cmd} --registry-password "$ACR_PASSWORD"'
+
+            logger.info(f"Deploying M365 CLI container: {name}")
+            logger.debug(f"  Environment: {environment_name}")
+            logger.debug(f"  Resource Group: {resource_group}")
+            logger.debug(f"  CPU: {cpu}, Memory: {memory}")
+
+            result = await asyncio.to_thread(
+                subprocess.run,
+                shell_cmd,
+                shell=True,
+                capture_output=True,
+                text=True,
+                env=deploy_env,
+            )
+
+            if result.returncode != 0:
+                error_msg = result.stderr or result.stdout
+                sanitized_error = _sanitize_error_message(error_msg)
+                logger.error(f"CLI deployment failed: {sanitized_error}")
+                raise ContainerDeploymentError(f"Failed to deploy via CLI: {sanitized_error}")
+
+            fqdn = result.stdout.strip()
+            deployed_id = f"/subscriptions/{subscription_id}/resourceGroups/{resource_group}/providers/Microsoft.App/containerApps/{name}"
+
+            logger.info("Successfully deployed M365 CLI container")
+            logger.debug(f"  FQDN: {fqdn}")
+
+            return deployed_id
+
+        except ContainerDeploymentError:
+            raise
+        except Exception as e:
+            sanitized_error = _sanitize_error_message(str(e))
+            logger.error(f"Failed to deploy container app: {sanitized_error}")
+            raise ContainerDeploymentError(
+                f"Failed to deploy container app: {sanitized_error}"
+            ) from e
