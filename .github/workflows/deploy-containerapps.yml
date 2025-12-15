@@ -119,9 +119,8 @@ jobs:
 
           echo "Deploying Container Apps with E16 workload profile (128GB RAM)..."
 
-          # Deploy - role assignment errors are OK on redeployment
-          set +e
-          DEPLOY_OUTPUT=$(az deployment group create \
+          # Deploy infrastructure (role assignments removed from bicep to avoid conflicts)
+          OUTPUTS=$(az deployment group create \
             --resource-group "$RG_NAME" \
             --template-file infra/bicep/main-containerapps.bicep \
             --parameters environment=${{ env.ENVIRONMENT }} \
@@ -130,23 +129,7 @@ jobs:
                          simulationSize="${{ secrets.SIMULATION_SIZE }}" \
             --name "$DEPLOYMENT_NAME" \
             --mode Incremental \
-            --query properties.outputs -o json 2>&1)
-          DEPLOY_EXIT=$?
-          set -e
-
-          # Check if deployment failed due to role assignment (OK to ignore)
-          if [ $DEPLOY_EXIT -ne 0 ]; then
-            if echo "$DEPLOY_OUTPUT" | grep -q "RoleAssignmentExists"; then
-              echo "⚠️  Role assignment already exists (expected on redeployment) - continuing..."
-              OUTPUTS=$(az deployment group show --resource-group "$RG_NAME" --query "[0].properties.outputs" -o json --name "$DEPLOYMENT_NAME" 2>/dev/null || echo '{}')
-            else
-              echo "❌ Deployment failed:"
-              echo "$DEPLOY_OUTPUT"
-              exit 1
-            fi
-          else
-            OUTPUTS="$DEPLOY_OUTPUT"
-          fi
+            --query properties.outputs -o json)
 
           # Extract outputs
           ORCHESTRATOR_NAME=$(echo $OUTPUTS | jq -r '.orchestratorName.value')
