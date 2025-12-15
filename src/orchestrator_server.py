@@ -527,6 +527,68 @@ async def list_scenarios(_: AuthDep):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@app.get("/api/resources")
+async def list_resources(
+    _: AuthDep,
+    execution_id: str | None = Query(None, description="Filter by execution ID"),
+    scenario: str | None = Query(None, description="Filter by scenario name"),
+    status: str | None = Query(None, description="Filter by status (created/deleted)"),
+    limit: int = Query(100, description="Maximum number of results"),
+):
+    """List all HayMaker-managed resources in the tenant. Requires authentication.
+
+    Queries Azure Resource Graph for all resources tagged with AzureHayMaker-managed=true.
+
+    Args:
+        execution_id: Optional filter by execution ID
+        scenario: Optional filter by scenario name
+        status: Optional filter by status
+        limit: Maximum results (default 100)
+
+    Returns:
+        List of resources with metadata
+    """
+    try:
+        config = await load_config()
+        resources = await query_managed_resources(
+            subscription_id=config.target_subscription_id,
+            run_id=execution_id if execution_id else None,
+        )
+
+        # Apply filters
+        filtered_resources = resources
+        if scenario:
+            filtered_resources = [
+                r for r in filtered_resources if scenario.lower() in r.name.lower()
+            ]
+        if status:
+            # Status filter not implemented in query_managed_resources yet
+            pass
+
+        # Limit results
+        filtered_resources = filtered_resources[:limit]
+
+        # Convert to response format
+        return {
+            "resources": [
+                {
+                    "id": r.resource_id,
+                    "name": r.name,
+                    "type": r.resource_type,
+                    "resourceGroup": r.resource_group,
+                    "location": r.location,
+                    "tags": r.tags,
+                }
+                for r in filtered_resources
+            ],
+            "count": len(filtered_resources),
+            "total_found": len(resources),
+        }
+    except Exception as e:
+        logger.error(f"Failed to list resources: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @app.get("/api/analytics", response_model=AnalyticsSummary)
 async def get_analytics(
     _: AuthDep,
