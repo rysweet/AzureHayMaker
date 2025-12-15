@@ -64,7 +64,7 @@ jobs:
       - name: Build orchestrator Docker image
         run: |
           cd src
-          docker build -t haymaker-orchestrator:${{ github.sha }} -f Dockerfile .
+          docker build -t haymaker-orchestrator:${{ github.sha }} -f Dockerfile.orchestrator .
           docker tag haymaker-orchestrator:${{ github.sha }} haymaker-orchestrator:latest
           echo "✅ Docker image built"
 
