@@ -160,72 +160,14 @@ jobs:
           echo "   FQDN: $ORCHESTRATOR_FQDN"
           echo "   Profile: E16 (128GB RAM, 16 vCPU)"
 
-      - name: Wait for RBAC Propagation
+      # NOTE: Secret injection temporarily disabled due to RBAC propagation issues
+      # Secrets should be injected manually after deployment or via separate workflow
+      # See: docs/DEPLOYMENT_SETUP.md for manual secret injection steps
+
+      - name: Skip Secret Injection
         run: |
-          echo "⏳ Waiting 3 minutes for Key Vault RBAC permissions to propagate..."
-          sleep 180
-          echo "✅ RBAC propagation wait complete"
-
-      - name: Inject Secrets to Key Vault
-        run: |
-          RG_NAME="haymaker-${{ env.ENVIRONMENT }}-rg"
-          KV_NAME=$(az keyvault list -g "$RG_NAME" --query "[0].name" -o tsv)
-
-          echo "Injecting secrets to Key Vault: $KV_NAME"
-
-          # Retry secret injection with exponential backoff (RBAC propagation can take 3-5 minutes)
-          for secret_name in main-sp-client-secret; do
-            for attempt in 1 2 3 4 5 6 7 8 9 10; do
-              if az keyvault secret set \
-                --vault-name "$KV_NAME" \
-                --name "$secret_name" \
-                --value "${{ secrets.MAIN_SP_CLIENT_SECRET }}" \
-                --output none 2>/dev/null; then
-                echo "✅ $secret_name injected (attempt $attempt)"
-                break
-              else
-                if [ $attempt -eq 10 ]; then
-                  echo "❌ Failed to inject $secret_name after 10 attempts"
-                  exit 1
-                fi
-                wait_time=$((attempt * 15))
-                echo "⏳ Attempt $attempt failed, waiting ${wait_time}s for RBAC propagation..."
-                sleep $wait_time
-              fi
-            done
-          done
-
-          # Inject anthropic-api-key with retry
-          for attempt in 1 2 3 4 5; do
-            if az keyvault secret set \
-              --vault-name "$KV_NAME" \
-              --name anthropic-api-key \
-              --value "${{ secrets.ANTHROPIC_API_KEY }}" \
-              --output none 2>/dev/null; then
-              echo "✅ anthropic-api-key injected (attempt $attempt)"
-              break
-            else
-              [ $attempt -eq 5 ] && exit 1
-              sleep 15
-            fi
-          done
-
-          # Inject log-analytics-workspace-key with retry
-          for attempt in 1 2 3; do
-            if az keyvault secret set \
-              --vault-name "$KV_NAME" \
-              --name log-analytics-workspace-key \
-              --value "${{ secrets.LOG_ANALYTICS_WORKSPACE_KEY }}" \
-              --output none 2>/dev/null; then
-              echo "✅ log-analytics-workspace-key injected (attempt $attempt)"
-              break
-            else
-              [ $attempt -eq 3 ] && exit 1
-              sleep 10
-            fi
-          done
-
-          echo "✅ All secrets injected to Key Vault"
+          echo "⚠️  Secret injection skipped - inject manually after deployment"
+          echo "See docs/DEPLOYMENT_SETUP.md for instructions"
 
       - name: Grant ACR Pull Permission
         run: |
