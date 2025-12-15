@@ -93,7 +93,8 @@ class TestPermissionGranterHappyPath:
 
         # Verify both permissions were granted
         call_args_list = mock_sp_by_id.app_role_assigned_to.post.call_args_list
-        granted_role_ids = {call[0][0].app_role_id for call in call_args_list}
+        # app_role_id is converted to UUID object, so compare string representations
+        granted_role_ids = {str(call[0][0].app_role_id) for call in call_args_list}
         assert PermissionGranter.MAIL_READWRITE_ROLE_ID in granted_role_ids
         assert PermissionGranter.MAIL_SEND_ROLE_ID in granted_role_ids
 
@@ -473,9 +474,10 @@ class TestPermissionGranterHelperMethods:
         # Verify assignment structure
         call_args = mock_sp_by_id.app_role_assigned_to.post.call_args
         assignment = call_args[0][0]
-        assert assignment.principal_id == principal_id
-        assert assignment.resource_id == resource_id
-        assert assignment.app_role_id == app_role_id
+        # IDs are converted to UUID objects, so compare string representations
+        assert str(assignment.principal_id) == principal_id
+        assert str(assignment.resource_id) == resource_id
+        assert str(assignment.app_role_id) == app_role_id
 
     @pytest.mark.anyio
     async def test_grant_app_role_already_exists(self):

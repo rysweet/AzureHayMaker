@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 class MailboxStatus(str, Enum):
     """Status of mailbox provisioning check."""
+
     READY = "ready"
     NOT_FOUND = "not_found"
     TIMEOUT = "timeout"
@@ -24,6 +25,7 @@ class MailboxStatus(str, Enum):
 @dataclass
 class MailboxWaitResult:
     """Result of waiting for mailbox provisioning."""
+
     status: MailboxStatus
     elapsed_seconds: float
     attempts: int

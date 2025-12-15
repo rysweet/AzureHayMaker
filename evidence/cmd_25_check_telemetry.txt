@@ -51,8 +51,8 @@ Failed to get emails for kw-kw-6b5f0-engi-001: 'GraphServiceClient' object has n
 Failed to collect telemetry for kw-kw-6b5f0-engi-001: 'GraphServiceClient' object has no attribute 'graph'
 Failed to get emails for kw-kw-6b5f0-engi-003: 'GraphServiceClient' object has no attribute 'graph'
 Failed to collect telemetry for kw-kw-6b5f0-engi-003: 'GraphServiceClient' object has no attribute 'graph'
-   Telemetry Summary for   
-        kw-6b5f0d4f        
+   Telemetry Summary for
+        kw-6b5f0d4f
 ┏━━━━━━━━━━━━━━━━━┳━━━━━━━┓
 ┃ Metric          ┃ Count ┃
 ┡━━━━━━━━━━━━━━━━━╇━━━━━━━┩

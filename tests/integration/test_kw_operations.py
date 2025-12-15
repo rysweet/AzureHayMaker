@@ -20,11 +20,6 @@ import pytest
 
 # Import paths based on ARCHITECTURE.md specification
 try:
-    from azure_haymaker.knowledge_worker.safety.communication import (
-        CommunicationValidator,
-        ExternalRecipientError,
-    )
-
     from azure_haymaker.knowledge_worker.models.worker import (
         EndpointType,
         WorkerIdentity,
@@ -35,6 +30,11 @@ try:
     from azure_haymaker.knowledge_worker.operations.documents import DocumentOperations
     from azure_haymaker.knowledge_worker.operations.email import EmailOperations
     from azure_haymaker.knowledge_worker.operations.teams import TeamsOperations
+    from azure_haymaker.knowledge_worker.safety.communication import (
+        CommunicationValidator,
+        ExternalRecipientError,
+    )
+
     OPERATIONS_AVAILABLE = True
 except ImportError:
     OPERATIONS_AVAILABLE = False
@@ -51,8 +51,7 @@ except ImportError:
 
 
 pytestmark = pytest.mark.skipif(
-    not OPERATIONS_AVAILABLE,
-    reason="Knowledge Worker operations module not yet implemented"
+    not OPERATIONS_AVAILABLE, reason="Knowledge Worker operations module not yet implemented"
 )
 
 
@@ -85,21 +84,21 @@ def mock_graph_client() -> AsyncMock:
     mock.users.by_user_id.return_value.mail_folders.by_mail_folder_id = MagicMock(
         return_value=MagicMock()
     )
-    mock.users.by_user_id.return_value.mail_folders.by_mail_folder_id.return_value.messages = MagicMock()
-    mock.users.by_user_id.return_value.mail_folders.by_mail_folder_id.return_value.messages.get = AsyncMock(
-        return_value=MagicMock(value=[])
+    mock.users.by_user_id.return_value.mail_folders.by_mail_folder_id.return_value.messages = (
+        MagicMock()
+    )
+    mock.users.by_user_id.return_value.mail_folders.by_mail_folder_id.return_value.messages.get = (
+        AsyncMock(return_value=MagicMock(value=[]))
     )
 
     # Setup Teams endpoint chain
     mock.teams = MagicMock()
     mock.teams.by_team_id = MagicMock(return_value=MagicMock())
     mock.teams.by_team_id.return_value.channels = MagicMock()
-    mock.teams.by_team_id.return_value.channels.by_channel_id = MagicMock(
-        return_value=MagicMock()
-    )
+    mock.teams.by_team_id.return_value.channels.by_channel_id = MagicMock(return_value=MagicMock())
     mock.teams.by_team_id.return_value.channels.by_channel_id.return_value.messages = MagicMock()
-    mock.teams.by_team_id.return_value.channels.by_channel_id.return_value.messages.post = AsyncMock(
-        return_value=MagicMock(id="teams-message-id-123")
+    mock.teams.by_team_id.return_value.channels.by_channel_id.return_value.messages.post = (
+        AsyncMock(return_value=MagicMock(id="teams-message-id-123"))
     )
 
     # Setup chats endpoint
@@ -117,8 +116,8 @@ def mock_graph_client() -> AsyncMock:
         return_value=MagicMock()
     )
     mock.users.by_user_id.return_value.drive.root.item_with_path.return_value.content = MagicMock()
-    mock.users.by_user_id.return_value.drive.root.item_with_path.return_value.content.put = AsyncMock(
-        return_value=MagicMock(id="document-id-123")
+    mock.users.by_user_id.return_value.drive.root.item_with_path.return_value.content.put = (
+        AsyncMock(return_value=MagicMock(id="document-id-123"))
     )
 
     # Setup calendar endpoint
@@ -249,9 +248,7 @@ class TestEmailOperationsSendEmail:
         assert result is not None
 
     @pytest.mark.asyncio
-    async def test_send_email_all_external_blocked(
-        self, email_ops: EmailOperations
-    ) -> None:
+    async def test_send_email_all_external_blocked(self, email_ops: EmailOperations) -> None:
         """Test that email is blocked when ALL recipients are external."""
         result = await email_ops.send_email(
             to=["external1@gmail.com", "external2@outlook.com"],
@@ -262,9 +259,7 @@ class TestEmailOperationsSendEmail:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_send_email_with_cc(
-        self, email_ops: EmailOperations
-    ) -> None:
+    async def test_send_email_with_cc(self, email_ops: EmailOperations) -> None:
         """Test sending email with CC recipients."""
         result = await email_ops.send_email(
             to=["kw-test123-engi-002@haymaker.onmicrosoft.com"],
@@ -276,9 +271,7 @@ class TestEmailOperationsSendEmail:
         assert result is not None
 
     @pytest.mark.asyncio
-    async def test_send_email_cc_filters_external(
-        self, email_ops: EmailOperations
-    ) -> None:
+    async def test_send_email_cc_filters_external(self, email_ops: EmailOperations) -> None:
         """Test that CC recipients also filter external addresses."""
         result = await email_ops.send_email(
             to=["kw-test123-engi-002@haymaker.onmicrosoft.com"],
@@ -291,9 +284,7 @@ class TestEmailOperationsSendEmail:
         assert result is not None
 
     @pytest.mark.asyncio
-    async def test_send_email_with_importance(
-        self, email_ops: EmailOperations
-    ) -> None:
+    async def test_send_email_with_importance(self, email_ops: EmailOperations) -> None:
         """Test sending email with importance level."""
         result = await email_ops.send_email(
             to=["kw-test123-engi-002@haymaker.onmicrosoft.com"],
@@ -348,9 +339,7 @@ class TestEmailOperationsReadInbox:
         assert messages[0]["subject"] == "Test Message"
 
     @pytest.mark.asyncio
-    async def test_read_inbox_unread_only(
-        self, email_ops: EmailOperations
-    ) -> None:
+    async def test_read_inbox_unread_only(self, email_ops: EmailOperations) -> None:
         """Test reading only unread messages."""
         messages = await email_ops.read_inbox(count=10, unread_only=True)
 
@@ -380,9 +369,7 @@ class TestTeamsOperations:
         )
 
     @pytest.mark.asyncio
-    async def test_post_to_channel(
-        self, teams_ops: TeamsOperations
-    ) -> None:
+    async def test_post_to_channel(self, teams_ops: TeamsOperations) -> None:
         """Test posting message to Teams channel."""
         result = await teams_ops.post_to_channel(
             team_id="team-eng-001",
@@ -393,9 +380,7 @@ class TestTeamsOperations:
         assert result == "teams-message-id-123"
 
     @pytest.mark.asyncio
-    async def test_post_to_channel_with_mentions(
-        self, teams_ops: TeamsOperations
-    ) -> None:
+    async def test_post_to_channel_with_mentions(self, teams_ops: TeamsOperations) -> None:
         """Test posting with @mentions."""
         result = await teams_ops.post_to_channel(
             team_id="team-eng-001",
@@ -424,9 +409,7 @@ class TestTeamsOperations:
         assert result is not None
 
     @pytest.mark.asyncio
-    async def test_send_chat_message(
-        self, teams_ops: TeamsOperations
-    ) -> None:
+    async def test_send_chat_message(self, teams_ops: TeamsOperations) -> None:
         """Test sending direct chat message."""
         result = await teams_ops.send_chat_message(
             recipient_id="kw-test123-engi-002@haymaker.onmicrosoft.com",
@@ -437,9 +420,7 @@ class TestTeamsOperations:
         assert result is not None
 
     @pytest.mark.asyncio
-    async def test_send_chat_message_to_external_blocked(
-        self, teams_ops: TeamsOperations
-    ) -> None:
+    async def test_send_chat_message_to_external_blocked(self, teams_ops: TeamsOperations) -> None:
         """Test that chat to external recipient is blocked."""
         result = await teams_ops.send_chat_message(
             recipient_id="external@gmail.com",
@@ -449,9 +430,7 @@ class TestTeamsOperations:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_reply_to_thread(
-        self, teams_ops: TeamsOperations
-    ) -> None:
+    async def test_reply_to_thread(self, teams_ops: TeamsOperations) -> None:
         """Test replying to existing thread."""
         # Setup mock for replies endpoint
         teams_ops.client.graph.teams.by_team_id.return_value.channels.by_channel_id.return_value.messages.by_chat_message_id = MagicMock(
@@ -495,9 +474,7 @@ class TestDocumentOperations:
         )
 
     @pytest.mark.asyncio
-    async def test_create_document(
-        self, doc_ops: DocumentOperations
-    ) -> None:
+    async def test_create_document(self, doc_ops: DocumentOperations) -> None:
         """Test creating a document in OneDrive."""
         result = await doc_ops.create_document(
             name="test-doc.docx",
@@ -508,9 +485,7 @@ class TestDocumentOperations:
         assert result == "document-id-123"
 
     @pytest.mark.asyncio
-    async def test_create_document_custom_folder(
-        self, doc_ops: DocumentOperations
-    ) -> None:
+    async def test_create_document_custom_folder(self, doc_ops: DocumentOperations) -> None:
         """Test creating document in custom folder."""
         result = await doc_ops.create_document(
             name="report.xlsx",
@@ -527,8 +502,8 @@ class TestDocumentOperations:
         """Test sharing document with internal team members."""
         # Setup mock for invite endpoint
         mock_m365_client.graph.users.by_user_id.return_value.drive.items = MagicMock()
-        mock_m365_client.graph.users.by_user_id.return_value.drive.items.by_drive_item_id = MagicMock(
-            return_value=MagicMock()
+        mock_m365_client.graph.users.by_user_id.return_value.drive.items.by_drive_item_id = (
+            MagicMock(return_value=MagicMock())
         )
         mock_m365_client.graph.users.by_user_id.return_value.drive.items.by_drive_item_id.return_value.invite = MagicMock()
         mock_m365_client.graph.users.by_user_id.return_value.drive.items.by_drive_item_id.return_value.invite.post = AsyncMock()
@@ -551,8 +526,8 @@ class TestDocumentOperations:
         """Test that external team members are filtered from sharing."""
         # Setup mock
         mock_m365_client.graph.users.by_user_id.return_value.drive.items = MagicMock()
-        mock_m365_client.graph.users.by_user_id.return_value.drive.items.by_drive_item_id = MagicMock(
-            return_value=MagicMock()
+        mock_m365_client.graph.users.by_user_id.return_value.drive.items.by_drive_item_id = (
+            MagicMock(return_value=MagicMock())
         )
         mock_m365_client.graph.users.by_user_id.return_value.drive.items.by_drive_item_id.return_value.invite = MagicMock()
         mock_m365_client.graph.users.by_user_id.return_value.drive.items.by_drive_item_id.return_value.invite.post = AsyncMock()
@@ -569,9 +544,7 @@ class TestDocumentOperations:
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_share_with_team_no_valid_members(
-        self, doc_ops: DocumentOperations
-    ) -> None:
+    async def test_share_with_team_no_valid_members(self, doc_ops: DocumentOperations) -> None:
         """Test sharing fails when no valid members after filtering."""
         result = await doc_ops.share_with_team(
             item_id="doc-001",
@@ -605,9 +578,7 @@ class TestCalendarOperations:
         )
 
     @pytest.mark.asyncio
-    async def test_create_event_internal_attendees(
-        self, cal_ops: CalendarOperations
-    ) -> None:
+    async def test_create_event_internal_attendees(self, cal_ops: CalendarOperations) -> None:
         """Test creating event with internal attendees."""
         result = await cal_ops.create_event(
             subject="Team Standup",
@@ -619,9 +590,7 @@ class TestCalendarOperations:
         assert result == "event-id-123"
 
     @pytest.mark.asyncio
-    async def test_create_event_with_location(
-        self, cal_ops: CalendarOperations
-    ) -> None:
+    async def test_create_event_with_location(self, cal_ops: CalendarOperations) -> None:
         """Test creating event with location."""
         result = await cal_ops.create_event(
             subject="All Hands Meeting",
@@ -635,9 +604,7 @@ class TestCalendarOperations:
         assert result is not None
 
     @pytest.mark.asyncio
-    async def test_create_online_meeting(
-        self, cal_ops: CalendarOperations
-    ) -> None:
+    async def test_create_online_meeting(self, cal_ops: CalendarOperations) -> None:
         """Test creating online Teams meeting."""
         result = await cal_ops.create_event(
             subject="Virtual Sync",
@@ -664,9 +631,7 @@ class TestCalendarOperations:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_create_event_mixed_attendees_filters(
-        self, cal_ops: CalendarOperations
-    ) -> None:
+    async def test_create_event_mixed_attendees_filters(self, cal_ops: CalendarOperations) -> None:
         """Test that mixed attendees list filters to internal only."""
         result = await cal_ops.create_event(
             subject="Mixed Meeting",
@@ -725,9 +690,7 @@ class TestRateLimiting:
         )
 
     @pytest.mark.asyncio
-    async def test_rate_limit_increments_counter(
-        self, email_ops: EmailOperations
-    ) -> None:
+    async def test_rate_limit_increments_counter(self, email_ops: EmailOperations) -> None:
         """Test that operations increment the rate limit counter."""
         initial_count = email_ops._operation_count
 
@@ -741,9 +704,7 @@ class TestRateLimiting:
 
     @pytest.mark.asyncio
     @pytest.mark.slow
-    async def test_rate_limit_pauses_on_threshold(
-        self, email_ops: EmailOperations
-    ) -> None:
+    async def test_rate_limit_pauses_on_threshold(self, email_ops: EmailOperations) -> None:
         """Test that rate limiter pauses at threshold.
 
         Note: This test is marked slow because it may actually wait.
@@ -809,9 +770,7 @@ class TestOperationErrorHandling:
             )
 
     @pytest.mark.asyncio
-    async def test_empty_recipients_handled(
-        self, email_ops: EmailOperations
-    ) -> None:
+    async def test_empty_recipients_handled(self, email_ops: EmailOperations) -> None:
         """Test handling of empty recipients list."""
         result = await email_ops.send_email(
             to=[],

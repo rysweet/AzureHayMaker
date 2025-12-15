@@ -105,9 +105,7 @@ def mock_email_response():
         msg.from_.email_address.address = sender
         msg.received_date_time = received_dt
         msg.body_preview = f"Preview of {subject}"
-        msg.to_recipients = [
-            MagicMock(email_address=MagicMock(address="recipient@tenant.com"))
-        ]
+        msg.to_recipients = [MagicMock(email_address=MagicMock(address="recipient@tenant.com"))]
         return msg
 
     return create_message
@@ -285,13 +283,11 @@ class TestCalendarTelemetry:
         mock_result = MagicMock()
         mock_result.value = mock_events
 
-        mock_graph_client.graph.users.by_user_id.return_value.calendar.events.get = (
-            AsyncMock(return_value=mock_result)
+        mock_graph_client.graph.users.by_user_id.return_value.calendar.events.get = AsyncMock(
+            return_value=mock_result
         )
 
-        result = await telemetry_collector.get_calendar_events_for_worker(
-            worker=worker_identity
-        )
+        result = await telemetry_collector.get_calendar_events_for_worker(worker=worker_identity)
 
         assert isinstance(result, list)
         assert len(result) == 2
@@ -311,14 +307,16 @@ class TestCalendarTelemetry:
         end_time = now + timedelta(days=1)
 
         mock_events = [
-            mock_calendar_response("Upcoming Meeting", now + timedelta(hours=1), now + timedelta(hours=2))
+            mock_calendar_response(
+                "Upcoming Meeting", now + timedelta(hours=1), now + timedelta(hours=2)
+            )
         ]
 
         mock_result = MagicMock()
         mock_result.value = mock_events
 
-        mock_graph_client.graph.users.by_user_id.return_value.calendar.events.get = (
-            AsyncMock(return_value=mock_result)
+        mock_graph_client.graph.users.by_user_id.return_value.calendar.events.get = AsyncMock(
+            return_value=mock_result
         )
 
         result = await telemetry_collector.get_calendar_events_for_worker(
@@ -482,9 +480,7 @@ class TestRunSummary:
         assert "teams_count" in summary
 
     @pytest.mark.asyncio
-    async def test_get_run_summary_with_no_activity(
-        self, telemetry_collector, mock_graph_client
-    ):
+    async def test_get_run_summary_with_no_activity(self, telemetry_collector, mock_graph_client):
         """Test get_run_summary handles workers with no activity."""
         workers = [
             WorkerIdentity(
@@ -507,8 +503,8 @@ class TestRunSummary:
         mock_graph_client.graph.users.by_user_id.return_value.messages.get = AsyncMock(
             return_value=mock_result
         )
-        mock_graph_client.graph.users.by_user_id.return_value.calendar.events.get = (
-            AsyncMock(return_value=mock_result)
+        mock_graph_client.graph.users.by_user_id.return_value.calendar.events.get = AsyncMock(
+            return_value=mock_result
         )
 
         summary = await telemetry_collector.get_run_summary(workers=workers)

@@ -283,9 +283,16 @@ class TestPhase1Validation:
             "select_scenarios_activity": mock_scenarios,
             "create_service_principal_activity": mock_sp_results,
             "deploy_container_app_activity": mock_container_results,
-            "check_agent_status_activity": {"running_count": 2, "completed_count": 0, "failed_count": 0},
+            "check_agent_status_activity": {
+                "running_count": 2,
+                "completed_count": 0,
+                "failed_count": 0,
+            },
             "verify_cleanup_activity": {"remaining_resources": []},
-            "generate_report_activity": {"report_url": "https://test.blob.core.windows.net/reports/test.json", "report_id": run_id},
+            "generate_report_activity": {
+                "report_url": "https://test.blob.core.windows.net/reports/test.json",
+                "report_id": run_id,
+            },
         }
 
         result = run_orchestration(run_id, started_at, activity_results)
@@ -337,9 +344,16 @@ class TestPhase2ScenarioSelection:
             "select_scenarios_activity": mock_scenarios,
             "create_service_principal_activity": mock_sp_results,
             "deploy_container_app_activity": mock_container_results,
-            "check_agent_status_activity": {"running_count": 2, "completed_count": 0, "failed_count": 0},
+            "check_agent_status_activity": {
+                "running_count": 2,
+                "completed_count": 0,
+                "failed_count": 0,
+            },
             "verify_cleanup_activity": {"remaining_resources": []},
-            "generate_report_activity": {"report_url": "https://test.blob.core.windows.net/reports/test.json", "report_id": run_id},
+            "generate_report_activity": {
+                "report_url": "https://test.blob.core.windows.net/reports/test.json",
+                "report_id": run_id,
+            },
         }
 
         result = run_orchestration(run_id, started_at, activity_results)
@@ -374,9 +388,16 @@ class TestPhase3Provisioning:
             "select_scenarios_activity": mock_scenarios,
             "create_service_principal_activity": mock_sp_results,
             "deploy_container_app_activity": mock_container_results,
-            "check_agent_status_activity": {"running_count": 2, "completed_count": 0, "failed_count": 0},
+            "check_agent_status_activity": {
+                "running_count": 2,
+                "completed_count": 0,
+                "failed_count": 0,
+            },
             "verify_cleanup_activity": {"remaining_resources": []},
-            "generate_report_activity": {"report_url": "https://test.blob.core.windows.net/reports/test.json", "report_id": run_id},
+            "generate_report_activity": {
+                "report_url": "https://test.blob.core.windows.net/reports/test.json",
+                "report_id": run_id,
+            },
         }
 
         result = run_orchestration(run_id, started_at, activity_results)
@@ -416,9 +437,16 @@ class TestPhase3Provisioning:
             "select_scenarios_activity": mock_scenarios,
             "create_service_principal_activity": sp_results_mixed,
             "deploy_container_app_activity": mock_container_results,
-            "check_agent_status_activity": {"running_count": 1, "completed_count": 0, "failed_count": 0},
+            "check_agent_status_activity": {
+                "running_count": 1,
+                "completed_count": 0,
+                "failed_count": 0,
+            },
             "verify_cleanup_activity": {"remaining_resources": []},
-            "generate_report_activity": {"report_url": "https://test.blob.core.windows.net/reports/test.json", "report_id": run_id},
+            "generate_report_activity": {
+                "report_url": "https://test.blob.core.windows.net/reports/test.json",
+                "report_id": run_id,
+            },
         }
 
         result = run_orchestration(run_id, started_at, activity_results)
@@ -451,9 +479,16 @@ class TestPhase4Monitoring:
             "select_scenarios_activity": mock_scenarios,
             "create_service_principal_activity": mock_sp_results,
             "deploy_container_app_activity": mock_container_results,
-            "check_agent_status_activity": {"running_count": 2, "completed_count": 0, "failed_count": 0},
+            "check_agent_status_activity": {
+                "running_count": 2,
+                "completed_count": 0,
+                "failed_count": 0,
+            },
             "verify_cleanup_activity": {"remaining_resources": []},
-            "generate_report_activity": {"report_url": "https://test.blob.core.windows.net/reports/test.json", "report_id": run_id},
+            "generate_report_activity": {
+                "report_url": "https://test.blob.core.windows.net/reports/test.json",
+                "report_id": run_id,
+            },
         }
 
         result = run_orchestration(run_id, started_at, activity_results)
@@ -486,9 +521,16 @@ class TestPhase5And6Cleanup:
             "select_scenarios_activity": mock_scenarios,
             "create_service_principal_activity": mock_sp_results,
             "deploy_container_app_activity": mock_container_results,
-            "check_agent_status_activity": {"running_count": 2, "completed_count": 0, "failed_count": 0},
+            "check_agent_status_activity": {
+                "running_count": 2,
+                "completed_count": 0,
+                "failed_count": 0,
+            },
             "verify_cleanup_activity": {"remaining_resources": []},
-            "generate_report_activity": {"report_url": "https://test.blob.core.windows.net/reports/test.json", "report_id": run_id},
+            "generate_report_activity": {
+                "report_url": "https://test.blob.core.windows.net/reports/test.json",
+                "report_id": run_id,
+            },
         }
 
         result = run_orchestration(run_id, started_at, activity_results)
@@ -509,8 +551,14 @@ class TestPhase5And6Cleanup:
     ):
         """Test that remaining resources trigger forced cleanup."""
         remaining_resources = [
-            {"resource_id": "/subscriptions/sub/resourceGroups/rg1", "resource_type": "Microsoft.Resources/resourceGroups"},
-            {"resource_id": "/subscriptions/sub/resourceGroups/rg2", "resource_type": "Microsoft.Resources/resourceGroups"},
+            {
+                "resource_id": "/subscriptions/sub/resourceGroups/rg1",
+                "resource_type": "Microsoft.Resources/resourceGroups",
+            },
+            {
+                "resource_id": "/subscriptions/sub/resourceGroups/rg2",
+                "resource_type": "Microsoft.Resources/resourceGroups",
+            },
         ]
 
         activity_results = {
@@ -518,10 +566,21 @@ class TestPhase5And6Cleanup:
             "select_scenarios_activity": mock_scenarios,
             "create_service_principal_activity": mock_sp_results,
             "deploy_container_app_activity": mock_container_results,
-            "check_agent_status_activity": {"running_count": 2, "completed_count": 0, "failed_count": 0},
+            "check_agent_status_activity": {
+                "running_count": 2,
+                "completed_count": 0,
+                "failed_count": 0,
+            },
             "verify_cleanup_activity": {"remaining_resources": remaining_resources},
-            "force_cleanup_activity": {"status": "completed", "deleted_count": 2, "failed_count": 0},
-            "generate_report_activity": {"report_url": "https://test.blob.core.windows.net/reports/test.json", "report_id": run_id},
+            "force_cleanup_activity": {
+                "status": "completed",
+                "deleted_count": 2,
+                "failed_count": 0,
+            },
+            "generate_report_activity": {
+                "report_url": "https://test.blob.core.windows.net/reports/test.json",
+                "report_id": run_id,
+            },
         }
 
         result = run_orchestration(run_id, started_at, activity_results)
@@ -543,7 +602,10 @@ class TestPhase5And6Cleanup:
     ):
         """Test that partial cleanup failures are recorded."""
         remaining_resources = [
-            {"resource_id": "/subscriptions/sub/resourceGroups/rg1", "resource_type": "Microsoft.Resources/resourceGroups"},
+            {
+                "resource_id": "/subscriptions/sub/resourceGroups/rg1",
+                "resource_type": "Microsoft.Resources/resourceGroups",
+            },
         ]
 
         activity_results = {
@@ -551,10 +613,21 @@ class TestPhase5And6Cleanup:
             "select_scenarios_activity": mock_scenarios,
             "create_service_principal_activity": mock_sp_results,
             "deploy_container_app_activity": mock_container_results,
-            "check_agent_status_activity": {"running_count": 2, "completed_count": 0, "failed_count": 0},
+            "check_agent_status_activity": {
+                "running_count": 2,
+                "completed_count": 0,
+                "failed_count": 0,
+            },
             "verify_cleanup_activity": {"remaining_resources": remaining_resources},
-            "force_cleanup_activity": {"status": "partial_failure", "deleted_count": 0, "failed_count": 1},
-            "generate_report_activity": {"report_url": "https://test.blob.core.windows.net/reports/test.json", "report_id": run_id},
+            "force_cleanup_activity": {
+                "status": "partial_failure",
+                "deleted_count": 0,
+                "failed_count": 1,
+            },
+            "generate_report_activity": {
+                "report_url": "https://test.blob.core.windows.net/reports/test.json",
+                "report_id": run_id,
+            },
         }
 
         result = run_orchestration(run_id, started_at, activity_results)
@@ -582,14 +655,20 @@ class TestPhase7Reporting:
         mock_container_results: list[dict[str, Any]],
     ):
         """Test that report URL is included in final result."""
-        expected_url = "https://teststorage.blob.core.windows.net/execution-reports/test-run/report.json"
+        expected_url = (
+            "https://teststorage.blob.core.windows.net/execution-reports/test-run/report.json"
+        )
 
         activity_results = {
             "validate_environment_activity": mock_validation_success,
             "select_scenarios_activity": mock_scenarios,
             "create_service_principal_activity": mock_sp_results,
             "deploy_container_app_activity": mock_container_results,
-            "check_agent_status_activity": {"running_count": 2, "completed_count": 0, "failed_count": 0},
+            "check_agent_status_activity": {
+                "running_count": 2,
+                "completed_count": 0,
+                "failed_count": 0,
+            },
             "verify_cleanup_activity": {"remaining_resources": []},
             "generate_report_activity": {"report_url": expected_url, "report_id": run_id},
         }
@@ -614,9 +693,16 @@ class TestPhase7Reporting:
             "select_scenarios_activity": mock_scenarios,
             "create_service_principal_activity": mock_sp_results,
             "deploy_container_app_activity": mock_container_results,
-            "check_agent_status_activity": {"running_count": 2, "completed_count": 0, "failed_count": 0},
+            "check_agent_status_activity": {
+                "running_count": 2,
+                "completed_count": 0,
+                "failed_count": 0,
+            },
             "verify_cleanup_activity": {"remaining_resources": []},
-            "generate_report_activity": {"report_url": "https://test.blob.core.windows.net/reports/test.json", "report_id": run_id},
+            "generate_report_activity": {
+                "report_url": "https://test.blob.core.windows.net/reports/test.json",
+                "report_id": run_id,
+            },
         }
 
         result = run_orchestration(run_id, started_at, activity_results)
@@ -677,9 +763,16 @@ class TestStateManagement:
             "select_scenarios_activity": mock_scenarios,
             "create_service_principal_activity": mock_sp_results,
             "deploy_container_app_activity": mock_container_results,
-            "check_agent_status_activity": {"running_count": 2, "completed_count": 0, "failed_count": 0},
+            "check_agent_status_activity": {
+                "running_count": 2,
+                "completed_count": 0,
+                "failed_count": 0,
+            },
             "verify_cleanup_activity": {"remaining_resources": []},
-            "generate_report_activity": {"report_url": "https://test.blob.core.windows.net/reports/test.json", "report_id": run_id},
+            "generate_report_activity": {
+                "report_url": "https://test.blob.core.windows.net/reports/test.json",
+                "report_id": run_id,
+            },
         }
 
         result = run_orchestration(run_id, started_at, activity_results)
@@ -729,7 +822,11 @@ class TestFullWorkflowIntegration:
             "select_scenarios_activity": mock_scenarios,
             "create_service_principal_activity": mock_sp_results,
             "deploy_container_app_activity": mock_container_results,
-            "check_agent_status_activity": {"running_count": 2, "completed_count": 0, "failed_count": 0},
+            "check_agent_status_activity": {
+                "running_count": 2,
+                "completed_count": 0,
+                "failed_count": 0,
+            },
             "verify_cleanup_activity": {"remaining_resources": []},
             "generate_report_activity": {
                 "report_url": "https://teststorage.blob.core.windows.net/execution-reports/test-run/report.json",
@@ -764,7 +861,10 @@ class TestFullWorkflowIntegration:
     ):
         """Test workflow that requires forced cleanup."""
         remaining_resources = [
-            {"resource_id": "/subscriptions/sub/resourceGroups/rg1", "resource_type": "Microsoft.Resources/resourceGroups"},
+            {
+                "resource_id": "/subscriptions/sub/resourceGroups/rg1",
+                "resource_type": "Microsoft.Resources/resourceGroups",
+            },
         ]
 
         activity_results = {
@@ -772,9 +872,17 @@ class TestFullWorkflowIntegration:
             "select_scenarios_activity": mock_scenarios,
             "create_service_principal_activity": mock_sp_results,
             "deploy_container_app_activity": mock_container_results,
-            "check_agent_status_activity": {"running_count": 2, "completed_count": 0, "failed_count": 0},
+            "check_agent_status_activity": {
+                "running_count": 2,
+                "completed_count": 0,
+                "failed_count": 0,
+            },
             "verify_cleanup_activity": {"remaining_resources": remaining_resources},
-            "force_cleanup_activity": {"status": "completed", "deleted_count": 1, "failed_count": 0},
+            "force_cleanup_activity": {
+                "status": "completed",
+                "deleted_count": 1,
+                "failed_count": 0,
+            },
             "generate_report_activity": {
                 "report_url": "https://teststorage.blob.core.windows.net/execution-reports/test-run/report.json",
                 "report_id": run_id,

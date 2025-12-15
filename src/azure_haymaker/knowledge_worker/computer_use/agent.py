@@ -48,7 +48,9 @@ def _run_async_in_context(coro):
         loop = asyncio.get_running_loop()
         # Create new loop in separate thread to avoid blocking
         import concurrent.futures
+
         with concurrent.futures.ThreadPoolExecutor() as executor:
+
             def run_in_new_loop():
                 new_loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(new_loop)
@@ -56,6 +58,7 @@ def _run_async_in_context(coro):
                     return new_loop.run_until_complete(coro)
                 finally:
                     new_loop.close()
+
             return executor.submit(run_in_new_loop).result()
     except RuntimeError:
         # No running loop, create and use one
@@ -101,7 +104,7 @@ class ComputerUseConfig(KnowledgeWorkerConfig):
         fields = []
         for field_name, field_value in self.__dict__.items():
             # Mask password fields
-            if 'password' in field_name.lower():
+            if "password" in field_name.lower():
                 fields.append(f"{field_name}='***'")
             else:
                 fields.append(f"{field_name}={repr(field_value)}")
@@ -166,10 +169,12 @@ class ComputerUseKnowledgeWorkerAgent(KnowledgeWorkerAgent):
             ValueError: If required VM or M365 credentials are missing
         """
         # Validate credentials
-        if not worker_config.vm_hostname or not worker_config.vm_username or not worker_config.vm_password:
-            raise ValueError(
-                "VM credentials (vm_hostname, vm_username, vm_password) are required"
-            )
+        if (
+            not worker_config.vm_hostname
+            or not worker_config.vm_username
+            or not worker_config.vm_password
+        ):
+            raise ValueError("VM credentials (vm_hostname, vm_username, vm_password) are required")
 
         # Initialize base agent
         super().__init__(
@@ -185,9 +190,7 @@ class ComputerUseKnowledgeWorkerAgent(KnowledgeWorkerAgent):
 
         self._browser_started = False
 
-        logger.info(
-            f"ComputerUseKnowledgeWorkerAgent initialized for {worker_identity.worker_id}"
-        )
+        logger.info(f"ComputerUseKnowledgeWorkerAgent initialized for {worker_identity.worker_id}")
 
     def on_start(self) -> None:
         """Agent startup hook.

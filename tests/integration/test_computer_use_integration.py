@@ -23,7 +23,7 @@ import pytest
 # Custom marker for tests requiring real VMs
 requires_vm = pytest.mark.skipif(
     True,  # Always skip in CI
-    reason="Requires real Windows VM - run manually with Azure resources"
+    reason="Requires real Windows VM - run manually with Azure resources",
 )
 
 # Import modules under test
@@ -120,9 +120,7 @@ def mock_vm_manager():
 @pytest.fixture
 def mock_winrm():
     """Fixture: Mock WinRM connection."""
-    with patch(
-        "azure_haymaker.knowledge_worker.computer_use.winrm_connection.Protocol"
-    ) as mock:
+    with patch("azure_haymaker.knowledge_worker.computer_use.winrm_connection.Protocol") as mock:
         protocol = MagicMock()
         mock.return_value = protocol
 
@@ -204,9 +202,7 @@ class TestFullLifecycleIntegration:
         assert vm_info["hostname"]
 
         # Wait for VM ready
-        ready = await mock_vm_manager.wait_for_vm_ready(
-            vm_id=vm_info["vm_id"], timeout_minutes=10
-        )
+        ready = await mock_vm_manager.wait_for_vm_ready(vm_id=vm_info["vm_id"], timeout_minutes=10)
         assert ready is True
 
         # Phase 2: Deploy agent
@@ -218,9 +214,7 @@ class TestFullLifecycleIntegration:
         winrm_conn.connect()
 
         deployer = AgentDeployer(connection=winrm_conn)
-        deployment = deployer.deploy_agent(
-            worker_identity=worker_identity, workflows=workflows
-        )
+        deployment = deployer.deploy_agent(worker_identity=worker_identity, workflows=workflows)
         assert deployment["success"] is True
 
         # Verify deployment
@@ -266,9 +260,7 @@ class TestFullLifecycleIntegration:
     @requires_vm
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_batch_agent_deployment(
-        self, mock_vm_manager, mock_winrm, workflows
-    ):
+    async def test_batch_agent_deployment(self, mock_vm_manager, mock_winrm, workflows):
         """Test deploying multiple agents in batch."""
         # Create multiple workers
         workers = [
@@ -307,9 +299,7 @@ class TestFullLifecycleIntegration:
             winrm_conn.connect()
 
             deployer = AgentDeployer(connection=winrm_conn)
-            deployment = deployer.deploy_agent(
-                worker_identity=worker, workflows=workflows
-            )
+            deployment = deployer.deploy_agent(worker_identity=worker, workflows=workflows)
             deployment_results.append(deployment)
             winrm_conn.disconnect()
 
@@ -328,9 +318,7 @@ class TestTelemetryIntegration:
     @requires_vm
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_workflow_execution_produces_telemetry(
-        self, worker_identity, mock_browser
-    ):
+    async def test_workflow_execution_produces_telemetry(self, worker_identity, mock_browser):
         """Test workflow execution produces telemetry logs."""
         # Arrange
         config = ComputerUseConfig(
@@ -424,9 +412,7 @@ class TestErrorHandlingIntegration:
     @requires_vm
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_vm_provisioning_failure_handling(
-        self, worker_identity, mock_vm_manager
-    ):
+    async def test_vm_provisioning_failure_handling(self, worker_identity, mock_vm_manager):
         """Test graceful handling of VM provisioning failures."""
         # Arrange
         mock_vm_manager.provision_vm.side_effect = Exception("Quota exceeded")
@@ -440,9 +426,7 @@ class TestErrorHandlingIntegration:
     @requires_vm
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_deployment_failure_cleanup(
-        self, worker_identity, mock_winrm, workflows
-    ):
+    async def test_deployment_failure_cleanup(self, worker_identity, mock_winrm, workflows):
         """Test cleanup happens even if deployment fails."""
         # Arrange
         mock_winrm.get_command_output.return_value = (
@@ -471,9 +455,7 @@ class TestErrorHandlingIntegration:
     @requires_vm
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_workflow_retry_on_transient_failure(
-        self, worker_identity, mock_browser
-    ):
+    async def test_workflow_retry_on_transient_failure(self, worker_identity, mock_browser):
         """Test workflow retries on transient failures."""
         # Arrange
         config = ComputerUseConfig(
@@ -567,9 +549,7 @@ class TestMultiAgentCoordination:
                 m365_username=worker.user_principal_name,
                 m365_password="M365P@ssw0rd!",
             )
-            agent = ComputerUseKnowledgeWorkerAgent(
-                worker_config=config, worker_identity=worker
-            )
+            agent = ComputerUseKnowledgeWorkerAgent(worker_config=config, worker_identity=worker)
             agents.append(agent)
 
         # Execute workflows concurrently

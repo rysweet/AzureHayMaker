@@ -41,9 +41,7 @@ except ImportError:
     TelemetryExporter = None
 
 
-pytestmark = pytest.mark.skipif(
-    not EXPORTER_AVAILABLE, reason="SIEM exporter module not available"
-)
+pytestmark = pytest.mark.skipif(not EXPORTER_AVAILABLE, reason="SIEM exporter module not available")
 
 
 # ==============================================================================
@@ -79,8 +77,8 @@ def sentinel_config():
 def mock_azure_monitor_client():
     """Fixture: Mock Azure Monitor Ingestion client."""
     client = MagicMock()
-    client.upload = AsyncMock()
-    client.close = AsyncMock()
+    client.upload = MagicMock()  # Synchronous method, not async
+    client.close = MagicMock()  # Synchronous method, not async
     return client
 
 
@@ -294,12 +292,14 @@ class TestSentinelConnectorLifecycle:
     @pytest.mark.asyncio
     async def test_connect_handles_authentication_error(self, sentinel_connector):
         """Test connect() handles authentication errors."""
-        with patch(
-            "azure_haymaker.knowledge_worker.telemetry.exporter.DefaultAzureCredential",
-            side_effect=Exception("Authentication failed"),
+        with (
+            patch(
+                "azure_haymaker.knowledge_worker.telemetry.exporter.DefaultAzureCredential",
+                side_effect=Exception("Authentication failed"),
+            ),
+            pytest.raises(Exception, match="Authentication failed"),
         ):
-            with pytest.raises(Exception, match="Authentication failed"):
-                await sentinel_connector.connect()
+            await sentinel_connector.connect()
 
 
 # ==============================================================================
@@ -459,13 +459,11 @@ class TestSentinelConnectorSendBatch:
 
         mock_azure_monitor_client.upload.assert_called_once()
         call_args = mock_azure_monitor_client.upload.call_args
-        logs = call_args.kwargs["body"]
+        logs = call_args.kwargs["logs"]  # Correct parameter name
         assert len(logs) == 3
 
     @pytest.mark.asyncio
-    async def test_send_batch_empty_list(
-        self, sentinel_connector, mock_azure_monitor_client
-    ):
+    async def test_send_batch_empty_list(self, sentinel_connector, mock_azure_monitor_client):
         """Test send_batch handles empty event list."""
         sentinel_connector._client = mock_azure_monitor_client
         sentinel_connector._connected = True
@@ -515,7 +513,7 @@ class TestSentinelConnectorSendBatch:
         partial_error = Exception("Some events failed")
         mock_azure_monitor_client.upload.side_effect = partial_error
 
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="Some events failed"):
             await sentinel_connector.send_batch(events)
 
 
@@ -528,9 +526,7 @@ class TestSentinelConnectorHealthCheck:
     """Tests for SentinelConnector health_check method."""
 
     @pytest.mark.asyncio
-    async def test_health_check_when_connected(
-        self, sentinel_connector, mock_azure_monitor_client
-    ):
+    async def test_health_check_when_connected(self, sentinel_connector, mock_azure_monitor_client):
         """Test health_check returns True when connected and healthy."""
         sentinel_connector._client = mock_azure_monitor_client
         sentinel_connector._connected = True
@@ -564,9 +560,7 @@ class TestSentinelConnectorHealthCheck:
         assert is_healthy is False
 
     @pytest.mark.asyncio
-    async def test_health_check_does_not_throw(
-        self, sentinel_connector, mock_azure_monitor_client
-    ):
+    async def test_health_check_does_not_throw(self, sentinel_connector, mock_azure_monitor_client):
         """Test health_check never throws exceptions."""
         sentinel_connector._client = mock_azure_monitor_client
         sentinel_connector._connected = True
@@ -638,9 +632,7 @@ class TestTelemetryExporterLifecycle:
         """Test stop() disconnects the SentinelConnector."""
         telemetry_exporter._running = True
 
-        with patch.object(
-            telemetry_exporter.connector, "disconnect", new_callable=AsyncMock
-        ):
+        with patch.object(telemetry_exporter.connector, "disconnect", new_callable=AsyncMock):
             await telemetry_exporter.stop()
 
             telemetry_exporter.connector.disconnect.assert_called_once()
@@ -652,15 +644,13 @@ class TestTelemetryExporterLifecycle:
         telemetry_exporter._running = True
         telemetry_exporter._pending_events = [sample_event]
 
-        with patch.object(
-            telemetry_exporter.connector, "send_batch", new_callable=AsyncMock
+        with (
+            patch.object(telemetry_exporter.connector, "send_batch", new_callable=AsyncMock),
+            patch.object(telemetry_exporter.connector, "disconnect", new_callable=AsyncMock),
         ):
-            with patch.object(
-                telemetry_exporter.connector, "disconnect", new_callable=AsyncMock
-            ):
-                await telemetry_exporter.stop()
+            await telemetry_exporter.stop()
 
-                telemetry_exporter.connector.send_batch.assert_called_once()
+            telemetry_exporter.connector.send_batch.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_stop_when_not_running(self, telemetry_exporter):
@@ -693,9 +683,7 @@ class TestTelemetryExporterEmitEvent:
             "run_id": "run-123",
         }
 
-        with patch.object(
-            telemetry_exporter.connector, "send_event", new_callable=AsyncMock
-        ):
+        with patch.object(telemetry_exporter.connector, "send_event", new_callable=AsyncMock):
             await telemetry_exporter.emit_event(event_dict)
 
             telemetry_exporter.connector.send_event.assert_called_once()
@@ -887,12 +875,14 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_handles_authentication_error(self, sentinel_connector):
         """Test graceful handling of Azure authentication errors."""
-        with patch(
-            "azure_haymaker.knowledge_worker.telemetry.exporter.DefaultAzureCredential",
-            side_effect=Exception("Authentication failed: Invalid credentials"),
+        with (
+            patch(
+                "azure_haymaker.knowledge_worker.telemetry.exporter.DefaultAzureCredential",
+                side_effect=Exception("Authentication failed: Invalid credentials"),
+            ),
+            pytest.raises(Exception, match="Authentication failed"),
         ):
-            with pytest.raises(Exception, match="Authentication failed"):
-                await sentinel_connector.connect()
+            await sentinel_connector.connect()
 
     @pytest.mark.asyncio
     async def test_handles_network_timeout(
@@ -916,12 +906,14 @@ class TestErrorHandling:
             stream_name=sentinel_config["stream_name"],
         )
 
-        with patch(
-            "azure_haymaker.knowledge_worker.telemetry.exporter.LogsIngestionClient",
-            side_effect=ValueError("Invalid endpoint URL"),
+        with (
+            patch(
+                "azure_haymaker.knowledge_worker.telemetry.exporter.LogsIngestionClient",
+                side_effect=ValueError("Invalid endpoint URL"),
+            ),
+            pytest.raises(ValueError, match="Invalid endpoint"),
         ):
-            with pytest.raises(ValueError, match="Invalid endpoint"):
-                await connector.connect()
+            await connector.connect()
 
     @pytest.mark.asyncio
     async def test_handles_malformed_event_data(self, telemetry_exporter):
@@ -969,32 +961,34 @@ class TestEndToEndFlow:
         )
         exporter = TelemetryExporter(connector=connector)
 
-        with patch.object(connector, "connect", new_callable=AsyncMock):
-            with patch.object(connector, "send_event", new_callable=AsyncMock):
-                with patch.object(connector, "disconnect", new_callable=AsyncMock):
-                    # Start
-                    await exporter.start()
-                    assert exporter.is_running
+        with (
+            patch.object(connector, "connect", new_callable=AsyncMock),
+            patch.object(connector, "send_event", new_callable=AsyncMock),
+            patch.object(connector, "disconnect", new_callable=AsyncMock),
+        ):
+            # Start
+            await exporter.start()
+            assert exporter.is_running
 
-                    # Emit event
-                    event = {
-                        "timestamp": "2024-12-01T10:00:00Z",
-                        "event_type": "test.event",
-                        "source": "test",
-                        "severity": "info",
-                        "data": {},
-                        "worker_id": "kw-001",
-                        "run_id": "run-123",
-                    }
-                    await exporter.emit_event(event)
+            # Emit event
+            event = {
+                "timestamp": "2024-12-01T10:00:00Z",
+                "event_type": "test.event",
+                "source": "test",
+                "severity": "info",
+                "data": {},
+                "worker_id": "kw-001",
+                "run_id": "run-123",
+            }
+            await exporter.emit_event(event)
 
-                    # Stop
-                    await exporter.stop()
-                    assert not exporter.is_running
+            # Stop
+            await exporter.stop()
+            assert not exporter.is_running
 
-                    connector.connect.assert_called_once()
-                    connector.send_event.assert_called_once()
-                    connector.disconnect.assert_called_once()
+            connector.connect.assert_called_once()
+            connector.send_event.assert_called_once()
+            connector.disconnect.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_batch_processing_workflow(self, sentinel_config):
@@ -1018,15 +1012,17 @@ class TestEndToEndFlow:
             for i in range(10)
         ]
 
-        with patch.object(connector, "connect", new_callable=AsyncMock):
-            with patch.object(connector, "send_batch", new_callable=AsyncMock):
-                await connector.connect()
-                await connector.send_batch(events)
+        with (
+            patch.object(connector, "connect", new_callable=AsyncMock),
+            patch.object(connector, "send_batch", new_callable=AsyncMock),
+        ):
+            await connector.connect()
+            await connector.send_batch(events)
 
-                connector.send_batch.assert_called_once()
-                call_args = connector.send_batch.call_args
-                sent_events = call_args.args[0]
-                assert len(sent_events) == 10
+            connector.send_batch.assert_called_once()
+            call_args = connector.send_batch.call_args
+            sent_events = call_args.args[0]
+            assert len(sent_events) == 10
 
     @pytest.mark.asyncio
     async def test_resilience_to_transient_failures(self, sentinel_config):
@@ -1038,29 +1034,33 @@ class TestEndToEndFlow:
         )
         exporter = TelemetryExporter(connector=connector)
 
-        with patch.object(connector, "connect", new_callable=AsyncMock):
-            with patch.object(connector, "_client") as mock_client:
-                mock_client.upload = AsyncMock(side_effect=[
+        with (
+            patch.object(connector, "connect", new_callable=AsyncMock),
+            patch.object(connector, "_client") as mock_client,
+        ):
+            mock_client.upload = MagicMock(  # Synchronous method, not async
+                side_effect=[
                     Exception("Transient error 1"),
                     Exception("Transient error 2"),
                     None,  # Success
-                ])
-                connector._connected = True
-                await exporter.start()
+                ]
+            )
+            connector._connected = True
+            await exporter.start()
 
-                event = {
-                    "timestamp": "2024-12-01T10:00:00Z",
-                    "event_type": "test.event",
-                    "source": "test",
-                    "severity": "info",
-                    "data": {},
-                    "worker_id": "kw-001",
-                    "run_id": "run-123",
-                }
+            event = {
+                "timestamp": "2024-12-01T10:00:00Z",
+                "event_type": "test.event",
+                "source": "test",
+                "severity": "info",
+                "data": {},
+                "worker_id": "kw-001",
+                "run_id": "run-123",
+            }
 
-                # Should succeed after retries at connector level
-                await exporter.emit_event(event)
-                assert mock_client.upload.call_count == 3
+            # Should succeed after retries at connector level
+            await exporter.emit_event(event)
+            assert mock_client.upload.call_count == 3
 
 
 if __name__ == "__main__":

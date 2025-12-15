@@ -31,6 +31,7 @@ class WebhookValidationError(Exception):
 
     pass
 
+
 # Default timeout for webhook requests (5 seconds)
 WEBHOOK_TIMEOUT = 5.0
 
@@ -113,9 +114,7 @@ def validate_webhook_url(url: str, block_private_ips: bool = True) -> str:
 
     # Check for private IPs if enabled
     if block_private_ips and _is_private_ip(parsed.hostname):
-        raise WebhookValidationError(
-            f"Private IP addresses are not allowed: {parsed.hostname}"
-        )
+        raise WebhookValidationError(f"Private IP addresses are not allowed: {parsed.hostname}")
 
     return url
 

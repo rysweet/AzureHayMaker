@@ -14,7 +14,7 @@ Key features:
 import base64
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 
 from winrm.protocol import Protocol
 
@@ -107,9 +107,7 @@ class WinRMConnection:
         scheme = "https" if transport == "ssl" else "http"
         self._endpoint = f"{scheme}://{hostname}:{port}/wsman"
 
-        logger.info(
-            f"WinRM connection initialized for {self._sanitize_for_log(hostname)}:{port}"
-        )
+        logger.info(f"WinRM connection initialized for {self._sanitize_for_log(hostname)}:{port}")
 
     def connect(self) -> None:
         """Establish WinRM connection.
@@ -127,9 +125,23 @@ class WinRMConnection:
             logger.info(f"Connecting to {self._sanitize_for_log(self.hostname)}")
 
             # Create WinRM protocol instance
+            # Cast transport to proper Literal type
+            transport_literal = cast(
+                Literal[
+                    "auto",
+                    "basic",
+                    "certificate",
+                    "ntlm",
+                    "kerberos",
+                    "credssp",
+                    "plaintext",
+                    "ssl",
+                ],
+                self.transport,
+            )
             self._protocol = Protocol(
                 endpoint=self._endpoint,
-                transport=self.transport,
+                transport=transport_literal,
                 username=self.username,
                 password=self._password,
                 server_cert_validation="validate",  # SECURITY: Validate server certificates
@@ -151,9 +163,7 @@ class WinRMConnection:
             logger.error(f"WinRM connection failed: {sanitized_error}")
             raise WinRMConnectionError(f"Connection failed: {sanitized_error}") from e
 
-    def execute_command(
-        self, command: str, timeout: int | None = None
-    ) -> dict[str, Any]:
+    def execute_command(self, command: str, timeout: int | None = None) -> dict[str, Any]:
         """Execute PowerShell command on remote VM.
 
         Args:
@@ -207,9 +217,7 @@ class WinRMConnection:
             }
 
             if exit_code != 0:
-                logger.warning(
-                    f"Command failed with exit code {exit_code}: {stderr_str[:200]}"
-                )
+                logger.warning(f"Command failed with exit code {exit_code}: {stderr_str[:200]}")
             else:
                 logger.debug(f"Command succeeded: {stdout_str[:100]}")
 
@@ -250,9 +258,7 @@ class WinRMConnection:
             raise FileNotFoundError(f"Local file not found: {local_path}")
 
         try:
-            logger.info(
-                f"Copying {local_file.name} to {self._sanitize_for_log(remote_path)}"
-            )
+            logger.info(f"Copying {local_file.name} to {self._sanitize_for_log(remote_path)}")
 
             # Read file and encode as base64
             file_content = local_file.read_bytes()
@@ -289,9 +295,7 @@ class WinRMConnection:
                     cmd = f"Add-Content -Path {escaped_temp_file} -Value {escaped_chunk}"
                 result = self.execute_command(cmd)
                 if not result["success"]:
-                    raise WinRMConnectionError(
-                        f"Failed to write chunk {i}: {result['stderr']}"
-                    )
+                    raise WinRMConnectionError(f"Failed to write chunk {i}: {result['stderr']}")
 
             # Decode base64 and write to final destination
             decode_cmd = f"""
@@ -392,6 +396,7 @@ class WinRMConnection:
         ]
 
         import re
+
         for pattern in dangerous_patterns:
             if re.search(pattern, command, re.IGNORECASE):
                 raise ValueError(

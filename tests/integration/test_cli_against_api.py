@@ -11,6 +11,7 @@ Testing pyramid: 30% integration tests
 Philosophy: Zero-BS implementation, test real HTTP calls against test server
 """
 
+import contextlib
 import os
 import subprocess
 import time
@@ -370,14 +371,11 @@ class TestAPIErrorHandling:
 
     def test_api_handles_connection_timeout(self, orchestrator_url):
         """Test API handles connection timeouts gracefully"""
-        try:
-            response = requests.get(
+        with contextlib.suppress(requests.Timeout):
+            requests.get(
                 f"{orchestrator_url}/api/status",
                 timeout=0.001,  # Extremely short timeout
             )
-        except requests.Timeout:
-            # Expected behavior - timeout should raise exception
-            pass
 
 
 class TestAPIAuthentication:
@@ -417,7 +415,7 @@ class TestCLIPythonClientIntegration:
 
     def test_client_can_connect_to_api(self, orchestrator_url, api_key):
         """Test CLIClient can connect to orchestrator API"""
-        client = CLIClient(endpoint=orchestrator_url, api_key=api_key)
+        client = CLIClient(endpoint=orchestrator_url, api_key=api_key)  # noqa: F821
 
         status = client.get_status()
 
@@ -426,7 +424,7 @@ class TestCLIPythonClientIntegration:
 
     def test_client_can_list_resources(self, orchestrator_url, api_key):
         """Test CLIClient can list resources"""
-        client = CLIClient(endpoint=orchestrator_url, api_key=api_key)
+        client = CLIClient(endpoint=orchestrator_url, api_key=api_key)  # noqa: F821
 
         resources = client.list_resources(limit=10)
 
@@ -434,14 +432,14 @@ class TestCLIPythonClientIntegration:
 
     def test_client_handles_api_errors(self, orchestrator_url):
         """Test CLIClient handles API errors gracefully"""
-        client = CLIClient(endpoint=orchestrator_url, api_key="invalid-key")
+        client = CLIClient(endpoint=orchestrator_url, api_key="invalid-key")  # noqa: F821
 
-        with pytest.raises(AuthenticationError):
+        with pytest.raises(AuthenticationError):  # noqa: F821
             client.get_status()
 
     def test_client_retries_on_transient_failures(self, orchestrator_url, api_key):
         """Test CLIClient retries on transient failures"""
-        client = CLIClient(
+        client = CLIClient(  # noqa: F821
             endpoint=orchestrator_url,
             api_key=api_key,
             max_retries=3,

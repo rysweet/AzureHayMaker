@@ -386,13 +386,15 @@ def format_health_check_result(result: HealthCheckResult, verbose: bool = False)
     if result.running_status:
         message += f" / {result.running_status}"
 
-    checks.append({
-        "check_name": "Container App Status",
-        "status": status,
-        "message": message,
-        "details": result.details if verbose else {},
-        "suggestions": _generate_suggestions(result),
-    })
+    checks.append(
+        {
+            "check_name": "Container App Status",
+            "status": status,
+            "message": message,
+            "details": result.details if verbose else {},
+            "suggestions": _generate_suggestions(result),
+        }
+    )
 
     # Replica health check
     if result.total_replicas > 0:
@@ -406,50 +408,59 @@ def format_health_check_result(result: HealthCheckResult, verbose: bool = False)
             replica_status = "FAIL"
             replica_msg = "No healthy replicas"
 
-        checks.append({
-            "check_name": "Replica Health",
-            "status": replica_status,
-            "message": replica_msg,
-            "details": {},
-            "suggestions": [],
-        })
+        checks.append(
+            {
+                "check_name": "Replica Health",
+                "status": replica_status,
+                "message": replica_msg,
+                "details": {},
+                "suggestions": [],
+            }
+        )
 
     # Endpoint check
     if result.fqdn:
-        checks.append({
-            "check_name": "Endpoint",
-            "status": "PASS",
-            "message": f"https://{result.fqdn}",
-            "details": {},
-            "suggestions": [],
-        })
+        checks.append(
+            {
+                "check_name": "Endpoint",
+                "status": "PASS",
+                "message": f"https://{result.fqdn}",
+                "details": {},
+                "suggestions": [],
+            }
+        )
 
     # Display any errors
     if result.errors:
         for error in result.errors:
-            checks.append({
-                "check_name": "Error",
-                "status": "FAIL",
-                "message": error,
-                "details": {},
-                "suggestions": [],
-            })
+            checks.append(
+                {
+                    "check_name": "Error",
+                    "status": "FAIL",
+                    "message": error,
+                    "details": {},
+                    "suggestions": [],
+                }
+            )
 
     # Display any warnings
     if result.warnings:
         for warning in result.warnings:
-            checks.append({
-                "check_name": "Warning",
-                "status": "WARN",
-                "message": warning,
-                "details": {},
-                "suggestions": [],
-            })
+            checks.append(
+                {
+                    "check_name": "Warning",
+                    "status": "WARN",
+                    "message": warning,
+                    "details": {},
+                    "suggestions": [],
+                }
+            )
 
     return format_health_results(checks, verbose=verbose)
 
 
 # Helper functions
+
 
 def _format_status_badge(provisioning_state: str, running_status: str | None) -> Text:
     """Format provisioning and running status as colored badge.

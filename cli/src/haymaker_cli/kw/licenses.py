@@ -26,6 +26,11 @@ def _get_graph_client():
         console.print("[red]Missing credentials: KW_TENANT_ID, KW_APP_ID, KW_CLIENT_SECRET[/red]")
         raise click.Abort()
 
+    # Type guard: after the check above, we know these are non-None
+    assert tenant_id is not None
+    assert app_id is not None
+    assert secret is not None
+
     credential = ClientSecretCredential(tenant_id, app_id, secret)
     return GraphServiceClient(credential)
 
@@ -46,40 +51,62 @@ async def _list_licenses(show_users):
     # Get E5 SKUs
     skus = await client.subscribed_skus.get()
 
+    if not skus or not skus.value:
+        console.print("[yellow]No SKUs found[/yellow]")
+        return
+
     for sku in skus.value:
-        if "E5" in sku.sku_part_number:
-            total = sku.prepaid_units.enabled
-            consumed = sku.consumed_units
-            available = total - consumed
+        sku_part_number = getattr(sku, "sku_part_number", None)
+        if not sku_part_number or "E5" not in sku_part_number:
+            continue
 
-            table = Table()
-            table.add_column("Metric", style="cyan")
-            table.add_column("Value", style="green")
+        prepaid_units = getattr(sku, "prepaid_units", None)
+        consumed_units = getattr(sku, "consumed_units", None)
+        if not prepaid_units or consumed_units is None:
+            continue
 
-            table.add_row("SKU", sku.sku_part_number)
-            table.add_row("Total", str(total))
-            table.add_row("Consumed", str(consumed))
-            table.add_row("Available", str(available))
+        total = getattr(prepaid_units, "enabled", 0) or 0
+        consumed = consumed_units
+        available = total - consumed
 
-            console.print(table)
+        table = Table()
+        table.add_column("Metric", style="cyan")
+        table.add_column("Value", style="green")
 
-            if show_users:
-                console.print("\n[bold]Users with E5 Licenses:[/bold]\n")
+        table.add_row("SKU", sku_part_number)
+        table.add_row("Total", str(total))
+        table.add_row("Consumed", str(consumed))
+        table.add_row("Available", str(available))
 
-                # Get all users
-                users = await client.users.get()
+        console.print(table)
 
-                licensed_count = 0
-                for user in users.value:
-                    if user.assigned_licenses and len(user.assigned_licenses) > 0:
-                        # Check if has E5 license
-                        for license in user.assigned_licenses:
-                            if str(license.sku_id) == str(sku.sku_id):
-                                console.print(f"  • {user.user_principal_name}")
-                                licensed_count += 1
-                                break
+        if show_users:
+            console.print("\n[bold]Users with E5 Licenses:[/bold]\n")
 
-                console.print(f"\n[cyan]Total users with {sku.sku_part_number}: {licensed_count}[/cyan]")
+            # Get all users
+            users = await client.users.get()
+
+            if not users or not users.value:
+                console.print("[yellow]No users found[/yellow]")
+                continue
+
+            licensed_count = 0
+            sku_id = getattr(sku, "sku_id", None)
+            for user in users.value:
+                assigned_licenses = getattr(user, "assigned_licenses", None)
+                if not assigned_licenses:
+                    continue
+
+                # Check if has E5 license
+                for license in assigned_licenses:
+                    license_sku_id = getattr(license, "sku_id", None)
+                    if license_sku_id and sku_id and str(license_sku_id) == str(sku_id):
+                        user_principal_name = getattr(user, "user_principal_name", "Unknown")
+                        console.print(f"  • {user_principal_name}")
+                        licensed_count += 1
+                        break
+
+            console.print(f"\n[cyan]Total users with {sku_part_number}: {licensed_count}[/cyan]")
 
 
 @click.command()
@@ -98,7 +125,15 @@ async def _reclaim_licenses(older_than, run_id, dry_run, yes_flag):
 
     # Get all KW users
     all_users = await client.users.get()
-    kw_users = [u for u in all_users.value if u.user_principal_name and u.user_principal_name.startswith("kw-kw-")]
+    if not all_users or not all_users.value:
+        console.print("[yellow]No users found[/yellow]")
+        return
+
+    kw_users = [
+        u
+        for u in all_users.value
+        if getattr(u, "user_principal_name", None) and u.user_principal_name.startswith("kw-kw-")  # type: ignore[union-attr]
+    ]
 
     if not kw_users:
         console.print("[yellow]No KW users found[/yellow]")
@@ -148,11 +183,18 @@ async def _reclaim_licenses(older_than, run_id, dry_run, yes_flag):
 
     for user in users_to_delete:
         try:
-            await client.users.by_user_id(user.id).delete()
-            console.print(f"[green]✓[/green] {user.user_principal_name}")
+            user_id = getattr(user, "id", None)
+            user_principal_name = getattr(user, "user_principal_name", "Unknown")
+            if not user_id:
+                console.print(f"[red]✗[/red] {user_principal_name}: No user ID")
+                failed += 1
+                continue
+            await client.users.by_user_id(user_id).delete()
+            console.print(f"[green]✓[/green] {user_principal_name}")
             deleted += 1
         except Exception as e:
-            console.print(f"[red]✗[/red] {user.user_principal_name}: {str(e)[:60]}")
+            user_principal_name = getattr(user, "user_principal_name", "Unknown")
+            console.print(f"[red]✗[/red] {user_principal_name}: {str(e)[:60]}")
             failed += 1
 
     console.print(f"\n[bold green]✓ Deleted {deleted} users[/bold green]")

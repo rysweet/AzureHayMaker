@@ -312,8 +312,7 @@ class KnowledgeWorkerCleanupManager:
         report = CleanupReport(run_id=inventory.run_id)
 
         logger.info(
-            f"Starting cleanup for run {inventory.run_id} "
-            f"({inventory.get_count()} resources)"
+            f"Starting cleanup for run {inventory.run_id} ({inventory.get_count()} resources)"
         )
 
         # 1. Stop and delete container apps

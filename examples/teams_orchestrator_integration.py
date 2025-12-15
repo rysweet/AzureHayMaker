@@ -15,8 +15,11 @@ The orchestrator uses Durable Functions for long-running workflows with
 checkpointing and automatic retry.
 """
 
+from datetime import UTC, datetime
 from typing import Any
+
 from azure.functions import DurableOrchestrationContext
+
 from azure_haymaker.orchestrator.orchestrator_app import app
 
 
@@ -87,7 +90,7 @@ async def orchestrator_with_teams_setup(
     teams_config = []
     for m365_group in m365_groups.get("groups", []):
         # Get department and team number from group metadata
-        group_name = m365_group.get("display_name", "")
+        _ = m365_group.get("display_name", "")  # group_name unused in example
         department = m365_group.get("department", "unknown")
         team_num = m365_group.get("team_num", 1)
 
@@ -104,12 +107,14 @@ async def orchestrator_with_teams_setup(
             role = "owner" if i == 0 else "member"
             member_configs.append({"user_id": member_id, "role": role})
 
-        teams_config.append({
-            "m365_group_id": m365_group.get("id"),
-            "department": department,
-            "team_num": team_num,
-            "members": member_configs,
-        })
+        teams_config.append(
+            {
+                "m365_group_id": m365_group.get("id"),
+                "department": department,
+                "team_num": team_num,
+                "members": member_configs,
+            }
+        )
 
     # Create Teams teams (all in parallel with fan-out pattern)
     teams_result = await context.call_activity(
@@ -136,7 +141,7 @@ async def orchestrator_with_teams_setup(
 
     # Phase 5: Store team metadata
     # This would be stored in your database for worker agents to use
-    metadata_result = await context.call_activity(
+    _ = await context.call_activity(  # metadata_result unused in example
         "store_team_metadata_activity",
         {
             "run_id": run_id,
@@ -208,11 +213,12 @@ async def get_team_member_ids_activity(params: dict[str, Any]) -> dict[str, Any]
 
     # Example implementation:
     group_id = params.get("group_id")
-    run_id = params.get("run_id")
+    _ = params.get("run_id")  # run_id unused in example
 
     # Placeholder: In real code, query your provisioning system
     member_ids = [
-        f"user-{i}" for i in range(1, 4)  # 3 team members
+        f"user-{i}"
+        for i in range(1, 4)  # 3 team members
     ]
 
     return {
@@ -247,10 +253,10 @@ async def store_team_metadata_activity(params: dict[str, Any]) -> dict[str, Any]
     # 3. Make available to workers via key vault or config
 
     # Example: Store as JSON
-    metadata = {
+    _metadata = {
         "run_id": run_id,
         "teams": teams,
-        "created_at": context.current_utc_datetime.isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
 
     # In real code:

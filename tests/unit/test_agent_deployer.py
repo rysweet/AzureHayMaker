@@ -41,9 +41,7 @@ except ImportError:
     WorkerIdentity = None
 
 
-pytestmark = pytest.mark.skipif(
-    not DEPLOYER_AVAILABLE, reason="AgentDeployer not yet implemented"
-)
+pytestmark = pytest.mark.skipif(not DEPLOYER_AVAILABLE, reason="AgentDeployer not yet implemented")
 
 
 # ==============================================================================
@@ -132,9 +130,7 @@ class TestAgentDeployment:
     ):
         """Test successful agent deployment to VM."""
         # Act
-        result = agent_deployer.deploy_agent(
-            worker_identity=worker_identity, workflows=workflows
-        )
+        result = agent_deployer.deploy_agent(worker_identity=worker_identity, workflows=workflows)
 
         # Assert
         assert result["success"] is True
@@ -196,9 +192,7 @@ class TestAgentDeployment:
 
         # Act & Assert
         with pytest.raises(DeploymentError) as exc_info:
-            agent_deployer.deploy_agent(
-                worker_identity=worker_identity, workflows=workflows
-            )
+            agent_deployer.deploy_agent(worker_identity=worker_identity, workflows=workflows)
         assert "Access denied" in str(exc_info.value)
 
     def test_deploy_agent_with_copy_failure(
@@ -210,9 +204,7 @@ class TestAgentDeployment:
 
         # Act & Assert
         with pytest.raises(DeploymentError) as exc_info:
-            agent_deployer.deploy_agent(
-                worker_identity=worker_identity, workflows=workflows
-            )
+            agent_deployer.deploy_agent(worker_identity=worker_identity, workflows=workflows)
         assert "copy" in str(exc_info.value).lower()
 
 
@@ -314,9 +306,7 @@ class TestWorkflowDeployment:
     ):
         """Test deploying multiple workflows to agent."""
         # Act
-        result = agent_deployer.deploy_agent(
-            worker_identity=worker_identity, workflows=workflows
-        )
+        result = agent_deployer.deploy_agent(worker_identity=worker_identity, workflows=workflows)
 
         # Assert
         assert result["success"] is True
@@ -331,9 +321,7 @@ class TestWorkflowDeployment:
     ):
         """Test deploy_agent with empty workflows list."""
         # Act
-        result = agent_deployer.deploy_agent(
-            worker_identity=worker_identity, workflows=[]
-        )
+        result = agent_deployer.deploy_agent(worker_identity=worker_identity, workflows=[])
 
         # Assert
         assert result["success"] is True
@@ -350,14 +338,10 @@ class TestWorkflowDeployment:
 class TestSecurityControls:
     """Tests for security controls in agent deployment."""
 
-    def test_config_does_not_contain_credentials(
-        self, agent_deployer, worker_identity, workflows
-    ):
+    def test_config_does_not_contain_credentials(self, agent_deployer, worker_identity, workflows):
         """Test that deployed config.json does NOT contain M365 credentials."""
         # Act
-        agent_deployer.deploy_agent(
-            worker_identity=worker_identity, workflows=workflows
-        )
+        agent_deployer.deploy_agent(worker_identity=worker_identity, workflows=workflows)
 
         # Assert - config should not have password fields
         # This is verified by checking the template in AGENT_MAIN_TEMPLATE

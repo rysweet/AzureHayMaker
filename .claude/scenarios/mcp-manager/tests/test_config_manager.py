@@ -168,4 +168,3 @@ def test_restore_config_not_found(tmp_path):
 
     with pytest.raises(FileNotFoundError):
         restore_config(backup_path, config_path)
-

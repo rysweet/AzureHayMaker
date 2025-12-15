@@ -141,7 +141,9 @@ class ContainerAppRepository(IRepository[ContainerAppResource]):
                 properties={
                     "configuration": app.configuration,
                     "template": app.template,
-                } if app.configuration or app.template else None,
+                }
+                if app.configuration or app.template
+                else None,
             )
 
         except ResourceNotFoundError:

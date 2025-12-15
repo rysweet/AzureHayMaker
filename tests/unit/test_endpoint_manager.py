@@ -142,9 +142,7 @@ class TestSuccessfulProvisioning:
         mock_cloud_pc_manager.provision_cloud_pc.return_value = "cloudpc-123"
         mock_cloud_pc_manager.wait_for_provisioning.return_value = True
 
-        result = await endpoint_manager.provision_endpoint_with_fallback(
-            worker=worker_identity
-        )
+        result = await endpoint_manager.provision_endpoint_with_fallback(worker=worker_identity)
 
         # Verify Cloud PC was provisioned
         assert result["endpoint_type"] == EndpointType.CLOUD_PC
@@ -193,9 +191,7 @@ class TestCloudPCToWindowsVMFallback:
         }
         mock_windows_vm_manager.wait_for_provisioning.return_value = True
 
-        result = await endpoint_manager.provision_endpoint_with_fallback(
-            worker=worker_identity
-        )
+        result = await endpoint_manager.provision_endpoint_with_fallback(worker=worker_identity)
 
         # Verify Windows VM was provisioned after Cloud PC failed
         assert result["endpoint_type"] == EndpointType.WINDOWS_VM
@@ -221,9 +217,7 @@ class TestCloudPCToWindowsVMFallback:
         """Test Cloud PC provisioning error triggers Windows VM fallback."""
         # Mock Cloud PC provisioning failure
         mock_cloud_pc_manager.ensure_provisioning_policy.return_value = "policy-123"
-        mock_cloud_pc_manager.provision_cloud_pc.side_effect = Exception(
-            "Cloud PC quota exceeded"
-        )
+        mock_cloud_pc_manager.provision_cloud_pc.side_effect = Exception("Cloud PC quota exceeded")
 
         # Mock successful Windows VM provisioning
         mock_windows_vm_manager.provision_vm.return_value = {
@@ -235,9 +229,7 @@ class TestCloudPCToWindowsVMFallback:
         }
         mock_windows_vm_manager.wait_for_provisioning.return_value = True
 
-        result = await endpoint_manager.provision_endpoint_with_fallback(
-            worker=worker_identity
-        )
+        result = await endpoint_manager.provision_endpoint_with_fallback(worker=worker_identity)
 
         # Verify Windows VM fallback
         assert result["endpoint_type"] == EndpointType.WINDOWS_VM
@@ -296,9 +288,7 @@ class TestWindowsVMToContainerFallback:
         """Test Windows VM quota exceeded triggers Container fallback."""
         # Mock Cloud PC failure
         mock_cloud_pc_manager.ensure_provisioning_policy.return_value = "policy-123"
-        mock_cloud_pc_manager.provision_cloud_pc.side_effect = Exception(
-            "Cloud PC not available"
-        )
+        mock_cloud_pc_manager.provision_cloud_pc.side_effect = Exception("Cloud PC not available")
 
         # Mock Windows VM quota exceeded
         mock_windows_vm_manager.provision_vm.side_effect = Exception(
@@ -308,9 +298,7 @@ class TestWindowsVMToContainerFallback:
         # Mock successful Container provisioning
         mock_container_manager.deploy_worker_container.return_value = "container-123"
 
-        result = await endpoint_manager.provision_endpoint_with_fallback(
-            worker=worker_identity
-        )
+        result = await endpoint_manager.provision_endpoint_with_fallback(worker=worker_identity)
 
         # Verify Container was provisioned after VM failed
         assert result["endpoint_type"] == EndpointType.CLI_CONTAINER
@@ -354,9 +342,7 @@ class TestWindowsVMToContainerFallback:
         # Mock successful Container
         mock_container_manager.deploy_worker_container.return_value = "container-123"
 
-        result = await endpoint_manager.provision_endpoint_with_fallback(
-            worker=worker_identity
-        )
+        result = await endpoint_manager.provision_endpoint_with_fallback(worker=worker_identity)
 
         # Verify Container fallback
         assert result["endpoint_type"] == EndpointType.CLI_CONTAINER
@@ -383,18 +369,12 @@ class TestAllEndpointsFail:
         """Test all endpoints failing raises AllEndpointsFailedError."""
         # Mock all endpoints failing
         mock_cloud_pc_manager.ensure_provisioning_policy.return_value = "policy-123"
-        mock_cloud_pc_manager.provision_cloud_pc.side_effect = Exception(
-            "Cloud PC failed"
-        )
+        mock_cloud_pc_manager.provision_cloud_pc.side_effect = Exception("Cloud PC failed")
         mock_windows_vm_manager.provision_vm.side_effect = Exception("VM failed")
-        mock_container_manager.deploy_worker_container.side_effect = Exception(
-            "Container failed"
-        )
+        mock_container_manager.deploy_worker_container.side_effect = Exception("Container failed")
 
         with pytest.raises(AllEndpointsFailedError) as exc_info:
-            await endpoint_manager.provision_endpoint_with_fallback(
-                worker=worker_identity
-            )
+            await endpoint_manager.provision_endpoint_with_fallback(worker=worker_identity)
 
         # Verify error message contains all failure reasons
         error_message = str(exc_info.value)
@@ -413,18 +393,12 @@ class TestAllEndpointsFail:
         """Test all endpoint failures are logged."""
         # Mock all endpoints failing
         mock_cloud_pc_manager.ensure_provisioning_policy.return_value = "policy-123"
-        mock_cloud_pc_manager.provision_cloud_pc.side_effect = Exception(
-            "Cloud PC failed"
-        )
+        mock_cloud_pc_manager.provision_cloud_pc.side_effect = Exception("Cloud PC failed")
         mock_windows_vm_manager.provision_vm.side_effect = Exception("VM failed")
-        mock_container_manager.deploy_worker_container.side_effect = Exception(
-            "Container failed"
-        )
+        mock_container_manager.deploy_worker_container.side_effect = Exception("Container failed")
 
         with pytest.raises(AllEndpointsFailedError):
-            await endpoint_manager.provision_endpoint_with_fallback(
-                worker=worker_identity
-            )
+            await endpoint_manager.provision_endpoint_with_fallback(worker=worker_identity)
 
         # Verify all attempts were logged
         log_output = caplog.text.lower()
@@ -542,9 +516,7 @@ class TestMetricsTracking:
         }
         mock_windows_vm_manager.wait_for_provisioning.return_value = True
 
-        result = await endpoint_manager.provision_endpoint_with_fallback(
-            worker=worker_identity
-        )
+        result = await endpoint_manager.provision_endpoint_with_fallback(worker=worker_identity)
 
         # Verify fallback occurred - Windows VM was used after Cloud PC timeout
         assert result["endpoint_type"] == EndpointType.WINDOWS_VM
@@ -571,9 +543,7 @@ class TestMetricsTracking:
         }
         mock_windows_vm_manager.wait_for_provisioning.return_value = True
 
-        result = await endpoint_manager.provision_endpoint_with_fallback(
-            worker=worker_identity
-        )
+        result = await endpoint_manager.provision_endpoint_with_fallback(worker=worker_identity)
 
         # Verify final endpoint type is tracked
         assert result["endpoint_type"] == EndpointType.WINDOWS_VM
@@ -597,9 +567,7 @@ class TestFallbackStrategyConfiguration:
     ):
         """Test fallback can be disabled (fail fast on first error)."""
         mock_cloud_pc_manager.ensure_provisioning_policy.return_value = "policy-123"
-        mock_cloud_pc_manager.provision_cloud_pc.side_effect = Exception(
-            "Cloud PC failed"
-        )
+        mock_cloud_pc_manager.provision_cloud_pc.side_effect = Exception("Cloud PC failed")
 
         with pytest.raises(Exception, match="."):
             await endpoint_manager.provision_endpoint_with_fallback(

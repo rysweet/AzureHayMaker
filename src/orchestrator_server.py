@@ -21,7 +21,7 @@ from uuid import uuid4
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from azure.core.exceptions import ResourceNotFoundError
-from azure.data.tables import TableServiceClient
+from azure.data.tables import TableServiceClient, UpdateMode
 from azure.identity import DefaultAzureCredential
 from croniter import croniter
 from fastapi import Depends, FastAPI, HTTPException, Query
@@ -550,16 +550,20 @@ async def list_resources(
     """
     try:
         config = await load_config()
+        # query_managed_resources requires non-None run_id, skip if None
+        if not execution_id:
+            return {"resources": [], "count": 0}
+
         resources = await query_managed_resources(
             subscription_id=config.target_subscription_id,
-            run_id=execution_id if execution_id else None,
+            run_id=execution_id,
         )
 
         # Apply filters
         filtered_resources = resources
         if scenario:
             filtered_resources = [
-                r for r in filtered_resources if scenario.lower() in r.name.lower()
+                r for r in filtered_resources if scenario.lower() in r.resource_name.lower()
             ]
         if status:
             # Status filter not implemented in query_managed_resources yet
@@ -569,14 +573,25 @@ async def list_resources(
         filtered_resources = filtered_resources[:limit]
 
         # Convert to response format
+        # Extract resource group and location from resource_id
+        # Format: /subscriptions/{sub}/resourceGroups/{rg}/providers/{provider}/{type}/{name}
+        def parse_resource_id(resource_id: str) -> tuple[str, str]:
+            """Extract resource group from Azure resource ID."""
+            parts = resource_id.split("/")
+            rg_idx = parts.index("resourceGroups") + 1 if "resourceGroups" in parts else -1
+            parts.index("locations") + 1 if "locations" in parts else -1
+            rg = parts[rg_idx] if rg_idx > 0 and rg_idx < len(parts) else "unknown"
+            # Location not in resource_id, use empty string
+            return rg, ""
+
         return {
             "resources": [
                 {
                     "id": r.resource_id,
-                    "name": r.name,
+                    "name": r.resource_name,
                     "type": r.resource_type,
-                    "resourceGroup": r.resource_group,
-                    "location": r.location,
+                    "resourceGroup": parse_resource_id(r.resource_id)[0],
+                    "location": parse_resource_id(r.resource_id)[1],
                     "tags": r.tags,
                 }
                 for r in filtered_resources
@@ -927,7 +942,7 @@ async def update_schedule(schedule_id: str, request: ScheduleUpdate, _: AuthDep)
 
         # Update in Table Storage
         updated_entity = _schedule_to_entity(schedule)
-        table_client.update_entity(entity=updated_entity, mode="replace")
+        table_client.update_entity(entity=updated_entity, mode=UpdateMode.REPLACE)
 
         # Re-schedule APScheduler job if cron or enabled state changed
         if cron_changed:
@@ -1301,7 +1316,7 @@ async def run_orchestration(
             container_client = blob_service_client.get_container_client("execution-reports")
             blob_client = container_client.get_blob_client(f"{run_id}/report.json")
 
-            await blob_client.upload_blob(
+            blob_client.upload_blob(
                 json.dumps(execution_report, indent=2),
                 overwrite=True,
             )

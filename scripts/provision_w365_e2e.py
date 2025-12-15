@@ -147,7 +147,7 @@ async def main(
             )
 
             workers.append(worker)
-            print(f"    [{i+1}/{num_workers}] Created user: {worker.worker_id}")
+            print(f"    [{i + 1}/{num_workers}] Created user: {worker.worker_id}")
 
         except Exception as e:
             print(f"    ⚠ Failed to create user {worker_config.worker_id}: {e}")
@@ -184,11 +184,9 @@ async def main(
             print(f"  Provisioning {len(workers)} Cloud PCs...")
             for i, worker in enumerate(workers):
                 try:
-                    cloud_pc_id = await cloudpc_mgr.provision_cloud_pc(
-                        worker, policy_id
-                    )
+                    cloud_pc_id = await cloudpc_mgr.provision_cloud_pc(worker, policy_id)
                     worker.endpoint_id = cloud_pc_id
-                    print(f"    [{i+1}/{len(workers)}] Cloud PC: {cloud_pc_id}")
+                    print(f"    [{i + 1}/{len(workers)}] Cloud PC: {cloud_pc_id}")
                 except Exception as e:
                     print(f"    ⚠ Cloud PC provision failed for {worker.worker_id}: {e}")
 
@@ -360,9 +358,7 @@ def export_json_summary(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Windows 365 + M365 E2E Demonstration"
-    )
+    parser = argparse.ArgumentParser(description="Windows 365 + M365 E2E Demonstration")
     parser.add_argument(
         "--workers",
         type=int,
@@ -391,5 +387,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n\nFatal error: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

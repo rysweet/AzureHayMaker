@@ -244,9 +244,7 @@ class MonitoringService:
         try:
             uuid.UUID(run_id)
         except ValueError as e:
-            raise InvalidParameterError(
-                "run_id", f"Must be a valid UUID, got '{run_id}'"
-            ) from e
+            raise InvalidParameterError("run_id", f"Must be a valid UUID, got '{run_id}'") from e
 
     def _validate_pagination(self, page: int, page_size: int) -> None:
         """
@@ -277,9 +275,7 @@ class MonitoringService:
         """
         valid_statuses = ["created", "exists", "deleted", "deletion_failed"]
         if status not in valid_statuses:
-            raise InvalidParameterError(
-                "status", f"Must be one of: {', '.join(valid_statuses)}"
-            )
+            raise InvalidParameterError("status", f"Must be one of: {', '.join(valid_statuses)}")
 
     def _apply_resource_filters(
         self,

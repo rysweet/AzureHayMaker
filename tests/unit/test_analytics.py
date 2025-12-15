@@ -74,12 +74,8 @@ def aggregate_analytics(
         completed_at_str = entity.get("CompletedAt")
         if created_at_str and completed_at_str:
             try:
-                created_at = datetime.fromisoformat(
-                    created_at_str.replace("Z", "+00:00")
-                )
-                completed_at = datetime.fromisoformat(
-                    completed_at_str.replace("Z", "+00:00")
-                )
+                created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+                completed_at = datetime.fromisoformat(completed_at_str.replace("Z", "+00:00"))
                 duration = (completed_at - created_at).total_seconds() / 3600
                 if duration > 0:
                     total_duration_hours += duration
@@ -101,9 +97,7 @@ def aggregate_analytics(
             pass  # Skip malformed scenarios
 
     # Calculate success rate
-    success_rate = (
-        succeeded_executions / total_executions if total_executions > 0 else 0.0
-    )
+    success_rate = succeeded_executions / total_executions if total_executions > 0 else 0.0
 
     # Calculate average duration
     avg_duration = total_duration_hours / duration_count if duration_count > 0 else 0.0
@@ -114,11 +108,7 @@ def aggregate_analytics(
             ScenarioStats(
                 name=name,
                 count=stats["count"],
-                success_rate=(
-                    stats["succeeded"] / stats["count"]
-                    if stats["count"] > 0
-                    else 0.0
-                ),
+                success_rate=(stats["succeeded"] / stats["count"] if stats["count"] > 0 else 0.0),
             )
             for name, stats in scenario_stats.items()
         ],

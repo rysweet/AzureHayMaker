@@ -75,9 +75,7 @@ class AzureCredentialFactory:
             return cls._credential
 
     @classmethod
-    def get_async_credential(
-        cls, force_refresh: bool = False
-    ) -> AsyncDefaultAzureCredential:
+    def get_async_credential(cls, force_refresh: bool = False) -> AsyncDefaultAzureCredential:
         """Get cached async DefaultAzureCredential instance.
 
         This method returns a cached async credential instance for use

@@ -109,11 +109,11 @@ class DocumentOperations(M365OperationBase):
 
         try:
             # Upload to OneDrive
-            result = await self.client.graph.users.by_user_id(
-                self.worker.entra_object_id
-            ).drive.root.item_with_path(
-                f"{folder_path}/{name}"
-            ).content.put(content)
+            result = (
+                await self.client.graph.users.by_user_id(self.worker.entra_object_id)
+                .drive.root.item_with_path(f"{folder_path}/{name}")
+                .content.put(content)
+            )
 
             self._log_operation(
                 "document_create",
@@ -182,20 +182,18 @@ class DocumentOperations(M365OperationBase):
             # Create sharing invitation
             roles = ["read"] if permission == "read" else ["write"]
 
-            await self.client.graph.users.by_user_id(
-                self.worker.entra_object_id
-            ).drive.items.by_drive_item_id(
-                item_id
-            ).invite.post(
-                body={
-                    "recipients": [
-                        {"email": member} for member in valid_members
-                    ],
-                    "roles": roles,
-                    "requireSignIn": True,
-                    "sendInvitation": send_invitation,
-                    "message": message,
-                }
+            await (
+                self.client.graph.users.by_user_id(self.worker.entra_object_id)
+                .drive.items.by_drive_item_id(item_id)
+                .invite.post(
+                    body={
+                        "recipients": [{"email": member} for member in valid_members],
+                        "roles": roles,
+                        "requireSignIn": True,
+                        "sendInvitation": send_invitation,
+                        "message": message,
+                    }
+                )
             )
 
             self._log_operation(
@@ -228,11 +226,11 @@ class DocumentOperations(M365OperationBase):
         await self._rate_limit()
 
         try:
-            content = await self.client.graph.users.by_user_id(
-                self.worker.entra_object_id
-            ).drive.items.by_drive_item_id(
-                item_id
-            ).content.get()
+            content = (
+                await self.client.graph.users.by_user_id(self.worker.entra_object_id)
+                .drive.items.by_drive_item_id(item_id)
+                .content.get()
+            )
 
             self._log_operation(
                 "document_download",
@@ -262,17 +260,17 @@ class DocumentOperations(M365OperationBase):
         await self._rate_limit()
 
         try:
-            items = await self.client.graph.users.by_user_id(
-                self.worker.entra_object_id
-            ).drive.root.item_with_path(
-                folder_path
-            ).children.get(
-                request_configuration={
-                    "query_parameters": {
-                        "top": count,
-                        "select": "id,name,size,createdDateTime,lastModifiedDateTime",
+            items = (
+                await self.client.graph.users.by_user_id(self.worker.entra_object_id)
+                .drive.root.item_with_path(folder_path)
+                .children.get(
+                    request_configuration={
+                        "query_parameters": {
+                            "top": count,
+                            "select": "id,name,size,createdDateTime,lastModifiedDateTime",
+                        }
                     }
-                }
+                )
             )
 
             self._log_operation(
@@ -317,9 +315,7 @@ class DocumentOperations(M365OperationBase):
 
         try:
             # Get drive for document library
-            drives = await self.client.graph.sites.by_site_id(
-                site_id
-            ).drives.get()
+            drives = await self.client.graph.sites.by_site_id(site_id).drives.get()
 
             library_drive = next(
                 (d for d in (drives.value or []) if d.name == library_name),
@@ -331,11 +327,11 @@ class DocumentOperations(M365OperationBase):
                 return None
 
             # Upload file
-            result = await self.client.graph.drives.by_drive_id(
-                library_drive.id
-            ).root.item_with_path(
-                file_name
-            ).content.put(content)
+            result = (
+                await self.client.graph.drives.by_drive_id(library_drive.id)
+                .root.item_with_path(file_name)
+                .content.put(content)
+            )
 
             self._log_operation(
                 "document_upload_sharepoint",
@@ -375,23 +371,25 @@ class DocumentOperations(M365OperationBase):
 
         try:
             if parent_path:
-                parent = await self.client.graph.users.by_user_id(
-                    self.worker.entra_object_id
-                ).drive.root.item_with_path(parent_path).get()
+                parent = (
+                    await self.client.graph.users.by_user_id(self.worker.entra_object_id)
+                    .drive.root.item_with_path(parent_path)
+                    .get()
+                )
                 parent_id = parent.id
             else:
                 parent_id = "root"
 
-            result = await self.client.graph.users.by_user_id(
-                self.worker.entra_object_id
-            ).drive.items.by_drive_item_id(
-                parent_id
-            ).children.post(
-                body={
-                    "name": folder_name,
-                    "folder": {},
-                    "@microsoft.graph.conflictBehavior": "rename",
-                }
+            result = (
+                await self.client.graph.users.by_user_id(self.worker.entra_object_id)
+                .drive.items.by_drive_item_id(parent_id)
+                .children.post(
+                    body={
+                        "name": folder_name,
+                        "folder": {},
+                        "@microsoft.graph.conflictBehavior": "rename",
+                    }
+                )
             )
 
             self._log_operation(

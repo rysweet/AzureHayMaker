@@ -22,7 +22,7 @@ _jwks_cache: dict[str, dict] = {}
 _tenant_metadata_cache: dict[str, dict] = {}
 
 
-def get_auth_config() -> dict[str, str]:
+def get_auth_config() -> dict[str, str | list[str]]:
     """Get authentication configuration from environment.
 
     Returns:

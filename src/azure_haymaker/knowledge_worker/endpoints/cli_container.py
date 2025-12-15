@@ -560,13 +560,6 @@ class M365CLIContainerManager:
             ContainerDeploymentError: If deployment fails
         """
         try:
-            # Create credential for Azure SDK operations
-            credential = ClientSecretCredential(
-                tenant_id=os.getenv("AZURE_TENANT_ID"),
-                client_id=os.getenv("AZURE_CLIENT_ID"),
-                client_secret=os.getenv("AZURE_CLIENT_SECRET"),
-            )
-
             # Validate required credentials exist
             client_id = os.getenv("AZURE_CLIENT_ID", "")
             tenant_id = os.getenv("AZURE_TENANT_ID", "")
@@ -582,6 +575,13 @@ class M365CLIContainerManager:
             resource_group = getattr(self.config, "resource_group_name", "azure-haymaker-rg")
             subscription_id = getattr(self.config, "target_subscription_id", "")
             environment_name = "haymaker-fastapi-cae"
+
+            # Create credential for Azure SDK operations
+            credential = ClientSecretCredential(
+                tenant_id=tenant_id,
+                client_id=client_id,
+                client_secret=client_secret,
+            )
 
             # Verify environment exists using SDK
             env_client = ContainerAppsAPIClient(

@@ -203,6 +203,7 @@ msgraph-sdk>=1.0.0
 
         # SECURITY: Use PowerShell escaping for all paths
         from azure_haymaker.knowledge_worker.computer_use.winrm_connection import WinRMConnection
+
         escaped_path = WinRMConnection._escape_powershell_arg(deployment_path)
 
         # Create main directory
@@ -214,9 +215,7 @@ msgraph-sdk>=1.0.0
         result = self.connection.execute_command(cmd)
 
         if not result["success"]:
-            raise DeploymentError(
-                f"Failed to create directory: {result['stderr']}"
-            )
+            raise DeploymentError(f"Failed to create directory: {result['stderr']}")
 
         # Create subdirectories
         subdirs = ["workflows", "logs", "data"]
@@ -227,15 +226,11 @@ msgraph-sdk>=1.0.0
             result = self.connection.execute_command(cmd)
 
             if not result["success"]:
-                raise DeploymentError(
-                    f"Failed to create subdirectory {subdir}: {result['stderr']}"
-                )
+                raise DeploymentError(f"Failed to create subdirectory {subdir}: {result['stderr']}")
 
         logger.debug("Directory structure created successfully")
 
-    def _deploy_agent_code(
-        self, deployment_path: str, worker_identity: WorkerIdentity
-    ) -> None:
+    def _deploy_agent_code(self, deployment_path: str, worker_identity: WorkerIdentity) -> None:
         """Deploy agent Python code to VM.
 
         Args:
@@ -249,6 +244,7 @@ msgraph-sdk>=1.0.0
 
         # Create local temp directory for agent files
         import tempfile
+
         temp_dir = Path(tempfile.mkdtemp())
 
         try:
@@ -290,11 +286,10 @@ msgraph-sdk>=1.0.0
         finally:
             # Cleanup temp directory
             import shutil
+
             shutil.rmtree(temp_dir, ignore_errors=True)
 
-    def _deploy_workflows(
-        self, deployment_path: str, workflows: list[dict[str, Any]]
-    ) -> None:
+    def _deploy_workflows(self, deployment_path: str, workflows: list[dict[str, Any]]) -> None:
         """Deploy workflow definitions to VM.
 
         Args:
@@ -322,6 +317,7 @@ msgraph-sdk>=1.0.0
 
         # SECURITY: Escape PowerShell arguments
         from azure_haymaker.knowledge_worker.computer_use.winrm_connection import WinRMConnection
+
         escaped_manifest_path = WinRMConnection._escape_powershell_arg(manifest_path)
         escaped_json = WinRMConnection._escape_powershell_arg(manifest_json)
 
@@ -332,9 +328,7 @@ msgraph-sdk>=1.0.0
         result = self.connection.execute_command(cmd)
 
         if not result["success"]:
-            raise DeploymentError(
-                f"Failed to write workflows manifest: {result['stderr']}"
-            )
+            raise DeploymentError(f"Failed to write workflows manifest: {result['stderr']}")
 
         logger.debug("Workflows deployed successfully")
 
@@ -360,6 +354,7 @@ msgraph-sdk>=1.0.0
 
         # SECURITY: Escape PowerShell arguments
         from azure_haymaker.knowledge_worker.computer_use.winrm_connection import WinRMConnection
+
         escaped_path = WinRMConnection._escape_powershell_arg(deployment_path)
 
         # Install pip packages
@@ -367,9 +362,7 @@ msgraph-sdk>=1.0.0
         result = self.connection.execute_command(pip_cmd, timeout=300)
 
         if not result["success"]:
-            raise DeploymentError(
-                f"Failed to install pip packages: {result['stderr']}"
-            )
+            raise DeploymentError(f"Failed to install pip packages: {result['stderr']}")
 
         logger.debug("Pip packages installed successfully")
 
@@ -379,9 +372,7 @@ msgraph-sdk>=1.0.0
         result = self.connection.execute_command(playwright_cmd, timeout=600)
 
         if not result["success"]:
-            raise DeploymentError(
-                f"Failed to install Playwright browsers: {result['stderr']}"
-            )
+            raise DeploymentError(f"Failed to install Playwright browsers: {result['stderr']}")
 
         logger.debug("Playwright browsers installed successfully")
 
@@ -411,6 +402,7 @@ msgraph-sdk>=1.0.0
 
         # SECURITY: Escape PowerShell arguments
         from azure_haymaker.knowledge_worker.computer_use.winrm_connection import WinRMConnection
+
         escaped_path = WinRMConnection._escape_powershell_arg(deployment_path)
 
         checks_passed = 0
@@ -424,14 +416,10 @@ msgraph-sdk>=1.0.0
             failures.append("Deployment directory not found")
 
         if failures:
-            raise DeploymentVerificationError(
-                f"Deployment directory missing: {deployment_path}"
-            )
+            raise DeploymentVerificationError(f"Deployment directory missing: {deployment_path}")
 
         # Check 2: Python installed
-        python_check = self.connection.execute_command(
-            f"cd {escaped_path} && python --version"
-        )
+        python_check = self.connection.execute_command(f"cd {escaped_path} && python --version")
         if python_check["success"]:
             checks_passed += 1
             logger.debug(f"Python check passed: {python_check['stdout']}")
@@ -441,7 +429,7 @@ msgraph-sdk>=1.0.0
 
         # Check 3: Playwright installed
         playwright_check = self.connection.execute_command(
-            f"cd {escaped_path} && python -c \"import playwright; print(playwright.__version__)\""
+            f'cd {escaped_path} && python -c "import playwright; print(playwright.__version__)"'
         )
         if playwright_check["success"]:
             checks_passed += 1

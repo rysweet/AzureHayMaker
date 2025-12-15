@@ -137,13 +137,9 @@ class M365TelemetryCollector:
             # Build OData filter for time range
             filter_parts = []
             if start_time:
-                filter_parts.append(
-                    f"receivedDateTime ge {start_time.isoformat()}"
-                )
+                filter_parts.append(f"receivedDateTime ge {start_time.isoformat()}")
             if end_time:
-                filter_parts.append(
-                    f"receivedDateTime le {end_time.isoformat()}"
-                )
+                filter_parts.append(f"receivedDateTime le {end_time.isoformat()}")
 
             request_config = {}
             if filter_parts:
@@ -165,9 +161,7 @@ class M365TelemetryCollector:
                 # Extract recipients
                 recipients = []
                 if msg.to_recipients:
-                    recipients.extend(
-                        [r.email_address.address for r in msg.to_recipients]
-                    )
+                    recipients.extend([r.email_address.address for r in msg.to_recipients])
 
                 evidence = EmailEvidence(
                     message_id=msg.id,
@@ -180,15 +174,11 @@ class M365TelemetryCollector:
                 )
                 evidence_list.append(evidence)
 
-            logger.info(
-                f"Collected {len(evidence_list)} email messages for {worker.worker_id}"
-            )
+            logger.info(f"Collected {len(evidence_list)} email messages for {worker.worker_id}")
             return evidence_list
 
         except Exception as e:
-            logger.error(
-                f"Failed to get emails for {worker.worker_id}: {e}"
-            )
+            logger.error(f"Failed to get emails for {worker.worker_id}: {e}")
             raise
 
     async def get_calendar_events_for_worker(
@@ -213,13 +203,9 @@ class M365TelemetryCollector:
             # Build OData filter for time range
             filter_parts = []
             if start_time:
-                filter_parts.append(
-                    f"start/dateTime ge '{start_time.isoformat()}'"
-                )
+                filter_parts.append(f"start/dateTime ge '{start_time.isoformat()}'")
             if end_time:
-                filter_parts.append(
-                    f"end/dateTime le '{end_time.isoformat()}'"
-                )
+                filter_parts.append(f"end/dateTime le '{end_time.isoformat()}'")
 
             request_config = {}
             if filter_parts:
@@ -233,9 +219,7 @@ class M365TelemetryCollector:
             # Query calendar events via Graph API
             events = await self.graph_client.graph.users.by_user_id(
                 worker.entra_object_id
-            ).calendar.events.get(
-                request_configuration=request_config if filter_parts else None
-            )
+            ).calendar.events.get(request_configuration=request_config if filter_parts else None)
 
             # Convert to CalendarEvidence objects
             evidence_list = []
@@ -243,9 +227,7 @@ class M365TelemetryCollector:
                 # Extract attendees
                 attendees = []
                 if event.attendees:
-                    attendees.extend(
-                        [a.email_address.address for a in event.attendees]
-                    )
+                    attendees.extend([a.email_address.address for a in event.attendees])
 
                 # Parse datetime strings
                 start_dt = datetime.fromisoformat(event.start.date_time)
@@ -255,9 +237,7 @@ class M365TelemetryCollector:
                     event_id=event.id,
                     subject=event.subject or "(no subject)",
                     organizer=(
-                        event.organizer.email_address.address
-                        if event.organizer
-                        else "unknown"
+                        event.organizer.email_address.address if event.organizer else "unknown"
                     ),
                     attendees=attendees,
                     start_time=start_dt,
@@ -272,15 +252,11 @@ class M365TelemetryCollector:
                 )
                 evidence_list.append(evidence)
 
-            logger.info(
-                f"Collected {len(evidence_list)} calendar events for {worker.worker_id}"
-            )
+            logger.info(f"Collected {len(evidence_list)} calendar events for {worker.worker_id}")
             return evidence_list
 
         except Exception as e:
-            logger.error(
-                f"Failed to get calendar events for {worker.worker_id}: {e}"
-            )
+            logger.error(f"Failed to get calendar events for {worker.worker_id}: {e}")
             raise
 
     async def get_teams_messages_for_worker(
@@ -308,9 +284,11 @@ class M365TelemetryCollector:
         """
         try:
             # Query Teams channel messages via Graph API
-            messages = await self.graph_client.graph.teams.by_team_id(
-                team_id
-            ).channels.by_channel_id(channel_id).messages.get()
+            messages = (
+                await self.graph_client.graph.teams.by_team_id(team_id)
+                .channels.by_channel_id(channel_id)
+                .messages.get()
+            )
 
             # Filter and convert to TeamsEvidence objects
             evidence_list = []
@@ -323,13 +301,9 @@ class M365TelemetryCollector:
                     continue
 
                 # Only include messages from this worker
-                sender_id = (
-                    msg.from_.user.id
-                    if msg.from_ and hasattr(msg.from_, "user")
-                    else None
-                )
+                sender_id = msg.from_.user.id if msg.from_ and hasattr(msg.from_, "user") else None
 
-                if sender_id != worker.entra_object_id:
+                if not sender_id or sender_id != worker.entra_object_id:
                     continue
 
                 evidence = TeamsEvidence(
@@ -351,9 +325,7 @@ class M365TelemetryCollector:
             return evidence_list
 
         except Exception as e:
-            logger.error(
-                f"Failed to get Teams messages for {worker.worker_id}: {e}"
-            )
+            logger.error(f"Failed to get Teams messages for {worker.worker_id}: {e}")
             raise
 
     async def get_run_summary(
@@ -391,9 +363,7 @@ class M365TelemetryCollector:
         for worker in workers:
             try:
                 # Collect telemetry for this worker
-                emails = await self.get_emails_for_worker(
-                    worker, start_time, end_time
-                )
+                emails = await self.get_emails_for_worker(worker, start_time, end_time)
                 calendar_events = await self.get_calendar_events_for_worker(
                     worker, start_time, end_time
                 )
@@ -426,9 +396,7 @@ class M365TelemetryCollector:
                 }
 
             except Exception as e:
-                logger.error(
-                    f"Failed to collect telemetry for {worker.worker_id}: {e}"
-                )
+                logger.error(f"Failed to collect telemetry for {worker.worker_id}: {e}")
                 summary["by_worker"][worker.worker_id] = {
                     "error": str(e),
                     "email_count": 0,

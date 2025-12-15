@@ -139,4 +139,3 @@ def _cleanup_old_backups(backup_dir: Path, keep_count: int = 3) -> None:
         except OSError:
             # Ignore errors during cleanup
             pass
-

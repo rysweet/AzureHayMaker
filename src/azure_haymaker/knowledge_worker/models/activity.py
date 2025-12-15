@@ -67,9 +67,7 @@ class ActivitySpec(BaseModel):
     activity_id: str = Field(default="", description="Unique activity identifier")
     activity_type: ActivityType = Field(..., description="Type of activity")
     worker_id: str = Field(..., description="Worker performing the activity")
-    scheduled_at: datetime | None = Field(
-        default=None, description="Scheduled execution time"
-    )
+    scheduled_at: datetime | None = Field(default=None, description="Scheduled execution time")
     parameters: dict[str, Any] = Field(
         default_factory=dict, description="Activity-specific parameters"
     )
@@ -106,20 +104,12 @@ class ActivityResult(BaseModel):
     status: ActivityStatus = Field(..., description="Execution status")
 
     started_at: datetime = Field(..., description="Execution start time")
-    completed_at: datetime | None = Field(
-        default=None, description="Execution completion time"
-    )
+    completed_at: datetime | None = Field(default=None, description="Execution completion time")
     duration_ms: int = Field(default=0, ge=0, description="Duration in milliseconds")
 
-    output: dict[str, Any] = Field(
-        default_factory=dict, description="Activity output data"
-    )
-    error_message: str | None = Field(
-        default=None, description="Error message if failed"
-    )
-    blocked_reason: str | None = Field(
-        default=None, description="Reason if blocked"
-    )
+    output: dict[str, Any] = Field(default_factory=dict, description="Activity output data")
+    error_message: str | None = Field(default=None, description="Error message if failed")
+    blocked_reason: str | None = Field(default=None, description="Reason if blocked")
 
     model_config = {
         "use_enum_values": False,

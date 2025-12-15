@@ -148,12 +148,14 @@ class PermissionGranter:
     async def _grant_app_role(self, principal_id: str, resource_id: str, app_role_id: str) -> bool:
         """Grant app role assignment."""
         try:
+            from uuid import UUID
+
             from msgraph.generated.models.app_role_assignment import AppRoleAssignment
 
             assignment = AppRoleAssignment()
-            assignment.principal_id = principal_id
-            assignment.resource_id = resource_id
-            assignment.app_role_id = app_role_id
+            assignment.principal_id = UUID(principal_id)  # type: ignore[assignment]
+            assignment.resource_id = UUID(resource_id)  # type: ignore[assignment]
+            assignment.app_role_id = UUID(app_role_id)  # type: ignore[assignment]
 
             await self.graph_client.service_principals.by_service_principal_id(
                 resource_id

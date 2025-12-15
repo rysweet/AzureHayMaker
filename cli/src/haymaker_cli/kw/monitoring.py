@@ -23,13 +23,13 @@ from typing import Any
 import click
 import yaml
 from azure.identity import ClientSecretCredential
+from azure_haymaker.knowledge_worker.state_manager import DeploymentStateManager
+from azure_haymaker.knowledge_worker.telemetry import M365TelemetryCollector
 from msgraph.graph_service_client import GraphServiceClient
 from rich.console import Console
 from rich.live import Live
 from rich.table import Table
 
-from azure_haymaker.knowledge_worker.state_manager import DeploymentStateManager
-from azure_haymaker.knowledge_worker.telemetry import M365TelemetryCollector
 from haymaker_cli.kw.resolver import RunIdResolver
 
 console = Console()
@@ -48,6 +48,11 @@ def _get_graph_client() -> GraphServiceClient | None:
 
     if not all([tenant_id, app_id, client_secret]):
         return None
+
+    # Type guard: after the check above, we know these are non-None
+    assert tenant_id is not None
+    assert app_id is not None
+    assert client_secret is not None
 
     credential = ClientSecretCredential(
         tenant_id=tenant_id,

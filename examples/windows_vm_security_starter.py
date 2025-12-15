@@ -20,20 +20,18 @@ Usage:
 """
 
 import secrets
-from typing import Any
 
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 from azure.mgmt.compute import ComputeManagementClient
 from azure.mgmt.network import NetworkManagementClient
 
-
 # ============================================================================
 # BEFORE (Current Implementation - INSECURE)
 # ============================================================================
 
 
-class WindowsVMManager_BEFORE:
+class WindowsVMManager_BEFORE:  # noqa: N801
     """INSECURE implementation (from PR #121).
 
     Issues:
@@ -44,44 +42,17 @@ class WindowsVMManager_BEFORE:
     5. No JIT access
     """
 
-    async def provision_vm_INSECURE(self, worker_id: str) -> tuple[str, dict]:
+    async def provision_vm_INSECURE(self, worker_id: str) -> tuple[str, dict]:  # noqa: N802
         """INSECURE: Provisions VM with security issues."""
 
         # ISSUE #1: Plaintext password returned (may be logged)
         password = secrets.token_urlsafe(24)
 
         # ISSUE #2: NSG allows RDP from ANY IP
-        nsg_rules = [
-            {
-                "name": "Allow-RDP",
-                "protocol": "Tcp",
-                "source_address_prefix": "*",  # ⚠️ INSECURE: ANY IP
-                "destination_port_range": "3389",
-                "access": "Allow",
-            }
-        ]
 
         # ISSUE #3: Public IP assigned
-        public_ip_config = {
-            "location": "eastus",
-            "sku": {"name": "Standard"},
-            # ⚠️ INSECURE: Public IP on VM
-        }
 
         # ISSUE #4: No disk encryption specified
-        vm_config = {
-            "location": "eastus",
-            "hardware_profile": {"vm_size": "Standard_D2s_v3"},
-            "storage_profile": {
-                "image_reference": {
-                    "publisher": "MicrosoftWindowsServer",
-                    "offer": "WindowsServer",
-                    "sku": "2022-datacenter",
-                    "version": "latest",
-                }
-                # ⚠️ INSECURE: No encryption configuration
-            },
-        }
 
         vm_id = f"vm-{worker_id}"
 
@@ -98,7 +69,7 @@ class WindowsVMManager_BEFORE:
 # ============================================================================
 
 
-class WindowsVMManager_SECURE:
+class WindowsVMManager_SECURE:  # noqa: N801
     """SECURE implementation addressing all security issues."""
 
     def __init__(
@@ -128,7 +99,7 @@ class WindowsVMManager_SECURE:
         vault_url = f"https://{keyvault_name}.vault.azure.net"
         self.keyvault_client = SecretClient(vault_url, credential)
 
-    async def provision_vm_SECURE(self, worker_id: str) -> tuple[str, dict]:
+    async def provision_vm_SECURE(self, worker_id: str) -> tuple[str, dict]:  # noqa: N802
         """SECURE: Provisions VM with all security controls.
 
         Returns:
@@ -144,45 +115,14 @@ class WindowsVMManager_SECURE:
         self.keyvault_client.set_secret(secret_name, password)
 
         # FIX #2: Restrict NSG to Bastion subnet only
-        nsg_rules = [
-            {
-                "name": "Allow-RDP-From-Bastion-Only",
-                "protocol": "Tcp",
-                "source_address_prefix": "10.0.1.0/24",  # ✅ SECURE: Bastion subnet only
-                "destination_port_range": "3389",
-                "destination_address_prefix": "*",
-                "access": "Allow",
-                "priority": 100,
-                "direction": "Inbound",
-            },
-            {
-                "name": "Deny-RDP-From-Internet",
-                "protocol": "Tcp",
-                "source_address_prefix": "Internet",  # ✅ SECURE: Explicit deny
-                "destination_port_range": "3389",
-                "access": "Deny",
-                "priority": 200,
-                "direction": "Inbound",
-            },
-        ]
 
         # FIX #3: NO public IP (access via Azure Bastion only)
         # public_ip_config = None  # ✅ SECURE: No public IP
 
         # Network interface without public IP
-        nic_config = {
-            "location": "eastus",
-            "ip_configurations": [
-                {
-                    "name": "ipconfig1",
-                    "subnet": {"id": f"/subscriptions/{self.subscription_id}/resourceGroups/{self.resource_group}/providers/Microsoft.Network/virtualNetworks/haymaker-vnet/subnets/vm-subnet"},
-                    # No public_ip_address property ✅ SECURE
-                }
-            ],
-        }
 
         # FIX #4: Enable disk encryption
-        vm_config = {
+        {
             "location": "eastus",
             "hardware_profile": {"vm_size": "Standard_D2s_v3"},
             "storage_profile": {
@@ -214,23 +154,6 @@ class WindowsVMManager_SECURE:
         }
 
         # FIX #5: Configure JIT VM access (separate API call after VM creation)
-        jit_policy = {
-            "kind": "Basic",
-            "properties": {
-                "virtual_machines": [
-                    {
-                        "id": f"/subscriptions/{self.subscription_id}/resourceGroups/{self.resource_group}/providers/Microsoft.Compute/virtualMachines/vm-{worker_id}",
-                        "ports": [
-                            {
-                                "number": 3389,
-                                "protocol": "TCP",
-                                "max_request_access_duration": "PT4H",  # 4 hours
-                            }
-                        ],
-                    }
-                ],
-            },
-        }
 
         # TODO: Create NSG with secure rules
         # TODO: Create NIC without public IP
@@ -240,14 +163,17 @@ class WindowsVMManager_SECURE:
         vm_id = f"vm-{worker_id}"
 
         # FIX #1: Return Key Vault reference, NOT plaintext password
-        return vm_id, {
-            "vm_id": vm_id,
-            "admin_username": "azureuser",
-            "password_secret_uri": f"https://{self.keyvault_name}.vault.azure.net/secrets/{secret_name}",  # ✅ SECURE
-            "access_method": "azure_bastion",  # ✅ SECURE: No RDP over internet
-            "encryption_enabled": True,  # ✅ SECURE
-            "jit_enabled": True,  # ✅ SECURE
-        }
+        return (
+            vm_id,
+            {
+                "vm_id": vm_id,
+                "admin_username": "azureuser",
+                "password_secret_uri": f"https://{self.keyvault_name}.vault.azure.net/secrets/{secret_name}",  # ✅ SECURE
+                "access_method": "azure_bastion",  # ✅ SECURE: No RDP over internet
+                "encryption_enabled": True,  # ✅ SECURE
+                "jit_enabled": True,  # ✅ SECURE
+            },
+        )
 
 
 # ============================================================================
@@ -339,8 +265,6 @@ async def provision_secure_vm_example():
 
 
 if __name__ == "__main__":
-    import asyncio
-
     # Run example
     # asyncio.run(provision_secure_vm_example())
 

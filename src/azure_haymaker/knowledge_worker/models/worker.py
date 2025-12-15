@@ -84,9 +84,7 @@ class WorkerIdentity(BaseModel):
 
     # Tracking
     created_at: datetime | None = Field(default=None, description="Creation timestamp")
-    last_activity_at: datetime | None = Field(
-        default=None, description="Last activity timestamp"
-    )
+    last_activity_at: datetime | None = Field(default=None, description="Last activity timestamp")
 
     model_config = {
         "use_enum_values": False,

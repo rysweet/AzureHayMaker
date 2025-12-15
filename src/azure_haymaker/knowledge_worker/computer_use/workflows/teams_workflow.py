@@ -47,16 +47,14 @@ class TeamsMessageWorkflow(BaseWorkflow):
 
     async def execute(
         self,
-        channel: str,
-        message: str,
-        **kwargs: Any,
+        **params: Any,
     ) -> dict[str, Any]:
         """Execute Teams message sending workflow.
 
         Args:
-            channel: Teams channel name
-            message: Message text to send
-            **kwargs: Additional parameters (ignored)
+            **params: Workflow parameters including:
+                - channel: Teams channel name
+                - message: Message text to send
 
         Returns:
             Dict with keys:
@@ -68,7 +66,10 @@ class TeamsMessageWorkflow(BaseWorkflow):
             WorkflowValidationError: If required parameters are invalid
             WorkflowError: If message sending fails
         """
-        # Validate parameters
+        # Extract and validate parameters
+        channel = params.get("channel", "")
+        message = params.get("message", "")
+
         self._validate_required_params(
             params={"channel": channel, "message": message},
             required=["channel", "message"],
@@ -96,3 +97,4 @@ class TeamsMessageWorkflow(BaseWorkflow):
 
         except Exception as e:
             await self._handle_workflow_error(e, "Teams message sending")
+            raise  # _handle_workflow_error always raises, this is unreachable

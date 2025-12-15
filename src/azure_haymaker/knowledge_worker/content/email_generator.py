@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from anthropic import Anthropic, AnthropicError, RateLimitError
+from anthropic.types import TextBlock
 from pydantic import BaseModel
 
 from azure_haymaker.knowledge_worker.content.prompts import (
@@ -40,9 +41,7 @@ def validate_input(value: str, pattern: re.Pattern, field_name: str) -> None:
         ValueError: If input doesn't match pattern
     """
     if not pattern.match(value):
-        raise ValueError(
-            f"Invalid {field_name}: must match pattern {pattern.pattern}"
-        )
+        raise ValueError(f"Invalid {field_name}: must match pattern {pattern.pattern}")
 
 
 def sanitize_error_message(error: Exception) -> str:
@@ -63,7 +62,9 @@ def sanitize_error_message(error: Exception) -> str:
     error_str = re.sub(r"sk-[a-zA-Z0-9-]+", "[REDACTED]", error_str)
 
     # Remove potential tokens
-    error_str = re.sub(r"token[:\s]+[a-zA-Z0-9_-]+", "token: [REDACTED]", error_str, flags=re.IGNORECASE)
+    error_str = re.sub(
+        r"token[:\s]+[a-zA-Z0-9_-]+", "token: [REDACTED]", error_str, flags=re.IGNORECASE
+    )
 
     # Remove file paths that might leak internal structure
     error_str = re.sub(r"/[a-zA-Z0-9_/.-]+\.py", "[PATH]", error_str)
@@ -217,7 +218,11 @@ class EmailContentGenerator:
 
             # Use specified model or default to Claude Sonnet 4.5
             # Handle empty/whitespace strings by falling back to default
-            model = self.config.model.strip() if self.config.model and self.config.model.strip() else "claude-sonnet-4-5-20250929"
+            model = (
+                self.config.model.strip()
+                if self.config.model and self.config.model.strip()
+                else "claude-sonnet-4-5-20250929"
+            )
 
             response = self.client.messages.create(
                 model=model,
@@ -233,7 +238,12 @@ class EmailContentGenerator:
             )
 
             # Extract content from response
-            content_text = response.content[0].text if response.content else ""
+            # Only TextBlock has .text attribute, check block type first
+            content_text = ""
+            if response.content:
+                first_block = response.content[0]
+                if isinstance(first_block, TextBlock):
+                    content_text = first_block.text
 
             # Parse subject and body from response
             subject, body = self._parse_email_response(content_text)
@@ -317,10 +327,7 @@ class EmailContentGenerator:
                 # Security: Escape all content to prevent XSS
                 # Simple markdown-like conversion with proper escaping
                 paragraphs = body_text.split("\n\n")
-                body = "".join(
-                    f"<p>{html.escape(p.strip())}</p>"
-                    for p in paragraphs if p.strip()
-                )
+                body = "".join(f"<p>{html.escape(p.strip())}</p>" for p in paragraphs if p.strip())
             else:
                 # Security: Even if it looks like HTML, escape it to prevent XSS
                 # The AI should not be generating raw HTML

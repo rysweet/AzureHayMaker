@@ -141,12 +141,10 @@ class TeamsOperations(M365OperationBase):
             if mentioned_entities:
                 message_body["mentions"] = mentioned_entities
 
-            result = await self.client.graph.teams.by_team_id(
-                team_id
-            ).channels.by_channel_id(
-                channel_id
-            ).messages.post(
-                body=message_body
+            result = (
+                await self.client.graph.teams.by_team_id(team_id)
+                .channels.by_channel_id(channel_id)
+                .messages.post(body=message_body)
             )
 
             self._log_operation(
@@ -210,9 +208,7 @@ class TeamsOperations(M365OperationBase):
             # Get or create 1:1 chat
             chat_id = await self._get_or_create_chat(recipient_id)
 
-            result = await self.client.graph.chats.by_chat_id(
-                chat_id
-            ).messages.post(
+            result = await self.client.graph.chats.by_chat_id(chat_id).messages.post(
                 body={
                     "body": {
                         "contentType": "text",
@@ -229,9 +225,7 @@ class TeamsOperations(M365OperationBase):
             return result.id if result else None
 
         except Exception as e:
-            self._log_error(
-                "teams_chat_message", e, {"recipient": recipient_upn}
-            )
+            self._log_error("teams_chat_message", e, {"recipient": recipient_upn})
             raise
 
     async def _resolve_upn_to_object_id(self, upn: str) -> str | None:
@@ -271,19 +265,18 @@ class TeamsOperations(M365OperationBase):
         await self._rate_limit()
 
         try:
-            result = await self.client.graph.teams.by_team_id(
-                team_id
-            ).channels.by_channel_id(
-                channel_id
-            ).messages.by_chat_message_id(
-                message_id
-            ).replies.post(
-                body={
-                    "body": {
-                        "contentType": "text",
-                        "content": content,
+            result = (
+                await self.client.graph.teams.by_team_id(team_id)
+                .channels.by_channel_id(channel_id)
+                .messages.by_chat_message_id(message_id)
+                .replies.post(
+                    body={
+                        "body": {
+                            "contentType": "text",
+                            "content": content,
+                        }
                     }
-                }
+                )
             )
 
             self._log_operation(
@@ -328,14 +321,11 @@ class TeamsOperations(M365OperationBase):
         try:
             # Set reaction via Graph API
             # Note: The exact API structure may vary; this follows the documented pattern
-            await self.client.graph.teams.by_team_id(
-                team_id
-            ).channels.by_channel_id(
-                channel_id
-            ).messages.by_chat_message_id(
-                message_id
-            ).set_reaction.post(
-                body={"reactionType": reaction_type}
+            await (
+                self.client.graph.teams.by_team_id(team_id)
+                .channels.by_channel_id(channel_id)
+                .messages.by_chat_message_id(message_id)
+                .set_reaction.post(body={"reactionType": reaction_type})
             )
 
             self._log_operation(
@@ -370,9 +360,7 @@ class TeamsOperations(M365OperationBase):
         await self._rate_limit()
 
         try:
-            channels = await self.client.graph.teams.by_team_id(
-                team_id
-            ).channels.get()
+            channels = await self.client.graph.teams.by_team_id(team_id).channels.get()
 
             return [
                 {
@@ -406,16 +394,16 @@ class TeamsOperations(M365OperationBase):
         await self._rate_limit()
 
         try:
-            messages = await self.client.graph.teams.by_team_id(
-                team_id
-            ).channels.by_channel_id(
-                channel_id
-            ).messages.get(
-                request_configuration={
-                    "query_parameters": {
-                        "top": count,
+            messages = (
+                await self.client.graph.teams.by_team_id(team_id)
+                .channels.by_channel_id(channel_id)
+                .messages.get(
+                    request_configuration={
+                        "query_parameters": {
+                            "top": count,
+                        }
                     }
-                }
+                )
             )
 
             return [

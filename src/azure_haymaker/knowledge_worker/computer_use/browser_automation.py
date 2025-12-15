@@ -247,12 +247,12 @@ class BrowserAutomation:
         """
         if not self.is_authenticated:
             raise BrowserAutomationError("Not authenticated. Call login_m365() first.")
+        if not self._page:
+            raise BrowserAutomationError("Browser not running. Call launch_browser() first.")
 
         try:
             logger.info("Navigating to Outlook Web")
-            await self._page.goto(
-                "https://outlook.office.com/mail/", wait_until="networkidle"
-            )
+            await self._page.goto("https://outlook.office.com/mail/", wait_until="networkidle")
 
             # Wait for mail interface to load
             await self._page.wait_for_selector('[role="main"]', timeout=15000)
@@ -274,6 +274,8 @@ class BrowserAutomation:
         """
         if not self.is_authenticated:
             raise BrowserAutomationError("Not authenticated. Call login_m365() first.")
+        if not self._page:
+            raise BrowserAutomationError("Browser not running. Call launch_browser() first.")
 
         try:
             logger.info("Navigating to Teams Web")
@@ -317,6 +319,8 @@ class BrowserAutomation:
             raise BrowserAutomationError(
                 "Not on Outlook Web. Call navigate_to_outlook_web() first."
             )
+        if not self._page:
+            raise BrowserAutomationError("Browser not running. Call launch_browser() first.")
 
         timeout_ms = timeout or self.timeout
 
@@ -339,9 +343,7 @@ class BrowserAutomation:
             # Wait for send to complete (message compose window closes)
             try:
                 await self._page.wait_for_selector(
-                    '[aria-label="New mail"]',
-                    state="visible",
-                    timeout=5000
+                    '[aria-label="New mail"]', state="visible", timeout=5000
                 )
             except TimeoutError:
                 logger.debug("Send confirmation not detected, continuing")
@@ -382,9 +384,9 @@ class BrowserAutomation:
             BrowserAutomationError: If current service is not Teams
         """
         if self.current_service != "teams":
-            raise BrowserAutomationError(
-                "Not on Teams Web. Call navigate_to_teams_web() first."
-            )
+            raise BrowserAutomationError("Not on Teams Web. Call navigate_to_teams_web() first.")
+        if not self._page:
+            raise BrowserAutomationError("Browser not running. Call launch_browser() first.")
 
         try:
             logger.info(f"Sending Teams message to channel: {channel}")
@@ -437,6 +439,8 @@ class BrowserAutomation:
         # Navigate to Calendar if not already there
         if self.current_service != "outlook":
             await self.navigate_to_outlook_web()
+        if not self._page:
+            raise BrowserAutomationError("Browser not running. Call launch_browser() first.")
 
         try:
             logger.info(f"Creating calendar event: {subject}")
@@ -467,7 +471,9 @@ class BrowserAutomation:
         except Exception as e:
             sanitized_error = sanitize_error(str(e))
             logger.error(f"Failed to create calendar event: {sanitized_error}")
-            raise BrowserAutomationError(f"Calendar event creation failed: {sanitized_error}") from e
+            raise BrowserAutomationError(
+                f"Calendar event creation failed: {sanitized_error}"
+            ) from e
 
     async def close_browser(self) -> None:
         """Close browser and cleanup resources.

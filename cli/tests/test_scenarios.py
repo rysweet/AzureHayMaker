@@ -20,7 +20,7 @@ class TestParseFrontmatter:
 
     def test_valid_frontmatter(self, tmp_path):
         """Test parsing valid YAML frontmatter."""
-        content = '''---
+        content = """---
 title: "Test Scenario"
 category: "compute"
 description: "A test scenario"
@@ -29,7 +29,7 @@ description: "A test scenario"
 # Test Scenario
 
 Content here.
-'''
+"""
         test_file = tmp_path / "test.md"
         test_file.write_text(content)
 
@@ -41,13 +41,13 @@ Content here.
 
     def test_frontmatter_without_quotes(self, tmp_path):
         """Test parsing frontmatter without quotes."""
-        content = '''---
+        content = """---
 title: Test Scenario
 parent: Compute
 ---
 
 Content.
-'''
+"""
         test_file = tmp_path / "test.md"
         test_file.write_text(content)
 
@@ -68,11 +68,11 @@ Content.
 
     def test_empty_frontmatter(self, tmp_path):
         """Test empty frontmatter section."""
-        content = '''---
+        content = """---
 ---
 
 Content.
-'''
+"""
         test_file = tmp_path / "test.md"
         test_file.write_text(content)
 
@@ -82,14 +82,14 @@ Content.
 
     def test_multiline_values_ignored(self, tmp_path):
         """Test that simple parsing handles multiline gracefully."""
-        content = '''---
+        content = """---
 title: Test
 description: First line only
   second line ignored
 ---
 
 Content.
-'''
+"""
         test_file = tmp_path / "test.md"
         test_file.write_text(content)
 
@@ -163,20 +163,20 @@ class TestListScenarios:
         scenarios_dir.mkdir(parents=True)
 
         # Create scenario files
-        (scenarios_dir / "compute-01-linux-vm.md").write_text('''---
+        (scenarios_dir / "compute-01-linux-vm.md").write_text("""---
 title: "Linux VM"
 description: "Deploy Linux VM"
 ---
 
 Content.
-''')
-        (scenarios_dir / "networking-01-vnet.md").write_text('''---
+""")
+        (scenarios_dir / "networking-01-vnet.md").write_text("""---
 title: "Virtual Network"
 description: "Create VNet"
 ---
 
 Content.
-''')
+""")
 
         monkeypatch.chdir(tmp_path)
 
@@ -193,12 +193,12 @@ Content.
         scenarios_dir.mkdir(parents=True)
 
         # Create scenario and template files
-        (scenarios_dir / "compute-01-linux-vm.md").write_text('''---
+        (scenarios_dir / "compute-01-linux-vm.md").write_text("""---
 title: "Linux VM"
 ---
 
 Content.
-''')
+""")
         (scenarios_dir / "SCENARIO_TEMPLATE.md").write_text("Template content")
         (scenarios_dir / "_draft.md").write_text("Draft content")
         (scenarios_dir / "SCALING_PLAN.md").write_text("Scaling plan")
@@ -215,12 +215,12 @@ Content.
         scenarios_dir = tmp_path / "docs" / "scenarios"
         scenarios_dir.mkdir(parents=True)
 
-        (scenarios_dir / "compute-01-test.md").write_text('''---
+        (scenarios_dir / "compute-01-test.md").write_text("""---
 title: "Test"
 ---
 
 Content.
-''')
+""")
 
         monkeypatch.chdir(tmp_path)
 
@@ -297,13 +297,13 @@ class TestScenariosCLI:
         scenarios_dir = tmp_path / "docs" / "scenarios"
         scenarios_dir.mkdir(parents=True)
 
-        (scenarios_dir / "compute-01-test.md").write_text('''---
+        (scenarios_dir / "compute-01-test.md").write_text("""---
 title: "Test Scenario"
 description: "A test"
 ---
 
 Content.
-''')
+""")
 
         monkeypatch.chdir(tmp_path)
 
@@ -325,14 +325,14 @@ Content.
         scenarios_dir = tmp_path / "docs" / "scenarios"
         scenarios_dir.mkdir(parents=True)
 
-        (scenarios_dir / "compute-01-vm.md").write_text('''---
+        (scenarios_dir / "compute-01-vm.md").write_text("""---
 title: "VM"
 ---
-''')
-        (scenarios_dir / "networking-01-vnet.md").write_text('''---
+""")
+        (scenarios_dir / "networking-01-vnet.md").write_text("""---
 title: "VNet"
 ---
-''')
+""")
 
         monkeypatch.chdir(tmp_path)
 

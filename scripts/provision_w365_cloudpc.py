@@ -1,9 +1,12 @@
 """Provision 2 Windows 365 Cloud PCs for real computer use testing."""
+
 import asyncio
 import os
 from datetime import UTC, datetime
+
 from azure.identity import ClientSecretCredential
 from msgraph.graph_service_client import GraphServiceClient
+
 
 async def provision_cloud_pcs():
     """Provision 2 Cloud PCs for KW computer use agents."""
@@ -15,9 +18,9 @@ async def provision_cloud_pcs():
     )
     client = GraphServiceClient(cred)
 
-    print("="*70)
+    print("=" * 70)
     print("PROVISIONING WINDOWS 365 CLOUD PCs")
-    print("="*70)
+    print("=" * 70)
     print(f"\nStart: {datetime.now(UTC).strftime('%H:%M:%S UTC')}")
 
     # Step 1: Check for existing provisioning policy
@@ -45,7 +48,9 @@ async def provision_cloud_pcs():
     user_mgr = EntraUserManager(client, "w365-test", "DefenderATEVET12.onmicrosoft.com")
 
     users = []
-    for i, (dept, name) in enumerate([("engineering", "W365 Engineer 1"), ("sales", "W365 Sales 1")]):
+    for i, (dept, name) in enumerate(
+        [("engineering", "W365 Engineer 1"), ("sales", "W365 Sales 1")]
+    ):
         identity = await user_mgr.provision_worker(dept, i, name, None)
         users.append(identity)
         print(f"  ✓ {identity.user_principal_name}")
@@ -89,7 +94,7 @@ async def provision_cloud_pcs():
     # Post welcome messages
     for channel_id in channels.values():
         await teams_mgr.post_welcome_message(team_id, channel_id)
-    print(f"  ✓ Posted welcome messages")
+    print("  ✓ Posted welcome messages")
 
     # Step 4: Document what we have
     print("\n[4/5] Current status:")
@@ -107,6 +112,7 @@ async def provision_cloud_pcs():
 
     # Save results
     import json
+
     results = {
         "timestamp": datetime.now(UTC).isoformat(),
         "users_created": [u.user_principal_name for u in users],
@@ -118,12 +124,13 @@ async def provision_cloud_pcs():
     with open("w365_setup_results.json", "w") as f:
         json.dump(results, f, indent=2)
 
-    print(f"\n✓ Results saved to w365_setup_results.json")
+    print("\n✓ Results saved to w365_setup_results.json")
 
     return results
 
+
 if __name__ == "__main__":
     results = asyncio.run(provision_cloud_pcs())
-    print(f"\n🎯 W365 setup complete!")
+    print("\n🎯 W365 setup complete!")
     print(f"   Teams team: {results['teams_team_id']}")
     print(f"   Users: {len(results['users_created'])}")
