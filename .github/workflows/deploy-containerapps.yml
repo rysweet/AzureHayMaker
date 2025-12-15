@@ -119,6 +119,7 @@ jobs:
 
           echo "Deploying Container Apps with E16 workload profile (128GB RAM)..."
 
+          # Deploy with idempotent mode - ignore RoleAssignmentExists errors
           OUTPUTS=$(az deployment group create \
             --resource-group "$RG_NAME" \
             --template-file infra/bicep/main-containerapps.bicep \
@@ -127,7 +128,15 @@ jobs:
                          githubOidcClientId="${{ secrets.AZURE_CLIENT_ID }}" \
                          simulationSize="${{ secrets.SIMULATION_SIZE }}" \
             --name "$DEPLOYMENT_NAME" \
-            --query properties.outputs -o json)
+            --mode Incremental \
+            --query properties.outputs -o json 2>&1 || \
+          if echo "$OUTPUTS" | grep -q "RoleAssignmentExists"; then
+            echo "⚠️  Role assignment already exists (expected on redeployment)"
+            az deployment group show --resource-group "$RG_NAME" --name "$DEPLOYMENT_NAME" --query properties.outputs -o json
+          else
+            echo "$OUTPUTS" >&2
+            exit 1
+          fi)
 
           # Extract outputs
           ORCHESTRATOR_NAME=$(echo $OUTPUTS | jq -r '.orchestratorName.value')
