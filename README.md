@@ -418,36 +418,6 @@ Configure webhooks to receive execution event notifications. Set the `WEBHOOK_UR
 - **[Scenarios](docs/scenarios/)** - 50 operational scenarios with full automation
 - **[Architecture Guide](.claude/skills/azure-haymaker/ARCHITECTURE_GUIDE.md)** - Azure HayMaker orchestration service architecture
 
-## 🗺️ Enhancement Roadmap 2025-2026
-
-> ### ⭐ **NEW: Complete Strategic Roadmap Available**
->
-> Azure HayMaker has a comprehensive 12-month enhancement roadmap with **10 prioritized enhancements** delivering **$1.2M in business value** from a **$336K investment** (**267% ROI**).
->
-> **Start here**: [Executive Summary](docs/EXECUTIVE_SUMMARY.md) - 10-minute business case
->
-> **All 10 enhancements have**: GitHub issue, implementation spec, getting started guide, ROI calculation, and timeline.
-
-### Quick Access to Enhancements
-
-| Enhancement | Priority | ROI | Issue | Getting Started |
-|-------------|----------|-----|-------|-----------------|
-| SIEM Telemetry Export | P0 🔴 | 120% | [#124](https://github.com/rysweet/AzureHayMaker/issues/124) | [Guide](docs/GETTING_STARTED_124_SIEM_EXPORT.md) |
-| Windows VM Security | P0 🔴 | 1,165% | [#125](https://github.com/rysweet/AzureHayMaker/issues/125) | [Guide](docs/GETTING_STARTED_125_VM_SECURITY.md) |
-| Multi-Tenant Isolation | P1 🟡 | 233% | [#126](https://github.com/rysweet/AzureHayMaker/issues/126) | [Guide](docs/GETTING_STARTED_126_MULTI_TENANT.md) |
-| Distributed Tracing | P1 🟡 | 36% | [#127](https://github.com/rysweet/AzureHayMaker/issues/127) | [Guide](docs/GETTING_STARTED_127_DISTRIBUTED_TRACING.md) |
-| Cost Budget Enforcement | P1 🟡 | 184% | [#128](https://github.com/rysweet/AzureHayMaker/issues/128) | [Guide](docs/GETTING_STARTED_128_COST_ENFORCEMENT.md) |
-| Plus 5 more P1/P2 enhancements... | | | [View All](https://github.com/rysweet/AzureHayMaker/issues?q=label%3Aenhancement) | [See Roadmap](docs/ENHANCEMENT_ROADMAP.md) |
-
-### Planning & Strategy
-
-**Key Documents**:
-- **[Enhancement Roadmap](docs/ENHANCEMENT_ROADMAP.md)** - Complete strategic plan (2025-2026)
-- **[Visual Roadmap](docs/VISUAL_ROADMAP.md)** - Mermaid diagrams and timeline
-- **[Quick Reference Card](docs/ENHANCEMENT_QUICK_REFERENCE.md)** - One-page stakeholder summary
-- **[Implementation Specs](specs/README.md)** - Technical specifications for all enhancements
-- **[GitHub Issues](https://github.com/rysweet/AzureHayMaker/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement)** - Track progress
-- **[Milestones](https://github.com/rysweet/AzureHayMaker/milestones)** - Quarterly goals (Q1-Q4 2026)
 
 **For Contributors**:
 - **[Quick Start Guide](docs/QUICK_START_CONTRIBUTORS.md)** - Get started in 15 minutes
