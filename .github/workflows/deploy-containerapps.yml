@@ -160,6 +160,12 @@ jobs:
           echo "   FQDN: $ORCHESTRATOR_FQDN"
           echo "   Profile: E16 (128GB RAM, 16 vCPU)"
 
+      - name: Wait for RBAC Propagation
+        run: |
+          echo "⏳ Waiting 60 seconds for Key Vault RBAC permissions to propagate..."
+          sleep 60
+          echo "✅ RBAC propagation wait complete"
+
       - name: Inject Secrets to Key Vault
         run: |
           RG_NAME="haymaker-${{ env.ENVIRONMENT }}-rg"
