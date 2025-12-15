@@ -39,7 +39,7 @@ var commonTags = {
 var uniqueSuffix = uniqueString(resourceGroup().id, environment)
 
 // Resource names (keep under 32 chars for Container Apps)
-var containerAppEnvName = 'haymaker-${environment}-${uniqueSuffix}-cae'
+var containerAppEnvName = 'haymaker-fastapi-cae' // Use existing environment
 var orchestratorAppName = 'haymaker-fastapi-orch' // Fixed name for CLI compatibility
 var keyVaultName = 'haymaker-${environment}-${substring(uniqueSuffix, 0, 6)}-kv'
 var serviceBusName = 'haymaker-${environment}-${uniqueSuffix}-bus'
