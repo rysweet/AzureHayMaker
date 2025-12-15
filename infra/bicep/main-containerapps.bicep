@@ -144,14 +144,8 @@ module orchestrator 'modules/orchestrator-containerapp.bicep' = {
   }
 }
 
-// Grant Orchestrator access to Key Vault
-module orchestratorKeyVaultRole 'modules/role-assignment.bicep' = {
-  name: 'orchestratorKeyVaultRole-${uniqueSuffix}'
-  params: {
-    principalId: orchestrator.outputs.principalId
-    roleDefinitionId: '4633458b-17de-408a-b874-0445c86b69e6' // Key Vault Secrets User
-  }
-}
+// Note: Orchestrator Key Vault access managed at subscription level
+// Subscription-level "Key Vault Secrets Officer" role granted to GitHub Actions SP
 
 // Grant Orchestrator access to ACR (AcrPull)
 // Note: Role assignment created in workflow after ACR deployment
