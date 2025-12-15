@@ -569,15 +569,18 @@ def azure_keyvault_name():
 @pytest.fixture(scope="session", autouse=True)
 def verify_azure_login():
     """Verify Azure CLI is logged in before running tests"""
-    result = subprocess.run(
-        ["az", "account", "show"],
-        capture_output=True,
-        text=True,
-        timeout=10,
-    )
+    try:
+        result = subprocess.run(
+            ["az", "account", "show"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
 
-    if result.returncode != 0:
-        pytest.skip("Not logged in to Azure CLI. Run: az login")
+        if result.returncode != 0:
+            pytest.skip("Not logged in to Azure CLI. Run: az login")
+    except subprocess.TimeoutExpired:
+        pytest.skip("Azure CLI not responding (likely not logged in). Run: az login")
 
 
 # ============================================================================
