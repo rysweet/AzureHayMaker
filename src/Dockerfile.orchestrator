@@ -19,11 +19,16 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Install FastAPI and APScheduler (if not in requirements.txt)
 RUN pip install --no-cache-dir fastapi uvicorn apscheduler
 
-# Copy application code
-COPY . .
+# Copy application code (exclude Azure Functions files)
+COPY azure_haymaker/ ./azure_haymaker/
+COPY orchestrator_server.py ./
+COPY agents/ ./agents/
 
 # Copy scenario files to /docs/scenarios (scenario_selector.py looks at project root)
 COPY docs_scenarios /docs/scenarios
+
+# Explicitly exclude Azure Functions files to prevent runtime confusion
+# (host.json and function_app.py trigger Functions runtime even with FastAPI CMD)
 
 # Expose port 80
 EXPOSE 80
