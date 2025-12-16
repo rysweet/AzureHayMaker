@@ -185,9 +185,9 @@ class SecretInjectionHandler:
 
         logger.info(f"Injecting {len(secrets)} secret(s) to container app '{container_app_name}'")
 
-        # Build az containerapp secret set command with Key Vault references
+        # Step 1: Create secrets with Key Vault references
         # Format: secretname=keyvaultref:https://vault.azure.net/secrets/name,identityref:system
-        cmd = [
+        cmd_secret = [
             "az",
             "containerapp",
             "secret",
@@ -204,33 +204,72 @@ class SecretInjectionHandler:
         for secret in secrets:
             # Get Key Vault URI from keyvault name
             vault_uri = f"https://{keyvault_name}.vault.azure.net"
+            # Secret name must be lowercase
+            secret_name = secret["name"].lower()
             # Format: secretname=keyvaultref:https://vault.azure.net/secrets/secretname,identityref:system
-            secret_ref = f"{secret['name']}=keyvaultref:{vault_uri}/secrets/{secret['keyvault_secret']},identityref:system"
+            secret_ref = f"{secret_name}=keyvaultref:{vault_uri}/secrets/{secret['keyvault_secret']},identityref:system"
             secret_refs.append(secret_ref)
 
-        cmd.extend(secret_refs)
+        cmd_secret.extend(secret_refs)
 
         # Retry logic for transient failures
         last_error = None
         for attempt in range(self.max_retries):
             try:
+                # Step 1: Create secrets
+                logger.info(f"Secret injection attempt {attempt + 1} - Creating secrets")
                 result = subprocess.run(
-                    cmd,
+                    cmd_secret,
                     capture_output=True,
                     text=True,
                     timeout=120,
                 )
 
-                if result.returncode == 0:
+                if result.returncode != 0:
+                    last_error = result.stderr
+                    logger.warning(f"Secret creation attempt {attempt + 1} failed: {result.stderr}")
+                    print(f"Secret injection attempt {attempt + 1} failed: {result.stderr}")
+                    if attempt < self.max_retries - 1:
+                        time.sleep(5)
+                        continue
+                    else:
+                        break
+
+                logger.info("Secrets created successfully")
+
+                # Step 2: Set environment variables to reference secrets
+                cmd_env = [
+                    "az",
+                    "containerapp",
+                    "update",
+                    "--name",
+                    container_app_name,
+                    "--resource-group",
+                    self.resource_group,
+                    "--set-env-vars",
+                ]
+
+                env_refs = []
+                for secret in secrets:
+                    secret_name = secret["name"].lower()
+                    # Use explicit env_var name if provided, otherwise uppercase the secret name
+                    env_var_name = secret.get("env_var", secret["name"].upper())
+                    env_refs.append(f"{env_var_name}=secretref:{secret_name}")
+
+                cmd_env.extend(env_refs)
+
+                logger.info("Setting environment variables to reference secrets")
+                result_env = subprocess.run(cmd_env, capture_output=True, text=True, timeout=120)
+
+                if result_env.returncode == 0:
                     logger.info(
                         f"Successfully injected secrets to container app '{container_app_name}'"
                     )
                     return True
                 else:
-                    last_error = result.stderr
-                    logger.warning(
-                        f"Secret injection attempt {attempt + 1} failed: {result.stderr}"
-                    )
+                    last_error = result_env.stderr
+                    logger.warning(f"Environment variable setup failed: {result_env.stderr}")
+                    print(f"Secret injection attempt {attempt + 1} failed: {result_env.stderr}")
 
             except subprocess.TimeoutExpired:
                 last_error = "Command timed out"
