@@ -65,7 +65,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2023-05-01' = {
       secrets: []
       ingress: {
         external: true
-        targetPort: 80  // Azure Functions default port
+        targetPort: 80  // FastAPI/Uvicorn default port
         transport: 'http'
         allowInsecure: false
         traffic: [
@@ -181,11 +181,6 @@ resource orchestratorApp 'Microsoft.App/containerApps@2023-05-01' = {
             {
               name: 'NODE_OPTIONS'
               value: '--max-old-space-size=32768' // 32GB heap for Node.js
-            }
-            // Azure Functions V2 Python Worker Indexing (required for function discovery)
-            {
-              name: 'AzureWebJobsFeatureFlags'
-              value: 'EnableWorkerIndexing'
             }
           ]
         }
