@@ -134,9 +134,11 @@ jobs:
           # Extract outputs
           ORCHESTRATOR_NAME=$(echo $OUTPUTS | jq -r '.orchestratorName.value')
           ORCHESTRATOR_FQDN=$(echo $OUTPUTS | jq -r '.orchestratorFqdn.value')
+          ORCHESTRATOR_PRINCIPAL_ID=$(echo $OUTPUTS | jq -r '.orchestratorPrincipalId.value')
 
           echo "orchestratorName=$ORCHESTRATOR_NAME" >> $GITHUB_OUTPUT
           echo "orchestratorFqdn=$ORCHESTRATOR_FQDN" >> $GITHUB_OUTPUT
+          echo "orchestratorPrincipalId=$ORCHESTRATOR_PRINCIPAL_ID" >> $GITHUB_OUTPUT
 
           echo "✅ Container Apps deployed"
           echo "   Orchestrator: $ORCHESTRATOR_NAME"
