@@ -201,10 +201,10 @@ class TestSecretInjection:
         """Test successful secret injection to container app"""
         handler = SecretInjectionHandler("sub-id", "test-rg")
 
-        # Mock successful az containerapp update command
+        # Mock successful az commands (secret creation + env var setup)
         mock_run.return_value = Mock(
             returncode=0,
-            stdout="Container app updated successfully",
+            stdout="Success",
             stderr="",
         )
 
@@ -219,20 +219,25 @@ class TestSecretInjection:
 
         assert result is True
 
-        # Verify correct az command was called
-        mock_run.assert_called_once()
-        call_args = mock_run.call_args[0][0]
-        assert call_args[0] == "az"
-        assert call_args[1] == "containerapp"
-        assert call_args[2] == "secret"
-        assert call_args[3] == "set"
-        assert "--name" in call_args
-        assert "orchestrator" in call_args
-        assert "--resource-group" in call_args
-        assert "test-rg" in call_args
-        assert "--secrets" in call_args
-        # Verify Key Vault reference format
-        assert any("keyvaultref:" in arg and "identityref:system" in arg for arg in call_args)
+        # Should be called twice: secret creation + env var setup
+        assert mock_run.call_count == 2
+
+        # Verify first call: secret creation
+        first_call_args = mock_run.call_args_list[0][0][0]
+        assert first_call_args[0] == "az"
+        assert first_call_args[1] == "containerapp"
+        assert first_call_args[2] == "secret"
+        assert first_call_args[3] == "set"
+        assert "--secrets" in first_call_args
+        assert any("keyvaultref:" in arg and "identityref:system" in arg for arg in first_call_args)
+
+        # Verify second call: environment variable setup
+        second_call_args = mock_run.call_args_list[1][0][0]
+        assert second_call_args[0] == "az"
+        assert second_call_args[1] == "containerapp"
+        assert second_call_args[2] == "update"
+        assert "--set-env-vars" in second_call_args
+        assert any("secretref:" in arg for arg in second_call_args)
 
     @patch("subprocess.run")
     def test_inject_secrets_with_retry_on_failure(self, mock_run):
@@ -243,11 +248,15 @@ class TestSecretInjection:
             max_retries=3,
         )
 
-        # Mock failing then succeeding
+        # Mock failing then succeeding - TWO calls per attempt (secret + env var)
+        # Attempt 1: Fail on secret creation
+        # Attempt 2: Fail on secret creation
+        # Attempt 3: Succeed on both secret creation and env var setup
         mock_run.side_effect = [
-            Mock(returncode=1, stdout="", stderr="Transient error"),
-            Mock(returncode=1, stdout="", stderr="Transient error"),
-            Mock(returncode=0, stdout="Success", stderr=""),
+            Mock(returncode=1, stdout="", stderr="Transient error"),  # Attempt 1: secret fail
+            Mock(returncode=1, stdout="", stderr="Transient error"),  # Attempt 2: secret fail
+            Mock(returncode=0, stdout="Success", stderr=""),  # Attempt 3: secret success
+            Mock(returncode=0, stdout="Success", stderr=""),  # Attempt 3: env var success
         ]
 
         result = handler.inject_secrets_to_container_app(
@@ -257,7 +266,7 @@ class TestSecretInjection:
         )
 
         assert result is True
-        assert mock_run.call_count == 3
+        assert mock_run.call_count == 4  # Two failed attempts + two successful calls
 
     @patch("subprocess.run")
     def test_inject_secrets_fails_after_max_retries(self, mock_run):
@@ -299,7 +308,7 @@ class TestEndToEndWorkflow:
         # Mock RBAC check succeeding on second try
         access_checks = [False, True]
 
-        # Mock successful secret injection
+        # Mock successful secret injection - TWO calls (secret creation + env var setup)
         mock_run.return_value = Mock(returncode=0, stdout="Success", stderr="")
 
         with patch.object(handler, "_check_keyvault_access", side_effect=access_checks):
@@ -325,8 +334,8 @@ class TestEndToEndWorkflow:
         # Verify RBAC wait slept once
         assert mock_sleep.call_count == 1
 
-        # Verify secret injection command was called
-        mock_run.assert_called_once()
+        # Verify secret injection commands were called TWICE (secret + env var)
+        assert mock_run.call_count == 2
 
 
 class TestLoggingAndMonitoring:
