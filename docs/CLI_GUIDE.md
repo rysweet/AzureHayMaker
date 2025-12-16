@@ -1,16 +1,24 @@
+---
+layout: default
+title: CLI Guide
+nav_order: 6
+description: "Command-line interface for Azure HayMaker"
+permalink: /cli/
+---
+
 # Azure HayMaker CLI Guide
+{: .no_toc }
 
 Complete guide for using the Azure HayMaker command-line interface.
+{: .fs-6 .fw-300 }
 
 ## Table of Contents
+{: .no_toc .text-delta }
 
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Authentication](#authentication)
-- [Commands](#commands)
-- [Output Formats](#output-formats)
-- [Examples](#examples)
-- [Troubleshooting](#troubleshooting)
+1. TOC
+{:toc}
+
+---
 
 ## Installation
 
@@ -27,12 +35,16 @@ cd cli
 pip install -e .
 ```
 
+See the [CLI source code](https://github.com/rysweet/AzureHayMaker/tree/main/cli/src/haymaker_cli) for implementation details.
+
 ### Development Installation
 
 ```bash
 cd cli
 pip install -e ".[dev]"
 ```
+
+See [pyproject.toml](https://github.com/rysweet/AzureHayMaker/blob/main/cli/pyproject.toml) for development dependencies.
 
 ## Configuration
 
@@ -75,7 +87,12 @@ default_profile: default
 export HAYMAKER_ENDPOINT=https://haymaker-dev.azurewebsites.net
 export HAYMAKER_API_KEY=your-api-key
 export HAYMAKER_PROFILE=default
+
+# Optional: Configure Anthropic model for AI email generation
+export ANTHROPIC_MODEL=claude-sonnet-4-5-20250929
 ```
+
+See [Configure Anthropic Model](/AzureHayMaker/howto/configure-anthropic-model) for details on model selection and configuration.
 
 ### Using the Config Command
 
@@ -557,14 +574,29 @@ while true; do
 done
 ```
 
-## API Documentation
+## Related Documentation
 
-For detailed API documentation, see:
-- [API Reference](API.md)
-- [Architecture Documentation](ARCHITECTURE.md)
+For detailed documentation, see:
+- [Configure Anthropic Model](/AzureHayMaker/howto/configure-anthropic-model) - Select and configure Claude models for AI email generation
+- [Reporting & Telemetry Guide](/AzureHayMaker/reporting-telemetry/) - Comprehensive reporting, metrics, and dashboard documentation
+- [API Reference](/AzureHayMaker/api/) - REST API endpoints and examples
+- [Architecture Documentation](/AzureHayMaker/architecture/) - System design and components
+- [Scenarios](/AzureHayMaker/scenarios/) - Available scenarios for execution
+
+## Source Code References
+
+| Component | Source File |
+|:----------|:------------|
+| CLI Entry Point | [main.py](https://github.com/rysweet/AzureHayMaker/blob/main/cli/src/haymaker_cli/main.py) |
+| API Client | [client.py](https://github.com/rysweet/AzureHayMaker/blob/main/cli/src/haymaker_cli/client.py) |
+| Configuration | [config.py](https://github.com/rysweet/AzureHayMaker/blob/main/cli/src/haymaker_cli/config.py) |
+| Authentication | [auth.py](https://github.com/rysweet/AzureHayMaker/blob/main/cli/src/haymaker_cli/auth.py) |
+| Output Formatters | [formatters.py](https://github.com/rysweet/AzureHayMaker/blob/main/cli/src/haymaker_cli/formatters.py) |
+| Orchestrator Commands | [orch/commands.py](https://github.com/rysweet/AzureHayMaker/blob/main/cli/src/haymaker_cli/orch/commands.py) |
+| CLI Tests | [tests/](https://github.com/rysweet/AzureHayMaker/tree/main/cli/tests) |
 
 ## Support
 
 For issues and questions:
-- GitHub Issues: https://github.com/azurehaymaker/azurehaymaker/issues
-- Documentation: https://github.com/azurehaymaker/azurehaymaker/tree/main/docs
+- GitHub Issues: https://github.com/rysweet/AzureHayMaker/issues
+- Documentation: https://github.com/rysweet/AzureHayMaker/tree/main/docs

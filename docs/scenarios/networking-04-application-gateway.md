@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Application Gateway with Web Application Firewall"
+parent: "Networking"
+grand_parent: Scenarios
+nav_order: 4
+description: "Deploy an Azure Application Gateway with WAF, backend pools, path-based routing, and SSL/TLS termination."
+permalink: /scenarios/networking-04-application-gateway/
+---
+
 # Scenario: Application Gateway with Web Application Firewall
 
 ## Technology Area

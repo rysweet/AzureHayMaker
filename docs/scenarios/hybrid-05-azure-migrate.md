@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Azure Migrate Assessment and Discovery"
+parent: "Hybrid + Multicloud"
+grand_parent: Scenarios
+nav_order: 5
+description: "Deploy Azure Migrate to discover on-premises infrastructure, assess migration readiness, and create migration plans."
+permalink: /scenarios/hybrid-05-azure-migrate/
+---
+
 # Scenario: Azure Migrate Assessment and Discovery
 
 ## Technology Area

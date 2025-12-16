@@ -172,7 +172,7 @@ class HayMakerClient:
             >>> print(status.status)  # doctest: +SKIP
             'running'
         """
-        response = await self._request("GET", "/api/v1/status")
+        response = await self._request("GET", "/api/status")
         return OrchestratorStatus(**response.json())
 
     # Metrics endpoints
@@ -196,7 +196,7 @@ class HayMakerClient:
         if scenario:
             params["scenario"] = scenario
 
-        response = await self._request("GET", "/api/v1/metrics", params=params)
+        response = await self._request("GET", "/api/metrics", params=params)
         return MetricsSummary(**response.json())
 
     # Execution endpoints
@@ -220,7 +220,7 @@ class HayMakerClient:
         """
         request = ExecutionRequest(scenario_name=scenario_name, parameters=parameters or {})
 
-        response = await self._request("POST", "/api/v1/execute", json=request.model_dump())
+        response = await self._request("POST", "/api/execute", json=request.model_dump())
         return ExecutionResponse(**response.json())
 
     async def get_execution_status(self, execution_id: str) -> ExecutionStatus:
@@ -237,7 +237,7 @@ class HayMakerClient:
             >>> print(status.status)  # doctest: +SKIP
             'completed'
         """
-        response = await self._request("GET", f"/api/v1/executions/{execution_id}")
+        response = await self._request("GET", f"/api/executions/{execution_id}")
         return ExecutionStatus(**response.json())
 
     # Agent endpoints
@@ -261,7 +261,7 @@ class HayMakerClient:
         if status:
             params["status"] = status
 
-        response = await self._request("GET", "/api/v1/agents", params=params)
+        response = await self._request("GET", "/api/agents", params=params)
         data = response.json()
         return [AgentInfo(**agent) for agent in data.get("agents", [])]
 
@@ -284,7 +284,7 @@ class HayMakerClient:
             'Starting scenario execution'
         """
         params = {"tail": tail, "follow": follow}
-        response = await self._request("GET", f"/api/v1/agents/{agent_id}/logs", params=params)
+        response = await self._request("GET", f"/api/agents/{agent_id}/logs", params=params)
         data = response.json()
         return [LogEntry(**log) for log in data.get("logs", [])]
 
@@ -321,7 +321,7 @@ class HayMakerClient:
         if status:
             params["status"] = status
 
-        response = await self._request("GET", "/api/v1/resources", params=params)
+        response = await self._request("GET", "/api/resources", params=params)
         data = response.json()
         return [ResourceInfo(**resource) for resource in data.get("resources", [])]
 
@@ -350,7 +350,7 @@ class HayMakerClient:
         """
         request = CleanupRequest(execution_id=execution_id, scenario=scenario, dry_run=dry_run)
 
-        response = await self._request("POST", "/api/v1/cleanup", json=request.model_dump())
+        response = await self._request("POST", "/api/cleanup", json=request.model_dump())
         return CleanupResponse(**response.json())
 
     async def get_cleanup_status(self, cleanup_id: str) -> CleanupResponse:
@@ -362,7 +362,7 @@ class HayMakerClient:
         Returns:
             Cleanup response with current status
         """
-        response = await self._request("GET", f"/api/v1/cleanup/{cleanup_id}")
+        response = await self._request("GET", f"/api/cleanup/{cleanup_id}")
         return CleanupResponse(**response.json())
 
 

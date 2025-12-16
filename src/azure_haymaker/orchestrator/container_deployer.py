@@ -8,8 +8,6 @@ import asyncio
 import logging
 from typing import Any
 
-from azure.identity import DefaultAzureCredential
-
 from azure_haymaker.models.config import OrchestratorConfig
 from azure_haymaker.models.scenario import ScenarioMetadata
 from azure_haymaker.models.service_principal import ServicePrincipalDetails
@@ -89,21 +87,14 @@ class ContainerDeployer:
 
         try:
             # Use explicit SP credentials like sp_manager.py
-            from azure.identity import ClientSecretCredential
             import os
+
+            from azure.identity import ClientSecretCredential
 
             credential = ClientSecretCredential(
                 tenant_id=os.getenv("AZURE_TENANT_ID"),
                 client_id=os.getenv("AZURE_CLIENT_ID"),
-                client_secret=os.getenv("AZURE_CLIENT_SECRET")
-            )
-
-            # Lazy import to avoid loading uninstalled package during testing
-            from azure.mgmt.appcontainers import ContainerAppsAPIClient
-
-            client = ContainerAppsAPIClient(
-                credential=credential,
-                subscription_id=self.subscription_id,
+                client_secret=os.getenv("AZURE_CLIENT_SECRET"),
             )
 
             # Build container configuration
@@ -121,8 +112,7 @@ class ContainerDeployer:
             from azure.mgmt.appcontainers import ContainerAppsAPIClient
 
             env_client = ContainerAppsAPIClient(
-                credential=credential,
-                subscription_id=self.subscription_id
+                credential=credential, subscription_id=self.subscription_id
             )
 
             # Get the environment to verify it exists and get its ID
@@ -131,17 +121,22 @@ class ContainerDeployer:
                 env = await asyncio.to_thread(
                     env_client.managed_environments.get,
                     resource_group_name=self.resource_group_name,
-                    environment_name="haymaker-fastapi-cae"
+                    environment_name="haymaker-fastapi-cae",
                 )
                 container_env_id = env.id
                 logger.info(f"✅ Environment lookup succeeded: {container_env_id}")
-                logger.info(f"   Name: {env.name}, State: {env.provisioning_state}, Location: {env.location}")
+                logger.info(
+                    f"   Name: {env.name}, State: {env.provisioning_state}, Location: {env.location}"
+                )
             except Exception as env_error:
                 logger.error(f"❌ Failed to get environment: {env_error}")
-                raise ContainerAppError(f"Container Apps Environment not accessible: {env_error}") from env_error
+                raise ContainerAppError(
+                    f"Container Apps Environment not accessible: {env_error}"
+                ) from env_error
 
             # Per Azure Container Apps API: environmentId must be in properties dict
-            container_app = {
+            # Note: This dict documents the SDK structure but CLI is used for deployment
+            _container_app = {  # noqa: F841 - kept as documentation
                 "location": self._get_region(),
                 "properties": {
                     "environmentId": container_env_id,  # Use environment ID retrieved from Azure
@@ -158,61 +153,121 @@ class ContainerDeployer:
             # Deploy container app using Azure CLI (SDK has persistent ManagedEnvironmentNotFound issues)
             # CLI proven to work in testing, SDK fails even with correct permissions and environment
             logger.info(f"Deploying container app {app_name} for scenario {scenario.scenario_name}")
-            logger.info(f"   Using environment: haymaker-fastapi-cae")
+            logger.info("   Using environment: haymaker-fastapi-cae")
             logger.info(f"   RG: {self.resource_group_name}")
 
-            import subprocess
-            import json as json_module
             import os
+            import shlex
+            import subprocess
 
-            # Authenticate Azure CLI using SP credentials from environment
-            login_cmd = [
-                "az", "login", "--service-principal",
-                "--username", os.getenv("AZURE_CLIENT_ID"),
-                "--password", os.getenv("AZURE_CLIENT_SECRET"),
-                "--tenant", os.getenv("AZURE_TENANT_ID")
-            ]
+            # Security fix for issue #74: Avoid credential exposure in process listings
+            # CLI arguments are visible in /proc/*/cmdline and ps output.
+            # Mitigation: Use shell with environment variable expansion so the secret
+            # value appears only in the process environment (more restricted access)
+            # rather than the command line arguments.
 
-            login_result = await asyncio.to_thread(subprocess.run, login_cmd, capture_output=True, text=True)
+            # Validate required credentials exist
+            client_id = os.getenv("AZURE_CLIENT_ID", "")
+            tenant_id = os.getenv("AZURE_TENANT_ID", "")
+            client_secret = os.getenv("AZURE_CLIENT_SECRET", "")
+
+            if not all([client_id, tenant_id, client_secret]):
+                raise ContainerAppError(
+                    "Missing required Azure credentials: AZURE_CLIENT_ID, "
+                    "AZURE_CLIENT_SECRET, and AZURE_TENANT_ID must be set"
+                )
+
+            # Build login command using env var for password to avoid cmdline exposure
+            # The $AZURE_CLIENT_SECRET is expanded by the shell from the environment
+            login_shell_cmd = (
+                f"az login --service-principal "
+                f"-u {shlex.quote(client_id)} "
+                f"-t {shlex.quote(tenant_id)} "
+                f'-p "$AZURE_CLIENT_SECRET"'
+            )
+
+            login_result = await asyncio.to_thread(
+                subprocess.run,
+                login_shell_cmd,
+                shell=True,
+                capture_output=True,
+                text=True,
+                env=os.environ,
+            )
             if login_result.returncode != 0:
-                logger.warning(f"CLI login warning (may already be logged in): {login_result.stderr}")
+                logger.warning(
+                    f"CLI login warning (may already be logged in): {login_result.stderr}"
+                )
 
             # Build container app using Azure CLI
             # Use valid CPU/memory combo: max is 4 CPU + 8Gi per Azure Container Apps limits
             # Get ACR credentials for registry authentication
             acr_creds = subprocess.run(
                 ["az", "acr", "credential", "show", "--name", "haymakerorchacr", "-o", "json"],
-                capture_output=True, text=True
+                capture_output=True,
+                text=True,
             )
             import json as json_mod
+
             acr_data = json_mod.loads(acr_creds.stdout)
-            acr_username = acr_data['username']
-            acr_password = acr_data['passwords'][0]['value']
+            acr_username = acr_data["username"]
+            acr_password = acr_data["passwords"][0]["value"]
+
+            # Build container app command - pass registry password via env var
+            # to avoid exposure in process listings
+            deploy_env = os.environ.copy()
+            deploy_env["ACR_PASSWORD"] = acr_password
 
             cli_command = [
-                "az", "containerapp", "create",
-                "--name", app_name,
-                "--resource-group", self.resource_group_name,
-                "--environment", "haymaker-fastapi-cae",
-                "--image", container['image'],
-                "--cpu", "2.0",
-                "--memory", "4.0Gi",
-                "--target-port", "80",
-                "--ingress", "internal",
-                "--min-replicas", "0",
-                "--max-replicas", "1",
-                "--registry-server", "haymakerorchacr.azurecr.io",
-                "--registry-username", acr_username,
-                "--registry-password", acr_password,
+                "az",
+                "containerapp",
+                "create",
+                "--name",
+                app_name,
+                "--resource-group",
+                self.resource_group_name,
+                "--environment",
+                "haymaker-fastapi-cae",
+                "--image",
+                container["image"],
+                "--cpu",
+                "2.0",
+                "--memory",
+                "4.0Gi",
+                "--target-port",
+                "80",
+                "--ingress",
+                "internal",
+                "--min-replicas",
+                "0",
+                "--max-replicas",
+                "1",
+                "--registry-server",
+                "haymakerorchacr.azurecr.io",
+                "--registry-username",
+                acr_username,
                 "--env-vars",
                 f"SCENARIO_NAME={scenario.scenario_name}",
                 f"AZURE_CLIENT_ID={sp.client_id}",
                 f"AZURE_TENANT_ID={self.config.target_tenant_id}",
-                "--query", "properties.latestRevisionFqdn",
-                "-o", "tsv"
+                "--query",
+                "properties.latestRevisionFqdn",
+                "-o",
+                "tsv",
             ]
 
-            result = await asyncio.to_thread(subprocess.run, cli_command, capture_output=True, text=True)
+            # Build shell command with password from env var
+            base_cmd = " ".join(shlex.quote(arg) for arg in cli_command)
+            shell_cmd = f'{base_cmd} --registry-password "$ACR_PASSWORD"'
+
+            result = await asyncio.to_thread(
+                subprocess.run,
+                shell_cmd,
+                shell=True,
+                capture_output=True,
+                text=True,
+                env=deploy_env,
+            )
 
             if result.returncode != 0:
                 error_msg = result.stderr or result.stdout
@@ -246,13 +301,10 @@ class ContainerDeployer:
         sanitized = scenario_name.lower().replace("_", "-")
         # Remove invalid characters
         sanitized = "".join(c for c in sanitized if c.isalnum() or c == "-")
-        # Limit length (max 32 chars for container app names per Azure requirements)
-        # Remove "-agent" suffix if needed to fit in 32 chars
-        if len(sanitized) <= 32:
-            return sanitized
-        else:
-            # Truncate to 32 chars
-            return sanitized[:32]
+        # Limit length to 63 chars for Azure container app names
+        if len(sanitized) > 63:
+            sanitized = sanitized[:63]
+        return sanitized
 
     def _build_container(self, app_name: str, sp: ServicePrincipalDetails) -> dict[str, Any]:
         """Build container configuration with resource limits and env vars.

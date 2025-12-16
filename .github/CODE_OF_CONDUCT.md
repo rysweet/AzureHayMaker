@@ -15,7 +15,7 @@ We pledge to make participation in Azure HayMaker a harassment-free experience f
 
 **Unacceptable behavior includes**:
 - Harassment or discriminatory language
-- Trolling or insulting comments  
+- Trolling or insulting comments
 - Personal or political attacks
 - Publishing private information
 - Unprofessional conduct

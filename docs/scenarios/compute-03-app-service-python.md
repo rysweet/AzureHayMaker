@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Python Web Application on Azure App Service"
+parent: "Compute"
+grand_parent: Scenarios
+nav_order: 3
+description: "Deploy a Python Flask-based web application to Azure App Service with automatic scaling, continuous integration, and monitoring."
+permalink: /scenarios/compute-03-app-service-python/
+---
+
 # Scenario: Python Web Application on Azure App Service
 
 ## Technology Area

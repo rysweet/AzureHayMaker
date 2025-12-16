@@ -36,9 +36,7 @@ from haymaker_cli.orch.client import ContainerAppsClient
 from haymaker_cli.orch.config import load_orchestrator_config
 from haymaker_cli.orch.formatters import (
     format_container_app_status,
-    format_health_check_result,
     format_json,
-    format_logs,
     format_replicas,
     format_yaml,
 )
@@ -131,7 +129,7 @@ def orch():
     """
 
 
-@orch.command()
+@orch.command()  # type: ignore[misc]
 @click.option(
     "--app-name",
     help="Container app name (default: from config)",
@@ -262,7 +260,7 @@ def status(
         handle_orch_error(e)
 
 
-@orch.command()
+@orch.command()  # type: ignore[misc]
 @click.option(
     "--app-name",
     help="Container app name (default: from config)",
@@ -365,12 +363,18 @@ def replicas(
                     # Clear screen and show current state
                     console.clear()
                     console.print(f"[cyan]Replicas for {revision}[/cyan]")
-                    console.print(f"[dim]Last updated: {time.strftime('%Y-%m-%d %H:%M:%S')}[/dim]\n")
+                    console.print(
+                        f"[dim]Last updated: {time.strftime('%Y-%m-%d %H:%M:%S')}[/dim]\n"
+                    )
 
                     if output_format == "json":
-                        console.print(format_json([r.model_dump(mode="json") for r in replica_list]))
+                        console.print(
+                            format_json([r.model_dump(mode="json") for r in replica_list])
+                        )
                     elif output_format == "yaml":
-                        console.print(format_yaml([r.model_dump(mode="json") for r in replica_list]))
+                        console.print(
+                            format_yaml([r.model_dump(mode="json") for r in replica_list])
+                        )
                     else:  # table
                         format_replicas(replica_list)
 
@@ -402,7 +406,7 @@ def replicas(
         handle_orch_error(e)
 
 
-@orch.command()
+@orch.command()  # type: ignore[misc]
 @click.option(
     "--app-name",
     help="Container app name (default: from config)",
@@ -522,9 +526,11 @@ def logs(
         console.print("[yellow]Log streaming not yet implemented.[/yellow]")
         console.print("\n[cyan]To view logs, use one of these methods:[/cyan]")
         console.print("1. Azure Portal:")
-        console.print(f"   https://portal.azure.com/#@/resource/subscriptions/{config.subscription_id}"
-                     f"/resourceGroups/{config.resource_group}/providers/Microsoft.App"
-                     f"/containerApps/{final_app_name}/logs")
+        console.print(
+            f"   https://portal.azure.com/#@/resource/subscriptions/{config.subscription_id}"
+            f"/resourceGroups/{config.resource_group}/providers/Microsoft.App"
+            f"/containerApps/{final_app_name}/logs"
+        )
         console.print("\n2. Azure CLI:")
 
         cmd_parts = [
@@ -558,7 +564,7 @@ def logs(
         handle_orch_error(e)
 
 
-@orch.command()
+@orch.command()  # type: ignore[misc]
 @click.option(
     "--app-name",
     help="Container app name (default: from config)",
@@ -684,6 +690,7 @@ def health(
             console.print(format_yaml(check_results))
         else:  # table
             from haymaker_cli.orch.formatters import format_health_results
+
             format_health_results(check_results, verbose=verbose)
 
         # Exit with error code if any checks failed

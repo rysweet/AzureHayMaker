@@ -1,0 +1,67 @@
+# Knowledge Worker Deployment Configuration: 25 Workers Mixed (VMs + Containers)
+#
+# This example demonstrates a multi-department deployment with 25 workers
+# across 3 departments using mixed endpoint types (VMs and containers).
+#
+# Use with:
+#   haymaker kw deploy --config-file examples/kw-deployments/kw-25-mixed.yaml
+#
+# Override specific values:
+#   haymaker kw deploy --config-file examples/kw-deployments/kw-25-mixed.yaml --duration 4
+
+name: "kw-25-mixed-deployment"
+total_workers: 25
+tenant_domain: "contoso.onmicrosoft.com"  # Change to your tenant domain
+duration_hours: 8
+
+# Multi-department configuration
+departments:
+  # Engineering department: 10 workers on Windows VMs
+  # Higher Teams activity, moderate email
+  engineering:
+    count: 10
+    endpoint_type: "windows_vm"
+    activity:
+      email_per_hour: 4
+      teams_messages_per_hour: 15
+      documents_per_day: 5
+      meetings_per_day: 4
+
+  # Sales department: 10 workers on CLI containers (lightweight)
+  # High email and meeting activity
+  sales:
+    count: 10
+    endpoint_type: "cli_container"
+    activity:
+      email_per_hour: 12
+      teams_messages_per_hour: 10
+      documents_per_day: 3
+      meetings_per_day: 8
+
+  # Executive department: 5 workers on Windows VMs
+  # Moderate activity across all channels
+  executive:
+    count: 5
+    endpoint_type: "windows_vm"
+    activity:
+      email_per_hour: 8
+      teams_messages_per_hour: 5
+      documents_per_day: 2
+      meetings_per_day: 6
+
+# Email marker configuration for tracking
+email_markers_enabled: true
+marker_style: "subject"  # Options: subject, hidden, both
+marker_format: "KW-TEST"
+
+# AI email generation (optional - requires ANTHROPIC_API_KEY)
+email_generation:
+  enabled: false  # Set to true to enable AI-generated email content
+  directive: null  # Optional: Custom directive like "Focus on product launches"
+
+# Notes:
+# - Windows VMs provide fuller Windows experience but higher cost
+# - CLI containers are lightweight and cost-effective
+# - Mixed deployments let you balance realism vs cost
+# - Total worker count should match sum of department counts
+# - Adjust activity rates based on your testing needs

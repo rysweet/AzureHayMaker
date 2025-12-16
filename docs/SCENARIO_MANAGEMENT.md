@@ -1,15 +1,44 @@
+---
+layout: default
+title: Scenarios
+nav_order: 5
+has_children: true
+description: "Azure HayMaker operational scenarios"
+permalink: /scenarios/
+---
+
 # Scenario Management Guide
+{: .no_toc }
+
+Azure HayMaker includes 50+ operational scenarios across 10 technology areas.
+{: .fs-6 .fw-300 }
 
 ## Table of Contents
+{: .no_toc .text-delta }
 
-- [Overview](#overview)
-- [Scenario Structure](#scenario-structure)
-- [The Three-Phase Model](#the-three-phase-model)
-- [Creating New Scenarios](#creating-new-scenarios)
-- [Scenario Checklist](#scenario-checklist)
-- [Best Practices](#best-practices)
-- [Example Scenarios](#example-scenarios)
-- [Troubleshooting](#troubleshooting)
+1. TOC
+{:toc}
+
+---
+
+## Scenario Categories
+
+Browse scenarios by technology area:
+
+| Category | Count | Description |
+|:---------|:------|:------------|
+| [AI & Machine Learning](/AzureHayMaker/scenarios/ai-ml/) | 5 | Cognitive Services, Azure OpenAI, ML Workspace |
+| [Analytics](/AzureHayMaker/scenarios/analytics/) | 5 | Synapse, Databricks, Power BI |
+| [Compute](/AzureHayMaker/scenarios/compute/) | 5 | VMs, App Service, Azure Functions |
+| [Containers](/AzureHayMaker/scenarios/containers/) | 5 | AKS, Container Apps, Container Instances |
+| [Databases](/AzureHayMaker/scenarios/databases/) | 5 | Cosmos DB, PostgreSQL, Redis |
+| [Hybrid + Multicloud](/AzureHayMaker/scenarios/hybrid/) | 5 | Azure Arc, Site Recovery |
+| [Identity](/AzureHayMaker/scenarios/identity/) | 5 | Entra ID, RBAC, Conditional Access |
+| [Networking](/AzureHayMaker/scenarios/networking/) | 5 | VNets, Load Balancer, VPN Gateway |
+| [Security](/AzureHayMaker/scenarios/security/) | 5 | Key Vault, NSGs, Security Center |
+| [Web Apps](/AzureHayMaker/scenarios/webapps/) | 5 | Static Web Apps, App Service, API Management |
+
+---
 
 ## Overview
 

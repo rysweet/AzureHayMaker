@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Managing Entra ID Users and Groups"
+parent: "Identity"
+grand_parent: Scenarios
+nav_order: 3
+description: "Create and manage Entra ID users and groups representing corporate organizational structure with lifecycle management."
+permalink: /scenarios/identity-03-entra-users-groups/
+---
+
 # Scenario: Managing Entra ID Users and Groups
 
 ## Technology Area

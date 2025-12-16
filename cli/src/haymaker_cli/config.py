@@ -84,7 +84,7 @@ def load_cli_config(profile: str | None = None) -> ProfileConfig:
         # Validate HTTPS for security
         if not env_endpoint.startswith("https://"):
             raise ValueError(
-                f"Insecure endpoint: {env_endpoint}. " "HTTPS is required for API endpoints."
+                f"Insecure endpoint: {env_endpoint}. HTTPS is required for API endpoints."
             )
 
         # Build config from environment variables
@@ -128,10 +128,11 @@ def load_cli_config(profile: str | None = None) -> ProfileConfig:
 
     profile_config = config.profiles[profile_name]
 
-    # Validate HTTPS for security
-    if not profile_config.endpoint.startswith("https://"):
+    # Validate HTTPS for security (allow localhost for development)
+    is_localhost = profile_config.endpoint.startswith(("http://localhost", "http://127.0.0.1"))
+    if not profile_config.endpoint.startswith("https://") and not is_localhost:
         raise ValueError(
-            f"Insecure endpoint: {profile_config.endpoint}. " "HTTPS is required for API endpoints."
+            f"Insecure endpoint: {profile_config.endpoint}. HTTPS is required for API endpoints."
         )
 
     return profile_config
@@ -195,7 +196,7 @@ def set_config_value(key: str, value: str, profile: str = "default") -> None:
         profile_config.auth.tenant_id = value
     else:
         raise ValueError(
-            f"Unknown configuration key: {key}\n" "Valid keys: endpoint, api-key, tenant-id"
+            f"Unknown configuration key: {key}\nValid keys: endpoint, api-key, tenant-id"
         )
 
     # Save updated config

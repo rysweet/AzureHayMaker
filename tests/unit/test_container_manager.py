@@ -195,14 +195,14 @@ class TestContainerManagerAppNameGeneration:
         """Test basic app name generation."""
         manager = ContainerManager(config=mock_config)
         app_name = manager._generate_app_name("my-scenario")
-        assert app_name == "my-scenario-agent"
+        assert app_name == "my-scenario"  # No suffix added anymore
         assert len(app_name) <= 63
 
     def test_generate_app_name_sanitization(self, mock_config):
         """Test app name sanitization."""
         manager = ContainerManager(config=mock_config)
         app_name = manager._generate_app_name("my_scenario_123")
-        assert app_name == "my-scenario-123-agent"
+        assert app_name == "my-scenario-123"  # Sanitized, no suffix
         assert "_" not in app_name
 
     def test_generate_app_name_length_limit(self, mock_config):
@@ -482,7 +482,6 @@ class TestContainerManagerEdgeCases:
             app_name = manager._generate_app_name(name)
             # All app names should be valid (lowercase, alphanumeric + hyphens, max 63 chars)
             assert len(app_name) <= 63
-            assert app_name.endswith("-agent")
             assert all(c.islower() or c.isdigit() or c == "-" for c in app_name)
 
     def test_region_selection(self, mock_config):

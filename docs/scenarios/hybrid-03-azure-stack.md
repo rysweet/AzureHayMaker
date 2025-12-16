@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Azure Stack HCI Setup and Management"
+parent: "Hybrid + Multicloud"
+grand_parent: Scenarios
+nav_order: 3
+description: "Deploy and configure Azure Stack HCI for running VMs and containers on-premises with Azure consistency."
+permalink: /scenarios/hybrid-03-azure-stack/
+---
+
 # Scenario: Azure Stack HCI Setup and Management
 
 ## Technology Area

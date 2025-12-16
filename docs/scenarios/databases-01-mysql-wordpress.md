@@ -1,3 +1,13 @@
+---
+layout: default
+title: "MySQL Database for WordPress Application"
+parent: "Databases"
+grand_parent: Scenarios
+nav_order: 1
+description: "Deploy Azure Database for MySQL Flexible Server to host WordPress databases with firewall rules and backup strategy."
+permalink: /scenarios/databases-01-mysql-wordpress/
+---
+
 # Scenario: MySQL Database for WordPress Application
 
 ## Technology Area

@@ -36,7 +36,7 @@ class TestLoadDotenvWithWarnings:
     def mock_malformed_dotenv_file(self, tmp_path: Path) -> Path:
         """Create a malformed .env file for testing."""
         env_file = tmp_path / ".env"
-        env_file.write_text("INVALID LINE WITHOUT EQUALS\n" "VALID_VAR=value\n")
+        env_file.write_text("INVALID LINE WITHOUT EQUALS\nVALID_VAR=value\n")
         return env_file
 
     def test_load_dotenv_file_not_found(self, caplog: pytest.LogCaptureFixture) -> None:

@@ -1,0 +1,177 @@
+"""Automatic Graph API permission granting for Knowledge Worker deployments.
+
+SECURITY NOTE: This module handles OData filter construction and requires
+proper input sanitization to prevent injection attacks. All user-controlled
+inputs MUST be sanitized using _sanitize_odata_value() before use in filters.
+"""
+
+import logging
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+
+def _sanitize_odata_value(value: str) -> str:
+    """Sanitize input for OData/Graph API query filters to prevent injection attacks.
+
+    Args:
+        value: Input string to sanitize
+
+    Returns:
+        Sanitized string safe for use in OData filters
+    """
+    # Escape single quotes by doubling them (OData standard)
+    return value.replace("'", "''")
+
+
+class PermissionGranter:
+    """Grant required Graph API permissions automatically."""
+
+    # Mail permissions (from Microsoft Graph)
+    MAIL_READWRITE_ROLE_ID = "e2a3a72e-5f79-4c64-b1b1-878b674786c9"  # Mail.ReadWrite
+    MAIL_SEND_ROLE_ID = "b633e1c5-b582-4048-a93e-9f11b44c7e96"  # Mail.Send (send on behalf)
+
+    # Microsoft Graph resource app ID
+    GRAPH_RESOURCE_APP_ID = "00000003-0000-0000-c000-000000000000"
+
+    def __init__(self, graph_client: Any, app_id: str):
+        """Initialize permission granter.
+
+        Args:
+            graph_client: Microsoft Graph API client
+            app_id: Application (client) ID
+        """
+        self.graph_client = graph_client
+        self.app_id = app_id
+
+    async def ensure_mail_permission(self) -> bool:
+        """Ensure Mail.ReadWrite and Mail.Send permissions are granted.
+
+        Grants both permissions required for full email functionality:
+        - Mail.ReadWrite: Read and write mailboxes
+        - Mail.Send: Send mail on behalf of users
+
+        Idempotent - safe to call multiple times.
+
+        Returns:
+            True if both permissions granted or already exist
+        """
+        try:
+            # Get our service principal object ID
+            sp = await self._get_service_principal(self.app_id)
+            if not sp:
+                logger.error(f"Service principal not found for app {self.app_id}")
+                return False
+
+            sp_object_id = sp.id
+
+            # Get Microsoft Graph service principal
+            graph_sp = await self._get_service_principal(self.GRAPH_RESOURCE_APP_ID)
+            if not graph_sp:
+                logger.error("Microsoft Graph service principal not found")
+                return False
+
+            graph_sp_id = graph_sp.id
+
+            # Check and grant Mail.ReadWrite
+            has_readwrite = await self._has_permission(sp_object_id, self.MAIL_READWRITE_ROLE_ID)
+            if not has_readwrite:
+                logger.info(f"Granting Mail.ReadWrite permission to {self.app_id}")
+                await self._grant_app_role(sp_object_id, graph_sp_id, self.MAIL_READWRITE_ROLE_ID)
+            else:
+                logger.info("Mail.ReadWrite permission already granted")
+
+            # Check and grant Mail.Send
+            has_send = await self._has_permission(sp_object_id, self.MAIL_SEND_ROLE_ID)
+            if not has_send:
+                logger.info(f"Granting Mail.Send permission to {self.app_id}")
+                await self._grant_app_role(sp_object_id, graph_sp_id, self.MAIL_SEND_ROLE_ID)
+            else:
+                logger.info("Mail.Send permission already granted")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to ensure Mail permission: {e}")
+            return False
+
+    async def _get_service_principal(self, app_id: str) -> Any:
+        """Get service principal by app ID."""
+        try:
+            from kiota_abstractions.base_request_configuration import RequestConfiguration
+            from msgraph.generated.service_principals.service_principals_request_builder import (
+                ServicePrincipalsRequestBuilder,
+            )
+
+            query_params = (
+                ServicePrincipalsRequestBuilder.ServicePrincipalsRequestBuilderGetQueryParameters(
+                    filter=f"appId eq '{_sanitize_odata_value(app_id)}'"
+                )
+            )
+            request_config = RequestConfiguration()
+            request_config.query_parameters = query_params
+
+            result = await self.graph_client.service_principals.get(
+                request_configuration=request_config
+            )
+
+            if result and result.value and len(result.value) > 0:
+                return result.value[0]
+
+            return None
+
+        except Exception as e:
+            logger.warning(f"Failed to get service principal {app_id}: {e}")
+            return None
+
+    async def _has_permission(self, sp_object_id: str, app_role_id: str) -> bool:
+        """Check if permission already granted."""
+        try:
+            assignments = await self.graph_client.service_principals.by_service_principal_id(
+                sp_object_id
+            ).app_role_assignments.get()
+
+            if not assignments or not assignments.value:
+                return False
+
+            for assignment in assignments.value:
+                # Compare UUIDs properly - app_role_id is UUID object, parameter is string
+                if str(assignment.app_role_id) == str(app_role_id):
+                    return True
+
+            return False
+
+        except Exception as e:
+            logger.warning(f"Failed to check permissions: {e}")
+            return False
+
+    async def _grant_app_role(self, principal_id: str, resource_id: str, app_role_id: str) -> bool:
+        """Grant app role assignment."""
+        try:
+            from uuid import UUID
+
+            from msgraph.generated.models.app_role_assignment import AppRoleAssignment
+
+            assignment = AppRoleAssignment()
+            assignment.principal_id = UUID(principal_id)  # type: ignore[assignment]
+            assignment.resource_id = UUID(resource_id)  # type: ignore[assignment]
+            assignment.app_role_id = UUID(app_role_id)  # type: ignore[assignment]
+
+            await self.graph_client.service_principals.by_service_principal_id(
+                resource_id
+            ).app_role_assigned_to.post(assignment)
+
+            logger.info(f"Granted app role {app_role_id}")
+            return True
+
+        except Exception as e:
+            error_str = str(e)
+            if "already exists" in error_str.lower():
+                logger.info("Permission already granted")
+                return True
+            else:
+                logger.error(f"Failed to grant app role: {e}")
+                return False
+
+
+__all__ = ["PermissionGranter"]

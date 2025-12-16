@@ -1,6 +1,22 @@
+---
+layout: default
+title: Security Fixes
+parent: Security
+nav_order: 1
+description: "Detailed documentation of security vulnerabilities fixed in Azure HayMaker"
+permalink: /security/fixes/
+---
+
 # Security Fixes - PR #6
+{: .no_toc }
 
 This document summarizes all security fixes implemented in response to the security review of PR #6.
+{: .fs-6 .fw-300 }
+
+1. TOC
+{:toc}
+
+---
 
 ## Executive Summary
 

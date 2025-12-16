@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Windows Server VM with IIS Web Server"
+parent: "Compute"
+grand_parent: Scenarios
+nav_order: 2
+description: "Deploy a Windows Server virtual machine with Internet Information Services (IIS) installed and configured for hosting ASP.NET applications."
+permalink: /scenarios/compute-02-windows-vm-iis/
+---
+
 # Scenario: Windows Server VM with IIS Web Server
 
 ## Technology Area

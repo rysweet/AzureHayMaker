@@ -10,11 +10,11 @@ Replace the sections below with information about your project.
 
 ---
 
-## Project: AzureHayMaker
+## Project: [Your Project Name]
 
 ## Overview
 
-[![Tests](https://img.shields.io/badge/tests-99%25%20passing-brightgreen)](.) [![Code Quality](https://img.shields.io/badge/code%20review-9.2%2F10-brightgreen)](.) [![Security](https://img.shields.io/badge/security-verified-brightgreen)](.) [![Docs](https://img.shields.io/badge/docs-55+%20files-blue)](.) [![Scripts](https://img.shields.io/badge/automation-14%20scripts-blue)](.) [![Commits](https://img.shields.io/badge/commits-101+-blue)](.) [![License](https://img.shields.io/ba
+[Brief description of what your project does]
 
 ## Architecture
 
@@ -26,12 +26,10 @@ Replace the sections below with information about your project.
 
 ### Technology Stack
 
-- **Language**: Python
-- **Language**: JavaScript/TypeScript
-- **Language**: Rust
-- **Language**: Go
+- **Language**: [Primary language(s)]
 - **Framework**: [Main framework if applicable]
 - **Database**: [Database system if applicable]
+- **Other Tools**: [Key dependencies or tools]
 
 ## Development Guidelines
 

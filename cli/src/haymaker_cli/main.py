@@ -5,17 +5,19 @@ import time
 from typing import Any
 
 import click
+from dotenv import load_dotenv
 from rich.console import Console
 
-from haymaker_cli.auth import create_auth_provider
-from haymaker_cli.client import HayMakerClientError, SyncHayMakerClient
-from haymaker_cli.config import (
+# Load environment variables from .env file BEFORE other imports
+load_dotenv()
+
+from haymaker_cli.cli_utils import get_client, handle_error  # noqa: E402
+from haymaker_cli.config import (  # noqa: E402
     get_config_value,
     list_config,
-    load_cli_config,
     set_config_value,
 )
-from haymaker_cli.formatters import (
+from haymaker_cli.formatters import (  # noqa: E402
     format_agent_list,
     format_cleanup_response,
     format_execution_response,
@@ -27,7 +29,10 @@ from haymaker_cli.formatters import (
     format_resource_list,
     format_yaml,
 )
-from haymaker_cli.orch.commands import orch
+from haymaker_cli.kw.commands import kw  # noqa: E402
+from haymaker_cli.orch.commands import orch  # noqa: E402
+from haymaker_cli.scenarios import scenarios  # noqa: E402
+from haymaker_cli.validate import validate  # noqa: E402
 
 console = Console()
 
@@ -62,27 +67,6 @@ def cli(ctx: click.Context, profile: str, output_format: str, verbose: bool):
     ctx.obj["verbose"] = verbose
 
 
-def get_client(ctx: click.Context) -> SyncHayMakerClient:
-    """Get configured HayMaker client from context.
-
-    Args:
-        ctx: Click context
-
-    Returns:
-        Configured HayMaker client
-
-    Raises:
-        click.ClickException: If configuration is invalid
-    """
-    try:
-        profile = ctx.obj["profile"]
-        config = load_cli_config(profile)
-        auth = create_auth_provider(config.auth.model_dump())
-        return SyncHayMakerClient(config.endpoint, auth)
-    except Exception as e:
-        raise click.ClickException(f"Configuration error: {e}") from e
-
-
 def handle_output(ctx: click.Context, data: Any, formatter_func=None):
     """Handle output formatting based on context.
 
@@ -105,24 +89,6 @@ def handle_output(ctx: click.Context, data: Any, formatter_func=None):
                 click.echo(format_json(data))
     except Exception as e:
         raise click.ClickException(f"Output formatting error: {e}") from e
-
-
-def handle_error(error: Exception):
-    """Handle and display errors.
-
-    Args:
-        error: Exception to handle
-    """
-    if isinstance(error, HayMakerClientError):
-        console.print(f"[red]Error:[/red] {error}", style="red")
-        if error.status_code:
-            console.print(f"[dim]Status Code: {error.status_code}[/dim]")
-        if error.details:
-            console.print(f"[dim]Details: {error.details}[/dim]")
-    else:
-        console.print(f"[red]Error:[/red] {error}", style="red")
-
-    sys.exit(1)
 
 
 # Status command
@@ -179,8 +145,21 @@ def metrics(ctx: click.Context, period: str, scenario: str | None):
 # Orchestrator command group
 
 # Register orch command group from orch.commands module
-cli.add_command(orch)
+cli.add_command(orch)  # type: ignore[arg-type]
 
+# Register scenarios command group
+cli.add_command(scenarios)  # type: ignore[arg-type]
+
+# Register validate command
+cli.add_command(validate)  # type: ignore[arg-type]
+
+# Register knowledge worker command group
+cli.add_command(kw)  # type: ignore[arg-type]
+
+# Register report commands
+from haymaker_cli.report import report  # noqa: E402
+
+cli.add_command(report)  # type: ignore[arg-type]
 
 # Agents command group
 

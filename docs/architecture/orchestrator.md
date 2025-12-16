@@ -1,4 +1,22 @@
-# Cleanup Module - Specification & Implementation
+---
+layout: default
+title: Orchestrator
+parent: Architecture
+nav_order: 2
+description: "Orchestrator service architecture and implementation"
+permalink: /architecture/orchestrator/
+---
+
+# Orchestrator Architecture
+{: .no_toc }
+
+Architecture and implementation details for the orchestrator service.
+{: .fs-6 .fw-300 }
+
+1. TOC
+{:toc}
+
+---
 
 ## Overview
 

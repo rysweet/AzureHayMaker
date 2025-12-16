@@ -1,0 +1,72 @@
+Resources for kw-6b5f0d4f
+
+                                  Entra Users
+┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
+┃ Worker ID         ┃ Display Name     ┃ UPN               ┃ Object ID         ┃
+┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
+│ kw-kw-6b5f0-sale… │ KW Sales 1       │ kw-kw-6b5f0-sale… │ 7747b1de-beba-43… │
+│ kw-kw-6b5f0-engi… │ KW Engineering 1 │ kw-kw-6b5f0-engi… │ 49f1ba03-d770-4f… │
+│ kw-kw-6b5f0-sale… │ KW Sales 11      │ kw-kw-6b5f0-sale… │ aaeca264-bd5c-4d… │
+│ kw-kw-6b5f0-sale… │ KW Sales 5       │ kw-kw-6b5f0-sale… │ 145a63d4-a7a8-4e… │
+│ kw-kw-6b5f0-sale… │ KW Sales 10      │ kw-kw-6b5f0-sale… │ 734be901-2abe-41… │
+│ kw-kw-6b5f0-sale… │ KW Sales 9       │ kw-kw-6b5f0-sale… │ c0e397d0-cab9-4c… │
+│ kw-kw-6b5f0-sale… │ KW Sales 3       │ kw-kw-6b5f0-sale… │ a75a9f55-e138-4d… │
+│ kw-kw-6b5f0-sale… │ KW Sales 14      │ kw-kw-6b5f0-sale… │ 5f60cfc3-40ad-4b… │
+│ kw-kw-6b5f0-exec… │ KW Executive 4   │ kw-kw-6b5f0-exec… │ 2a62aebb-6701-4b… │
+│ kw-kw-6b5f0-engi… │ KW Engineering 5 │ kw-kw-6b5f0-engi… │ f64372c6-1876-4f… │
+│ kw-kw-6b5f0-sale… │ KW Sales 7       │ kw-kw-6b5f0-sale… │ b996fd06-7eb1-47… │
+│ kw-kw-6b5f0-sale… │ KW Sales 13      │ kw-kw-6b5f0-sale… │ 61f3b88d-d0e3-4d… │
+│ kw-kw-6b5f0-sale… │ KW Sales 2       │ kw-kw-6b5f0-sale… │ a7c4a345-3810-42… │
+│ kw-kw-6b5f0-exec… │ KW Executive 1   │ kw-kw-6b5f0-exec… │ 5a6f892c-dc72-43… │
+│ kw-kw-6b5f0-sale… │ KW Sales 12      │ kw-kw-6b5f0-sale… │ 77d8fa5f-e01d-49… │
+│ kw-kw-6b5f0-exec… │ KW Executive 3   │ kw-kw-6b5f0-exec… │ 0e87312a-f297-41… │
+│ kw-kw-6b5f0-sale… │ KW Sales 8       │ kw-kw-6b5f0-sale… │ 4a109919-c6c1-45… │
+│ kw-kw-6b5f0-exec… │ KW Executive 2   │ kw-kw-6b5f0-exec… │ c688b56e-af19-4d… │
+│ kw-kw-6b5f0-sale… │ KW Sales 15      │ kw-kw-6b5f0-sale… │ ea10491c-333b-4b… │
+│ kw-kw-6b5f0-sale… │ KW Sales 4       │ kw-kw-6b5f0-sale… │ fa6efc9e-da4a-46… │
+│ kw-kw-6b5f0-exec… │ KW Executive 5   │ kw-kw-6b5f0-exec… │ 01cc4ae9-a09e-4f… │
+│ kw-kw-6b5f0-engi… │ KW Engineering 3 │ kw-kw-6b5f0-engi… │ 917b7575-4cf8-49… │
+│ kw-kw-6b5f0-sale… │ KW Sales 6       │ kw-kw-6b5f0-sale… │ 218a64e3-1c06-4f… │
+│ kw-kw-6b5f0-engi… │ KW Engineering 2 │ kw-kw-6b5f0-engi… │ 66fb48c4-f388-46… │
+│ kw-kw-6b5f0-engi… │ KW Engineering 4 │ kw-kw-6b5f0-engi… │ d78368e5-7fc4-4a… │
+└───────────────────┴──────────────────┴───────────────────┴───────────────────┘
+
+                      Security Groups
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Name                         ┃ ID                        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ KW Workers - kw-25-real-test │ kw-6b5f0d4f-workers-group │
+└──────────────────────────────┴───────────────────────────┘
+
+                    Endpoints
+┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━┓
+┃ Worker ID            ┃ Type          ┃ Status  ┃
+┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━┩
+│ kw-kw-6b5f0-sale-000 │ cli_container │ running │
+│ kw-kw-6b5f0-engi-000 │ cli_container │ running │
+│ kw-kw-6b5f0-sale-010 │ cli_container │ running │
+│ kw-kw-6b5f0-sale-004 │ cli_container │ running │
+│ kw-kw-6b5f0-sale-009 │ cli_container │ running │
+│ kw-kw-6b5f0-sale-008 │ cli_container │ running │
+│ kw-kw-6b5f0-sale-002 │ cli_container │ running │
+│ kw-kw-6b5f0-sale-013 │ cli_container │ running │
+│ kw-kw-6b5f0-exec-003 │ cli_container │ running │
+│ kw-kw-6b5f0-engi-004 │ cli_container │ running │
+│ kw-kw-6b5f0-sale-006 │ cli_container │ running │
+│ kw-kw-6b5f0-sale-012 │ cli_container │ running │
+│ kw-kw-6b5f0-sale-001 │ cli_container │ running │
+│ kw-kw-6b5f0-exec-000 │ cli_container │ running │
+│ kw-kw-6b5f0-sale-011 │ cli_container │ running │
+│ kw-kw-6b5f0-exec-002 │ cli_container │ running │
+│ kw-kw-6b5f0-sale-007 │ cli_container │ running │
+│ kw-kw-6b5f0-exec-001 │ cli_container │ running │
+│ kw-kw-6b5f0-sale-014 │ cli_container │ running │
+│ kw-kw-6b5f0-sale-003 │ cli_container │ running │
+│ kw-kw-6b5f0-exec-004 │ cli_container │ running │
+│ kw-kw-6b5f0-engi-002 │ cli_container │ running │
+│ kw-kw-6b5f0-sale-005 │ cli_container │ running │
+│ kw-kw-6b5f0-engi-001 │ cli_container │ running │
+│ kw-kw-6b5f0-engi-003 │ cli_container │ running │
+└──────────────────────┴───────────────┴─────────┘
+
+Total: 25 users, 1 groups, 25 endpoints

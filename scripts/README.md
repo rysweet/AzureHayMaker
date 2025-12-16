@@ -4,6 +4,25 @@
 
 ---
 
+## 📦 Release Management
+
+### release.sh
+Create tagged releases with semantic versioning
+
+```bash
+./scripts/release.sh 1.0.0           # Create release v1.0.0
+./scripts/release.sh 1.0.0 --dry-run # Preview without making changes
+```
+
+**What it does**:
+- Validates semantic version format
+- Ensures clean main branch
+- Updates README with version badges
+- Creates annotated git tag
+- Pushes changes and tag to origin
+
+---
+
 ## 🧹 Cleanup & Maintenance
 
 ### cleanup-old-function-apps.sh
@@ -64,6 +83,7 @@ Step-by-step instructions for deploying 64GB VM via Azure Portal
 
 | Script | Purpose | Time | Impact |
 |--------|---------|------|--------|
+| release.sh | Create tagged releases | 1 min | Repeatable release process |
 | open-powerpoint.sh | Launch presentation | 10 sec | Instant PowerPoint access |
 | show-session-summary.sh | Display session results | 10 sec | Quick value overview |
 | verify-security-fix.sh | Security validation | 1 min | Confirms fix working |
@@ -76,7 +96,7 @@ Step-by-step instructions for deploying 64GB VM via Azure Portal
 | complete-cleanup.sh | Full cleanup | 10 min | **$1,666/month saved!** |
 | ../deploy-vm-portal-guide.sh | VM deployment help | - | Prints instructions |
 
-**Total**: 11 automation scripts created and tested!
+**Total**: 12 automation scripts!
 
 ## 🚀 Quick Start Scripts
 

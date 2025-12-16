@@ -41,7 +41,7 @@ if [ "$FA_STATUS" = "Running" ]; then
   # Try to hit status endpoint
   HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://${FA}.azurewebsites.net/api/v1/status 2>/dev/null || echo "000")
   echo "  API Status: HTTP $HTTP_CODE"
-  
+
   if [ "$HTTP_CODE" = "200" ]; then
     echo "  ✅ HEALTHY"
   else

@@ -49,7 +49,7 @@ def test_function_count():
     missing_functions = expected_functions - discovered_functions
     extra_functions = discovered_functions - expected_functions
 
-    print(f"\nFunction Discovery Report:")
+    print("\nFunction Discovery Report:")
     print(f"Expected: {len(expected_functions)} functions")
     print(f"Discovered: {len(discovered_functions)} functions")
     print(f"Discovered functions: {sorted(discovered_functions)}")
@@ -132,7 +132,7 @@ def test_http_api_routes():
     route_pattern = r'@app\.route\(route="([^"]+)",\s*methods=\["(\w+)"\]'
     routes = re.findall(route_pattern, content)
 
-    found_routes = {route: method for route, method in routes}
+    found_routes = dict(routes)
 
     print("\nHTTP API Routes:")
     for route, method in sorted(found_routes.items()):
@@ -156,7 +156,9 @@ def test_http_api_routes():
 
     # Verify methods match
     for route, method in expected_routes.items():
-        assert found_routes[route] == method, f"Route {route} expected {method}, got {found_routes[route]}"
+        assert (
+            found_routes[route] == method
+        ), f"Route {route} expected {method}, got {found_routes[route]}"
 
 
 if __name__ == "__main__":

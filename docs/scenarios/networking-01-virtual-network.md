@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Basic Virtual Network with Subnets and Network Security"
+parent: "Networking"
+grand_parent: Scenarios
+nav_order: 1
+description: "Deploy a foundational Azure Virtual Network with multiple subnets, network security groups, and route tables."
+permalink: /scenarios/networking-01-virtual-network/
+---
+
 # Scenario: Basic Virtual Network with Subnets and Network Security
 
 ## Technology Area

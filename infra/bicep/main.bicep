@@ -52,7 +52,8 @@ var commonTags = {
 var logAnalyticsName = '${namingPrefix}-${environment}-logs'
 var storageAccountName = toLower('${namingPrefix}${environment}${take(uniqueSuffix, 6)}')
 var serviceBusName = '${namingPrefix}-${environment}-${take(uniqueSuffix, 6)}-bus'
-var keyVaultName = '${namingPrefix}-${environment}-${take(uniqueSuffix, 6)}-kv'
+// Key Vault name must be <= 24 chars: 'hm-staging-6chars-kv' = 21 chars max
+var keyVaultName = 'hm-${environment}-${take(uniqueSuffix, 6)}-kv'
 var cosmosDbName = '${namingPrefix}-${environment}-${take(uniqueSuffix, 6)}-cosmos'
 var containerAppsEnvName = '${namingPrefix}-${environment}-cae'
 var containerRegistryName = toLower('${namingPrefix}${environment}${take(uniqueSuffix, 6)}acr')

@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Conditional Access Policies"
+parent: "Identity"
+grand_parent: Scenarios
+nav_order: 5
+description: "Create and manage Azure Entra ID Conditional Access policies to enforce security controls based on risk and identity."
+permalink: /scenarios/identity-05-conditional-access/
+---
+
 # Scenario: Conditional Access Policies
 
 ## Technology Area

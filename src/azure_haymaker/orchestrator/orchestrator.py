@@ -22,11 +22,24 @@ from typing import Any
 from uuid import uuid4
 
 import azure.functions as func
+from azure.core.exceptions import (
+    ClientAuthenticationError,
+    HttpResponseError,
+    ServiceRequestError,
+)
 from azure.data.tables import TableServiceClient
-from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 from azure.storage.blob import BlobServiceClient
 
+from azure_haymaker.exceptions import (
+    CleanupError,
+    ConfigurationError,
+    ContainerDeploymentError,
+    CredentialError,
+    HayMakerError,
+    SPCreationError,
+    ValidationError,
+)
 from azure_haymaker.models.scenario import ScenarioMetadata
 from azure_haymaker.orchestrator.cleanup import (
     force_delete_resources,
@@ -42,6 +55,7 @@ from azure_haymaker.orchestrator.sp_manager import (
     create_service_principal,
 )
 from azure_haymaker.orchestrator.validation import validate_environment
+from azure_haymaker.utils.credentials import get_credential
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +104,7 @@ async def haymaker_timer(
             # Connect to Table Storage for execution history
             table_account_name = os.getenv("TABLE_STORAGE_ACCOUNT_NAME")
             if table_account_name:
-                credential = DefaultAzureCredential()
+                credential = get_credential()
                 table_service = TableServiceClient(
                     endpoint=f"https://{table_account_name}.table.core.windows.net",
                     credential=credential,
@@ -114,7 +128,7 @@ async def haymaker_timer(
                         "reason": "recent_execution_detected",
                         "message": "Startup execution skipped to avoid conflict with recent run",
                     }
-        except Exception as e:
+        except (HttpResponseError, ClientAuthenticationError) as e:
             logger.warning(f"Could not check recent executions: {e}. Proceeding with startup.")
 
     # Original timer trigger logic continues...
@@ -441,10 +455,22 @@ def orchestrate_haymaker_run(context: Any) -> Any:
         logger.info(f"[{run_id}] Orchestration completed successfully")
         return execution_report
 
-    except Exception as e:
-        logger.error(f"[{run_id}] Orchestration failed with error: {str(e)}", exc_info=True)
+    except HayMakerError as e:
+        logger.error(
+            f"[{run_id}] Orchestration failed with HayMaker error: {str(e)}", exc_info=True
+        )
         execution_report["status"] = "failed"
         execution_report["error"] = str(e)
+        execution_report["error_type"] = type(e).__name__
+        execution_report["ended_at"] = context.current_utc_datetime.isoformat()
+        return execution_report
+    except (HttpResponseError, ClientAuthenticationError, ServiceRequestError) as e:
+        logger.error(
+            f"[{run_id}] Orchestration failed with Azure SDK error: {str(e)}", exc_info=True
+        )
+        execution_report["status"] = "failed"
+        execution_report["error"] = str(e)
+        execution_report["error_type"] = type(e).__name__
         execution_report["ended_at"] = context.current_utc_datetime.isoformat()
         return execution_report
 
@@ -486,8 +512,10 @@ async def validate_environment_activity(input_data: Any) -> dict[str, Any]:
             "overall_passed": result.overall_passed,
             "results": [r.model_dump() for r in result.results],
         }
-    except Exception as e:
-        logger.error(f"Activity: validate_environment - Failed: {str(e)}", exc_info=True)
+    except (ConfigurationError, CredentialError, ValidationError) as e:
+        logger.error(
+            f"Activity: validate_environment - Failed with HayMaker error: {str(e)}", exc_info=True
+        )
         return {
             "overall_passed": False,
             "results": [
@@ -495,6 +523,22 @@ async def validate_environment_activity(input_data: Any) -> dict[str, Any]:
                     "check": "validation",
                     "passed": False,
                     "error": str(e),
+                    "error_type": type(e).__name__,
+                }
+            ],
+        }
+    except (HttpResponseError, ClientAuthenticationError) as e:
+        logger.error(
+            f"Activity: validate_environment - Failed with Azure error: {str(e)}", exc_info=True
+        )
+        return {
+            "overall_passed": False,
+            "results": [
+                {
+                    "check": "validation",
+                    "passed": False,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
                 }
             ],
         }
@@ -543,9 +587,14 @@ async def select_scenarios_activity(input_data: Any) -> dict[str, Any]:
                 for s in scenarios
             ]
         }
-    except Exception as e:
-        logger.error(f"Activity: select_scenarios - Failed: {str(e)}", exc_info=True)
-        return {"scenarios": []}
+    except ConfigurationError as e:
+        logger.error(f"Activity: select_scenarios - Configuration error: {str(e)}", exc_info=True)
+        return {"scenarios": [], "error": str(e), "error_type": "ConfigurationError"}
+    except OSError as e:
+        logger.error(
+            f"Activity: select_scenarios - IO error reading scenarios: {str(e)}", exc_info=True
+        )
+        return {"scenarios": [], "error": str(e), "error_type": "IOError"}
 
 
 @app.activity_trigger(input_name="params")
@@ -590,7 +639,7 @@ async def create_service_principal_activity(params: dict[str, Any]) -> dict[str,
         key_vault_url = config.key_vault_url
 
         # Create Key Vault client for secret storage
-        credential = DefaultAzureCredential()
+        credential = get_credential()
         key_vault_client = SecretClient(vault_url=key_vault_url, credential=credential)
 
         # Assign minimal required roles to service principal
@@ -617,14 +666,35 @@ async def create_service_principal_activity(params: dict[str, Any]) -> dict[str,
                 "created_at": sp_details.created_at,
             },
         }
-    except Exception as e:
+    except SPCreationError as e:
         logger.error(
-            f"Activity: create_service_principal - Failed: {str(e)}",
+            f"Activity: create_service_principal - SP creation error: {str(e)}",
             exc_info=True,
         )
         return {
             "status": "failed",
             "error": str(e),
+            "error_type": "SPCreationError",
+        }
+    except (CredentialError, ConfigurationError) as e:
+        logger.error(
+            f"Activity: create_service_principal - Config/credential error: {str(e)}",
+            exc_info=True,
+        )
+        return {
+            "status": "failed",
+            "error": str(e),
+            "error_type": type(e).__name__,
+        }
+    except (HttpResponseError, ClientAuthenticationError) as e:
+        logger.error(
+            f"Activity: create_service_principal - Azure SDK error: {str(e)}",
+            exc_info=True,
+        )
+        return {
+            "status": "failed",
+            "error": str(e),
+            "error_type": type(e).__name__,
         }
 
 
@@ -713,14 +783,35 @@ async def deploy_container_app_activity(params: dict[str, Any]) -> dict[str, Any
             "container_name": container_name,
             "resource_id": container_resource_id,
         }
-    except Exception as e:
+    except ContainerDeploymentError as e:
         logger.error(
-            f"Activity: deploy_container_app - Failed: {str(e)}",
+            f"Activity: deploy_container_app - Container deployment error: {str(e)}",
             exc_info=True,
         )
         return {
             "status": "failed",
             "error": str(e),
+            "error_type": "ContainerDeploymentError",
+        }
+    except (ConfigurationError, CredentialError) as e:
+        logger.error(
+            f"Activity: deploy_container_app - Config/credential error: {str(e)}",
+            exc_info=True,
+        )
+        return {
+            "status": "failed",
+            "error": str(e),
+            "error_type": type(e).__name__,
+        }
+    except (HttpResponseError, ClientAuthenticationError) as e:
+        logger.error(
+            f"Activity: deploy_container_app - Azure SDK error: {str(e)}",
+            exc_info=True,
+        )
+        return {
+            "status": "failed",
+            "error": str(e),
+            "error_type": type(e).__name__,
         }
 
 
@@ -764,7 +855,7 @@ async def check_agent_status_activity(params: dict[str, Any]) -> dict[str, Any]:
                     statuses["completed"] += 1
                 else:
                     statuses["failed"] += 1
-            except Exception as e:
+            except (HttpResponseError, ServiceRequestError) as e:
                 logger.warning(f"Failed to check status of {container_id}: {str(e)}")
                 statuses["failed"] += 1
 
@@ -781,13 +872,27 @@ async def check_agent_status_activity(params: dict[str, Any]) -> dict[str, Any]:
             "failed_count": statuses["failed"],
             "log_messages": 0,
         }
-    except Exception as e:
-        logger.error(f"Activity: check_agent_status - Failed: {str(e)}", exc_info=True)
+    except (ConfigurationError, CredentialError) as e:
+        logger.error(
+            f"Activity: check_agent_status - Config/credential error: {str(e)}", exc_info=True
+        )
         return {
             "running_count": 0,
             "completed_count": 0,
             "failed_count": 0,
             "log_messages": 0,
+            "error": str(e),
+            "error_type": type(e).__name__,
+        }
+    except (HttpResponseError, ClientAuthenticationError) as e:
+        logger.error(f"Activity: check_agent_status - Azure SDK error: {str(e)}", exc_info=True)
+        return {
+            "running_count": 0,
+            "completed_count": 0,
+            "failed_count": 0,
+            "log_messages": 0,
+            "error": str(e),
+            "error_type": type(e).__name__,
         }
 
 
@@ -844,10 +949,19 @@ async def verify_cleanup_activity(params: dict[str, Any]) -> dict[str, Any]:
                 for r in remaining_resources
             ],
         }
-    except Exception as e:
-        logger.error(f"Activity: verify_cleanup - Failed: {str(e)}", exc_info=True)
+    except (CleanupError, ConfigurationError, CredentialError) as e:
+        logger.error(f"Activity: verify_cleanup - HayMaker error: {str(e)}", exc_info=True)
         return {
             "remaining_resources": [],
+            "error": str(e),
+            "error_type": type(e).__name__,
+        }
+    except (HttpResponseError, ClientAuthenticationError) as e:
+        logger.error(f"Activity: verify_cleanup - Azure SDK error: {str(e)}", exc_info=True)
+        return {
+            "remaining_resources": [],
+            "error": str(e),
+            "error_type": type(e).__name__,
         }
 
 
@@ -898,7 +1012,7 @@ async def force_cleanup_activity(params: dict[str, Any]) -> dict[str, Any]:
         )
 
         # Create Key Vault client for SP secret deletion
-        credential = DefaultAzureCredential()
+        credential = get_credential()
         key_vault_client = SecretClient(vault_url=config.key_vault_url, credential=credential)
 
         # Convert sp_details dicts to ServicePrincipalDetails objects
@@ -967,8 +1081,18 @@ async def force_cleanup_activity(params: dict[str, Any]) -> dict[str, Any]:
             "failed_count": failed_count,
             "sp_deleted_count": sp_deleted_count,
         }
-    except Exception as e:
-        logger.error(f"Activity: force_cleanup - Failed: {str(e)}", exc_info=True)
+    except (CleanupError, ConfigurationError, CredentialError) as e:
+        logger.error(f"Activity: force_cleanup - HayMaker error: {str(e)}", exc_info=True)
+        return {
+            "status": "failed",
+            "deleted_count": 0,
+            "failed_count": 0,
+            "sp_deleted_count": 0,
+            "error": str(e),
+            "error_type": type(e).__name__,
+        }
+    except (HttpResponseError, ClientAuthenticationError) as e:
+        logger.error(f"Activity: force_cleanup - Azure SDK error: {str(e)}", exc_info=True)
         return {
             "status": "failed",
             "deleted_count": 0,
@@ -1022,7 +1146,7 @@ async def generate_report_activity(params: dict[str, Any]) -> dict[str, Any]:
         )
 
         config = await load_config()
-        credential = DefaultAzureCredential()
+        credential = get_credential()
 
         # Store report to blob storage
         blob_service_client = BlobServiceClient(
@@ -1056,10 +1180,21 @@ async def generate_report_activity(params: dict[str, Any]) -> dict[str, Any]:
             "report_id": run_id,
             "generated_at": report["generated_at"],
         }
-    except Exception as e:
-        logger.error(f"Activity: generate_report - Failed: {str(e)}", exc_info=True)
+    except (ConfigurationError, CredentialError) as e:
+        logger.error(
+            f"Activity: generate_report - Config/credential error: {str(e)}", exc_info=True
+        )
         return {
             "report_url": "",
             "report_id": params.get("run_id"),
             "error": str(e),
+            "error_type": type(e).__name__,
+        }
+    except (HttpResponseError, ClientAuthenticationError) as e:
+        logger.error(f"Activity: generate_report - Azure SDK error: {str(e)}", exc_info=True)
+        return {
+            "report_url": "",
+            "report_id": params.get("run_id"),
+            "error": str(e),
+            "error_type": type(e).__name__,
         }

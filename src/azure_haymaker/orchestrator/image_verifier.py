@@ -73,7 +73,12 @@ class ImageVerifier:
                 if not digest.startswith("sha256:"):
                     raise ImageSigningError(f"Invalid digest format: {digest}")
                 logger.info(f"Image signature verified with digest: {digest[:16]}...")
-            elif ":" not in image_ref or image_ref.split(":")[-1] not in ["latest", "v1", "v2", "v3"]:
+            elif ":" not in image_ref or image_ref.split(":")[-1] not in [
+                "latest",
+                "v1",
+                "v2",
+                "v3",
+            ]:
                 # If using tags, enforce specific version tags (not 'latest')
                 logger.warning(f"Image {image_ref} uses potentially unstable tag")
 

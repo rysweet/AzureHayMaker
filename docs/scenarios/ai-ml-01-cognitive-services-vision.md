@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Computer Vision API for Image Analysis"
+parent: "AI & Machine Learning"
+grand_parent: Scenarios
+nav_order: 1
+description: "Deploy Azure Cognitive Services Computer Vision API to automatically analyze product images, extract object information, and generate descriptions."
+permalink: /scenarios/ai-ml-01-cognitive-services-vision/
+---
+
 # Scenario: Computer Vision API for Image Analysis
 
 ## Technology Area

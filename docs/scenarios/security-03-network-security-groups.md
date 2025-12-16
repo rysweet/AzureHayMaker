@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Network Security Groups for Network Security"
+parent: "Security"
+grand_parent: Scenarios
+nav_order: 3
+description: "Create and manage Azure Network Security Groups with inbound and outbound rules to control traffic flow."
+permalink: /scenarios/security-03-network-security-groups/
+---
+
 # Scenario: Network Security Groups for Network Security
 
 ## Technology Area

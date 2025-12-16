@@ -1,0 +1,48 @@
+# 25 Knowledge Workers: 5 VM + 20 Container with AI Limericks
+
+name: "kw-25-real-test"
+total_workers: 25
+tenant_domain: "DefenderATEVET12.onmicrosoft.com"
+duration_hours: 2
+
+# Mixed deployment: VMs for realism, containers for scale
+departments:
+  # Engineering: 5 Windows VM workers
+  engineering:
+    count: 5
+    endpoint_type: "windows_vm"
+    activity:
+      email_per_hour: 4
+      teams_messages_per_hour: 10
+      documents_per_day: 3
+      meetings_per_day: 2
+
+  # Sales: 15 CLI container workers (fast and lightweight)
+  sales:
+    count: 15
+    endpoint_type: "cli_container"
+    activity:
+      email_per_hour: 6
+      teams_messages_per_hour: 8
+      documents_per_day: 2
+      meetings_per_day: 3
+
+  # Executive: 5 CLI container workers
+  executive:
+    count: 5
+    endpoint_type: "cli_container"
+    activity:
+      email_per_hour: 5
+      teams_messages_per_hour: 4
+      documents_per_day: 1
+      meetings_per_day: 4
+
+# Email markers for tracking
+email_markers_enabled: true
+marker_style: "both"
+marker_format: "KW-25-TEST"
+
+# AI email generation with limericks
+email_generation:
+  enabled: true
+  directive: "Include a humorous limerick about working in the age of AI in your email signature"

@@ -97,12 +97,14 @@ class TestCreateServicePrincipal:
         mock_password_credential = MagicMock()
         mock_password_credential.secret_text = "test-secret-value"
 
-        # Configure mock chains
-        mock_graph_client.applications.post.return_value = mock_app_result
-        mock_graph_client.service_principals.post.return_value = mock_sp_result
-        mock_graph_client.applications.by_application_id().add_password.post.return_value = (
-            mock_password_credential
-        )
+        # Configure mock chains - Graph SDK methods are async so need AsyncMock
+        mock_graph_client.applications.post = AsyncMock(return_value=mock_app_result)
+        mock_graph_client.service_principals.post = AsyncMock(return_value=mock_sp_result)
+        # Mock the by_application_id() chain - needs both .get() for verification and .add_password.post()
+        mock_app_by_id = MagicMock()
+        mock_app_by_id.get = AsyncMock(return_value=mock_app_result)  # For app verification
+        mock_app_by_id.add_password.post = AsyncMock(return_value=mock_password_credential)
+        mock_graph_client.applications.by_application_id.return_value = mock_app_by_id
 
         # Mock Key Vault client
         mock_kv_client = AsyncMock(spec=SecretClient)
@@ -110,6 +112,12 @@ class TestCreateServicePrincipal:
         # Mock Azure authorization client
         mock_auth_client = MagicMock()
 
+        # Mock environment variables for credential initialization
+        mock_env = {
+            "AZURE_TENANT_ID": "test-tenant-id",
+            "AZURE_CLIENT_ID": "test-client-id",
+            "AZURE_CLIENT_SECRET": "test-client-secret",
+        }
         with (
             patch(
                 "azure_haymaker.orchestrator.sp_manager.GraphServiceClient",
@@ -120,6 +128,8 @@ class TestCreateServicePrincipal:
                 return_value=mock_auth_client,
             ),
             patch("azure_haymaker.orchestrator.sp_manager.asyncio.sleep", new_callable=AsyncMock),
+            patch("azure.identity.ClientSecretCredential"),
+            patch.dict("os.environ", mock_env),
         ):
             result = await create_service_principal(
                 scenario_name="test-scenario",
@@ -145,16 +155,26 @@ class TestCreateServicePrincipal:
     async def test_create_service_principal_graph_api_failure(self):
         """Test handling of Microsoft Graph API failure."""
         mock_graph_client = MagicMock()
-        mock_graph_client.applications.post.side_effect = Exception("Graph API error")
+        # Use AsyncMock for async method with side_effect
+        mock_graph_client.applications.post = AsyncMock(side_effect=Exception("Graph API error"))
 
         mock_kv_client = AsyncMock(spec=SecretClient)
+
+        # Mock environment variables for credential initialization
+        mock_env = {
+            "AZURE_TENANT_ID": "test-tenant-id",
+            "AZURE_CLIENT_ID": "test-client-id",
+            "AZURE_CLIENT_SECRET": "test-client-secret",
+        }
 
         with (
             patch(
                 "azure_haymaker.orchestrator.sp_manager.GraphServiceClient",
                 return_value=mock_graph_client,
             ),
-            pytest.raises(ServicePrincipalError, match="Graph API error"),
+            patch.dict("os.environ", mock_env),
+            # Updated pattern to match new error format
+            pytest.raises(ServicePrincipalError, match="Graph API create app failed"),
         ):
             await create_service_principal(
                 scenario_name="test-scenario",
@@ -177,21 +197,33 @@ class TestCreateServicePrincipal:
         mock_password_credential = MagicMock()
         mock_password_credential.secret_text = "test-secret-value"
 
-        mock_graph_client.applications.post.return_value = mock_app_result
-        mock_graph_client.service_principals.post.return_value = mock_sp_result
-        mock_graph_client.applications.by_application_id().add_password.post.return_value = (
-            mock_password_credential
-        )
+        # Use AsyncMock for async Graph SDK methods
+        mock_graph_client.applications.post = AsyncMock(return_value=mock_app_result)
+        mock_graph_client.service_principals.post = AsyncMock(return_value=mock_sp_result)
+        # Mock the by_application_id() chain
+        mock_app_by_id = MagicMock()
+        mock_app_by_id.get = AsyncMock(return_value=mock_app_result)
+        mock_app_by_id.add_password.post = AsyncMock(return_value=mock_password_credential)
+        mock_graph_client.applications.by_application_id.return_value = mock_app_by_id
 
         # Mock Key Vault client with failure
         mock_kv_client = AsyncMock(spec=SecretClient)
         mock_kv_client.set_secret.side_effect = Exception("Key Vault error")
+
+        # Mock environment variables for credential initialization
+        mock_env = {
+            "AZURE_TENANT_ID": "test-tenant-id",
+            "AZURE_CLIENT_ID": "test-client-id",
+            "AZURE_CLIENT_SECRET": "test-client-secret",
+        }
 
         with (
             patch(
                 "azure_haymaker.orchestrator.sp_manager.GraphServiceClient",
                 return_value=mock_graph_client,
             ),
+            patch("azure_haymaker.orchestrator.sp_manager.asyncio.sleep", new_callable=AsyncMock),
+            patch.dict("os.environ", mock_env),
             pytest.raises(ServicePrincipalError, match="Key Vault error"),
         ):
             await create_service_principal(
@@ -215,14 +247,24 @@ class TestCreateServicePrincipal:
         mock_password_credential = MagicMock()
         mock_password_credential.secret_text = "test-secret-value"
 
-        mock_graph_client.applications.post.return_value = mock_app_result
-        mock_graph_client.service_principals.post.return_value = mock_sp_result
-        mock_graph_client.applications.by_application_id().add_password.post.return_value = (
-            mock_password_credential
-        )
+        # Use AsyncMock for async Graph SDK methods
+        mock_graph_client.applications.post = AsyncMock(return_value=mock_app_result)
+        mock_graph_client.service_principals.post = AsyncMock(return_value=mock_sp_result)
+        # Mock the by_application_id() chain
+        mock_app_by_id = MagicMock()
+        mock_app_by_id.get = AsyncMock(return_value=mock_app_result)
+        mock_app_by_id.add_password.post = AsyncMock(return_value=mock_password_credential)
+        mock_graph_client.applications.by_application_id.return_value = mock_app_by_id
 
         mock_kv_client = AsyncMock(spec=SecretClient)
         mock_auth_client = MagicMock()
+
+        # Mock environment variables for credential initialization
+        mock_env = {
+            "AZURE_TENANT_ID": "test-tenant-id",
+            "AZURE_CLIENT_ID": "test-client-id",
+            "AZURE_CLIENT_SECRET": "test-client-secret",
+        }
 
         with (
             patch(
@@ -234,6 +276,7 @@ class TestCreateServicePrincipal:
                 return_value=mock_auth_client,
             ),
             patch("azure_haymaker.orchestrator.sp_manager.asyncio.sleep", new_callable=AsyncMock),
+            patch.dict("os.environ", mock_env),
         ):
             await create_service_principal(
                 scenario_name="test-scenario",

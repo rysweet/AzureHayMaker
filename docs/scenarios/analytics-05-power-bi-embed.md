@@ -1,3 +1,13 @@
+---
+layout: default
+title: "Power BI Embedded Reports"
+parent: "Analytics"
+grand_parent: Scenarios
+nav_order: 5
+description: "Deploy Power BI Embedded capacity with datasets and reports, create service principal for programmatic access, and demonstrate report embedding."
+permalink: /scenarios/analytics-05-power-bi-embed/
+---
+
 # Scenario: Power BI Embedded Reports
 
 ## Technology Area

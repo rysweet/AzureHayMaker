@@ -1,14 +1,13 @@
 """Container App lifecycle management for Azure HayMaker.
 
 This module manages Container App deletion and cleanup operations
-on Azure.
+on Azure using the repository pattern for clean abstraction.
 """
 
-import asyncio
 import logging
 
-from azure.core.exceptions import ResourceNotFoundError
-from azure.identity import DefaultAzureCredential
+from .repositories.base_repository import RepositoryError
+from .repositories.container_repository import ContainerAppRepository
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -24,19 +23,22 @@ class ContainerLifecycle:
     """Manages Container App lifecycle and cleanup operations.
 
     This class provides deletion and cleanup capabilities for deployed
-    Container Apps on Azure.
+    Container Apps on Azure, using the repository pattern for data access.
     """
 
     def __init__(
         self,
         resource_group_name: str,
         subscription_id: str,
+        repository: ContainerAppRepository | None = None,
     ):
         """Initialize ContainerLifecycle with Azure resource identifiers.
 
         Args:
             resource_group_name: Azure resource group name
             subscription_id: Azure subscription ID
+            repository: Optional ContainerAppRepository for dependency injection.
+                       If not provided, a default repository is created.
 
         Raises:
             ValueError: If parameters are invalid
@@ -46,6 +48,12 @@ class ContainerLifecycle:
 
         self.resource_group_name = resource_group_name
         self.subscription_id = subscription_id
+
+        # Use injected repository or create default
+        self._repository = repository or ContainerAppRepository(
+            subscription_id=subscription_id,
+            resource_group=resource_group_name,
+        )
 
     async def delete(self, app_name: str) -> bool:
         """Delete container app.
@@ -68,34 +76,64 @@ class ContainerLifecycle:
             raise ValueError("App name is required")
 
         try:
-            credential = DefaultAzureCredential()
-            # Lazy import to avoid loading uninstalled package during testing
-            from azure.mgmt.appcontainers import ContainerAppsAPIClient
-
-            client = ContainerAppsAPIClient(
-                credential=credential,
-                subscription_id=self.subscription_id,
-            )
-
             logger.info(f"Deleting container app {app_name}")
 
-            poller = await asyncio.to_thread(
-                client.container_apps.begin_delete,
-                resource_group_name=self.resource_group_name,
-                container_app_name=app_name,
-            )
+            result = await self._repository.delete(app_name)
 
-            await asyncio.to_thread(poller.result)
+            if result:
+                logger.info(f"Container app {app_name} deleted successfully")
+            else:
+                logger.warning(f"Container app {app_name} not found for deletion")
 
-            logger.info(f"Container app {app_name} deleted successfully")
-            return True
+            return result
 
-        except ResourceNotFoundError:
-            logger.warning(f"Container app {app_name} not found for deletion")
-            return False
-        except Exception as e:
+        except RepositoryError as e:
             logger.error(f"Failed to delete container app {app_name}: {e}")
             raise ContainerAppError(f"Failed to delete container app: {e}") from e
+
+    async def exists(self, app_name: str) -> bool:
+        """Check if a container app exists.
+
+        Args:
+            app_name: Name of the container app to check
+
+        Returns:
+            True if the app exists, False otherwise
+
+        Raises:
+            ValueError: If app_name is empty
+            ContainerAppError: If the check fails
+        """
+        if not app_name:
+            raise ValueError("App name is required")
+
+        try:
+            return await self._repository.exists(app_name)
+        except RepositoryError as e:
+            logger.error(f"Failed to check container app {app_name}: {e}")
+            raise ContainerAppError(f"Failed to check container app: {e}") from e
+
+    async def get_status(self, app_name: str) -> str | None:
+        """Get the status of a container app.
+
+        Args:
+            app_name: Name of the container app
+
+        Returns:
+            Status string or None if not found
+
+        Raises:
+            ValueError: If app_name is empty
+            ContainerAppError: If status check fails
+        """
+        if not app_name:
+            raise ValueError("App name is required")
+
+        try:
+            return await self._repository.get_status(app_name)
+        except RepositoryError as e:
+            logger.error(f"Failed to get status for {app_name}: {e}")
+            raise ContainerAppError(f"Failed to get container app status: {e}") from e
 
 
 # Standalone async function for backward compatibility

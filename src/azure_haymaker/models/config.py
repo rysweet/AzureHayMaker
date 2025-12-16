@@ -128,6 +128,15 @@ class OrchestratorConfig(BaseModel):
     sp_secret_rotation_days: int = Field(
         default=30, description="Service principal secret rotation period in days", ge=1
     )
+    sp_secret_expiration_warning_days: int = Field(
+        default=7, description="Days before expiration to trigger rotation warning", ge=1
+    )
+    sp_secret_auto_rotate: bool = Field(
+        default=True, description="Automatically rotate secrets before expiration"
+    )
+    sp_secret_max_age_days: int = Field(
+        default=90, description="Maximum age of secrets before forced rotation", ge=1
+    )
 
     @computed_field  # type: ignore[prop-decorator]
     @property

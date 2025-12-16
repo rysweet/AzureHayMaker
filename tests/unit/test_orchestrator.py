@@ -214,7 +214,9 @@ class TestSelectScenariosActivity:
         """Test scenario selection activity."""
         with (
             mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
-            mock.patch("azure_haymaker.orchestrator.scenario_selector.select_scenarios") as mock_select,
+            mock.patch(
+                "azure_haymaker.orchestrator.scenario_selector.select_scenarios"
+            ) as mock_select,
         ):
             mock_load_config.return_value = mock_config
             mock_select.return_value = [mock_scenario]
@@ -457,9 +459,7 @@ class TestVerifyCleanupActivity:
 
         with (
             mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
-            mock.patch(
-                "azure_haymaker.orchestrator.cleanup.query_managed_resources"
-            ) as mock_query,
+            mock.patch("azure_haymaker.orchestrator.cleanup.query_managed_resources") as mock_query,
         ):
             mock_load_config.return_value = mock_config
             mock_query.return_value = []
@@ -495,9 +495,7 @@ class TestVerifyCleanupActivity:
 
         with (
             mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
-            mock.patch(
-                "azure_haymaker.orchestrator.cleanup.query_managed_resources"
-            ) as mock_query,
+            mock.patch("azure_haymaker.orchestrator.cleanup.query_managed_resources") as mock_query,
         ):
             mock_load_config.return_value = mock_config
             mock_query.return_value = remaining
@@ -530,9 +528,7 @@ class TestForceCleanupActivity:
 
         with (
             mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
-            mock.patch(
-                "azure_haymaker.orchestrator.cleanup.query_managed_resources"
-            ) as mock_query,
+            mock.patch("azure_haymaker.orchestrator.cleanup.query_managed_resources") as mock_query,
             mock.patch(
                 "azure_haymaker.orchestrator.cleanup.force_delete_resources"
             ) as mock_force_cleanup,
@@ -588,9 +584,7 @@ class TestForceCleanupActivity:
 
         with (
             mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
-            mock.patch(
-                "azure_haymaker.orchestrator.cleanup.query_managed_resources"
-            ) as mock_query,
+            mock.patch("azure_haymaker.orchestrator.cleanup.query_managed_resources") as mock_query,
             mock.patch(
                 "azure_haymaker.orchestrator.cleanup.force_delete_resources"
             ) as mock_force_cleanup,
@@ -658,9 +652,7 @@ class TestGenerateReportActivity:
         with (
             mock.patch("azure_haymaker.orchestrator.config.load_config") as mock_load_config,
             mock.patch("azure.identity.DefaultAzureCredential"),
-            mock.patch(
-                "azure.storage.blob.BlobServiceClient"
-            ) as mock_blob_client,
+            mock.patch("azure.storage.blob.BlobServiceClient") as mock_blob_client,
         ):
             mock_load_config.return_value = mock_config
 

@@ -12,21 +12,99 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from azure.core.exceptions import ResourceNotFoundError
-from azure.identity import DefaultAzureCredential
+from azure.core.exceptions import (
+    ClientAuthenticationError,
+    HttpResponseError,
+    ResourceNotFoundError,
+    ServiceRequestError,
+)
 from azure.keyvault.secrets import SecretClient
 from azure.mgmt.resource import ResourceManagementClient
+from kiota_abstractions.api_error import APIError
 from msgraph.graph_service_client import GraphServiceClient
 from pydantic import BaseModel, Field
 
+from azure_haymaker.exceptions import (
+    CleanupError,
+    CredentialError,
+)
 from azure_haymaker.models.resource import Resource, ResourceStatus
 from azure_haymaker.models.service_principal import ServicePrincipalDetails
+from azure_haymaker.utils.credentials import get_credential
 
 # Lazy imports for optional dependencies used during actual Azure operations
 if TYPE_CHECKING:
     pass
 
 logger = logging.getLogger(__name__)
+
+
+def _query_azure_resources(
+    run_id: str,
+    subscription_ids: list[str] | None = None,
+    use_pagination: bool = False,
+) -> list[Resource]:
+    """Internal helper to query Azure Resource Graph for managed resources.
+
+    Consolidates the common query logic used by query_managed_resources
+    and verify_cleanup_complete.
+
+    Args:
+        run_id: Execution run ID to filter resources
+        subscription_ids: List of subscription IDs to query (empty list for all)
+        use_pagination: Whether to handle paginated results
+
+    Returns:
+        List of Resource objects matching the query
+    """
+    # Lazy import to avoid dependency requirement if module is only used with mocks
+    from azure.mgmt.resourcegraph import ResourceGraphClient
+    from azure.mgmt.resourcegraph.models import QueryRequest
+
+    credentials = get_credential()
+    resource_graph_client = ResourceGraphClient(credentials)
+
+    # Build KQL query for managed resources
+    query = (
+        f"Resources "
+        f"| where tags['AzureHayMaker-managed'] == 'true' "
+        f"| where tags['RunId'] == '{run_id}' "
+        f"| project id, type, name, tags"
+    )
+
+    resources: list[Resource] = []
+    skip_token = None
+
+    while True:
+        query_request = QueryRequest(
+            subscriptions=subscription_ids or [],
+            query=query,
+            skip_token=skip_token,
+        )
+        result = resource_graph_client.resources(query_request)
+
+        # Convert to Resource objects
+        if result.data and hasattr(result.data, "__iter__"):
+            for item in result.data:  # pyright: ignore[reportGeneralTypeIssues]
+                resource = Resource(
+                    resource_id=item.get("id"),
+                    resource_type=item.get("type"),
+                    resource_name=item.get("name"),
+                    scenario_name=item.get("tags", {}).get("Scenario", "unknown"),
+                    run_id=run_id,
+                    created_at=datetime.now(UTC),
+                    tags=item.get("tags", {}),
+                    status=ResourceStatus.EXISTS,
+                )
+                resources.append(resource)
+
+        # Check if there are more results (only when pagination is enabled)
+        if use_pagination and result.skip_token:
+            skip_token = result.skip_token
+        else:
+            break
+
+    return resources
 
 
 class CleanupStatus(str, Enum):
@@ -87,60 +165,26 @@ async def query_managed_resources(subscription_id: str, run_id: str) -> list[Res
     Raises:
         Exception: If Resource Graph API call fails
     """
-    # Lazy import to avoid dependency requirement if module is only used with mocks
-    from azure.mgmt.resourcegraph import ResourceGraphClient
-    from azure.mgmt.resourcegraph.models import QueryRequest
-
-    credentials = DefaultAzureCredential()
-    resource_graph_client = ResourceGraphClient(credentials)
-
-    resources = []
-    skip_token = None
-
-    # Build KQL query for managed resources
-    query = (
-        f"Resources "
-        f"| where tags['AzureHayMaker-managed'] == 'true' "
-        f"| where tags['RunId'] == '{run_id}' "
-        f"| project id, type, name, tags"
-    )
-
-    while True:
-        try:
-            query_request = QueryRequest(
-                subscriptions=[subscription_id],
-                query=query,
-                skip_token=skip_token,
-            )
-            result = resource_graph_client.resources(query_request)
-
-            # Convert to Resource objects
-            if result.data and hasattr(result.data, "__iter__"):
-                for item in result.data:  # pyright: ignore[reportGeneralTypeIssues]
-                    resource = Resource(
-                        resource_id=item.get("id"),
-                        resource_type=item.get("type"),
-                        resource_name=item.get("name"),
-                        scenario_name=item.get("tags", {}).get("Scenario", "unknown"),
-                        run_id=run_id,
-                        created_at=datetime.now(UTC),
-                        tags=item.get("tags", {}),
-                        status=ResourceStatus.EXISTS,
-                    )
-                    resources.append(resource)
-
-            # Check if there are more results
-            if result.skip_token:
-                skip_token = result.skip_token
-            else:
-                break
-
-        except Exception as e:
-            logger.error(f"Failed to query managed resources: {e}")
-            raise
-
-    logger.info(f"Found {len(resources)} managed resources for run {run_id}")
-    return resources
+    try:
+        resources = _query_azure_resources(
+            run_id=run_id,
+            subscription_ids=[subscription_id],
+            use_pagination=True,
+        )
+        logger.info(f"Found {len(resources)} managed resources for run {run_id}")
+        return resources
+    except ClientAuthenticationError as e:
+        logger.error(f"Authentication failed querying managed resources: {e}")
+        raise CredentialError(
+            f"Authentication failed querying managed resources: {e}",
+            details={"run_id": run_id, "subscription_id": subscription_id},
+        ) from e
+    except HttpResponseError as e:
+        logger.error(f"HTTP error querying managed resources: {e}")
+        raise CleanupError(
+            f"Failed to query managed resources: {e}",
+            run_id=run_id,
+        ) from e
 
 
 async def verify_cleanup_complete(run_id: str) -> CleanupReport:
@@ -160,43 +204,12 @@ async def verify_cleanup_complete(run_id: str) -> CleanupReport:
         Exception: If Resource Graph query fails
     """
     try:
-        # Lazy import to avoid dependency requirement if module is only used with mocks
-        from azure.mgmt.resourcegraph import ResourceGraphClient
-        from azure.mgmt.resourcegraph.models import QueryRequest
-
-        # Get subscription ID from environment or default
-        credentials = DefaultAzureCredential()
-        resource_graph_client = ResourceGraphClient(credentials)
-
-        # Query for remaining resources - use subscription wildcard
-        query = (
-            f"Resources "
-            f"| where tags['AzureHayMaker-managed'] == 'true' "
-            f"| where tags['RunId'] == '{run_id}' "
-            f"| project id, type, name, tags"
+        # Query for remaining resources across all subscriptions (empty list)
+        remaining_resources = _query_azure_resources(
+            run_id=run_id,
+            subscription_ids=[],  # Search all subscriptions
+            use_pagination=False,
         )
-
-        query_request = QueryRequest(
-            subscriptions=[],  # Will search all subscriptions
-            query=query,
-        )
-
-        result = resource_graph_client.resources(query_request)
-
-        remaining_resources = []
-        if result.data and hasattr(result.data, "__iter__"):
-            for item in result.data:  # pyright: ignore[reportGeneralTypeIssues]
-                resource = Resource(
-                    resource_id=item.get("id"),
-                    resource_type=item.get("type"),
-                    resource_name=item.get("name"),
-                    scenario_name=item.get("tags", {}).get("Scenario", "unknown"),
-                    run_id=run_id,
-                    created_at=datetime.now(UTC),
-                    tags=item.get("tags", {}),
-                    status=ResourceStatus.EXISTS,
-                )
-                remaining_resources.append(resource)
 
         if not remaining_resources:
             status = CleanupStatus.VERIFIED
@@ -216,9 +229,18 @@ async def verify_cleanup_complete(run_id: str) -> CleanupReport:
             total_resources_deleted=0,
         )
 
-    except Exception as e:
-        logger.error(f"Failed to verify cleanup for run {run_id}: {e}")
-        raise
+    except ClientAuthenticationError as e:
+        logger.error(f"Authentication failed verifying cleanup for run {run_id}: {e}")
+        raise CredentialError(
+            f"Authentication failed verifying cleanup: {e}",
+            details={"run_id": run_id},
+        ) from e
+    except HttpResponseError as e:
+        logger.error(f"HTTP error verifying cleanup for run {run_id}: {e}")
+        raise CleanupError(
+            f"Failed to verify cleanup: {e}",
+            run_id=run_id,
+        ) from e
 
 
 async def force_delete_resources(
@@ -268,7 +290,7 @@ async def force_delete_resources(
             idx = parts.index("subscriptions")
             subscription_id = parts[idx + 1] if idx + 1 < len(parts) else ""
 
-    credentials = DefaultAzureCredential()
+    credentials = get_credential()
     resource_client = ResourceManagementClient(credentials, subscription_id or "")
 
     deletions = []
@@ -372,13 +394,17 @@ async def _delete_resource_with_retry(
                 deleted_at=datetime.now(UTC),
             )
 
-        except Exception as e:
+        except ClientAuthenticationError as e:
+            last_error = str(e)
+            logger.error(f"Authentication failed deleting resource {resource.resource_id}: {e}")
+            break  # Auth errors are not retryable
+        except HttpResponseError as e:
             last_error = str(e)
             logger.warning(
                 f"Deletion attempt {attempts}/{max_retries} failed for {resource.resource_id}: {e}"
             )
 
-            # Check if error suggests dependency issue
+            # Check if error suggests dependency issue (retryable)
             error_msg = str(e).lower()
             if (
                 "conflict" in error_msg
@@ -392,7 +418,7 @@ async def _delete_resource_with_retry(
                     logger.info(f"Waiting {wait_seconds}s before retry...")
                     await asyncio.sleep(wait_seconds)
             else:
-                # Non-retryable error
+                # Non-retryable HTTP error
                 logger.error(f"Non-retryable error for resource {resource.resource_id}: {e}")
                 break
 
@@ -422,7 +448,7 @@ async def _delete_service_principals(  # pyright: ignore[reportGeneralTypeIssues
     Returns:
         List of deleted service principal names
     """
-    credentials = DefaultAzureCredential()
+    credentials = get_credential()
     graph_client = GraphServiceClient(credentials)
 
     deleted_sps = []
@@ -471,8 +497,12 @@ async def _delete_service_principals(  # pyright: ignore[reportGeneralTypeIssues
                 logger.info(f"Deleted Key Vault secret {sp.secret_reference}")
             except ResourceNotFoundError:
                 logger.warning(f"Key Vault secret {sp.secret_reference} not found")
+            except HttpResponseError as e:
+                logger.error(f"HTTP error deleting Key Vault secret {sp.secret_reference}: {e}")
 
-        except Exception as e:
+        except ClientAuthenticationError as e:
+            logger.error(f"Authentication failed deleting service principal {sp.sp_name}: {e}")
+        except (APIError, HttpResponseError, ServiceRequestError) as e:
             logger.error(f"Failed to delete service principal {sp.sp_name}: {e}")
 
     return deleted_sps

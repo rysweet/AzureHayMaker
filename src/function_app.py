@@ -24,7 +24,7 @@ Architecture:
 import json
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 from uuid import uuid4
 
 import azure.durable_functions as df
@@ -1506,10 +1506,12 @@ async def get_agent_logs(req: func.HttpRequest) -> func.HttpResponse:
                 ]
 
             # Execute query
+            # Cast parameters to satisfy Azure SDK type requirements
+            parameters_typed = cast(list[dict[str, object]], parameters) if parameters else None
             items = list(
                 container.query_items(
                     query=query,
-                    parameters=parameters,
+                    parameters=parameters_typed,
                     partition_key=agent_id,
                     enable_cross_partition_query=False,
                 )
@@ -1683,9 +1685,7 @@ async def get_metrics(req: func.HttpRequest) -> func.HttpResponse:
             WHERE c.started_at >= @start_time
         """
 
-        params: list[dict[str, object]] = [
-            {"name": "@start_time", "value": start_time.isoformat()}
-        ]
+        params: list[dict[str, object]] = [{"name": "@start_time", "value": start_time.isoformat()}]
 
         if scenario_filter:
             query += " AND c.scenario_name = @scenario"
