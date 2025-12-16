@@ -73,10 +73,11 @@ def main():
 
         # Inject secrets
         print("\nInjecting secrets to container app...")
+        # Note: Container Apps secret names must be lowercase
         secrets = [
             {
-                "name": "ANTHROPIC_API_KEY",
-                "keyvault_secret": "anthropic-api-key",
+                "name": "anthropic-api-key",  # Secret name (lowercase required)
+                "keyvault_secret": "anthropic-api-key",  # Key Vault secret name
             },
         ]
 
