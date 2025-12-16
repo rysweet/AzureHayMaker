@@ -224,8 +224,8 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install -e ".[test]"
-          pip install pytest pytest-asyncio httpx
+          pip install -e ".[dev]"
+          pip install pytest pytest-asyncio pytest-cov httpx
 
       - name: Run Integration Tests
         env:
