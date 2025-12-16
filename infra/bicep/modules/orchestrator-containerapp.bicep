@@ -84,22 +84,9 @@ resource orchestratorApp 'Microsoft.App/containerApps@2023-05-01' = {
     }
     template: {
       scale: {
-        minReplicas: 1 // Keep 1 replica always running for Functions
+        minReplicas: 1 // Keep 1 replica always running for API availability
         maxReplicas: 1 // Single instance for orchestrator
-        rules: [
-          {
-            name: 'cron-schedule'
-            custom: {
-              type: 'cron'
-              metadata: {
-                timezone: 'UTC'
-                start: '0 0,6,12,18 * * *' // 4x daily: 00:00, 06:00, 12:00, 18:00 UTC
-                end: '0 8,14,20,2 * * *'     // End 8 hours after start (agent session duration)
-                desiredReplicas: '1'
-              }
-            }
-          }
-        ]
+        // No CRON rules - API must be available 24/7 for CLI commands
       }
       containers: [
         {
