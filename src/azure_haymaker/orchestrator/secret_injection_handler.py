@@ -185,32 +185,30 @@ class SecretInjectionHandler:
 
         logger.info(f"Injecting {len(secrets)} secret(s) to container app '{container_app_name}'")
 
-        # Build az containerapp update command with Key Vault references
+        # Build az containerapp secret set command with Key Vault references
+        # Format: secretname=keyvaultref:https://vault.azure.net/secrets/name,identityref:system
         cmd = [
             "az",
             "containerapp",
-            "update",
+            "secret",
+            "set",
             "--name",
             container_app_name,
             "--resource-group",
             self.resource_group,
-            "--set-env-vars",
+            "--secrets",
         ]
 
-        # Add secret references
-        env_vars = []
+        # Add secret references with Key Vault format
+        secret_refs = []
         for secret in secrets:
-            # Format: ENV_VAR_NAME=secretref:keyvault-secret-name
-            env_vars.append(f"{secret['name']}=secretref:{secret['keyvault_secret']}")
-        cmd.append(" ".join(env_vars))
+            # Get Key Vault URI from keyvault name
+            vault_uri = f"https://{keyvault_name}.vault.azure.net"
+            # Format: secretname=keyvaultref:https://vault.azure.net/secrets/secretname,identityref:system
+            secret_ref = f"{secret['name']}=keyvaultref:{vault_uri}/secrets/{secret['keyvault_secret']},identityref:system"
+            secret_refs.append(secret_ref)
 
-        # Add Key Vault identity reference
-        cmd.extend(
-            [
-                "--secrets",
-                "keyvault-identity=system",
-            ]
-        )
+        cmd.extend(secret_refs)
 
         # Retry logic for transient failures
         last_error = None
