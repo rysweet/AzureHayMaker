@@ -224,11 +224,15 @@ class TestSecretInjection:
         call_args = mock_run.call_args[0][0]
         assert call_args[0] == "az"
         assert call_args[1] == "containerapp"
-        assert call_args[2] == "update"
+        assert call_args[2] == "secret"
+        assert call_args[3] == "set"
         assert "--name" in call_args
         assert "orchestrator" in call_args
         assert "--resource-group" in call_args
         assert "test-rg" in call_args
+        assert "--secrets" in call_args
+        # Verify Key Vault reference format
+        assert any("keyvaultref:" in arg and "identityref:system" in arg for arg in call_args)
 
     @patch("subprocess.run")
     def test_inject_secrets_with_retry_on_failure(self, mock_run):
