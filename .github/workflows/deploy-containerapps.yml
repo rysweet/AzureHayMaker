@@ -135,10 +135,12 @@ jobs:
           ORCHESTRATOR_NAME=$(echo $OUTPUTS | jq -r '.orchestratorName.value')
           ORCHESTRATOR_FQDN=$(echo $OUTPUTS | jq -r '.orchestratorFqdn.value')
           ORCHESTRATOR_PRINCIPAL_ID=$(echo $OUTPUTS | jq -r '.orchestratorPrincipalId.value')
+          KEY_VAULT_NAME=$(echo $OUTPUTS | jq -r '.keyVaultName.value')
 
           echo "orchestratorName=$ORCHESTRATOR_NAME" >> $GITHUB_OUTPUT
           echo "orchestratorFqdn=$ORCHESTRATOR_FQDN" >> $GITHUB_OUTPUT
           echo "orchestratorPrincipalId=$ORCHESTRATOR_PRINCIPAL_ID" >> $GITHUB_OUTPUT
+          echo "keyVaultName=$KEY_VAULT_NAME" >> $GITHUB_OUTPUT
 
           echo "✅ Container Apps deployed"
           echo "   Orchestrator: $ORCHESTRATOR_NAME"
@@ -188,7 +190,7 @@ jobs:
         run: |
           RG_NAME="haymaker-${{ env.ENVIRONMENT }}-rg"
           ORCHESTRATOR="${{ steps.deploy.outputs.orchestratorName }}"
-          KV_NAME="haymaker-${{ env.ENVIRONMENT }}-kv"
+          KV_NAME="${{ steps.deploy.outputs.keyVaultName }}"
           PRINCIPAL_ID="${{ steps.deploy.outputs.orchestratorPrincipalId }}"
 
           echo "Injecting secrets into orchestrator: $ORCHESTRATOR"
