@@ -96,42 +96,6 @@ resource orchestratorApp 'Microsoft.App/containerApps@2023-05-01' = {
             cpu: json('16')     // 16 vCPU
             memory: '128Gi'     // 128GB RAM - Captain's preferred!
           }
-          probes: [
-            {
-              type: 'Liveness'
-              httpGet: {
-                path: '/'
-                port: 80
-                scheme: 'HTTP'
-              }
-              initialDelaySeconds: 10
-              periodSeconds: 10
-              failureThreshold: 3
-            }
-            {
-              type: 'Readiness'
-              httpGet: {
-                path: '/'
-                port: 80
-                scheme: 'HTTP'
-              }
-              initialDelaySeconds: 5
-              periodSeconds: 5
-              successThreshold: 1
-              failureThreshold: 3
-            }
-            {
-              type: 'Startup'
-              httpGet: {
-                path: '/'
-                port: 80
-                scheme: 'HTTP'
-              }
-              initialDelaySeconds: 0
-              periodSeconds: 5
-              failureThreshold: 30  // Allow 150 seconds for startup (30 * 5s)
-            }
-          ]
           env: [
             // Azure Configuration
             {
