@@ -252,8 +252,9 @@ class TestCheckEnvironmentVariables:
 
         assert result.status == CheckStatus.PASS
         # API key should be masked
-        assert "secret-key-12345" not in result.details
-        assert "****" in result.details
+        details_str = result.details or ""
+        assert "secret-key-12345" not in details_str
+        assert "****" in details_str
 
 
 class TestValidateCommand:

@@ -369,13 +369,25 @@ async def lifespan(app: FastAPI):
     )
     logger.info("Scheduled default orchestration runs: 00:00, 06:00, 12:00, 18:00 UTC")
 
-    # Load user-defined schedules from storage
-    await _load_schedules_on_startup()
+    # Load user-defined schedules from storage (non-blocking to prevent startup delays)
+    # Run in background task to avoid blocking Container Apps health checks
+    asyncio.create_task(_load_schedules_with_timeout())
 
     yield
 
     logger.info("Shutting down orchestrator server")
     scheduler.shutdown()
+
+
+async def _load_schedules_with_timeout():
+    """Load schedules with timeout to prevent startup delays."""
+    try:
+        async with asyncio.timeout(10):  # 10 second timeout
+            await _load_schedules_on_startup()
+    except TimeoutError:
+        logger.warning("Schedule loading timed out - will retry later")
+    except Exception as e:
+        logger.warning(f"Schedule loading failed: {e}")
 
 
 app = FastAPI(title="Azure HayMaker Orchestrator", lifespan=lifespan)
