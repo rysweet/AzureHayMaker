@@ -533,7 +533,7 @@ def azure_subscription_id():
 @pytest.fixture(scope="session")
 def azure_resource_group():
     """Get Azure resource group from environment"""
-    rg = os.environ.get("AZURE_RESOURCE_GROUP", "rg-azurehaymaker-dev")
+    rg = os.environ.get("AZURE_RESOURCE_GROUP", "haymaker-dev-rg")
     return rg
 
 
