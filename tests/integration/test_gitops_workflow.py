@@ -538,7 +538,7 @@ def azure_resource_group():
 
 
 @pytest.fixture(scope="session")
-def azure_keyvault_name():
+def azure_keyvault_name(azure_resource_group):
     """Get Key Vault name from environment"""
     kv = os.environ.get("AZURE_KEYVAULT_NAME")
     if not kv:
@@ -549,7 +549,7 @@ def azure_keyvault_name():
                 "keyvault",
                 "list",
                 "--resource-group",
-                azure_resource_group(),
+                azure_resource_group,
                 "--query",
                 "[0].name",
                 "-o",
