@@ -337,6 +337,9 @@ curl https://haymaker-fastapi-app.azurewebsites.net/api/metrics | jq
 - **[Scenarios](docs/scenarios/)** - 50 operational scenarios with full automation
 - **[Architecture Guide](.claude/skills/azure-haymaker/ARCHITECTURE_GUIDE.md)** - Azure HayMaker orchestration service architecture
 
+**For Contributors**:
+- **[Quick Start Guide](docs/QUICK_START_CONTRIBUTORS.md)** - Get started in 15 minutes
+- **[Contributing to Enhancements](docs/CONTRIBUTING_ENHANCEMENTS.md)** - Detailed workflow
 ## Development
 
 ```bash
