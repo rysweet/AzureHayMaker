@@ -147,7 +147,7 @@ jobs:
           echo "   FQDN: $ORCHESTRATOR_FQDN"
           echo "   Profile: E16 (128GB RAM, 16 vCPU)"
 
-      - name: Grant ACR Pull Permission
+      - name: Grant ACR Pull Permission and Restart Revision
         run: |
           RG_NAME="haymaker-${{ env.ENVIRONMENT }}-rg"
           ORCHESTRATOR="${{ steps.deploy.outputs.orchestratorName }}"
@@ -168,7 +168,7 @@ jobs:
           echo "  Principal ID: $PRINCIPAL_ID"
           echo "  ACR: $ACR_ID"
 
-          # Grant AcrPull role
+          # Grant AcrPull role (may already exist from manual fix)
           az role assignment create \
             --assignee "$PRINCIPAL_ID" \
             --role AcrPull \
@@ -176,6 +176,26 @@ jobs:
             --output none || echo "Role assignment already exists"
 
           echo "✅ ACR pull permission granted"
+
+          # Wait for RBAC propagation
+          echo "Waiting 60s for RBAC to propagate..."
+          sleep 60
+
+          # Restart revision to retry image pull (in case initial deployment failed)
+          echo "Restarting container app to retry image pull with new permissions..."
+          LATEST_REVISION=$(az containerapp revision list \
+            --name "$ORCHESTRATOR" \
+            --resource-group "$RG_NAME" \
+            --query "[0].name" -o tsv)
+
+          if [ -n "$LATEST_REVISION" ]; then
+            az containerapp revision restart \
+              --name "$ORCHESTRATOR" \
+              --resource-group "$RG_NAME" \
+              --revision "$LATEST_REVISION" || echo "Revision restart not needed"
+          fi
+
+          echo "✅ Container app ready"
 
       - name: Setup Python for Secret Injection
         uses: actions/setup-python@v5
