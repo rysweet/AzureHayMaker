@@ -279,7 +279,9 @@ jobs:
             --resource-group "$RG_NAME" \
             --container-app "$ORCHESTRATOR" \
             --keyvault "$KV_NAME" \
-            --principal-id "$PRINCIPAL_ID"
+            --principal-id "$PRINCIPAL_ID" \
+            --max-retries 10 \
+            --initial-backoff 15
 
           echo "✅ Secrets injected successfully"
 
