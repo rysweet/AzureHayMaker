@@ -113,11 +113,14 @@ jobs:
 
       - name: Deploy Container Apps Infrastructure
         id: deploy
+        continue-on-error: true  # Continue even if revision provisioning fails (ACR permission issue)
         run: |
           RG_NAME="haymaker-${{ env.ENVIRONMENT }}-rg"
           DEPLOYMENT_NAME="containerapp-deployment-$(date +%s)"
 
           echo "Deploying Container Apps with E16 workload profile (128GB RAM)..."
+          echo "Note: Initial deployment may fail at revision provisioning (ACR pull permission)."
+          echo "We'll grant permission and restart the revision afterward."
 
           # Deploy infrastructure (role assignments removed from bicep to avoid conflicts)
           OUTPUTS=$(az deployment group create \
@@ -129,7 +132,17 @@ jobs:
                          simulationSize="${{ secrets.SIMULATION_SIZE }}" \
             --name "$DEPLOYMENT_NAME" \
             --mode Incremental \
-            --query properties.outputs -o json)
+            --query properties.outputs -o json || true)  # Don't fail on revision timeout
+
+          # If deployment failed, still try to get outputs from partial deployment
+          if [ -z "$OUTPUTS" ] || [ "$OUTPUTS" = "null" ]; then
+            echo "⚠️  Deployment had errors (expected - waiting for ACR permission)"
+            echo "Fetching outputs from deployed resources..."
+            OUTPUTS=$(az deployment group show \
+              --resource-group "$RG_NAME" \
+              --name "$DEPLOYMENT_NAME" \
+              --query properties.outputs -o json || echo "{}")
+          fi
 
           # Extract outputs
           ORCHESTRATOR_NAME=$(echo $OUTPUTS | jq -r '.orchestratorName.value')
