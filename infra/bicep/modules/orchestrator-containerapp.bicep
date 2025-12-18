@@ -106,9 +106,10 @@ resource orchestratorApp 'Microsoft.App/containerApps@2023-05-01' = {
               name: 'AZURE_SUBSCRIPTION_ID'
               value: subscriptionId
             }
-            // AZURE_CLIENT_ID removed - causes DefaultAzureCredential to look for
-            // user-assigned identity instead of using system-assigned identity
-            // Container uses system-assigned managed identity for Key Vault access
+            {
+              name: 'AZURE_CLIENT_ID'
+              value: clientId
+            }
             // Key Vault
             {
               name: 'KEY_VAULT_URL'
