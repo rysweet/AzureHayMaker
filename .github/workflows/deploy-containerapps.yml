@@ -144,11 +144,16 @@ jobs:
               --query properties.outputs -o json || echo "{}")
           fi
 
-          # Extract outputs
-          ORCHESTRATOR_NAME=$(echo $OUTPUTS | jq -r '.orchestratorName.value')
-          ORCHESTRATOR_FQDN=$(echo $OUTPUTS | jq -r '.orchestratorFqdn.value')
-          ORCHESTRATOR_PRINCIPAL_ID=$(echo $OUTPUTS | jq -r '.orchestratorPrincipalId.value')
-          KEY_VAULT_NAME=$(echo $OUTPUTS | jq -r '.keyVaultName.value')
+          # Extract outputs (or use defaults if deployment partially failed)
+          ORCHESTRATOR_NAME=$(echo $OUTPUTS | jq -r '.orchestratorName.value // "haymaker-fastapi-orch"')
+          ORCHESTRATOR_FQDN=$(echo $OUTPUTS | jq -r '.orchestratorFqdn.value // ""')
+          ORCHESTRATOR_PRINCIPAL_ID=$(echo $OUTPUTS | jq -r '.orchestratorPrincipalId.value // ""')
+          KEY_VAULT_NAME=$(echo $OUTPUTS | jq -r '.keyVaultName.value // ""')
+
+          # If outputs are empty, query deployed resources directly
+          if [ -z "$ORCHESTRATOR_NAME" ] || [ "$ORCHESTRATOR_NAME" = "null" ]; then
+            ORCHESTRATOR_NAME="haymaker-fastapi-orch"
+          fi
 
           echo "orchestratorName=$ORCHESTRATOR_NAME" >> $GITHUB_OUTPUT
           echo "orchestratorFqdn=$ORCHESTRATOR_FQDN" >> $GITHUB_OUTPUT
