@@ -107,7 +107,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2023-05-01' = {
               value: subscriptionId
             }
             {
-              name: 'AZURE_CLIENT_ID'
+              name: 'API_CLIENT_ID'
               value: clientId
             }
             // Key Vault
