@@ -69,7 +69,8 @@ class EntraGroupManager:
         try:
             group_data = {
                 "displayName": group_name,
-                "description": description or f"HayMaker Knowledge Worker Team - {department} #{team_num}",
+                "description": description
+                or f"HayMaker Knowledge Worker Team - {department} #{team_num}",
                 "mailEnabled": False,
                 "mailNickname": group_name.replace("-", ""),
                 "securityEnabled": True,
@@ -106,7 +107,8 @@ class EntraGroupManager:
         try:
             group_data = {
                 "displayName": group_name,
-                "description": description or f"All HayMaker Knowledge Workers - Run {self.run_id[:8]}",
+                "description": description
+                or f"All HayMaker Knowledge Workers - Run {self.run_id[:8]}",
                 "mailEnabled": False,
                 "mailNickname": group_name.replace("-", ""),
                 "securityEnabled": True,
@@ -151,7 +153,8 @@ class EntraGroupManager:
         try:
             group_data = {
                 "displayName": group_name,
-                "description": description or f"HayMaker Knowledge Worker Team - {department} #{team_num}",
+                "description": description
+                or f"HayMaker Knowledge Worker Team - {department} #{team_num}",
                 "mailEnabled": True,
                 "mailNickname": group_name.replace("-", "").lower(),
                 "securityEnabled": True,
@@ -161,8 +164,7 @@ class EntraGroupManager:
 
             if owners:
                 group_data["owners@odata.bind"] = [
-                    f"https://graph.microsoft.com/v1.0/users/{uid}"
-                    for uid in owners
+                    f"https://graph.microsoft.com/v1.0/users/{uid}" for uid in owners
                 ]
 
             result = await self.graph_client.groups.post(body=group_data)
@@ -189,12 +191,8 @@ class EntraGroupManager:
             True if added successfully
         """
         try:
-            await self.graph_client.groups.by_group_id(
-                group_id
-            ).members.ref.post(
-                body={
-                    "@odata.id": f"https://graph.microsoft.com/v1.0/users/{user_id}"
-                }
+            await self.graph_client.groups.by_group_id(group_id).members.ref.post(
+                body={"@odata.id": f"https://graph.microsoft.com/v1.0/users/{user_id}"}
             )
 
             logger.debug(f"Added member {user_id} to group {group_id}")
@@ -243,11 +241,11 @@ class EntraGroupManager:
             True if removed successfully
         """
         try:
-            await self.graph_client.groups.by_group_id(
-                group_id
-            ).members.by_directory_object_id(
-                user_id
-            ).ref.delete()
+            await (
+                self.graph_client.groups.by_group_id(group_id)
+                .members.by_directory_object_id(user_id)
+                .ref.delete()
+            )
 
             logger.debug(f"Removed member {user_id} from group {group_id}")
             return True
@@ -269,12 +267,8 @@ class EntraGroupManager:
             List of member user IDs
         """
         try:
-            members = await self.graph_client.groups.by_group_id(
-                group_id
-            ).members.get(
-                request_configuration={
-                    "query_parameters": {"select": "id"}
-                }
+            members = await self.graph_client.groups.by_group_id(group_id).members.get(
+                request_configuration={"query_parameters": {"select": "id"}}
             )
 
             return [m.id for m in (members.value or [])]
@@ -341,20 +335,24 @@ class EntraGroupManager:
             )
 
             groups = []
-            for g in (security_groups.value or []):
-                groups.append({
-                    "id": g.id,
-                    "display_name": g.display_name,
-                    "description": g.description,
-                    "type": "security",
-                })
-            for g in (m365_groups.value or []):
-                groups.append({
-                    "id": g.id,
-                    "display_name": g.display_name,
-                    "description": g.description,
-                    "type": "m365",
-                })
+            for g in security_groups.value or []:
+                groups.append(
+                    {
+                        "id": g.id,
+                        "display_name": g.display_name,
+                        "description": g.description,
+                        "type": "security",
+                    }
+                )
+            for g in m365_groups.value or []:
+                groups.append(
+                    {
+                        "id": g.id,
+                        "display_name": g.display_name,
+                        "description": g.description,
+                        "type": "m365",
+                    }
+                )
 
             return groups
 

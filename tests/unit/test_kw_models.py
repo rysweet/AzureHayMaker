@@ -33,6 +33,7 @@ try:
         WorkerIdentity,
         WorkerPersona,
     )
+
     MODELS_AVAILABLE = True
 except ImportError:
     MODELS_AVAILABLE = False
@@ -46,8 +47,7 @@ except ImportError:
 
 
 pytestmark = pytest.mark.skipif(
-    not MODELS_AVAILABLE,
-    reason="Knowledge Worker models not yet implemented"
+    not MODELS_AVAILABLE, reason="Knowledge Worker models not yet implemented"
 )
 
 
@@ -75,16 +75,19 @@ class TestWorkerPersona:
         assert WorkerPersona.ENGINEERING.value == "engineering"
         assert WorkerPersona.LEGAL.value == "legal"
 
-    @pytest.mark.parametrize(("persona", "expected_value"), [
-        ("EXECUTIVE", "executive"),
-        ("LEGAL", "legal"),
-        ("ENGINEERING", "engineering"),
-        ("HR", "hr"),
-        ("FINANCE", "finance"),
-        ("SALES", "sales"),
-        ("OPERATIONS", "operations"),
-        ("MARKETING", "marketing"),
-    ])
+    @pytest.mark.parametrize(
+        ("persona", "expected_value"),
+        [
+            ("EXECUTIVE", "executive"),
+            ("LEGAL", "legal"),
+            ("ENGINEERING", "engineering"),
+            ("HR", "hr"),
+            ("FINANCE", "finance"),
+            ("SALES", "sales"),
+            ("OPERATIONS", "operations"),
+            ("MARKETING", "marketing"),
+        ],
+    )
     def test_persona_string_values(self, persona: str, expected_value: str) -> None:
         """Test each persona has correct string value."""
         persona_enum = getattr(WorkerPersona, persona)
@@ -211,19 +214,20 @@ class TestWorkerIdentity:
         assert identity.persona == WorkerPersona.SALES
         assert identity.endpoint_type == EndpointType.CLOUD_PC
 
-    @pytest.mark.parametrize(("persona", "department"), [
-        (WorkerPersona.EXECUTIVE, "executive"),
-        (WorkerPersona.ENGINEERING, "engineering"),
-        (WorkerPersona.LEGAL, "legal"),
-        (WorkerPersona.HR, "hr"),
-        (WorkerPersona.FINANCE, "finance"),
-        (WorkerPersona.SALES, "sales"),
-        (WorkerPersona.OPERATIONS, "operations"),
-        (WorkerPersona.MARKETING, "marketing"),
-    ])
-    def test_persona_department_combinations(
-        self, persona: WorkerPersona, department: str
-    ) -> None:
+    @pytest.mark.parametrize(
+        ("persona", "department"),
+        [
+            (WorkerPersona.EXECUTIVE, "executive"),
+            (WorkerPersona.ENGINEERING, "engineering"),
+            (WorkerPersona.LEGAL, "legal"),
+            (WorkerPersona.HR, "hr"),
+            (WorkerPersona.FINANCE, "finance"),
+            (WorkerPersona.SALES, "sales"),
+            (WorkerPersona.OPERATIONS, "operations"),
+            (WorkerPersona.MARKETING, "marketing"),
+        ],
+    )
+    def test_persona_department_combinations(self, persona: WorkerPersona, department: str) -> None:
         """Test valid persona and department combinations."""
         identity = WorkerIdentity(
             worker_id=f"kw-test-{department[:4]}-001",
@@ -274,18 +278,19 @@ class TestWorkerConfig:
         assert config.work_end_hour == 18
         assert config.preferred_communication == "email"
 
-    @pytest.mark.parametrize(("field", "min_val", "max_val"), [
-        ("email_per_hour", 0, 50),
-        ("teams_messages_per_hour", 0, 100),
-        ("documents_per_day", 0, 20),
-        ("meetings_per_day", 0, 15),
-        ("activity_variance_percent", 0, 100),
-        ("work_start_hour", 0, 23),
-        ("work_end_hour", 0, 23),
-    ])
-    def test_worker_config_field_bounds(
-        self, field: str, min_val: int, max_val: int
-    ) -> None:
+    @pytest.mark.parametrize(
+        ("field", "min_val", "max_val"),
+        [
+            ("email_per_hour", 0, 50),
+            ("teams_messages_per_hour", 0, 100),
+            ("documents_per_day", 0, 20),
+            ("meetings_per_day", 0, 15),
+            ("activity_variance_percent", 0, 100),
+            ("work_start_hour", 0, 23),
+            ("work_end_hour", 0, 23),
+        ],
+    )
+    def test_worker_config_field_bounds(self, field: str, min_val: int, max_val: int) -> None:
         """Test field validation bounds."""
         # Test minimum value is valid
         config_min = WorkerConfig(**{field: min_val})
@@ -295,25 +300,26 @@ class TestWorkerConfig:
         config_max = WorkerConfig(**{field: max_val})
         assert getattr(config_max, field) == max_val
 
-    @pytest.mark.parametrize(("field", "invalid_value"), [
-        ("email_per_hour", -1),
-        ("email_per_hour", 51),
-        ("teams_messages_per_hour", -1),
-        ("teams_messages_per_hour", 101),
-        ("documents_per_day", -1),
-        ("documents_per_day", 21),
-        ("meetings_per_day", -1),
-        ("meetings_per_day", 16),
-        ("activity_variance_percent", -1),
-        ("activity_variance_percent", 101),
-        ("work_start_hour", -1),
-        ("work_start_hour", 24),
-        ("work_end_hour", -1),
-        ("work_end_hour", 24),
-    ])
-    def test_worker_config_invalid_bounds(
-        self, field: str, invalid_value: int
-    ) -> None:
+    @pytest.mark.parametrize(
+        ("field", "invalid_value"),
+        [
+            ("email_per_hour", -1),
+            ("email_per_hour", 51),
+            ("teams_messages_per_hour", -1),
+            ("teams_messages_per_hour", 101),
+            ("documents_per_day", -1),
+            ("documents_per_day", 21),
+            ("meetings_per_day", -1),
+            ("meetings_per_day", 16),
+            ("activity_variance_percent", -1),
+            ("activity_variance_percent", 101),
+            ("work_start_hour", -1),
+            ("work_start_hour", 24),
+            ("work_end_hour", -1),
+            ("work_end_hour", 24),
+        ],
+    )
+    def test_worker_config_invalid_bounds(self, field: str, invalid_value: int) -> None:
         """Test that out-of-bounds values raise ValidationError."""
         with pytest.raises(ValidationError):
             WorkerConfig(**{field: invalid_value})
@@ -465,12 +471,15 @@ class TestTeamConfig:
         assert config.cross_team_communication_enabled is False
         assert config.max_peer_teams == 5
 
-    @pytest.mark.parametrize(("field", "min_val", "max_val"), [
-        ("min_members", 1, None),
-        ("max_members", None, 50),
-        ("manager_ratio", 0.0, 0.5),
-        ("max_peer_teams", 0, 10),
-    ])
+    @pytest.mark.parametrize(
+        ("field", "min_val", "max_val"),
+        [
+            ("min_members", 1, None),
+            ("max_members", None, 50),
+            ("manager_ratio", 0.0, 0.5),
+            ("max_peer_teams", 0, 10),
+        ],
+    )
     def test_team_config_field_bounds(
         self, field: str, min_val: float | None, max_val: float | None
     ) -> None:
@@ -483,17 +492,18 @@ class TestTeamConfig:
             config_max = TeamConfig(**{field: max_val})
             assert getattr(config_max, field) == max_val
 
-    @pytest.mark.parametrize(("field", "invalid_value"), [
-        ("min_members", 0),
-        ("max_members", 51),
-        ("manager_ratio", -0.1),
-        ("manager_ratio", 0.6),
-        ("max_peer_teams", -1),
-        ("max_peer_teams", 11),
-    ])
-    def test_team_config_invalid_bounds(
-        self, field: str, invalid_value: float
-    ) -> None:
+    @pytest.mark.parametrize(
+        ("field", "invalid_value"),
+        [
+            ("min_members", 0),
+            ("max_members", 51),
+            ("manager_ratio", -0.1),
+            ("manager_ratio", 0.6),
+            ("max_peer_teams", -1),
+            ("max_peer_teams", 11),
+        ],
+    )
+    def test_team_config_invalid_bounds(self, field: str, invalid_value: float) -> None:
         """Test that out-of-bounds values raise ValidationError."""
         with pytest.raises(ValidationError):
             TeamConfig(**{field: invalid_value})
@@ -516,30 +526,35 @@ class TestTeamConfig:
 class TestNamingConventions:
     """Tests for Knowledge Worker naming conventions from ARCHITECTURE.md."""
 
-    @pytest.mark.parametrize(("run_id", "dept", "index", "expected"), [
-        ("abc12345-full-uuid", "engineering", 1, "kw-abc12345-engi-001"),
-        ("xyz99999-full-uuid", "executive", 5, "kw-xyz99999-exec-005"),
-        ("test1234-full-uuid", "legal", 10, "kw-test1234-lega-010"),
-        ("run00001-full-uuid", "hr", 99, "kw-run00001-hr-099"),
-    ])
-    def test_worker_id_pattern(
-        self, run_id: str, dept: str, index: int, expected: str
-    ) -> None:
+    @pytest.mark.parametrize(
+        ("run_id", "dept", "index", "expected"),
+        [
+            ("abc12345-full-uuid", "engineering", 1, "kw-abc12345-engi-001"),
+            ("xyz99999-full-uuid", "executive", 5, "kw-xyz99999-exec-005"),
+            ("test1234-full-uuid", "legal", 10, "kw-test1234-lega-010"),
+            ("run00001-full-uuid", "hr", 99, "kw-run00001-hr-099"),
+        ],
+    )
+    def test_worker_id_pattern(self, run_id: str, dept: str, index: int, expected: str) -> None:
         """Test worker ID follows naming pattern: kw-{run_id[:8]}-{dept[:4]}-{index:03d}."""
         # Pattern from ARCHITECTURE.md: kw-{run_id[:8]}-{dept[:4]}-{index:03d}
         generated_id = f"kw-{run_id[:8]}-{dept[:4]}-{index:03d}"
         assert generated_id == expected
 
-    @pytest.mark.parametrize(("worker_id", "expected_valid"), [
-        ("kw-abc12345-engi-001", True),
-        ("kw-abc12345-exec-999", True),
-        ("invalid-worker-id", False),
-        ("kw-short-e-1", False),  # Too short components
-        ("", False),
-    ])
+    @pytest.mark.parametrize(
+        ("worker_id", "expected_valid"),
+        [
+            ("kw-abc12345-engi-001", True),
+            ("kw-abc12345-exec-999", True),
+            ("invalid-worker-id", False),
+            ("kw-short-e-1", False),  # Too short components
+            ("", False),
+        ],
+    )
     def test_worker_id_validation(self, worker_id: str, expected_valid: bool) -> None:
         """Test worker ID validation pattern."""
         import re
+
         pattern = r"^kw-[a-z0-9]{8}-[a-z]{2,4}-\d{3}$"
         is_valid = bool(re.match(pattern, worker_id))
         assert is_valid == expected_valid

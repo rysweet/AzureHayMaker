@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Demo: haymaker kw list-workers --run-id kw-250569d9"""
+
 import json
 from pathlib import Path
 
@@ -25,6 +26,8 @@ if workers_dir.exists():
     for worker_file in sorted(workers_dir.glob("*.json")):
         with open(worker_file) as f:
             worker = json.load(f)
-            print(f"{worker['worker_id']:<30} {worker['department']:<15} {worker.get('endpoint_type', 'N/A'):<15}")
+            print(
+                f"{worker['worker_id']:<30} {worker['department']:<15} {worker.get('endpoint_type', 'N/A'):<15}"
+            )
 
 print(f"\nTotal Workers: {state['worker_count']}")

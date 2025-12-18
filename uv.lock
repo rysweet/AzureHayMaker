@@ -289,6 +289,7 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
     { name = "pywinrm" },
+    { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
@@ -346,6 +347,7 @@ requires-dist = [
     { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.14.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "pywinrm", specifier = ">=0.4.3" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8.0" },
 ]
 provides-extras = ["dev"]

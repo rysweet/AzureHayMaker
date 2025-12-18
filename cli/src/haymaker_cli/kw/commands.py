@@ -31,6 +31,16 @@ from haymaker_cli.common.config_loader import (
     load_config_file,
     merge_with_cli_args,
 )
+from haymaker_cli.kw.licenses import (
+    list_licenses_command,
+    reclaim_licenses_command,
+)
+from haymaker_cli.kw.monitoring import (
+    check_telemetry_command,
+    list_resources_command,
+    list_workers_command,
+    monitor_command,
+)
 
 console = Console()
 
@@ -78,7 +88,7 @@ def kw():
     """
 
 
-@kw.command()
+@kw.command()  # type: ignore[misc]
 @click.option(
     "--tenant-id",
     help="Azure tenant ID (auto-detected if not provided)",
@@ -177,7 +187,7 @@ def init(
         sys.exit(1)
 
 
-@kw.command()
+@kw.command()  # type: ignore[misc]
 @click.option(
     "--format",
     "output_format",
@@ -214,7 +224,7 @@ def status(ctx: click.Context, output_format: str):
         sys.exit(1)
 
 
-@kw.command("list-personas")
+@kw.command("list-personas")  # type: ignore[misc]
 @click.option(
     "--format",
     "output_format",
@@ -289,7 +299,7 @@ def list_personas(ctx: click.Context, output_format: str):
         sys.exit(1)
 
 
-@kw.command()
+@kw.command()  # type: ignore[misc]
 @click.option(
     "--persona",
     type=click.Choice(
@@ -396,7 +406,7 @@ def test(
         sys.exit(1)
 
 
-@kw.command()
+@kw.command()  # type: ignore[misc]
 @click.option(
     "--format",
     "output_format",
@@ -630,7 +640,7 @@ def _truncate_directive(directive: str, max_length: int = 80) -> str:
     """Truncate directive for display if needed."""
     if len(directive) <= max_length:
         return directive
-    return directive[:max_length - 3] + "..."
+    return directive[: max_length - 3] + "..."
 
 
 def _display_email_config(
@@ -664,15 +674,19 @@ def _display_email_config(
         if workers is not None and duration is not None:
             estimated_emails = workers * 4 * duration  # 4 emails/hour default
             console.print("\n[yellow]  ⚠️  API Cost Estimation:[/yellow]")
-            console.print(f"[yellow]    - Estimated emails: ~{estimated_emails} ({workers} workers × 4/hr × {duration}h)[/yellow]")
+            console.print(
+                f"[yellow]    - Estimated emails: ~{estimated_emails} ({workers} workers × 4/hr × {duration}h)[/yellow]"
+            )
             console.print(f"[yellow]    - API calls: ~{estimated_emails}[/yellow]")
-            console.print("[yellow]    - Estimated cost: Variable (depends on model and token usage)[/yellow]")
+            console.print(
+                "[yellow]    - Estimated cost: Variable (depends on model and token usage)[/yellow]"
+            )
             console.print("[dim]      Check Anthropic pricing for details[/dim]")
     else:
         console.print("  AI Email Generation: Disabled (using templates)")
 
 
-@kw.command()
+@kw.command()  # type: ignore[misc]
 @click.option(
     "--config-file",
     type=click.Path(exists=True),
@@ -801,7 +815,7 @@ def deploy(
         config_data = result.data or {}
 
         # Mark all loaded values as from file
-        for key in config_data.keys():
+        for key in config_data:
             source_map[key] = ConfigSource.FILE
 
     # If no config file, use CLI defaults for backward compatibility
@@ -828,7 +842,7 @@ def deploy(
                 },
             }
         }
-        for key in config_data.keys():
+        for key in config_data:
             source_map[key] = ConfigSource.DEFAULT
 
     # Gather CLI overrides
@@ -865,7 +879,7 @@ def deploy(
         source_map["departments"] = ConfigSource.CLI
     elif endpoint_type is not None and "departments" in config_data:
         # Update endpoint type in all departments
-        for dept_name, dept_config in config_data["departments"].items():
+        for dept_config in config_data["departments"].values():
             dept_config["endpoint_type"] = endpoint_type
         source_map["departments"] = ConfigSource.CLI
 
@@ -898,25 +912,37 @@ def deploy(
         final_email_directive = None
 
     if final_email_directive is not None and len(final_email_directive) > 1000:
-        console.print(f"[red]Error: Email directive must be 1000 characters or less (current: {len(final_email_directive)})[/red]")
+        console.print(
+            f"[red]Error: Email directive must be 1000 characters or less (current: {len(final_email_directive)})[/red]"
+        )
         sys.exit(1)
 
     if len(final_marker_format) > 50:
-        console.print(f"[red]Error: Marker format must be 50 characters or less (current: {len(final_marker_format)})[/red]")
+        console.print(
+            f"[red]Error: Marker format must be 50 characters or less (current: {len(final_marker_format)})[/red]"
+        )
         sys.exit(1)
 
     if final_enable_ai and not os.getenv("ANTHROPIC_API_KEY", "").strip():
-        console.print("[red]Error: ANTHROPIC_API_KEY environment variable required for AI generation[/red]")
+        console.print(
+            "[red]Error: ANTHROPIC_API_KEY environment variable required for AI generation[/red]"
+        )
         console.print("[dim]Set with: export ANTHROPIC_API_KEY='your-key-here'[/dim]")
         sys.exit(1)
 
     # Warn if directive provided without AI enabled
     if final_email_directive is not None and not final_enable_ai:
-        console.print("[yellow]Warning: --email-directive ignored without --enable-ai-generation[/yellow]")
+        console.print(
+            "[yellow]Warning: --email-directive ignored without --enable-ai-generation[/yellow]"
+        )
 
     try:
         # Check if KW framework is available
-        if DeploymentConfig is None or KnowledgeWorkerOrchestrator is None or EmailGenerationConfig is None:
+        if (
+            DeploymentConfig is None
+            or KnowledgeWorkerOrchestrator is None
+            or EmailGenerationConfig is None
+        ):
             raise ImportError("KW framework components not available")
 
         console.print("[cyan]Preparing KW deployment...[/cyan]")
@@ -936,7 +962,9 @@ def deploy(
 
         console.print(f"  Name: {final_name} {get_source_indicator('name')}")
         console.print(f"  Workers: {final_workers} {get_source_indicator('total_workers')}")
-        console.print(f"  Tenant Domain: {final_tenant_domain} {get_source_indicator('tenant_domain')}")
+        console.print(
+            f"  Tenant Domain: {final_tenant_domain} {get_source_indicator('tenant_domain')}"
+        )
         console.print(f"  Duration: {final_duration}h {get_source_indicator('duration_hours')}")
 
         # Show department breakdown
@@ -948,9 +976,13 @@ def deploy(
 
         # Display email configuration with source indicators
         _display_email_config(
-            final_enable_markers, final_marker_style, final_marker_format,
-            final_enable_ai, final_email_directive,
-            final_workers, final_duration
+            final_enable_markers,
+            final_marker_style,
+            final_marker_format,
+            final_enable_ai,
+            final_email_directive,
+            final_workers,
+            final_duration,
         )
 
         console.print()
@@ -1007,7 +1039,7 @@ def deploy(
             endpoint_descriptions = {
                 "cli_container": "CLI containers",
                 "windows_vm": "Windows VMs",
-                "cloud_pc": "Cloud PCs"
+                "cloud_pc": "Cloud PCs",
             }
             for ep_type in endpoint_types_used:
                 ep_desc = endpoint_descriptions.get(ep_type, "Endpoints")
@@ -1016,9 +1048,13 @@ def deploy(
             # Email configuration section (uses helper function)
             console.print("\n[cyan]Email Configuration:[/cyan]")
             _display_email_config(
-                final_enable_markers, final_marker_style, final_marker_format,
-                final_enable_ai, final_email_directive,
-                final_workers, final_duration
+                final_enable_markers,
+                final_marker_style,
+                final_marker_format,
+                final_enable_ai,
+                final_email_directive,
+                final_workers,
+                final_duration,
             )
 
             return
@@ -1032,6 +1068,11 @@ def deploy(
             console.print("[red]Error: Missing M365 credentials[/red]")
             console.print("Set KW_APP_ID, KW_CLIENT_SECRET, and KW_TENANT_ID environment variables")
             sys.exit(1)
+
+        # Type guard: after the check above, we know these are non-None
+        assert tenant_id is not None
+        assert app_id is not None
+        assert client_secret is not None
 
         # Create Graph API client
         from azure.identity import ClientSecretCredential
@@ -1053,6 +1094,7 @@ def deploy(
 
         # Run deployment (sync wrapper around async)
         import asyncio
+
         asyncio.run(orchestrator.start_deployment(run_id))
 
         # Get final state
@@ -1083,31 +1125,18 @@ def deploy(
         sys.exit(1)
 
 
-# Import monitoring commands
-# Import license management commands
-from haymaker_cli.kw.licenses import (
-    list_licenses_command,
-    reclaim_licenses_command,
-)
-from haymaker_cli.kw.monitoring import (
-    check_telemetry_command,
-    list_resources_command,
-    list_workers_command,
-    monitor_command,
-)
-
 # Register monitoring commands
-kw.add_command(list_workers_command, name="list-workers")
-kw.add_command(check_telemetry_command, name="check-telemetry")
-kw.add_command(monitor_command, name="monitor")
-kw.add_command(list_resources_command, name="list-resources")
+kw.add_command(list_workers_command, name="list-workers")  # type: ignore[arg-type]
+kw.add_command(check_telemetry_command, name="check-telemetry")  # type: ignore[arg-type]
+kw.add_command(monitor_command, name="monitor")  # type: ignore[arg-type]
+kw.add_command(list_resources_command, name="list-resources")  # type: ignore[arg-type]
 
 # Register license management commands
-kw.add_command(list_licenses_command, name="list-licenses")
-kw.add_command(reclaim_licenses_command, name="reclaim-licenses")
+kw.add_command(list_licenses_command, name="list-licenses")  # type: ignore[arg-type]
+kw.add_command(reclaim_licenses_command, name="reclaim-licenses")  # type: ignore[arg-type]
 
 
-@kw.command("e2e-test")
+@kw.command("e2e-test")  # type: ignore[misc]
 @click.option(
     "--app-id",
     envvar="KW_APP_ID",
@@ -1181,7 +1210,7 @@ def e2e_test(
 
     async def run_tests():
         from azure.identity import ClientSecretCredential
-        from msgraph import GraphServiceClient
+        from msgraph.graph_service_client import GraphServiceClient
 
         results = []
 
@@ -1200,6 +1229,7 @@ def e2e_test(
 
         # Test 1: List users
         console.print("[cyan]Test 1:[/cyan] List tenant users...")
+        users = None
         try:
             users = await client.users.get()
             user_count = len(users.value) if users and users.value else 0
@@ -1258,11 +1288,12 @@ def e2e_test(
                 if users and users.value:
                     for user in users.value[:10]:
                         try:
-                            msgs = await client.users.by_user_id(
-                                user.user_principal_name
-                            ).messages.get()
+                            user_principal_name = getattr(user, "user_principal_name", None)
+                            if not user_principal_name:
+                                continue
+                            msgs = await client.users.by_user_id(user_principal_name).messages.get()
                             if msgs is not None:
-                                mailbox_users.append(user.user_principal_name)
+                                mailbox_users.append(user_principal_name)
                                 if len(mailbox_users) >= 2:
                                     break
                         except Exception as e:
@@ -1321,9 +1352,11 @@ def e2e_test(
                     ),
                 )
                 result = await client.users.by_user_id(sender).calendar.events.post(event)
-                console.print(f"  [green]PASS[/green] - Created calendar event: {result.subject}")
+                event_subject = getattr(result, "subject", "Unknown") if result else "Unknown"
+                event_id = getattr(result, "id", "Unknown") if result else "Unknown"
+                console.print(f"  [green]PASS[/green] - Created calendar event: {event_subject}")
                 results.append(
-                    {"test": "Create Calendar Event", "status": "PASS", "details": result.id}
+                    {"test": "Create Calendar Event", "status": "PASS", "details": event_id}
                 )
             except Exception as e:
                 console.print(f"  [red]FAIL[/red] - {e}")
@@ -1386,9 +1419,11 @@ def e2e_test(
         sys.exit(1)
 
 
-@kw.command()
+@kw.command()  # type: ignore[misc]
 @click.option("--run-id", required=True, help="Deployment run ID")
-@click.option("--format", type=click.Choice(["table", "json", "yaml"]), default="table", help="Output format")
+@click.option(
+    "--format", type=click.Choice(["table", "json", "yaml"]), default="table", help="Output format"
+)
 @click.option("--output", type=click.Path(), help="Output file path")
 def telemetry_report(run_id: str, format: str, output: str | None):
     """Generate telemetry report for a KW deployment.
@@ -1414,13 +1449,18 @@ def telemetry_report(run_id: str, format: str, output: str | None):
         console.print("[red]Error: Missing M365 credentials[/red]")
         return
 
+    # Type guard: after the check above, we know these are non-None
+    assert tenant_id is not None
+    assert app_id is not None
+    assert client_secret is not None
+
     async def collect():
         cred = ClientSecretCredential(tenant_id, app_id, client_secret)
         graph_client = GraphServiceClient(cred)
         collector = M365TelemetryCollector(graph_client, run_id)
 
         console.print(f"\n[cyan]Collecting telemetry for: {run_id}[/cyan]\n")
-        summary = await collector.get_run_summary(hours_back=48)
+        summary = await collector.get_run_summary(workers=[])
 
         if format == "table":
             console.print("[bold]Activity Summary[/bold]\n")
@@ -1430,6 +1470,7 @@ def telemetry_report(run_id: str, format: str, output: str | None):
             console.print(f"Teams Messages: {summary.get('total_teams_messages', 0)}")
         elif format == "json":
             import json
+
             output_str = json.dumps(summary, indent=2, default=str)
             if output:
                 with open(output, "w") as f:

@@ -147,9 +147,7 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
         logger.info(f"Creating SP for {scenario_name} using client_id={(client_id or '')[:8]}...")
 
         credential = ClientSecretCredential(
-            tenant_id=tenant_id,
-            client_id=client_id,
-            client_secret=client_secret
+            tenant_id=tenant_id, client_id=client_id, client_secret=client_secret
         )
         graph_client = GraphServiceClient(credential)
 
@@ -163,7 +161,9 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
             app = await graph_client.applications.post(app_request_body)
         except Exception as e:
             logger.error(f"Graph API application creation failed: {type(e).__name__}: {str(e)}")
-            raise ServicePrincipalError(f"Graph API create app failed: {type(e).__name__}: {e}") from e
+            raise ServicePrincipalError(
+                f"Graph API create app failed: {type(e).__name__}: {e}"
+            ) from e
 
         if not app:
             raise ServicePrincipalError("Failed to create application registration")
@@ -183,11 +183,15 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
                     break
             except Exception as e:
                 if attempt < max_retries - 1:
-                    wait_time = 2 ** attempt  # Exponential backoff: 1, 2, 4, 8, 16 seconds
-                    logger.warning(f"Application not yet propagated (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s: {e}")
+                    wait_time = 2**attempt  # Exponential backoff: 1, 2, 4, 8, 16 seconds
+                    logger.warning(
+                        f"Application not yet propagated (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s: {e}"
+                    )
                     await asyncio.sleep(wait_time)
                 else:
-                    raise ServicePrincipalError(f"Application failed to propagate after {max_retries} attempts") from e
+                    raise ServicePrincipalError(
+                        f"Application failed to propagate after {max_retries} attempts"
+                    ) from e
 
         # Create service principal with retry (handles eventual consistency)
         sp_request_body = ServicePrincipal()
@@ -203,11 +207,15 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
                 break
             except Exception as e:
                 if attempt < max_retries - 1:
-                    wait_time = 2 ** attempt
-                    logger.warning(f"SP creation failed (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s: {e}")
+                    wait_time = 2**attempt
+                    logger.warning(
+                        f"SP creation failed (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s: {e}"
+                    )
                     await asyncio.sleep(wait_time)
                 else:
-                    raise ServicePrincipalError(f"Failed to create SP after {max_retries} attempts: {e}") from e
+                    raise ServicePrincipalError(
+                        f"Failed to create SP after {max_retries} attempts: {e}"
+                    ) from e
 
         if not sp:
             raise ServicePrincipalError("Failed to create service principal")
@@ -231,18 +239,22 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
             try:
                 # Graph SDK async method - await directly
                 # Note: by_application_id() expects the application's object ID (app.id), not appId
-                password_result = await graph_client.applications.by_application_id(app.id).add_password.post(
-                    password_credential_request
-                )
+                password_result = await graph_client.applications.by_application_id(
+                    app.id
+                ).add_password.post(password_credential_request)
                 logger.info(f"Password added successfully after {attempt + 1} attempts")
                 break
             except Exception as e:
                 if attempt < max_retries - 1:
-                    wait_time = 2 ** attempt
-                    logger.warning(f"Password addition failed (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s: {e}")
+                    wait_time = 2**attempt
+                    logger.warning(
+                        f"Password addition failed (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s: {e}"
+                    )
                     await asyncio.sleep(wait_time)
                 else:
-                    raise ServicePrincipalError(f"Failed to add password after {max_retries} attempts: {e}") from e
+                    raise ServicePrincipalError(
+                        f"Failed to add password after {max_retries} attempts: {e}"
+                    ) from e
 
         if not password_result:
             raise ServicePrincipalError("Failed to generate service principal secret")
@@ -457,15 +469,9 @@ class SecretExpirationInfo(BaseModel):
 
     sp_name: str = Field(..., description="Service principal name")
     client_id: str = Field(..., description="Application (client) ID")
-    secret_expires_at: datetime | None = Field(
-        default=None, description="When the secret expires"
-    )
-    days_until_expiration: int | None = Field(
-        default=None, description="Days until expiration"
-    )
-    needs_rotation: bool = Field(
-        default=False, description="Whether rotation is recommended"
-    )
+    secret_expires_at: datetime | None = Field(default=None, description="When the secret expires")
+    days_until_expiration: int | None = Field(default=None, description="Days until expiration")
+    needs_rotation: bool = Field(default=False, description="Whether rotation is recommended")
     is_expired: bool = Field(default=False, description="Whether secret is expired")
 
 
@@ -600,9 +606,7 @@ async def rotate_service_principal_secret(  # pyright: ignore[reportGeneralTypeI
         client_secret = os.getenv("AZURE_CLIENT_SECRET")
 
         credential = ClientSecretCredential(
-            tenant_id=tenant_id,
-            client_id=client_id,
-            client_secret=client_secret
+            tenant_id=tenant_id, client_id=client_id, client_secret=client_secret
         )
         graph_client = GraphServiceClient(credential)
 
@@ -698,7 +702,7 @@ async def rotate_service_principal_secret(  # pyright: ignore[reportGeneralTypeI
                 break
             except Exception as e:
                 if attempt < max_retries - 1:
-                    wait_time = 2 ** attempt
+                    wait_time = 2**attempt
                     logger.warning(
                         f"Password addition failed (attempt {attempt + 1}/{max_retries}), "
                         f"waiting {wait_time}s: {e}"
@@ -765,9 +769,7 @@ async def check_and_rotate_expiring_secrets(
 
         for sp_name in sp_names:
             try:
-                expiration_info = await check_secret_expiration(
-                    sp_name, warning_threshold_days
-                )
+                expiration_info = await check_secret_expiration(sp_name, warning_threshold_days)
                 results.append(expiration_info)
 
                 if auto_rotate and expiration_info.needs_rotation:
@@ -782,9 +784,7 @@ async def check_and_rotate_expiring_secrets(
                         secret_validity_days=secret_validity_days,
                     )
                     # Update expiration info after rotation
-                    expiration_info = await check_secret_expiration(
-                        sp_name, warning_threshold_days
-                    )
+                    expiration_info = await check_secret_expiration(sp_name, warning_threshold_days)
                     # Replace the old info with updated
                     results[-1] = expiration_info
 

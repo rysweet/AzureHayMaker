@@ -56,9 +56,7 @@ class MockGraphClient:
         channels_mock = MagicMock()
         channel_mock = MagicMock()
         channel_messages_mock = MagicMock()
-        channel_messages_mock.post = AsyncMock(
-            return_value=MockGraphResponse(id="message-123")
-        )
+        channel_messages_mock.post = AsyncMock(return_value=MockGraphResponse(id="message-123"))
         channel_mock.messages = channel_messages_mock
         channels_mock.by_channel_id = MagicMock(return_value=channel_mock)
         channels_mock.post = AsyncMock(return_value=MockGraphResponse(id="channel-456"))
@@ -413,8 +411,8 @@ class TestMessaging:
         )
 
         # Mock message posting to fail
-        teams_integration.graph_client.teams.by_team_id().channels.by_channel_id().messages.post = AsyncMock(
-            side_effect=Exception("API Error")
+        teams_integration.graph_client.teams.by_team_id().channels.by_channel_id().messages.post = (
+            AsyncMock(side_effect=Exception("API Error"))
         )
 
         with pytest.raises(TeamsIntegrationError):
@@ -534,10 +532,7 @@ class TestEdgeCases:
     async def test_default_channels_excludes_general(self, teams_integration):
         """Test default channels list excludes General."""
         # Get default channels that would be created
-        default_channels = [
-            ch for ch in teams_integration.DEFAULT_CHANNELS
-            if ch != "General"
-        ]
+        default_channels = [ch for ch in teams_integration.DEFAULT_CHANNELS if ch != "General"]
 
         assert "General" not in default_channels
         assert "Projects" in default_channels

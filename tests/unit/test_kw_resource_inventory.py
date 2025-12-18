@@ -26,6 +26,7 @@ try:
         KnowledgeWorkerCleanupManager,
         KnowledgeWorkerResourceInventory,
     )
+
     CLEANUP_AVAILABLE = True
 except ImportError:
     CLEANUP_AVAILABLE = False
@@ -35,8 +36,7 @@ except ImportError:
 
 
 pytestmark = pytest.mark.skipif(
-    not CLEANUP_AVAILABLE,
-    reason="Knowledge Worker cleanup module not yet implemented"
+    not CLEANUP_AVAILABLE, reason="Knowledge Worker cleanup module not yet implemented"
 )
 
 
@@ -77,9 +77,7 @@ class TestResourceRegistration:
         """Create a fresh inventory for each test."""
         return KnowledgeWorkerResourceInventory(run_id="run-test123")
 
-    def test_register_entra_user(
-        self, inventory: KnowledgeWorkerResourceInventory
-    ) -> None:
+    def test_register_entra_user(self, inventory: KnowledgeWorkerResourceInventory) -> None:
         """Test registering an Entra user resource."""
         inventory.register("entra_users", "user-obj-id-123")
 
@@ -122,16 +120,19 @@ class TestResourceRegistration:
 
         assert "unknown_type" not in inventory.resources
 
-    @pytest.mark.parametrize(("resource_type", "resource_id"), [
-        ("entra_users", "user-abc-123"),
-        ("security_groups", "sg-def-456"),
-        ("m365_groups", "m365-ghi-789"),
-        ("teams_teams", "teams-jkl-012"),
-        ("cloud_pcs", "cloudpc-mno-345"),
-        ("container_apps", "container-pqr-678"),
-        ("transport_rules", "rule-stu-901"),
-        ("sharepoint_sites", "site-vwx-234"),
-    ])
+    @pytest.mark.parametrize(
+        ("resource_type", "resource_id"),
+        [
+            ("entra_users", "user-abc-123"),
+            ("security_groups", "sg-def-456"),
+            ("m365_groups", "m365-ghi-789"),
+            ("teams_teams", "teams-jkl-012"),
+            ("cloud_pcs", "cloudpc-mno-345"),
+            ("container_apps", "container-pqr-678"),
+            ("transport_rules", "rule-stu-901"),
+            ("sharepoint_sites", "site-vwx-234"),
+        ],
+    )
     def test_register_all_valid_types(
         self,
         inventory: KnowledgeWorkerResourceInventory,
@@ -261,20 +262,22 @@ class TestJsonSerialization:
 
     def test_from_json_with_manual_json(self) -> None:
         """Test from_json with manually constructed JSON."""
-        manual_json = json.dumps({
-            "run_id": "manual-run-id",
-            "resources": {
-                "entra_users": ["user-a", "user-b"],
-                "security_groups": ["sg-x"],
-                "m365_groups": [],
-                "teams_teams": [],
-                "cloud_pcs": [],
-                "container_apps": ["app-1"],
-                "transport_rules": [],
-                "sharepoint_sites": [],
-            },
-            "created_at": datetime.now(UTC).isoformat(),
-        })
+        manual_json = json.dumps(
+            {
+                "run_id": "manual-run-id",
+                "resources": {
+                    "entra_users": ["user-a", "user-b"],
+                    "security_groups": ["sg-x"],
+                    "m365_groups": [],
+                    "teams_teams": [],
+                    "cloud_pcs": [],
+                    "container_apps": ["app-1"],
+                    "transport_rules": [],
+                    "sharepoint_sites": [],
+                },
+                "created_at": datetime.now(UTC).isoformat(),
+            }
+        )
 
         restored = KnowledgeWorkerResourceInventory.from_json(manual_json)
 
@@ -408,13 +411,13 @@ class TestResourceCleanupOrdering:
     def test_cleanup_order_documentation(self) -> None:
         """Document expected cleanup order for implementation reference."""
         expected_cleanup_order = [
-            "container_apps",      # 1-2. Stop and delete containers
-            "cloud_pcs",           # 3. Delete Cloud PCs
-            "transport_rules",     # 4. Remove transport rules
-            "teams_teams",         # 5. Delete Teams teams
-            "m365_groups",         # 6. Delete M365 groups
-            "security_groups",     # 7. Delete security groups
-            "entra_users",         # 8. Delete users (last)
+            "container_apps",  # 1-2. Stop and delete containers
+            "cloud_pcs",  # 3. Delete Cloud PCs
+            "transport_rules",  # 4. Remove transport rules
+            "teams_teams",  # 5. Delete Teams teams
+            "m365_groups",  # 6. Delete M365 groups
+            "security_groups",  # 7. Delete security groups
+            "entra_users",  # 8. Delete users (last)
         ]
 
         # This test documents the expected order
@@ -451,15 +454,18 @@ class TestResourceCleanupOrdering:
 class TestResourceTagging:
     """Tests for resource tagging conventions from ARCHITECTURE.md."""
 
-    @pytest.mark.parametrize(("tag_key", "description"), [
-        ("AzureHayMaker-managed", "Identifies managed resources"),
-        ("RunId", "Associates with specific run"),
-        ("Component", "Identifies framework (knowledge-worker)"),
-        ("WorkerId", "Worker association"),
-        ("Department", "Department grouping"),
-        ("TeamId", "Team association"),
-        ("CreatedAt", "Creation timestamp"),
-    ])
+    @pytest.mark.parametrize(
+        ("tag_key", "description"),
+        [
+            ("AzureHayMaker-managed", "Identifies managed resources"),
+            ("RunId", "Associates with specific run"),
+            ("Component", "Identifies framework (knowledge-worker)"),
+            ("WorkerId", "Worker association"),
+            ("Department", "Department grouping"),
+            ("TeamId", "Team association"),
+            ("CreatedAt", "Creation timestamp"),
+        ],
+    )
     def test_expected_tags_documented(self, tag_key: str, description: str) -> None:
         """Document expected resource tags for implementation reference."""
         # This test documents the tagging convention

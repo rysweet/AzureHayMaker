@@ -153,7 +153,7 @@ def merge_with_cli_args(
     source_map: dict[str, ConfigSource] = {}
 
     # Mark all file values as from file
-    for key in config_data.keys():
+    for key in config_data:
         source_map[key] = ConfigSource.FILE
 
     # Override with CLI args (only non-None values)
@@ -202,12 +202,17 @@ def _format_validation_error(error: Exception) -> str:
         Formatted error message with actionable details
     """
     # Check if it's a Pydantic validation error
-    if hasattr(error, "errors"):
+    if hasattr(error, "errors") and callable(getattr(error, "errors", None)):
         error_lines = ["Configuration validation failed:"]
-        for err in error.errors():
-            field = ".".join(str(x) for x in err["loc"])
-            msg = err["msg"]
-            error_lines.append(f"  - {field}: {msg}")
+        # Pyright doesn't know Exception subclasses can have errors() method
+        errors_method = error.errors  # type: ignore[attr-defined]
+        errors_list = errors_method()
+        if isinstance(errors_list, list):
+            for err in errors_list:
+                if isinstance(err, dict):
+                    field = ".".join(str(x) for x in err.get("loc", []))
+                    msg = err.get("msg", "Unknown error")
+                    error_lines.append(f"  - {field}: {msg}")
         return "\n".join(error_lines)
 
     # Generic error

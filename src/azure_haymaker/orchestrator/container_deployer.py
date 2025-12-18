@@ -94,7 +94,7 @@ class ContainerDeployer:
             credential = ClientSecretCredential(
                 tenant_id=os.getenv("AZURE_TENANT_ID"),
                 client_id=os.getenv("AZURE_CLIENT_ID"),
-                client_secret=os.getenv("AZURE_CLIENT_SECRET")
+                client_secret=os.getenv("AZURE_CLIENT_SECRET"),
             )
 
             # Build container configuration
@@ -112,8 +112,7 @@ class ContainerDeployer:
             from azure.mgmt.appcontainers import ContainerAppsAPIClient
 
             env_client = ContainerAppsAPIClient(
-                credential=credential,
-                subscription_id=self.subscription_id
+                credential=credential, subscription_id=self.subscription_id
             )
 
             # Get the environment to verify it exists and get its ID
@@ -122,14 +121,18 @@ class ContainerDeployer:
                 env = await asyncio.to_thread(
                     env_client.managed_environments.get,
                     resource_group_name=self.resource_group_name,
-                    environment_name="haymaker-fastapi-cae"
+                    environment_name="haymaker-fastapi-cae",
                 )
                 container_env_id = env.id
                 logger.info(f"✅ Environment lookup succeeded: {container_env_id}")
-                logger.info(f"   Name: {env.name}, State: {env.provisioning_state}, Location: {env.location}")
+                logger.info(
+                    f"   Name: {env.name}, State: {env.provisioning_state}, Location: {env.location}"
+                )
             except Exception as env_error:
                 logger.error(f"❌ Failed to get environment: {env_error}")
-                raise ContainerAppError(f"Container Apps Environment not accessible: {env_error}") from env_error
+                raise ContainerAppError(
+                    f"Container Apps Environment not accessible: {env_error}"
+                ) from env_error
 
             # Per Azure Container Apps API: environmentId must be in properties dict
             # Note: This dict documents the SDK structure but CLI is used for deployment
@@ -184,23 +187,31 @@ class ContainerDeployer:
             )
 
             login_result = await asyncio.to_thread(
-                subprocess.run, login_shell_cmd, shell=True,
-                capture_output=True, text=True, env=os.environ
+                subprocess.run,
+                login_shell_cmd,
+                shell=True,
+                capture_output=True,
+                text=True,
+                env=os.environ,
             )
             if login_result.returncode != 0:
-                logger.warning(f"CLI login warning (may already be logged in): {login_result.stderr}")
+                logger.warning(
+                    f"CLI login warning (may already be logged in): {login_result.stderr}"
+                )
 
             # Build container app using Azure CLI
             # Use valid CPU/memory combo: max is 4 CPU + 8Gi per Azure Container Apps limits
             # Get ACR credentials for registry authentication
             acr_creds = subprocess.run(
                 ["az", "acr", "credential", "show", "--name", "haymakerorchacr", "-o", "json"],
-                capture_output=True, text=True
+                capture_output=True,
+                text=True,
             )
             import json as json_mod
+
             acr_data = json_mod.loads(acr_creds.stdout)
-            acr_username = acr_data['username']
-            acr_password = acr_data['passwords'][0]['value']
+            acr_username = acr_data["username"]
+            acr_password = acr_data["passwords"][0]["value"]
 
             # Build container app command - pass registry password via env var
             # to avoid exposure in process listings
@@ -208,25 +219,41 @@ class ContainerDeployer:
             deploy_env["ACR_PASSWORD"] = acr_password
 
             cli_command = [
-                "az", "containerapp", "create",
-                "--name", app_name,
-                "--resource-group", self.resource_group_name,
-                "--environment", "haymaker-fastapi-cae",
-                "--image", container['image'],
-                "--cpu", "2.0",
-                "--memory", "4.0Gi",
-                "--target-port", "80",
-                "--ingress", "internal",
-                "--min-replicas", "0",
-                "--max-replicas", "1",
-                "--registry-server", "haymakerorchacr.azurecr.io",
-                "--registry-username", acr_username,
+                "az",
+                "containerapp",
+                "create",
+                "--name",
+                app_name,
+                "--resource-group",
+                self.resource_group_name,
+                "--environment",
+                "haymaker-fastapi-cae",
+                "--image",
+                container["image"],
+                "--cpu",
+                "2.0",
+                "--memory",
+                "4.0Gi",
+                "--target-port",
+                "80",
+                "--ingress",
+                "internal",
+                "--min-replicas",
+                "0",
+                "--max-replicas",
+                "1",
+                "--registry-server",
+                "haymakerorchacr.azurecr.io",
+                "--registry-username",
+                acr_username,
                 "--env-vars",
                 f"SCENARIO_NAME={scenario.scenario_name}",
                 f"AZURE_CLIENT_ID={sp.client_id}",
                 f"AZURE_TENANT_ID={self.config.target_tenant_id}",
-                "--query", "properties.latestRevisionFqdn",
-                "-o", "tsv"
+                "--query",
+                "properties.latestRevisionFqdn",
+                "-o",
+                "tsv",
             ]
 
             # Build shell command with password from env var
@@ -234,8 +261,12 @@ class ContainerDeployer:
             shell_cmd = f'{base_cmd} --registry-password "$ACR_PASSWORD"'
 
             result = await asyncio.to_thread(
-                subprocess.run, shell_cmd, shell=True,
-                capture_output=True, text=True, env=deploy_env
+                subprocess.run,
+                shell_cmd,
+                shell=True,
+                capture_output=True,
+                text=True,
+                env=deploy_env,
             )
 
             if result.returncode != 0:

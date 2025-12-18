@@ -21,7 +21,7 @@ from uuid import uuid4
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from azure.core.exceptions import ResourceNotFoundError
-from azure.data.tables import TableServiceClient
+from azure.data.tables import TableServiceClient, UpdateMode
 from azure.identity import DefaultAzureCredential
 from croniter import croniter
 from fastapi import Depends, FastAPI, HTTPException, Query
@@ -369,13 +369,25 @@ async def lifespan(app: FastAPI):
     )
     logger.info("Scheduled default orchestration runs: 00:00, 06:00, 12:00, 18:00 UTC")
 
-    # Load user-defined schedules from storage
-    await _load_schedules_on_startup()
+    # Load user-defined schedules from storage (non-blocking to prevent startup delays)
+    # Run in background task to avoid blocking Container Apps health checks
+    asyncio.create_task(_load_schedules_with_timeout())
 
     yield
 
     logger.info("Shutting down orchestrator server")
     scheduler.shutdown()
+
+
+async def _load_schedules_with_timeout():
+    """Load schedules with timeout to prevent startup delays."""
+    try:
+        async with asyncio.timeout(10):  # 10 second timeout
+            await _load_schedules_on_startup()
+    except TimeoutError:
+        logger.warning("Schedule loading timed out - will retry later")
+    except Exception as e:
+        logger.warning(f"Schedule loading failed: {e}")
 
 
 app = FastAPI(title="Azure HayMaker Orchestrator", lifespan=lifespan)
@@ -412,11 +424,16 @@ async def status(_: AuthDep):
 @app.get("/api/metrics")
 async def metrics(_: AuthDep):
     """Get execution metrics. Requires authentication."""
+    total_execs = len(executions)
+    completed = len([e for e in executions.values() if e["status"] == "completed"])
+
     return {
-        "executions_total": len(executions),
-        "executions_running": len([e for e in executions.values() if e["status"] == "running"]),
-        "executions_completed": len([e for e in executions.values() if e["status"] == "completed"]),
-        "executions_failed": len([e for e in executions.values() if e["status"] == "failed"]),
+        "total_executions": total_execs,
+        "active_agents": len([e for e in executions.values() if e["status"] == "running"]),
+        "total_resources": 0,  # TODO: Query from resource tracking
+        "success_rate": (completed / total_execs) if total_execs > 0 else 0.0,
+        "last_execution": None,  # TODO: Get from most recent execution
+        "period": "7d",
     }
 
 
@@ -550,16 +567,20 @@ async def list_resources(
     """
     try:
         config = await load_config()
+        # query_managed_resources requires non-None run_id, skip if None
+        if not execution_id:
+            return {"resources": [], "count": 0}
+
         resources = await query_managed_resources(
             subscription_id=config.target_subscription_id,
-            run_id=execution_id if execution_id else None,
+            run_id=execution_id,
         )
 
         # Apply filters
         filtered_resources = resources
         if scenario:
             filtered_resources = [
-                r for r in filtered_resources if scenario.lower() in r.name.lower()
+                r for r in filtered_resources if scenario.lower() in r.resource_name.lower()
             ]
         if status:
             # Status filter not implemented in query_managed_resources yet
@@ -569,14 +590,25 @@ async def list_resources(
         filtered_resources = filtered_resources[:limit]
 
         # Convert to response format
+        # Extract resource group and location from resource_id
+        # Format: /subscriptions/{sub}/resourceGroups/{rg}/providers/{provider}/{type}/{name}
+        def parse_resource_id(resource_id: str) -> tuple[str, str]:
+            """Extract resource group from Azure resource ID."""
+            parts = resource_id.split("/")
+            rg_idx = parts.index("resourceGroups") + 1 if "resourceGroups" in parts else -1
+            parts.index("locations") + 1 if "locations" in parts else -1
+            rg = parts[rg_idx] if rg_idx > 0 and rg_idx < len(parts) else "unknown"
+            # Location not in resource_id, use empty string
+            return rg, ""
+
         return {
             "resources": [
                 {
                     "id": r.resource_id,
-                    "name": r.name,
+                    "name": r.resource_name,
                     "type": r.resource_type,
-                    "resourceGroup": r.resource_group,
-                    "location": r.location,
+                    "resourceGroup": parse_resource_id(r.resource_id)[0],
+                    "location": parse_resource_id(r.resource_id)[1],
                     "tags": r.tags,
                 }
                 for r in filtered_resources
@@ -586,6 +618,63 @@ async def list_resources(
         }
     except Exception as e:
         logger.error(f"Failed to list resources: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.get("/api/agents")
+async def list_agents(
+    _: AuthDep,
+    status: str | None = Query(None, description="Filter by status (running/completed/failed)"),
+    limit: int = Query(100, description="Maximum number of results"),
+):
+    """List all agents. Requires authentication.
+
+    Queries Table Storage for agent execution information.
+
+    Args:
+        status: Optional status filter
+        limit: Maximum results (default 100)
+
+    Returns:
+        List of agents with metadata
+    """
+    try:
+        # Import agents API functions
+        from azure_haymaker.orchestrator.agents_api import AgentInfo, query_agents_from_table
+
+        # Get Table Storage configuration
+        table_account_name = os.getenv("TABLE_STORAGE_ACCOUNT_NAME")
+        table_name = os.getenv("AGENTS_TABLE_NAME", "agents")
+
+        if not table_account_name:
+            raise HTTPException(
+                status_code=500,
+                detail="Agents storage not configured. Set TABLE_STORAGE_ACCOUNT_NAME."
+            )
+
+        # Create Table Storage client
+        credential = DefaultAzureCredential()
+        table_service_client = TableServiceClient(
+            endpoint=f"https://{table_account_name}.table.core.windows.net",
+            credential=credential,
+        )
+        table_client = table_service_client.get_table_client(table_name)
+
+        # Query agents
+        agents = await query_agents_from_table(
+            table_client,
+            status_filter=status,
+            limit=limit,
+        )
+
+        # Build response
+        return {
+            "agents": [agent.model_dump(mode="json") for agent in agents],
+            "count": len(agents),
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to list agents: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -927,7 +1016,7 @@ async def update_schedule(schedule_id: str, request: ScheduleUpdate, _: AuthDep)
 
         # Update in Table Storage
         updated_entity = _schedule_to_entity(schedule)
-        table_client.update_entity(entity=updated_entity, mode="replace")
+        table_client.update_entity(entity=updated_entity, mode=UpdateMode.REPLACE)
 
         # Re-schedule APScheduler job if cron or enabled state changed
         if cron_changed:
@@ -1301,7 +1390,7 @@ async def run_orchestration(
             container_client = blob_service_client.get_container_client("execution-reports")
             blob_client = container_client.get_blob_client(f"{run_id}/report.json")
 
-            await blob_client.upload_blob(
+            blob_client.upload_blob(
                 json.dumps(execution_report, indent=2),
                 overwrite=True,
             )

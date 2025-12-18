@@ -17,7 +17,7 @@ import logging
 from typing import Any
 
 from azure.identity import DefaultAzureCredential
-from msgraph import GraphServiceClient
+from msgraph.graph_service_client import GraphServiceClient
 
 from azure_haymaker.knowledge_worker.teams_integration import (
     TeamsIntegration,
@@ -100,13 +100,13 @@ async def create_teams_for_teams_activity(params: dict[str, Any]) -> dict[str, A
             members = team_config.get("members", [])
 
             if not m365_group_id or not department:
-                logger.warning(
-                    "Skipping team config: missing m365_group_id or department"
+                logger.warning("Skipping team config: missing m365_group_id or department")
+                results.append(
+                    {
+                        "status": "failed",
+                        "error": "missing m365_group_id or department",
+                    }
                 )
-                results.append({
-                    "status": "failed",
-                    "error": "missing m365_group_id or department",
-                })
                 continue
 
             try:
@@ -119,35 +119,41 @@ async def create_teams_for_teams_activity(params: dict[str, Any]) -> dict[str, A
                     post_welcome_message=True,
                 )
 
-                results.append({
-                    "team_id": team_result["team_id"],
-                    "team_name": team_result["team_name"],
-                    "m365_group_id": m365_group_id,
-                    "status": "success",
-                    "members_added": team_result["members"]["success"],
-                    "channels_created": len(team_result["channels"]),
-                })
+                results.append(
+                    {
+                        "team_id": team_result["team_id"],
+                        "team_name": team_result["team_name"],
+                        "m365_group_id": m365_group_id,
+                        "status": "success",
+                        "members_added": team_result["members"]["success"],
+                        "channels_created": len(team_result["channels"]),
+                    }
+                )
                 success_count += 1
 
             except TeamsIntegrationError as e:
                 logger.warning(f"Failed to create team for {department}: {e}")
-                results.append({
-                    "department": department,
-                    "team_num": team_num,
-                    "status": "failed",
-                    "error": str(e),
-                })
+                results.append(
+                    {
+                        "department": department,
+                        "team_num": team_num,
+                        "status": "failed",
+                        "error": str(e),
+                    }
+                )
             except Exception as e:
                 logger.error(
                     f"Unexpected error creating team for {department}: {e}",
                     exc_info=True,
                 )
-                results.append({
-                    "department": department,
-                    "team_num": team_num,
-                    "status": "failed",
-                    "error": f"Unexpected error: {str(e)}",
-                })
+                results.append(
+                    {
+                        "department": department,
+                        "team_num": team_num,
+                        "status": "failed",
+                        "error": f"Unexpected error: {str(e)}",
+                    }
+                )
 
         # Determine overall status
         if success_count == len(teams_config):
@@ -272,34 +278,40 @@ async def setup_team_channels_and_messages_activity(
                     if message_id:
                         total_messages += 1
 
-                results.append({
-                    "team_id": team_id,
-                    "team_name": team_name,
-                    "channels": channel_ids,
-                    "welcome_message_id": message_id,
-                    "status": "success",
-                })
+                results.append(
+                    {
+                        "team_id": team_id,
+                        "team_name": team_name,
+                        "channels": channel_ids,
+                        "welcome_message_id": message_id,
+                        "status": "success",
+                    }
+                )
                 success_count += 1
 
             except TeamsIntegrationError as e:
                 logger.warning(f"Failed to setup channels for team {team_name}: {e}")
-                results.append({
-                    "team_id": team_id,
-                    "team_name": team_name,
-                    "status": "failed",
-                    "error": str(e),
-                })
+                results.append(
+                    {
+                        "team_id": team_id,
+                        "team_name": team_name,
+                        "status": "failed",
+                        "error": str(e),
+                    }
+                )
             except Exception as e:
                 logger.error(
                     f"Unexpected error setting up channels for {team_name}: {e}",
                     exc_info=True,
                 )
-                results.append({
-                    "team_id": team_id,
-                    "team_name": team_name,
-                    "status": "failed",
-                    "error": f"Unexpected error: {str(e)}",
-                })
+                results.append(
+                    {
+                        "team_id": team_id,
+                        "team_name": team_name,
+                        "status": "failed",
+                        "error": f"Unexpected error: {str(e)}",
+                    }
+                )
 
         # Determine overall status
         if success_count == len(teams_channels_config):
@@ -318,8 +330,7 @@ async def setup_team_channels_and_messages_activity(
 
     except Exception as e:
         logger.error(
-            f"Activity: setup_team_channels_and_messages - "
-            f"Unexpected error: {str(e)}",
+            f"Activity: setup_team_channels_and_messages - Unexpected error: {str(e)}",
             exc_info=True,
         )
         return {

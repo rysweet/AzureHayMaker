@@ -155,6 +155,7 @@ module orchestrator 'modules/orchestrator-containerapp.bicep' = {
 output containerAppEnvName string = containerAppsEnv.outputs.environmentName
 output orchestratorName string = orchestrator.outputs.containerAppName
 output orchestratorFqdn string = orchestrator.outputs.fqdn
+output orchestratorPrincipalId string = orchestrator.outputs.principalId
 output keyVaultName string = keyVault.outputs.keyVaultName
 output serviceBusName string = serviceBus.outputs.namespaceName
 output storageName string = storage.outputs.storageAccountName

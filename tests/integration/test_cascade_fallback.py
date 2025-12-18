@@ -26,7 +26,6 @@ try:
         AllEndpointsFailedError,
         EndpointManager,
     )
-
     from azure_haymaker.knowledge_worker.models.worker import (
         EndpointType,
         WorkerIdentity,
@@ -171,9 +170,7 @@ class TestCloudPCToWindowsVMFallback:
 
         print("\n🔄 Testing Cloud PC → Windows VM fallback...")
 
-        result = await endpoint_manager.provision_endpoint_with_fallback(
-            worker=worker
-        )
+        result = await endpoint_manager.provision_endpoint_with_fallback(worker=worker)
 
         # Verify Windows VM was provisioned
         assert result["endpoint_type"] == EndpointType.WINDOWS_VM
@@ -220,9 +217,7 @@ class TestCloudPCToWindowsVMFallback:
 
         print("\n🔄 Testing Cloud PC quota → Windows VM fallback...")
 
-        result = await endpoint_manager.provision_endpoint_with_fallback(
-            worker=worker
-        )
+        result = await endpoint_manager.provision_endpoint_with_fallback(worker=worker)
 
         # Verify Windows VM fallback
         assert result["endpoint_type"] == EndpointType.WINDOWS_VM
@@ -257,17 +252,11 @@ class TestCloudPCToWindowsVMFallback:
         }
         mock_windows_vm_manager.wait_for_provisioning.return_value = True
 
-        await endpoint_manager.provision_endpoint_with_fallback(
-            worker=worker
-        )
+        await endpoint_manager.provision_endpoint_with_fallback(worker=worker)
 
         # Verify logging captured failure reason
         log_output = caplog.text.lower()
-        assert (
-            "permission" in log_output
-            or "failed" in log_output
-            or "fallback" in log_output
-        )
+        assert "permission" in log_output or "failed" in log_output or "fallback" in log_output
 
 
 # ==============================================================================
@@ -298,9 +287,7 @@ class TestWindowsVMToContainerFallback:
         worker = test_workers[0]
 
         # Mock Cloud PC failure
-        mock_cloud_pc_manager.provision_cloud_pc.side_effect = Exception(
-            "Cloud PC unavailable"
-        )
+        mock_cloud_pc_manager.provision_cloud_pc.side_effect = Exception("Cloud PC unavailable")
 
         # Mock Windows VM quota error
         mock_windows_vm_manager.provision_vm.side_effect = Exception(
@@ -311,9 +298,7 @@ class TestWindowsVMToContainerFallback:
 
         print("\n🔄 Testing Windows VM quota → Container fallback...")
 
-        result = await endpoint_manager.provision_endpoint_with_fallback(
-            worker=worker
-        )
+        result = await endpoint_manager.provision_endpoint_with_fallback(worker=worker)
 
         # Verify Container was provisioned
         assert result["endpoint_type"] == EndpointType.CLI_CONTAINER
@@ -360,9 +345,7 @@ class TestWindowsVMToContainerFallback:
 
         print("\n🔄 Testing Windows VM timeout → Container fallback...")
 
-        result = await endpoint_manager.provision_endpoint_with_fallback(
-            worker=worker
-        )
+        result = await endpoint_manager.provision_endpoint_with_fallback(worker=worker)
 
         # Verify Container fallback
         assert result["endpoint_type"] == EndpointType.CLI_CONTAINER
@@ -400,17 +383,13 @@ class TestFullCascadeFallback:
         worker = test_workers[0]
 
         # Mock all failures except Container
-        mock_cloud_pc_manager.provision_cloud_pc.side_effect = Exception(
-            "Cloud PC failed"
-        )
+        mock_cloud_pc_manager.provision_cloud_pc.side_effect = Exception("Cloud PC failed")
         mock_windows_vm_manager.provision_vm.side_effect = Exception("VM failed")
         # Container succeeds (already configured)
 
         print("\n🔄 Testing full cascade: Cloud PC → VM → Container...")
 
-        result = await endpoint_manager.provision_endpoint_with_fallback(
-            worker=worker
-        )
+        result = await endpoint_manager.provision_endpoint_with_fallback(worker=worker)
 
         # Verify Container was final fallback
         assert result["endpoint_type"] == EndpointType.CLI_CONTAINER
@@ -445,9 +424,7 @@ class TestFullCascadeFallback:
         mock_cloud_pc_manager.provision_cloud_pc.side_effect = Exception("PC failed")
         mock_windows_vm_manager.provision_vm.side_effect = Exception("VM failed")
 
-        result = await endpoint_manager.provision_endpoint_with_fallback(
-            worker=worker
-        )
+        result = await endpoint_manager.provision_endpoint_with_fallback(worker=worker)
 
         # Verify metrics include fallback information
         assert "fallback_count" in result or "attempts" in result or result["success"]
@@ -488,9 +465,7 @@ class TestWorkerStateTracking:
         }
         mock_windows_vm_manager.wait_for_provisioning.return_value = True
 
-        result = await endpoint_manager.provision_endpoint_with_fallback(
-            worker=worker
-        )
+        result = await endpoint_manager.provision_endpoint_with_fallback(worker=worker)
 
         # Verify worker state matches actual endpoint
         assert worker.endpoint_type == EndpointType.WINDOWS_VM
@@ -550,10 +525,7 @@ class TestWorkerStateTracking:
         print("\n🔄 Testing multiple workers with different endpoints...")
 
         # Provision all workers
-        tasks = [
-            endpoint_manager.provision_endpoint_with_fallback(worker=w)
-            for w in workers
-        ]
+        tasks = [endpoint_manager.provision_endpoint_with_fallback(worker=w) for w in workers]
         await asyncio.gather(*tasks)
 
         # Verify each worker has correct endpoint type
@@ -589,9 +561,7 @@ class TestCascadeErrorHandling:
         # Mock all endpoints failing
         mock_cloud_pc_manager.provision_cloud_pc.side_effect = Exception("PC failed")
         mock_windows_vm_manager.provision_vm.side_effect = Exception("VM failed")
-        mock_container_manager.provision_container.side_effect = Exception(
-            "Container failed"
-        )
+        mock_container_manager.provision_container.side_effect = Exception("Container failed")
 
         print("\n❌ Testing all endpoints fail scenario...")
 

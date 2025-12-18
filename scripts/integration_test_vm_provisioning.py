@@ -26,10 +26,14 @@ from azure.mgmt.compute.aio import ComputeManagementClient
 from azure.mgmt.network.aio import NetworkManagementClient
 
 # Add project to path
-sys.path.insert(0, '/home/azureuser/src/h2/worktrees/feat-issue-120-windows-vm-fallback')
+sys.path.insert(0, "/home/azureuser/src/h2/worktrees/feat-issue-120-windows-vm-fallback")
 
 from src.azure_haymaker.knowledge_worker.endpoints.windows_vm import WindowsVMManager
-from src.azure_haymaker.knowledge_worker.models.worker import WorkerIdentity, WorkerPersona, EndpointType
+from src.azure_haymaker.knowledge_worker.models.worker import (
+    EndpointType,
+    WorkerIdentity,
+    WorkerPersona,
+)
 
 
 async def validate_azure_connectivity():
@@ -43,8 +47,13 @@ async def validate_azure_connectivity():
 
         # Get subscription ID from az cli
         import subprocess
-        result = subprocess.run(['az', 'account', 'show', '--query', 'id', '-o', 'tsv'],
-                               capture_output=True, text=True, check=True)
+
+        result = subprocess.run(
+            ["az", "account", "show", "--query", "id", "-o", "tsv"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
         subscription_id = result.stdout.strip()
 
         print(f"✅ Subscription ID: {subscription_id}")
@@ -59,9 +68,14 @@ async def validate_azure_connectivity():
 
         # List resource groups (test API access)
         import subprocess
-        result = subprocess.run(['az', 'group', 'list', '--query', '[].name', '-o', 'tsv'],
-                               capture_output=True, text=True, check=True)
-        rgs = result.stdout.strip().split('\n')
+
+        result = subprocess.run(
+            ["az", "group", "list", "--query", "[].name", "-o", "tsv"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        rgs = result.stdout.strip().split("\n")
         print(f"✅ Found {len(rgs)} resource groups")
         print(f"   Available RGs: {', '.join(rgs[:5])}")
 
@@ -78,8 +92,20 @@ async def _ensure_vnet_exists(subscription_id, resource_group, location):
 
     # Check if VNet exists
     result = subprocess.run(
-        ['az', 'network', 'vnet', 'list', '--resource-group', resource_group, '--query', '[0].id', '-o', 'tsv'],
-        capture_output=True, text=True
+        [
+            "az",
+            "network",
+            "vnet",
+            "list",
+            "--resource-group",
+            resource_group,
+            "--query",
+            "[0].id",
+            "-o",
+            "tsv",
+        ],
+        capture_output=True,
+        text=True,
     )
 
     if result.returncode == 0 and result.stdout.strip():
@@ -87,9 +113,24 @@ async def _ensure_vnet_exists(subscription_id, resource_group, location):
         print(f"Using existing VNet: {vnet_id}")
         # Get default subnet
         result = subprocess.run(
-            ['az', 'network', 'vnet', 'subnet', 'list', '--resource-group', resource_group,
-             '--vnet-name', vnet_id.split('/')[-1], '--query', '[0].id', '-o', 'tsv'],
-            capture_output=True, text=True, check=True
+            [
+                "az",
+                "network",
+                "vnet",
+                "subnet",
+                "list",
+                "--resource-group",
+                resource_group,
+                "--vnet-name",
+                vnet_id.split("/")[-1],
+                "--query",
+                "[0].id",
+                "-o",
+                "tsv",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
         )
         return result.stdout.strip()
 
@@ -97,30 +138,58 @@ async def _ensure_vnet_exists(subscription_id, resource_group, location):
     print(f"Creating test VNet in {resource_group}...")
     vnet_name = f"vnet-test-{int(time.time())}"
     subprocess.run(
-        ['az', 'network', 'vnet', 'create',
-         '--resource-group', resource_group,
-         '--name', vnet_name,
-         '--address-prefix', '10.0.0.0/16',
-         '--subnet-name', 'default',
-         '--subnet-prefix', '10.0.0.0/24',
-         '--location', location],
-        check=True, capture_output=True
+        [
+            "az",
+            "network",
+            "vnet",
+            "create",
+            "--resource-group",
+            resource_group,
+            "--name",
+            vnet_name,
+            "--address-prefix",
+            "10.0.0.0/16",
+            "--subnet-name",
+            "default",
+            "--subnet-prefix",
+            "10.0.0.0/24",
+            "--location",
+            location,
+        ],
+        check=True,
+        capture_output=True,
     )
 
     # Get subnet ID
     result = subprocess.run(
-        ['az', 'network', 'vnet', 'subnet', 'show',
-         '--resource-group', resource_group,
-         '--vnet-name', vnet_name,
-         '--name', 'default',
-         '--query', 'id', '-o', 'tsv'],
-        capture_output=True, text=True, check=True
+        [
+            "az",
+            "network",
+            "vnet",
+            "subnet",
+            "show",
+            "--resource-group",
+            resource_group,
+            "--vnet-name",
+            vnet_name,
+            "--name",
+            "default",
+            "--query",
+            "id",
+            "-o",
+            "tsv",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
     )
 
     return result.stdout.strip()
 
 
-async def test_vm_manager_initialization(subscription_id, credential, compute_client, network_client):
+async def test_vm_manager_initialization(
+    subscription_id, credential, compute_client, network_client
+):
     """Test WindowsVMManager initialization."""
     print("\n" + "=" * 80)
     print("STEP 2: Testing WindowsVMManager Initialization")
@@ -139,10 +208,12 @@ async def test_vm_manager_initialization(subscription_id, credential, compute_cl
 
         # Get the public IP of the test machine for NSG whitelist
         import subprocess
+
         try:
             # Get public IP from ipify.org
-            result = subprocess.run(['curl', '-s', 'https://api.ipify.org'],
-                                   capture_output=True, text=True, timeout=5)
+            result = subprocess.run(
+                ["curl", "-s", "https://api.ipify.org"], capture_output=True, text=True, timeout=5
+            )
             public_ip = result.stdout.strip()
             # Add /32 for single IP CIDR notation
             allowed_ips = [f"{public_ip}/32"]
@@ -166,11 +237,11 @@ async def test_vm_manager_initialization(subscription_id, credential, compute_cl
             vm_size="Standard_B2s",  # Available in most regions
         )
 
-        print(f"✅ WindowsVMManager initialized")
+        print("✅ WindowsVMManager initialized")
         print(f"   Resource Group: {resource_group}")
         print(f"   Location: {location}")
         print(f"   Run ID: {run_id}")
-        print(f"   VM Size: Standard_B1s (testing)")
+        print("   VM Size: Standard_B1s (testing)")
 
         return manager, resource_group, run_id
 
@@ -211,8 +282,8 @@ async def test_vm_provisioning(manager, run_id):
 
         elapsed = time.time() - start_time
 
-        print(f"\n✅ VM PROVISIONED SUCCESSFULLY!")
-        print(f"   Elapsed time: {elapsed/60:.1f} minutes")
+        print("\n✅ VM PROVISIONED SUCCESSFULLY!")
+        print(f"   Elapsed time: {elapsed / 60:.1f} minutes")
         print(f"   VM Name: {result['vm_name']}")
         print(f"   Public IP: {result['public_ip']}")
         print(f"   Admin User: {result['admin_username']}")
@@ -224,10 +295,7 @@ async def test_vm_provisioning(manager, run_id):
         print("STEP 4: Testing RDP Connectivity")
         print("=" * 80)
 
-        is_ready = await manager.verify_computer_use_ready(
-            result['vm_name'],
-            result['public_ip']
-        )
+        is_ready = await manager.verify_computer_use_ready(result["vm_name"], result["public_ip"])
 
         if is_ready:
             print("✅ RDP port 3389 is accessible")
@@ -238,9 +306,10 @@ async def test_vm_provisioning(manager, run_id):
 
     except Exception as e:
         elapsed = time.time() - start_time
-        print(f"\n❌ VM provisioning failed after {elapsed/60:.1f} minutes")
+        print(f"\n❌ VM provisioning failed after {elapsed / 60:.1f} minutes")
         print(f"   Error: {e}")
         import traceback
+
         traceback.print_exc()
         return None
 
@@ -279,12 +348,22 @@ async def cleanup_test_vms():
 
     # List VMs with "integration-test" in name
     result = subprocess.run(
-        ['az', 'vm', 'list', '--query', "[?contains(name, 'integration-test')].{name:name, rg:resourceGroup}", '-o', 'json'],
-        capture_output=True, text=True
+        [
+            "az",
+            "vm",
+            "list",
+            "--query",
+            "[?contains(name, 'integration-test')].{name:name, rg:resourceGroup}",
+            "-o",
+            "json",
+        ],
+        capture_output=True,
+        text=True,
     )
 
     if result.returncode == 0:
         import json
+
         vms = json.loads(result.stdout)
 
         if vms:
@@ -292,8 +371,19 @@ async def cleanup_test_vms():
             for vm in vms:
                 print(f"  - {vm['name']} (in {vm['rg']})")
                 # Delete VM and resources
-                subprocess.run(['az', 'vm', 'delete', '--name', vm['name'], '--resource-group', vm['rg'], '--yes'])
-                print(f"    ✅ Deleted")
+                subprocess.run(
+                    [
+                        "az",
+                        "vm",
+                        "delete",
+                        "--name",
+                        vm["name"],
+                        "--resource-group",
+                        vm["rg"],
+                        "--yes",
+                    ]
+                )
+                print("    ✅ Deleted")
         else:
             print("No test VMs found")
     else:
@@ -304,13 +394,15 @@ async def main():
     """Run integration tests."""
     args = sys.argv[1:]
 
-    do_provision = '--provision' in args
-    cleanup_only = '--cleanup-only' in args
+    do_provision = "--provision" in args
+    cleanup_only = "--cleanup-only" in args
 
     print("\n" + "=" * 80)
     print("Windows VM Provisioning - Integration Test")
     print("=" * 80)
-    print(f"Mode: {'CLEANUP ONLY' if cleanup_only else 'PROVISION' if do_provision else 'VALIDATION ONLY (DRY RUN)'}")
+    print(
+        f"Mode: {'CLEANUP ONLY' if cleanup_only else 'PROVISION' if do_provision else 'VALIDATION ONLY (DRY RUN)'}"
+    )
     print(f"Time: {datetime.now().isoformat()}")
     print("=" * 80)
 
@@ -356,7 +448,7 @@ async def main():
         return 1
 
     # Step 4: Cleanup
-    cleanup_success = await test_vm_cleanup(manager, vm_result['vm_name'])
+    cleanup_success = await test_vm_cleanup(manager, vm_result["vm_name"])
 
     print("\n" + "=" * 80)
     print("✅ INTEGRATION TEST COMPLETE")
@@ -369,6 +461,6 @@ async def main():
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     exit_code = asyncio.run(main())
     sys.exit(exit_code)

@@ -156,9 +156,7 @@ class TestCreateServicePrincipal:
         """Test handling of Microsoft Graph API failure."""
         mock_graph_client = MagicMock()
         # Use AsyncMock for async method with side_effect
-        mock_graph_client.applications.post = AsyncMock(
-            side_effect=Exception("Graph API error")
-        )
+        mock_graph_client.applications.post = AsyncMock(side_effect=Exception("Graph API error"))
 
         mock_kv_client = AsyncMock(spec=SecretClient)
 

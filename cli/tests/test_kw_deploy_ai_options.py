@@ -13,10 +13,8 @@ Test Coverage:
 Run with: pytest cli/tests/test_kw_deploy_ai_options.py -v
 """
 
-import os
 from unittest.mock import MagicMock, patch
 
-import pytest
 from click.testing import CliRunner
 
 from haymaker_cli.kw.commands import deploy
@@ -433,8 +431,7 @@ class TestDryRunOutput:
         # Look for cost-related warnings
         output_lower = result.output.lower()
         assert any(
-            word in output_lower
-            for word in ["cost", "billing", "api", "charges", "estimated"]
+            word in output_lower for word in ["cost", "billing", "api", "charges", "estimated"]
         )
 
     def test_dry_run_shows_marker_config_when_enabled(self):

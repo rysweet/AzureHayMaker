@@ -248,6 +248,7 @@ Every component implements real functionality with no stubs, TODOs, or placehold
 Task-focused guides for specific operations:
 
 - [Configure Anthropic Model](/AzureHayMaker/howto/configure-anthropic-model) - Select and configure Claude models for AI email generation
+- [GitOps Deployment](/AzureHayMaker/gitops-deployment) - Fully automated deployment with secret injection and verification
 
 ---
 

@@ -34,9 +34,7 @@ class ServicePrincipalDetails(BaseModel):
     scenario_name: str = Field(..., description="Associated scenario")
 
     # Secret expiration tracking
-    secret_expires_at: datetime | None = Field(
-        default=None, description="When the secret expires"
-    )
+    secret_expires_at: datetime | None = Field(default=None, description="When the secret expires")
     secret_rotation_threshold_days: int = Field(
         default=7, description="Days before expiration to trigger rotation warning"
     )
@@ -101,9 +99,7 @@ class ServicePrincipal(BaseModel):
     roles_assigned: list[str] = Field(default_factory=list, description="Roles assigned to this SP")
 
     # Secret expiration tracking
-    secret_expires_at: datetime | None = Field(
-        default=None, description="When the secret expires"
-    )
+    secret_expires_at: datetime | None = Field(default=None, description="When the secret expires")
     secret_last_rotated_at: datetime | None = Field(
         default=None, description="When the secret was last rotated"
     )

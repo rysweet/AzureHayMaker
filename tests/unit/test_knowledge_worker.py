@@ -285,9 +285,7 @@ class TestLicenseAssignment:
         mock_wait_result = MailboxWaitResult(
             status=MailboxStatus.READY, elapsed_seconds=0.1, attempts=1
         )
-        manager.mailbox_waiter.wait_for_mailbox = AsyncMock(
-            return_value=mock_wait_result
-        )
+        manager.mailbox_waiter.wait_for_mailbox = AsyncMock(return_value=mock_wait_result)
 
         identity = await manager.provision_worker(
             department="engineering",
@@ -464,11 +462,7 @@ class TestEntraUserManagerNaming:
         Verifies UPN format: {username}@{tenant_domain}
         """
         mock_client = Mock()
-        manager = EntraUserManager(
-            mock_client,
-            "run-12345678",
-            "contoso.onmicrosoft.com"
-        )
+        manager = EntraUserManager(mock_client, "run-12345678", "contoso.onmicrosoft.com")
 
         username = "kw-run-1234-engi-000"
         upn = f"{username}@{manager.tenant_domain}"

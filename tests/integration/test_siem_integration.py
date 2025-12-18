@@ -18,8 +18,8 @@ These tests represent 30% of the testing pyramid.
 """
 
 import asyncio
-from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -40,9 +40,7 @@ except ImportError:
     TelemetryExporter = None
 
 
-pytestmark = pytest.mark.skipif(
-    not EXPORTER_AVAILABLE, reason="SIEM exporter module not available"
-)
+pytestmark = pytest.mark.skipif(not EXPORTER_AVAILABLE, reason="SIEM exporter module not available")
 
 
 # ==============================================================================
@@ -63,25 +61,27 @@ def sentinel_config():
 @pytest.fixture
 def mock_azure_services():
     """Fixture: Mock all Azure SDK services."""
-    with patch(
-        "azure_haymaker.knowledge_worker.telemetry.exporter.DefaultAzureCredential"
-    ) as mock_cred:
-        with patch(
+    with (
+        patch(
+            "azure_haymaker.knowledge_worker.telemetry.exporter.DefaultAzureCredential"
+        ) as mock_cred,
+        patch(
             "azure_haymaker.knowledge_worker.telemetry.exporter.LogsIngestionClient"
-        ) as mock_client_class:
-            mock_credential = MagicMock()
-            mock_cred.return_value = mock_credential
+        ) as mock_client_class,
+    ):
+        mock_credential = MagicMock()
+        mock_cred.return_value = mock_credential
 
-            mock_client = MagicMock()
-            mock_client.upload = AsyncMock()
-            mock_client.close = AsyncMock()
-            mock_client_class.return_value = mock_client
+        mock_client = MagicMock()
+        mock_client.upload = MagicMock()  # Synchronous method, not async
+        mock_client.close = MagicMock()  # Synchronous method, not async
+        mock_client_class.return_value = mock_client
 
-            yield {
-                "credential": mock_credential,
-                "client_class": mock_client_class,
-                "client": mock_client,
-            }
+        yield {
+            "credential": mock_credential,
+            "client_class": mock_client_class,
+            "client": mock_client,
+        }
 
 
 @pytest.fixture
@@ -219,9 +219,7 @@ class TestMultiWorkerTelemetry:
         assert mock_azure_services["client"].upload.call_count >= total_events
 
     @pytest.mark.asyncio
-    async def test_handles_concurrent_event_emission(
-        self, running_exporter, mock_azure_services
-    ):
+    async def test_handles_concurrent_event_emission(self, running_exporter, mock_azure_services):
         """Test handling concurrent event emission from multiple workers."""
         run_id = str(uuid4())
         worker_count = 20
@@ -264,8 +262,8 @@ class TestMultiWorkerTelemetry:
         all_calls = mock_azure_services["client"].upload.call_args_list
         sent_logs = []
         for call in all_calls:
-            if "body" in call.kwargs:
-                sent_logs.extend(call.kwargs["body"])
+            if "logs" in call.kwargs:  # Correct parameter name
+                sent_logs.extend(call.kwargs["logs"])
 
         # Check run_ids are present in logs
         run_ids_found = {log.get("run_id") for log in sent_logs if isinstance(log, dict)}
@@ -445,7 +443,7 @@ class TestBatchProcessingIntegration:
         # Verify batch was sent
         mock_azure_services["client"].upload.assert_called_once()
         call_kwargs = mock_azure_services["client"].upload.call_args.kwargs
-        assert len(call_kwargs["body"]) == 100
+        assert len(call_kwargs["logs"]) == 100  # Correct parameter name
 
         await connector.disconnect()
 
@@ -796,9 +794,7 @@ class TestRealWorldScenarios:
         for worker_idx in range(worker_count):
             worker_id = f"kw-{worker_idx:03d}"
             for event_idx in range(events_per_worker):
-                event = create_worker_event(
-                    worker_id, run_id, f"worker.action.{event_idx}"
-                )
+                event = create_worker_event(worker_id, run_id, f"worker.action.{event_idx}")
                 await exporter.emit_event(event)
 
         # Verify all events were processed

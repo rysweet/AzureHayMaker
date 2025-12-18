@@ -209,12 +209,8 @@ class TestProcessExecution:
             patch(
                 "azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"
             ) as mock_cred,
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.TableClient"
-            ) as mock_table,
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.SecretClient"
-            ) as mock_secret,
+            patch("azure_haymaker.orchestrator.execute_processor.TableClient") as mock_table,
+            patch("azure_haymaker.orchestrator.execute_processor.SecretClient") as mock_secret,
             patch(
                 "azure_haymaker.orchestrator.execute_processor.ExecutionTracker"
             ) as mock_tracker_cls,
@@ -240,9 +236,7 @@ class TestProcessExecution:
                 new_callable=AsyncMock,
                 return_value=[],
             ),
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.BlobServiceClient"
-            ) as mock_blob,
+            patch("azure_haymaker.orchestrator.execute_processor.BlobServiceClient") as mock_blob,
             patch("asyncio.sleep", new_callable=AsyncMock),
         ):
             # Configure mocks
@@ -276,9 +270,7 @@ class TestProcessExecution:
             # Verify status updates
             assert mock_tracker.update_status.call_count >= 2
             # Should have RUNNING and COMPLETED status updates
-            status_calls = [
-                call[1]["status"] for call in mock_tracker.update_status.call_args_list
-            ]
+            status_calls = [call[1]["status"] for call in mock_tracker.update_status.call_args_list]
             assert OnDemandExecutionStatus.RUNNING in status_calls
             assert OnDemandExecutionStatus.COMPLETED in status_calls
 
@@ -295,9 +287,7 @@ class TestProcessExecution:
                 new_callable=AsyncMock,
                 return_value=mock_config,
             ),
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"
-            ),
+            patch("azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"),
             patch("azure_haymaker.orchestrator.execute_processor.TableClient"),
             patch("azure_haymaker.orchestrator.execute_processor.SecretClient"),
             patch(
@@ -333,9 +323,7 @@ class TestProcessExecution:
                 new_callable=AsyncMock,
                 return_value=mock_config,
             ),
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"
-            ),
+            patch("azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"),
             patch("azure_haymaker.orchestrator.execute_processor.TableClient"),
             patch("azure_haymaker.orchestrator.execute_processor.SecretClient"),
             patch(
@@ -374,9 +362,7 @@ class TestProcessExecution:
     async def test_process_execution_handles_missing_execution_id(self, mock_config):
         """Test handling of message without execution_id."""
         mock_msg = MagicMock()
-        mock_msg.get_body.return_value = json.dumps(
-            {"scenarios": ["compute-01"]}
-        ).encode("utf-8")
+        mock_msg.get_body.return_value = json.dumps({"scenarios": ["compute-01"]}).encode("utf-8")
 
         with patch(
             "azure_haymaker.orchestrator.execute_processor.load_config",
@@ -410,9 +396,7 @@ class TestMonitoringLoop:
                 new_callable=AsyncMock,
                 return_value=mock_config,
             ),
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"
-            ),
+            patch("azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"),
             patch("azure_haymaker.orchestrator.execute_processor.TableClient"),
             patch("azure_haymaker.orchestrator.execute_processor.SecretClient"),
             patch(
@@ -440,9 +424,7 @@ class TestMonitoringLoop:
                 new_callable=AsyncMock,
                 return_value=[],
             ),
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.BlobServiceClient"
-            ) as mock_blob,
+            patch("azure_haymaker.orchestrator.execute_processor.BlobServiceClient") as mock_blob,
             patch("asyncio.sleep", new_callable=AsyncMock),
         ):
             mock_tracker = AsyncMock()
@@ -484,9 +466,7 @@ class TestMonitoringLoop:
                 new_callable=AsyncMock,
                 return_value=mock_config,
             ),
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"
-            ),
+            patch("azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"),
             patch("azure_haymaker.orchestrator.execute_processor.TableClient"),
             patch("azure_haymaker.orchestrator.execute_processor.SecretClient"),
             patch(
@@ -514,9 +494,7 @@ class TestMonitoringLoop:
                 new_callable=AsyncMock,
                 return_value=[],
             ),
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.BlobServiceClient"
-            ) as mock_blob,
+            patch("azure_haymaker.orchestrator.execute_processor.BlobServiceClient") as mock_blob,
             patch("asyncio.sleep", new_callable=AsyncMock),
         ):
             mock_tracker = AsyncMock()
@@ -562,7 +540,9 @@ class TestCleanupPhase:
     ):
         """Test forced cleanup is triggered when resources remain."""
         mock_remaining_resource = MagicMock()
-        mock_remaining_resource.resource_id = "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Compute/virtualMachines/vm-01"
+        mock_remaining_resource.resource_id = (
+            "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Compute/virtualMachines/vm-01"
+        )
 
         with (
             patch(
@@ -570,9 +550,7 @@ class TestCleanupPhase:
                 new_callable=AsyncMock,
                 return_value=mock_config,
             ),
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"
-            ),
+            patch("azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"),
             patch("azure_haymaker.orchestrator.execute_processor.TableClient"),
             patch("azure_haymaker.orchestrator.execute_processor.SecretClient"),
             patch(
@@ -605,9 +583,7 @@ class TestCleanupPhase:
                 new_callable=AsyncMock,
                 return_value=mock_cleanup_report,
             ) as mock_force_delete,
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.BlobServiceClient"
-            ) as mock_blob,
+            patch("azure_haymaker.orchestrator.execute_processor.BlobServiceClient") as mock_blob,
             patch("asyncio.sleep", new_callable=AsyncMock),
         ):
             mock_tracker = AsyncMock()
@@ -647,9 +623,7 @@ class TestCleanupPhase:
                 new_callable=AsyncMock,
                 return_value=mock_config,
             ),
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"
-            ),
+            patch("azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"),
             patch("azure_haymaker.orchestrator.execute_processor.TableClient"),
             patch("azure_haymaker.orchestrator.execute_processor.SecretClient"),
             patch(
@@ -681,9 +655,7 @@ class TestCleanupPhase:
                 "azure_haymaker.orchestrator.execute_processor.force_delete_resources",
                 new_callable=AsyncMock,
             ) as mock_force_delete,
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.BlobServiceClient"
-            ) as mock_blob,
+            patch("azure_haymaker.orchestrator.execute_processor.BlobServiceClient") as mock_blob,
             patch("asyncio.sleep", new_callable=AsyncMock),
         ):
             mock_tracker = AsyncMock()
@@ -732,9 +704,7 @@ class TestReportGeneration:
                 new_callable=AsyncMock,
                 return_value=mock_config,
             ),
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"
-            ),
+            patch("azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"),
             patch("azure_haymaker.orchestrator.execute_processor.TableClient"),
             patch("azure_haymaker.orchestrator.execute_processor.SecretClient"),
             patch(
@@ -762,9 +732,7 @@ class TestReportGeneration:
                 new_callable=AsyncMock,
                 return_value=[],
             ),
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.BlobServiceClient"
-            ) as mock_blob,
+            patch("azure_haymaker.orchestrator.execute_processor.BlobServiceClient") as mock_blob,
             patch("asyncio.sleep", new_callable=AsyncMock),
         ):
             mock_tracker = AsyncMock()
@@ -826,9 +794,7 @@ class TestReportGeneration:
                 new_callable=AsyncMock,
                 return_value=mock_config,
             ),
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"
-            ),
+            patch("azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"),
             patch("azure_haymaker.orchestrator.execute_processor.TableClient"),
             patch("azure_haymaker.orchestrator.execute_processor.SecretClient"),
             patch(
@@ -856,9 +822,7 @@ class TestReportGeneration:
                 new_callable=AsyncMock,
                 return_value=[],
             ),
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.BlobServiceClient"
-            ) as mock_blob,
+            patch("azure_haymaker.orchestrator.execute_processor.BlobServiceClient") as mock_blob,
             patch("asyncio.sleep", new_callable=AsyncMock),
         ):
             mock_tracker = AsyncMock()
@@ -921,12 +885,8 @@ class TestErrorHandling:
                 new_callable=AsyncMock,
                 return_value=mock_config,
             ),
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"
-            ),
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.TableClient"
-            ),
+            patch("azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"),
+            patch("azure_haymaker.orchestrator.execute_processor.TableClient"),
             patch("azure_haymaker.orchestrator.execute_processor.SecretClient"),
             patch(
                 "azure_haymaker.orchestrator.execute_processor.ExecutionTracker"
@@ -959,9 +919,7 @@ class TestErrorHandling:
                 new_callable=AsyncMock,
                 return_value=mock_config,
             ),
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"
-            ),
+            patch("azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"),
             patch("azure_haymaker.orchestrator.execute_processor.TableClient"),
             patch("azure_haymaker.orchestrator.execute_processor.SecretClient"),
             patch(
@@ -1014,9 +972,7 @@ class TestErrorHandling:
                 new_callable=AsyncMock,
                 return_value=mock_config,
             ),
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"
-            ),
+            patch("azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"),
             patch("azure_haymaker.orchestrator.execute_processor.TableClient"),
             patch("azure_haymaker.orchestrator.execute_processor.SecretClient"),
             patch(
@@ -1044,9 +1000,7 @@ class TestErrorHandling:
                 new_callable=AsyncMock,
                 return_value=[],
             ),
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.BlobServiceClient"
-            ) as mock_blob,
+            patch("azure_haymaker.orchestrator.execute_processor.BlobServiceClient") as mock_blob,
             patch("asyncio.sleep", new_callable=AsyncMock),
         ):
             mock_tracker = AsyncMock()
@@ -1141,9 +1095,7 @@ class TestFullExecutionFlow:
                 new_callable=AsyncMock,
                 return_value=mock_config,
             ),
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"
-            ),
+            patch("azure_haymaker.orchestrator.execute_processor.DefaultAzureCredential"),
             patch("azure_haymaker.orchestrator.execute_processor.TableClient"),
             patch("azure_haymaker.orchestrator.execute_processor.SecretClient"),
             patch(
@@ -1171,9 +1123,7 @@ class TestFullExecutionFlow:
                 new_callable=AsyncMock,
                 return_value=[],
             ) as mock_query,
-            patch(
-                "azure_haymaker.orchestrator.execute_processor.BlobServiceClient"
-            ) as mock_blob,
+            patch("azure_haymaker.orchestrator.execute_processor.BlobServiceClient") as mock_blob,
             patch("asyncio.sleep", new_callable=AsyncMock),
         ):
             mock_tracker = AsyncMock()

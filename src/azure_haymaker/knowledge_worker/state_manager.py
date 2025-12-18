@@ -134,9 +134,7 @@ class DeploymentStateManager:
                 logger.warning(f"Failed to load deployment from {file_path}: {e}")
 
         # Sort by updated_at descending (most recent first)
-        deployments.sort(
-            key=lambda x: x.get("updated_at", ""), reverse=True
-        )
+        deployments.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
 
         return deployments
 
@@ -242,6 +240,7 @@ class DeploymentStateManager:
 
         # Remove directory if empty
         import contextlib
+
         with contextlib.suppress(OSError):
             worker_run_dir.rmdir()
 

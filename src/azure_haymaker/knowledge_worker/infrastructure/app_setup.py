@@ -174,9 +174,7 @@ class KWAppSetup:
             result = self._run_az_command(["account", "show"])
             return result.get("tenantId", "")
         except RuntimeError:
-            raise RuntimeError(
-                "Not logged in to Azure CLI. Run 'az login' first."
-            ) from None
+            raise RuntimeError("Not logged in to Azure CLI. Run 'az login' first.") from None
 
     def check_existing_app(self) -> str | None:
         """Check if app already exists.
@@ -185,11 +183,17 @@ class KWAppSetup:
             App ID if exists, None otherwise
         """
         try:
-            result = self._run_az_command([
-                "ad", "app", "list",
-                "--filter", f"displayName eq '{self.app_name}'",
-                "--query", "[0].appId",
-            ])
+            result = self._run_az_command(
+                [
+                    "ad",
+                    "app",
+                    "list",
+                    "--filter",
+                    f"displayName eq '{self.app_name}'",
+                    "--query",
+                    "[0].appId",
+                ]
+            )
             return result if isinstance(result, str) else None
         except RuntimeError as e:
             logger.debug(f"App '{self.app_name}' not found or error checking: {e}")
@@ -204,12 +208,19 @@ class KWAppSetup:
         Raises:
             RuntimeError: If creation fails
         """
-        result = self._run_az_command([
-            "ad", "app", "create",
-            "--display-name", self.app_name,
-            "--sign-in-audience", "AzureADMyOrg",
-            "--query", "appId",
-        ])
+        result = self._run_az_command(
+            [
+                "ad",
+                "app",
+                "create",
+                "--display-name",
+                self.app_name,
+                "--sign-in-audience",
+                "AzureADMyOrg",
+                "--query",
+                "appId",
+            ]
+        )
         return result if isinstance(result, str) else str(result)
 
     def add_permissions(self, app_id: str) -> None:
@@ -221,12 +232,20 @@ class KWAppSetup:
         for perm_name, (perm_id, perm_type) in KW_PERMISSIONS.items():
             logger.info(f"Adding permission: {perm_name}")
             try:
-                self._run_az_command([
-                    "ad", "app", "permission", "add",
-                    "--id", app_id,
-                    "--api", GRAPH_API_ID,
-                    "--api-permissions", f"{perm_id}={perm_type}",
-                ])
+                self._run_az_command(
+                    [
+                        "ad",
+                        "app",
+                        "permission",
+                        "add",
+                        "--id",
+                        app_id,
+                        "--api",
+                        GRAPH_API_ID,
+                        "--api-permissions",
+                        f"{perm_id}={perm_type}",
+                    ]
+                )
             except RuntimeError as e:
                 logger.warning(f"Error adding {perm_name}: {e}")
 
@@ -241,21 +260,33 @@ class KWAppSetup:
         """
         # Check if SP already exists
         try:
-            result = self._run_az_command([
-                "ad", "sp", "show",
-                "--id", app_id,
-                "--query", "id",
-            ])
+            result = self._run_az_command(
+                [
+                    "ad",
+                    "sp",
+                    "show",
+                    "--id",
+                    app_id,
+                    "--query",
+                    "id",
+                ]
+            )
             return result if isinstance(result, str) else str(result)
         except RuntimeError as e:
             logger.debug(f"Service principal not found for {app_id}, creating... ({e})")
 
         # Create SP
-        result = self._run_az_command([
-            "ad", "sp", "create",
-            "--id", app_id,
-            "--query", "id",
-        ])
+        result = self._run_az_command(
+            [
+                "ad",
+                "sp",
+                "create",
+                "--id",
+                app_id,
+                "--query",
+                "id",
+            ]
+        )
         return result if isinstance(result, str) else str(result)
 
     def create_client_secret(self, app_id: str) -> str:
@@ -267,13 +298,22 @@ class KWAppSetup:
         Returns:
             Client secret value
         """
-        result = self._run_az_command([
-            "ad", "app", "credential", "reset",
-            "--id", app_id,
-            "--display-name", f"kw-secret-{datetime.now().strftime('%Y%m%d')}",
-            "--years", "1",
-            "--query", "password",
-        ])
+        result = self._run_az_command(
+            [
+                "ad",
+                "app",
+                "credential",
+                "reset",
+                "--id",
+                app_id,
+                "--display-name",
+                f"kw-secret-{datetime.now().strftime('%Y%m%d')}",
+                "--years",
+                "1",
+                "--query",
+                "password",
+            ]
+        )
         return result if isinstance(result, str) else str(result)
 
     def setup_app(self, reuse_existing: bool = True) -> KWAppConfig:

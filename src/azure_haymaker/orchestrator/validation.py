@@ -95,8 +95,9 @@ async def validate_anthropic_api(config: OrchestratorConfig) -> ValidationResult
     try:
         client = AsyncAnthropic(api_key=config.anthropic_api_key.get_secret_value())
 
-        # Make minimal test request (using SDK default model)
+        # Make minimal test request
         response = await client.messages.create(
+            model="claude-3-5-sonnet-20241022",  # Use a known model for validation
             max_tokens=10,
             messages=[{"role": "user", "content": "Hello"}],
         )

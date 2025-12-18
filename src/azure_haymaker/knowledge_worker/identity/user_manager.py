@@ -142,12 +142,18 @@ class EntraUserManager:
                 if license_assigned:
                     logger.info(f"Waiting for mailbox provisioning: {username}")
 
-                    wait_result = await self.mailbox_waiter.wait_for_mailbox(created_user.id, timeout_seconds=900)
+                    wait_result = await self.mailbox_waiter.wait_for_mailbox(
+                        created_user.id, timeout_seconds=900
+                    )
 
                     if wait_result.status == MailboxStatus.READY:
-                        logger.info(f"Mailbox ready for {username} ({wait_result.elapsed_seconds:.1f}s)")
+                        logger.info(
+                            f"Mailbox ready for {username} ({wait_result.elapsed_seconds:.1f}s)"
+                        )
                     else:
-                        logger.warning(f"Mailbox not ready for {username}: {wait_result.status.value}")
+                        logger.warning(
+                            f"Mailbox not ready for {username}: {wait_result.status.value}"
+                        )
 
             return WorkerIdentity(
                 worker_id=username,
@@ -332,7 +338,7 @@ class EntraUserManager:
                     "query_parameters": {
                         "filter": filter_query,
                         "select": (
-                            "id,displayName,userPrincipalName," "mailNickname,department,jobTitle"
+                            "id,displayName,userPrincipalName,mailNickname,department,jobTitle"
                         ),
                     }
                 }
@@ -358,7 +364,7 @@ class EntraUserManager:
                 request_configuration={
                     "query_parameters": {
                         "select": (
-                            "id,displayName,userPrincipalName," "mailNickname,department,jobTitle"
+                            "id,displayName,userPrincipalName,mailNickname,department,jobTitle"
                         ),
                     }
                 }

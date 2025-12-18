@@ -762,7 +762,7 @@ async def run_health_checks(
         if isinstance(result, Exception):
             final_results.append(
                 {
-                    "check_name": f"Check {i+1}",
+                    "check_name": f"Check {i + 1}",
                     "status": "FAIL",
                     "message": f"Check failed: {result}",
                     "details": {"error_type": type(result).__name__},

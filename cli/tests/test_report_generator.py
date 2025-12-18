@@ -1,7 +1,6 @@
 """Tests for report generator."""
 
 from datetime import datetime
-from pathlib import Path
 
 import pytest
 
@@ -108,7 +107,7 @@ def sample_resources():
 
 def test_report_generator_init():
     """Test report generator initialization."""
-    generator = ReportGenerator()
+    _ = ReportGenerator()
     # ReportGenerator no longer stores client
 
 

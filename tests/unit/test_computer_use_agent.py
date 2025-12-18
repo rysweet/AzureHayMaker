@@ -146,9 +146,7 @@ class TestAgentInitialization:
         assert agent.worker_identity == worker_identity
         assert agent.config_type == "computer_use"
 
-    def test_agent_extends_knowledge_worker_agent(
-        self, worker_config, worker_identity
-    ):
+    def test_agent_extends_knowledge_worker_agent(self, worker_config, worker_identity):
         """Test ComputerUseKnowledgeWorkerAgent extends KnowledgeWorkerAgent."""
         # Act
         agent = ComputerUseKnowledgeWorkerAgent(
@@ -175,9 +173,7 @@ class TestAgentInitialization:
 
         # Act & Assert
         with pytest.raises(ValueError, match=".") as exc_info:
-            ComputerUseKnowledgeWorkerAgent(
-                worker_config=config, worker_identity=worker_identity
-            )
+            ComputerUseKnowledgeWorkerAgent(worker_config=config, worker_identity=worker_identity)
         assert "credential" in str(exc_info.value).lower()
 
 
@@ -189,9 +185,7 @@ class TestAgentInitialization:
 class TestAgentLifecycle:
     """Tests for agent lifecycle hooks."""
 
-    def test_on_start_launches_browser(
-        self, computer_use_agent, mock_browser_automation
-    ):
+    def test_on_start_launches_browser(self, computer_use_agent, mock_browser_automation):
         """Test on_start launches browser and authenticates."""
         # Act
         computer_use_agent.on_start()
@@ -212,9 +206,7 @@ class TestAgentLifecycle:
             computer_use_agent.on_start()
         assert "launch" in str(exc_info.value).lower()
 
-    def test_on_start_handles_login_failure(
-        self, computer_use_agent, mock_browser_automation
-    ):
+    def test_on_start_handles_login_failure(self, computer_use_agent, mock_browser_automation):
         """Test on_start handles M365 login failures."""
         # Arrange
         mock_browser_automation.login_m365.side_effect = Exception("Invalid credentials")
@@ -224,9 +216,7 @@ class TestAgentLifecycle:
             computer_use_agent.on_start()
         assert "credential" in str(exc_info.value).lower()
 
-    def test_on_cleanup_closes_browser(
-        self, computer_use_agent, mock_browser_automation
-    ):
+    def test_on_cleanup_closes_browser(self, computer_use_agent, mock_browser_automation):
         """Test on_cleanup closes browser session."""
         # Arrange
         computer_use_agent.on_start()
@@ -261,9 +251,7 @@ class TestWorkflowExecution:
     """Tests for workflow execution via browser."""
 
     @pytest.mark.asyncio
-    async def test_execute_workflow_email(
-        self, computer_use_agent, mock_browser_automation
-    ):
+    async def test_execute_workflow_email(self, computer_use_agent, mock_browser_automation):
         """Test execute email workflow."""
         # Arrange
         computer_use_agent.on_start()
@@ -319,9 +307,7 @@ class TestWorkflowExecution:
 
         # Act & Assert
         with pytest.raises(ValueError, match=".") as exc_info:
-            await computer_use_agent.execute_workflow(
-                workflow_name="unknown_workflow", params={}
-            )
+            await computer_use_agent.execute_workflow(workflow_name="unknown_workflow", params={})
         assert "unknown" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
@@ -329,9 +315,7 @@ class TestWorkflowExecution:
         """Test execute_workflow fails if browser not started."""
         # Act & Assert - on_start not called
         with pytest.raises(RuntimeError) as exc_info:
-            await computer_use_agent.execute_workflow(
-                workflow_name="email_workflow", params={}
-            )
+            await computer_use_agent.execute_workflow(workflow_name="email_workflow", params={})
         assert "browser" in str(exc_info.value).lower()
 
 
@@ -372,9 +356,7 @@ class TestTelemetryLogging:
         # Arrange
         computer_use_agent.telemetry_collector = mock_telemetry_collector
         computer_use_agent.on_start()
-        mock_browser_automation.send_email_via_browser.side_effect = Exception(
-            "Send failed"
-        )
+        mock_browser_automation.send_email_via_browser.side_effect = Exception("Send failed")
 
         # Act
         with pytest.raises(Exception, match="."):

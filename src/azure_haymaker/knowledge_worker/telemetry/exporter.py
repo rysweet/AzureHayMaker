@@ -14,7 +14,7 @@ Zero external dependencies beyond Azure SDK.
 import asyncio
 import logging
 from dataclasses import asdict, dataclass
-from typing import Any
+from typing import Any, cast
 
 from azure.identity import DefaultAzureCredential
 from azure.monitor.ingestion import LogsIngestionClient
@@ -120,7 +120,7 @@ class SentinelConnector:
 
         logger.debug("Disconnecting from Azure Sentinel")
         if self._client:
-            await self._client.close()
+            self._client.close()
         self._client = None
         self._connected = False
         logger.info("Disconnected from Azure Sentinel")
@@ -135,7 +135,7 @@ class SentinelConnector:
             RuntimeError: If not connected
             Exception: If send fails after retries
         """
-        if not self._connected:
+        if not self._connected or self._client is None:
             raise RuntimeError("Connector not connected")
 
         event_dict = asdict(event)
@@ -143,8 +143,8 @@ class SentinelConnector:
 
         while attempt <= self.max_retries:
             try:
-                await self._client.upload(
-                    rule_id=self.dcr_id, stream_name=self.stream_name, body=[event_dict]
+                self._client.upload(
+                    rule_id=self.dcr_id, stream_name=self.stream_name, logs=[event_dict]
                 )
                 logger.debug("Event sent: %s", event.event_type)
                 return
@@ -171,7 +171,7 @@ class SentinelConnector:
         if not events:
             return
 
-        if not self._connected:
+        if not self._connected or self._client is None:
             raise RuntimeError("Connector not connected")
 
         event_dicts = [asdict(event) for event in events]
@@ -179,8 +179,11 @@ class SentinelConnector:
 
         while attempt <= self.max_retries:
             try:
-                await self._client.upload(
-                    rule_id=self.dcr_id, stream_name=self.stream_name, body=event_dicts
+                # Cast to List[Any] to satisfy Azure SDK type requirements
+                self._client.upload(
+                    rule_id=self.dcr_id,
+                    stream_name=self.stream_name,
+                    logs=cast(list[Any], event_dicts),
                 )
                 logger.debug("Batch sent: %d events", len(events))
                 return
@@ -200,7 +203,7 @@ class SentinelConnector:
         Returns:
             True if healthy, False otherwise
         """
-        if not self._connected:
+        if not self._connected or self._client is None:
             return False
 
         try:
@@ -213,10 +216,10 @@ class SentinelConnector:
                 worker_id="health-check",
                 run_id="health-check",
             )
-            await self._client.upload(
+            self._client.upload(
                 rule_id=self.dcr_id,
                 stream_name=self.stream_name,
-                body=[asdict(test_event)],
+                logs=[asdict(test_event)],
             )
             return True
         except Exception as e:

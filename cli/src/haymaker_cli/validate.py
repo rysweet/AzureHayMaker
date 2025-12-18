@@ -432,7 +432,9 @@ def validate(ctx: click.Context, verbose: bool, output_json: bool):
 
     for check_func in checks:
         if not output_json:
-            console.print(f"  Checking {check_func.__doc__.split('.')[0].strip()}...", end="")
+            doc = getattr(check_func, "__doc__", None)
+            check_name = doc.split(".")[0].strip() if doc else "unknown"
+            console.print(f"  Checking {check_name}...", end="")
         result = check_func()
         results.append(result)
         if not output_json:

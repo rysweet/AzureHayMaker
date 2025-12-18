@@ -35,6 +35,7 @@ dependencies = [
     "croniter>=2.0.0",
     "playwright>=1.40.0",
     "pywinrm>=0.4.3",
+    "pyyaml>=6.0.1",
 ]
 
 [project.optional-dependencies]

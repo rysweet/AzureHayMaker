@@ -48,18 +48,15 @@ class EmailWorkflow(BaseWorkflow):
 
     async def execute(
         self,
-        to: str,
-        subject: str,
-        body: str,
-        **kwargs: Any,
+        **params: Any,
     ) -> dict[str, Any]:
         """Execute email sending workflow.
 
         Args:
-            to: Recipient email address
-            subject: Email subject
-            body: Email body text
-            **kwargs: Additional parameters (ignored)
+            **params: Workflow parameters including:
+                - to: Recipient email address
+                - subject: Email subject
+                - body: Email body text
 
         Returns:
             Dict with keys:
@@ -71,7 +68,11 @@ class EmailWorkflow(BaseWorkflow):
             WorkflowValidationError: If required parameters are invalid
             WorkflowError: If email sending fails
         """
-        # Validate parameters
+        # Extract and validate parameters
+        to = params.get("to", "")
+        subject = params.get("subject", "")
+        body = params.get("body", "")
+
         self._validate_required_params(
             params={"to": to, "subject": subject, "body": body},
             required=["to", "subject", "body"],
@@ -100,3 +101,4 @@ class EmailWorkflow(BaseWorkflow):
 
         except Exception as e:
             await self._handle_workflow_error(e, "Email sending")
+            raise  # _handle_workflow_error always raises, this is unreachable

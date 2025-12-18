@@ -8,7 +8,7 @@ import asyncio
 import json
 import os
 import sys
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 
 # Add src to path
@@ -16,12 +16,14 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from azure.identity import ClientSecretCredential
 from msgraph.graph_service_client import GraphServiceClient
+
 from azure_haymaker.knowledge_worker import DeploymentConfig, KnowledgeWorkerOrchestrator
 from azure_haymaker.knowledge_worker.content import EmailGenerationConfig
 
 # Evidence collection directory
 EVIDENCE_DIR = Path(__file__).parent / "evidence"
 EVIDENCE_DIR.mkdir(exist_ok=True)
+
 
 async def main():
     print("🏴‍☠️ Knowledge Worker Deployment - 5 Workers with AI Limericks")
@@ -57,18 +59,15 @@ async def main():
         total_workers=5,
         tenant_domain="DefenderATEVET12.onmicrosoft.com",
         duration_hours=1,
-
         # Email markers
         email_markers_enabled=True,
         marker_style="both",
         marker_format="TEST-RUN",
-
         # AI generation
         email_generation=EmailGenerationConfig(
             enabled=bool(anthropic_key),
-            directive="Include a humorous limerick about working in the age of AI in your email signature"
+            directive="Include a humorous limerick about working in the age of AI in your email signature",
         ),
-
         # Departments
         departments={
             "engineering": {
@@ -92,7 +91,7 @@ async def main():
 
     print(f"   Name: {config.name}")
     print(f"   Workers: {config.total_workers}")
-    print(f"   Departments: engineering (3), sales (2)")
+    print("   Departments: engineering (3), sales (2)")
     print(f"   AI Generation: {config.email_generation.enabled}")
     print(f"   Email Markers: {config.email_markers_enabled}")
 
@@ -135,7 +134,7 @@ async def main():
 
             # Get deployment state
             state = orchestrator.get_deployment(run_id)
-            print(f"\n📊 Deployment Status:")
+            print("\n📊 Deployment Status:")
             print(f"   Run ID: {run_id}")
             print(f"   Phase: {state.phase.value}")
             print(f"   Status: {state.status.value}")
@@ -157,7 +156,9 @@ async def main():
                 ],
                 "timestamp": datetime.now(UTC).isoformat(),
             }
-            (EVIDENCE_DIR / "03_deployment_state.json").write_text(json.dumps(state_evidence, indent=2))
+            (EVIDENCE_DIR / "03_deployment_state.json").write_text(
+                json.dumps(state_evidence, indent=2)
+            )
 
             print(f"\n📁 Evidence saved to: {EVIDENCE_DIR}/")
             print("   - 01_deployment_config.json")
@@ -172,8 +173,10 @@ async def main():
     except Exception as e:
         print(f"\n❌ Deployment error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
+
 
 if __name__ == "__main__":
     exit_code = asyncio.run(main())

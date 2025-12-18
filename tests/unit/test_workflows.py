@@ -43,9 +43,7 @@ except ImportError:
     BrowserAutomation = None
 
 
-pytestmark = pytest.mark.skipif(
-    not WORKFLOWS_AVAILABLE, reason="Workflows not yet implemented"
-)
+pytestmark = pytest.mark.skipif(not WORKFLOWS_AVAILABLE, reason="Workflows not yet implemented")
 
 
 # ==============================================================================
@@ -62,9 +60,7 @@ def mock_browser():
     browser.navigate_to_teams_web = AsyncMock()
     browser.send_email_via_browser = AsyncMock(return_value={"success": True})
     browser.send_teams_message_via_browser = AsyncMock(return_value={"success": True})
-    browser.create_calendar_event_via_browser = AsyncMock(
-        return_value={"success": True}
-    )
+    browser.create_calendar_event_via_browser = AsyncMock(return_value={"success": True})
     return browser
 
 
@@ -146,9 +142,7 @@ class TestEmailWorkflow:
         assert "subject" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
-    async def test_execute_email_workflow_with_browser_error(
-        self, email_workflow, mock_browser
-    ):
+    async def test_execute_email_workflow_with_browser_error(self, email_workflow, mock_browser):
         """Test email workflow handles browser errors."""
         # Arrange
         mock_browser.send_email_via_browser.side_effect = Exception("Browser error")
@@ -230,9 +224,7 @@ class TestCalendarWorkflow:
     """Tests for CalendarWorkflow."""
 
     @pytest.mark.asyncio
-    async def test_execute_calendar_workflow_success(
-        self, calendar_workflow, mock_browser
-    ):
+    async def test_execute_calendar_workflow_success(self, calendar_workflow, mock_browser):
         """Test successful calendar event creation workflow."""
         # Arrange
         params = {
@@ -284,9 +276,7 @@ class TestWorkflowComposition:
         email_result = await email_workflow.execute(
             to="recipient@tenant.com", subject="Test", body="Test"
         )
-        teams_result = await teams_workflow.execute(
-            channel="General", message="Email sent!"
-        )
+        teams_result = await teams_workflow.execute(channel="General", message="Email sent!")
 
         # Assert
         assert email_result["success"] is True

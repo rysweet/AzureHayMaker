@@ -65,7 +65,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2023-05-01' = {
       secrets: []
       ingress: {
         external: true
-        targetPort: 80  // Azure Functions default port
+        targetPort: 80  // FastAPI/Uvicorn default port
         transport: 'http'
         allowInsecure: false
         traffic: [
@@ -84,22 +84,9 @@ resource orchestratorApp 'Microsoft.App/containerApps@2023-05-01' = {
     }
     template: {
       scale: {
-        minReplicas: 1 // Keep 1 replica always running for Functions
+        minReplicas: 1 // Keep 1 replica always running for API availability
         maxReplicas: 1 // Single instance for orchestrator
-        rules: [
-          {
-            name: 'cron-schedule'
-            custom: {
-              type: 'cron'
-              metadata: {
-                timezone: 'UTC'
-                start: '0 0,6,12,18 * * *' // 4x daily: 00:00, 06:00, 12:00, 18:00 UTC
-                end: '0 8,14,20,2 * * *'     // End 8 hours after start (agent session duration)
-                desiredReplicas: '1'
-              }
-            }
-          }
-        ]
+        // No CRON rules - API must be available 24/7 for CLI commands
       }
       containers: [
         {
@@ -120,7 +107,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2023-05-01' = {
               value: subscriptionId
             }
             {
-              name: 'AZURE_CLIENT_ID'
+              name: 'API_CLIENT_ID'
               value: clientId
             }
             // Key Vault
@@ -181,11 +168,6 @@ resource orchestratorApp 'Microsoft.App/containerApps@2023-05-01' = {
             {
               name: 'NODE_OPTIONS'
               value: '--max-old-space-size=32768' // 32GB heap for Node.js
-            }
-            // Azure Functions V2 Python Worker Indexing (required for function discovery)
-            {
-              name: 'AzureWebJobsFeatureFlags'
-              value: 'EnableWorkerIndexing'
             }
           ]
         }

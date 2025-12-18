@@ -66,15 +66,13 @@ def mock_graph_client():
         return_value=MagicMock(value=[])
     )
     client.device_management.virtual_endpoint.provisioning_policies.post = AsyncMock()
-    client.device_management.virtual_endpoint.provisioning_policies.by_cloud_pc_provisioning_policy_id = (
-        MagicMock(
-            return_value=MagicMock(
-                assignments=MagicMock(
-                    post=AsyncMock(),
-                    get=AsyncMock(return_value=MagicMock(value=[])),
-                ),
-                delete=AsyncMock(),
-            )
+    client.device_management.virtual_endpoint.provisioning_policies.by_cloud_pc_provisioning_policy_id = MagicMock(
+        return_value=MagicMock(
+            assignments=MagicMock(
+                post=AsyncMock(),
+                get=AsyncMock(return_value=MagicMock(value=[])),
+            ),
+            delete=AsyncMock(),
         )
     )
     client.device_management.virtual_endpoint.cloud_p_cs.get = AsyncMock(
@@ -173,11 +171,11 @@ class TestCloudPCProvisioningWorkflow:
 
         mock_policies = MagicMock()
         mock_policies.value = []
-        mock_graph_client.device_management.virtual_endpoint.provisioning_policies.get = (
-            AsyncMock(return_value=mock_policies)
+        mock_graph_client.device_management.virtual_endpoint.provisioning_policies.get = AsyncMock(
+            return_value=mock_policies
         )
-        mock_graph_client.device_management.virtual_endpoint.provisioning_policies.post = (
-            AsyncMock(return_value=mock_policy)
+        mock_graph_client.device_management.virtual_endpoint.provisioning_policies.post = AsyncMock(
+            return_value=mock_policy
         )
 
         # Mock Cloud PC provisioning status progression
@@ -197,14 +195,10 @@ class TestCloudPCProvisioningWorkflow:
         policy_id = await cloud_pc_manager.ensure_provisioning_policy()
         assert policy_id == mock_policy.id
 
-        cloud_pc_id = await cloud_pc_manager.provision_cloud_pc(
-            worker=worker, policy_id=policy_id
-        )
+        cloud_pc_id = await cloud_pc_manager.provision_cloud_pc(worker=worker, policy_id=policy_id)
         assert cloud_pc_id.startswith("pending-") or cloud_pc_id.startswith("mock-cloudpc-")
 
-        ready = await cloud_pc_manager.wait_for_provisioning(
-            worker=worker, timeout_minutes=1
-        )
+        ready = await cloud_pc_manager.wait_for_provisioning(worker=worker, timeout_minutes=1)
         assert ready is True
 
     @pytest.mark.asyncio
@@ -219,8 +213,8 @@ class TestCloudPCProvisioningWorkflow:
 
         mock_policies = MagicMock()
         mock_policies.value = [mock_policy]
-        mock_graph_client.device_management.virtual_endpoint.provisioning_policies.get = (
-            AsyncMock(return_value=mock_policies)
+        mock_graph_client.device_management.virtual_endpoint.provisioning_policies.get = AsyncMock(
+            return_value=mock_policies
         )
 
         # Ensure policy
@@ -228,13 +222,15 @@ class TestCloudPCProvisioningWorkflow:
 
         # Provision all workers
         provision_tasks = [
-            cloud_pc_manager.provision_cloud_pc(worker=w, policy_id=policy_id)
-            for w in test_workers
+            cloud_pc_manager.provision_cloud_pc(worker=w, policy_id=policy_id) for w in test_workers
         ]
         cloud_pc_ids = await asyncio.gather(*provision_tasks)
 
         assert len(cloud_pc_ids) == len(test_workers)
-        assert all(pc_id.startswith("pending-") or pc_id.startswith("mock-cloudpc-") for pc_id in cloud_pc_ids)
+        assert all(
+            pc_id.startswith("pending-") or pc_id.startswith("mock-cloudpc-")
+            for pc_id in cloud_pc_ids
+        )
 
 
 # ==============================================================================
@@ -287,8 +283,8 @@ class TestTelemetryCollectionWorkflow:
 
         mock_calendar_result = MagicMock()
         mock_calendar_result.value = [mock_event]
-        mock_graph_client.graph.users.by_user_id.return_value.calendar.events.get = (
-            AsyncMock(return_value=mock_calendar_result)
+        mock_graph_client.graph.users.by_user_id.return_value.calendar.events.get = AsyncMock(
+            return_value=mock_calendar_result
         )
 
         # Mock Teams
@@ -303,8 +299,8 @@ class TestTelemetryCollectionWorkflow:
 
         mock_teams_result = MagicMock()
         mock_teams_result.value = [mock_teams_msg]
-        mock_graph_client.graph.teams.by_team_id.return_value.channels.by_channel_id.return_value.messages.get = (
-            AsyncMock(return_value=mock_teams_result)
+        mock_graph_client.graph.teams.by_team_id.return_value.channels.by_channel_id.return_value.messages.get = AsyncMock(
+            return_value=mock_teams_result
         )
 
         # Collect all telemetry
@@ -357,8 +353,8 @@ class TestTelemetryCollectionWorkflow:
         mock_graph_client.graph.users.by_user_id.return_value.messages.get = AsyncMock(
             side_effect=mock_get_messages
         )
-        mock_graph_client.graph.users.by_user_id.return_value.calendar.events.get = (
-            AsyncMock(return_value=MagicMock(value=[]))
+        mock_graph_client.graph.users.by_user_id.return_value.calendar.events.get = AsyncMock(
+            return_value=MagicMock(value=[])
         )
 
         # Get run summary
@@ -391,8 +387,8 @@ class TestCloudPCTelemetryIntegration:
         mock_policy.id = f"policy-{uuid4()}"
         mock_policies = MagicMock()
         mock_policies.value = [mock_policy]
-        mock_graph_client.device_management.virtual_endpoint.provisioning_policies.get = (
-            AsyncMock(return_value=mock_policies)
+        mock_graph_client.device_management.virtual_endpoint.provisioning_policies.get = AsyncMock(
+            return_value=mock_policies
         )
 
         # Mock Cloud PC provisioned
@@ -407,9 +403,7 @@ class TestCloudPCTelemetryIntegration:
 
         # Step 1: Provision Cloud PC
         policy_id = await cloud_pc_manager.ensure_provisioning_policy()
-        await cloud_pc_manager.provision_cloud_pc(
-            worker=worker, policy_id=policy_id
-        )
+        await cloud_pc_manager.provision_cloud_pc(worker=worker, policy_id=policy_id)
         ready = await cloud_pc_manager.wait_for_provisioning(worker=worker, timeout_minutes=1)
 
         assert ready is True
@@ -449,8 +443,8 @@ class TestCloudPCTelemetryIntegration:
         mock_policy.id = f"policy-{uuid4()}"
         mock_policies = MagicMock()
         mock_policies.value = [mock_policy]
-        mock_graph_client.device_management.virtual_endpoint.provisioning_policies.get = (
-            AsyncMock(return_value=mock_policies)
+        mock_graph_client.device_management.virtual_endpoint.provisioning_policies.get = AsyncMock(
+            return_value=mock_policies
         )
 
         # Mock Cloud PC
@@ -466,9 +460,7 @@ class TestCloudPCTelemetryIntegration:
 
         # Phase 1: Provision
         policy_id = await cloud_pc_manager.ensure_provisioning_policy()
-        await cloud_pc_manager.provision_cloud_pc(
-            worker=worker, policy_id=policy_id
-        )
+        await cloud_pc_manager.provision_cloud_pc(worker=worker, policy_id=policy_id)
         ready = await cloud_pc_manager.wait_for_provisioning(worker=worker, timeout_minutes=1)
         assert ready is True
 
@@ -479,19 +471,17 @@ class TestCloudPCTelemetryIntegration:
         mock_graph_client.graph.users.by_user_id.return_value.messages.get = AsyncMock(
             return_value=MagicMock(value=[])
         )
-        mock_graph_client.graph.users.by_user_id.return_value.calendar.events.get = (
-            AsyncMock(return_value=MagicMock(value=[]))
+        mock_graph_client.graph.users.by_user_id.return_value.calendar.events.get = AsyncMock(
+            return_value=MagicMock(value=[])
         )
 
         await telemetry_collector.get_emails_for_worker(worker=worker)
         await telemetry_collector.get_calendar_events_for_worker(worker=worker)
 
         # Phase 4: Cleanup
-        mock_graph_client.device_management.virtual_endpoint.cloud_p_cs.by_cloud_pc_id = (
-            MagicMock()
-        )
-        mock_graph_client.device_management.virtual_endpoint.cloud_p_cs.by_cloud_pc_id.return_value.delete = (
-            AsyncMock(return_value=None)
+        mock_graph_client.device_management.virtual_endpoint.cloud_p_cs.by_cloud_pc_id = MagicMock()
+        mock_graph_client.device_management.virtual_endpoint.cloud_p_cs.by_cloud_pc_id.return_value.delete = AsyncMock(
+            return_value=None
         )
 
         deleted = await cloud_pc_manager.delete_cloud_pc(cloud_pc_id=mock_cloud_pc.id)
@@ -527,8 +517,8 @@ class TestIntegrationErrorHandling:
             mock_policies.value = [mock_policy]
             return mock_policies
 
-        mock_graph_client.device_management.virtual_endpoint.provisioning_policies.get = (
-            AsyncMock(side_effect=mock_get_policies)
+        mock_graph_client.device_management.virtual_endpoint.provisioning_policies.get = AsyncMock(
+            side_effect=mock_get_policies
         )
 
         # Should succeed after retry

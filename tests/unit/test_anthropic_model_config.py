@@ -11,10 +11,11 @@ These tests are written FIRST and will pass once the fix is implemented.
 """
 
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from anthropic import APIError, AuthenticationError
+from anthropic.types import TextBlock
 
 from azure_haymaker.knowledge_worker.content.email_generator import (
     EmailContentGenerator,
@@ -38,11 +39,13 @@ class TestAnthropicModelConfiguration:
             model="claude-sonnet-4-5-20250929",  # Valid model
         )
 
-        with patch("azure_haymaker.knowledge_worker.content.email_generator.Anthropic") as mock_anthropic:
-            # Mock successful response
+        with patch(
+            "azure_haymaker.knowledge_worker.content.email_generator.Anthropic"
+        ) as mock_anthropic:
+            # Mock successful response - use actual TextBlock
             mock_response = MagicMock()
             mock_response.content = [
-                MagicMock(text="Subject: Test Email\n\nHello world!")
+                TextBlock(type="text", text="Subject: Test Email\n\nHello world!")
             ]
             mock_response.usage = MagicMock(output_tokens=50)
 
@@ -79,11 +82,11 @@ class TestAnthropicModelConfiguration:
             model="claude-opus-4-5-20251101",  # Opus model
         )
 
-        with patch("azure_haymaker.knowledge_worker.content.email_generator.Anthropic") as mock_anthropic:
+        with patch(
+            "azure_haymaker.knowledge_worker.content.email_generator.Anthropic"
+        ) as mock_anthropic:
             mock_response = MagicMock()
-            mock_response.content = [
-                MagicMock(text="Subject: Opus Test\n\nOpus response")
-            ]
+            mock_response.content = [MagicMock(text="Subject: Opus Test\n\nOpus response")]
             mock_response.usage = MagicMock(output_tokens=75)
 
             mock_client = MagicMock()
@@ -116,14 +119,18 @@ class TestAnthropicModelConfiguration:
             model="invalid-model-name",  # Invalid model
         )
 
-        with patch("azure_haymaker.knowledge_worker.content.email_generator.Anthropic") as mock_anthropic:
+        with patch(
+            "azure_haymaker.knowledge_worker.content.email_generator.Anthropic"
+        ) as mock_anthropic:
             # Simulate API error for invalid model
             mock_client = MagicMock()
             mock_request = MagicMock()
             api_error = APIError(
                 message="model: Invalid model",
                 request=mock_request,
-                body={"error": {"type": "invalid_request_error", "message": "model: Invalid model"}},
+                body={
+                    "error": {"type": "invalid_request_error", "message": "model: Invalid model"}
+                },
             )
             mock_client.messages.create = MagicMock(side_effect=api_error)
             mock_anthropic.return_value = mock_client
@@ -158,11 +165,11 @@ class TestAnthropicModelConfiguration:
 
             # Mock the config loading to respect env var
             # (This will be implemented in the actual fix)
-            with patch("azure_haymaker.knowledge_worker.content.email_generator.Anthropic") as mock_anthropic:
+            with patch(
+                "azure_haymaker.knowledge_worker.content.email_generator.Anthropic"
+            ) as mock_anthropic:
                 mock_response = MagicMock()
-                mock_response.content = [
-                    MagicMock(text="Subject: Env Test\n\nEnv model works")
-                ]
+                mock_response.content = [MagicMock(text="Subject: Env Test\n\nEnv model works")]
                 mock_response.usage = MagicMock(output_tokens=40)
 
                 mock_client = MagicMock()
@@ -172,8 +179,8 @@ class TestAnthropicModelConfiguration:
                 generator = EmailContentGenerator(config)
 
                 # Patch the model selection logic to respect env var
-                with patch.object(generator.config, 'model', test_model):
-                    result = await generator.generate_email(
+                with patch.object(generator.config, "model", test_model):
+                    await generator.generate_email(
                         worker_id="kw-test-1",
                         department="marketing",
                         recipient="test@example.com",
@@ -199,11 +206,11 @@ class TestAnthropicModelConfiguration:
             model=None,  # Not specified
         )
 
-        with patch("azure_haymaker.knowledge_worker.content.email_generator.Anthropic") as mock_anthropic:
+        with patch(
+            "azure_haymaker.knowledge_worker.content.email_generator.Anthropic"
+        ) as mock_anthropic:
             mock_response = MagicMock()
-            mock_response.content = [
-                MagicMock(text="Subject: Default Test\n\nDefault model used")
-            ]
+            mock_response.content = [MagicMock(text="Subject: Default Test\n\nDefault model used")]
             mock_response.usage = MagicMock(output_tokens=45)
 
             mock_client = MagicMock()
@@ -211,7 +218,7 @@ class TestAnthropicModelConfiguration:
             mock_anthropic.return_value = mock_client
 
             generator = EmailContentGenerator(config)
-            result = await generator.generate_email(
+            await generator.generate_email(
                 worker_id="kw-test-1",
                 department="hr",
                 recipient="test@example.com",
@@ -241,11 +248,11 @@ class TestAnthropicModelConfiguration:
                 model=config_model,  # Explicit config
             )
 
-            with patch("azure_haymaker.knowledge_worker.content.email_generator.Anthropic") as mock_anthropic:
+            with patch(
+                "azure_haymaker.knowledge_worker.content.email_generator.Anthropic"
+            ) as mock_anthropic:
                 mock_response = MagicMock()
-                mock_response.content = [
-                    MagicMock(text="Subject: Priority Test\n\nConfig wins")
-                ]
+                mock_response.content = [MagicMock(text="Subject: Priority Test\n\nConfig wins")]
                 mock_response.usage = MagicMock(output_tokens=30)
 
                 mock_client = MagicMock()
@@ -253,7 +260,7 @@ class TestAnthropicModelConfiguration:
                 mock_anthropic.return_value = mock_client
 
                 generator = EmailContentGenerator(config)
-                result = await generator.generate_email(
+                await generator.generate_email(
                     worker_id="kw-test-1",
                     department="finance",
                     recipient="test@example.com",
@@ -278,11 +285,11 @@ class TestModelConfigurationEdgeCases:
             model="",  # Empty string
         )
 
-        with patch("azure_haymaker.knowledge_worker.content.email_generator.Anthropic") as mock_anthropic:
+        with patch(
+            "azure_haymaker.knowledge_worker.content.email_generator.Anthropic"
+        ) as mock_anthropic:
             mock_response = MagicMock()
-            mock_response.content = [
-                MagicMock(text="Subject: Empty Test\n\nDefault used")
-            ]
+            mock_response.content = [MagicMock(text="Subject: Empty Test\n\nDefault used")]
             mock_response.usage = MagicMock(output_tokens=25)
 
             mock_client = MagicMock()
@@ -290,7 +297,7 @@ class TestModelConfigurationEdgeCases:
             mock_anthropic.return_value = mock_client
 
             generator = EmailContentGenerator(config)
-            result = await generator.generate_email(
+            await generator.generate_email(
                 worker_id="kw-test-1",
                 department="legal",
                 recipient="test@example.com",
@@ -310,11 +317,11 @@ class TestModelConfigurationEdgeCases:
             model="   ",  # Whitespace only
         )
 
-        with patch("azure_haymaker.knowledge_worker.content.email_generator.Anthropic") as mock_anthropic:
+        with patch(
+            "azure_haymaker.knowledge_worker.content.email_generator.Anthropic"
+        ) as mock_anthropic:
             mock_response = MagicMock()
-            mock_response.content = [
-                MagicMock(text="Subject: Whitespace Test\n\nDefault used")
-            ]
+            mock_response.content = [MagicMock(text="Subject: Whitespace Test\n\nDefault used")]
             mock_response.usage = MagicMock(output_tokens=28)
 
             mock_client = MagicMock()
@@ -322,7 +329,7 @@ class TestModelConfigurationEdgeCases:
             mock_anthropic.return_value = mock_client
 
             generator = EmailContentGenerator(config)
-            result = await generator.generate_email(
+            await generator.generate_email(
                 worker_id="kw-test-1",
                 department="operations",
                 recipient="test@example.com",
@@ -343,11 +350,11 @@ class TestModelConfigurationEdgeCases:
             model=test_model,
         )
 
-        with patch("azure_haymaker.knowledge_worker.content.email_generator.Anthropic") as mock_anthropic:
+        with patch(
+            "azure_haymaker.knowledge_worker.content.email_generator.Anthropic"
+        ) as mock_anthropic:
             mock_response = MagicMock()
-            mock_response.content = [
-                MagicMock(text="Subject: Metadata Test\n\nChecking metadata")
-            ]
+            mock_response.content = [MagicMock(text="Subject: Metadata Test\n\nChecking metadata")]
             mock_response.usage = MagicMock(output_tokens=35)
 
             mock_client = MagicMock()
@@ -388,7 +395,9 @@ class TestModelConfigurationEdgeCases:
             model="claude-sonnet-4-5-20250929",
         )
 
-        with patch("azure_haymaker.knowledge_worker.content.email_generator.Anthropic") as mock_anthropic:
+        with patch(
+            "azure_haymaker.knowledge_worker.content.email_generator.Anthropic"
+        ) as mock_anthropic:
             mock_client = MagicMock()
             mock_response = MagicMock()
             mock_response.status_code = 401
@@ -428,10 +437,16 @@ class TestModelConfigurationIntegration:
             directive="Be professional",
         )
 
-        with patch("azure_haymaker.knowledge_worker.content.email_generator.Anthropic") as mock_anthropic:
+        with patch(
+            "azure_haymaker.knowledge_worker.content.email_generator.Anthropic"
+        ) as mock_anthropic:
             mock_response = MagicMock()
+            # Use actual TextBlock to pass isinstance() check
             mock_response.content = [
-                MagicMock(text="Subject: Professional Email\n\nDear colleague,\n\nThis is a professional email.")
+                TextBlock(
+                    type="text",
+                    text="Subject: Professional Email\n\nDear colleague,\n\nThis is a professional email.",
+                )
             ]
             mock_response.usage = MagicMock(output_tokens=60)
 
@@ -479,7 +494,9 @@ class TestModelConfigurationIntegration:
                 model=model,
             )
 
-            with patch("azure_haymaker.knowledge_worker.content.email_generator.Anthropic") as mock_anthropic:
+            with patch(
+                "azure_haymaker.knowledge_worker.content.email_generator.Anthropic"
+            ) as mock_anthropic:
                 mock_response = MagicMock()
                 mock_response.content = [
                     MagicMock(text=f"Subject: {department} Email\n\nHello from {department}")
@@ -491,7 +508,7 @@ class TestModelConfigurationIntegration:
                 mock_anthropic.return_value = mock_client
 
                 generator = EmailContentGenerator(config)
-                result = await generator.generate_email(
+                await generator.generate_email(
                     worker_id=f"kw-{department}-1",
                     department=department,
                     recipient=f"test@{department}.example.com",

@@ -111,17 +111,13 @@ class MockTableClient:
     def _generate_etag(self) -> str:
         """Generate a unique ETag."""
         self._etag_counter += 1
-        return f"W/\"etag-{self._etag_counter}\""
+        return f'W/"etag-{self._etag_counter}"'
 
-    async def get_entity(
-        self, partition_key: str, row_key: str, **kwargs: Any
-    ) -> dict[str, Any]:
+    async def get_entity(self, partition_key: str, row_key: str, **kwargs: Any) -> dict[str, Any]:
         """Retrieve an entity."""
         key = (partition_key, row_key)
         if key not in self._entities:
-            raise self._resource_not_found_error(
-                f"Entity not found: {partition_key}/{row_key}"
-            )
+            raise self._resource_not_found_error(f"Entity not found: {partition_key}/{row_key}")
         return self._entities[key].copy()
 
     async def create_entity(self, entity: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
@@ -175,9 +171,7 @@ class MockTableClient:
             self._entities[key] = entity.copy()
         return entity
 
-    async def delete_entity(
-        self, partition_key: str, row_key: str, **kwargs: Any
-    ) -> None:
+    async def delete_entity(self, partition_key: str, row_key: str, **kwargs: Any) -> None:
         """Delete an entity."""
         key = (partition_key, row_key)
         if key in self._entities:
@@ -295,9 +289,9 @@ class MockBlobClient:
 
         downloader = MagicMock()
         downloader.readall.return_value = self._container._blobs[self.blob_name]
-        downloader.content_as_text.return_value = self._container._blobs[
-            self.blob_name
-        ].decode("utf-8")
+        downloader.content_as_text.return_value = self._container._blobs[self.blob_name].decode(
+            "utf-8"
+        )
         return downloader
 
     def upload_blob(
@@ -430,9 +424,7 @@ class MockServicePrincipalsCollection:
         self._graph._service_principals[sp.id] = sp
         return sp
 
-    def by_service_principal_id(
-        self, sp_id: str | None = None
-    ) -> "MockServicePrincipalBuilder":
+    def by_service_principal_id(self, sp_id: str | None = None) -> "MockServicePrincipalBuilder":
         """Get service principal by ID."""
         return MockServicePrincipalBuilder(self._graph, sp_id)
 
