@@ -424,11 +424,16 @@ async def status(_: AuthDep):
 @app.get("/api/metrics")
 async def metrics(_: AuthDep):
     """Get execution metrics. Requires authentication."""
+    total_execs = len(executions)
+    completed = len([e for e in executions.values() if e["status"] == "completed"])
+
     return {
-        "executions_total": len(executions),
-        "executions_running": len([e for e in executions.values() if e["status"] == "running"]),
-        "executions_completed": len([e for e in executions.values() if e["status"] == "completed"]),
-        "executions_failed": len([e for e in executions.values() if e["status"] == "failed"]),
+        "total_executions": total_execs,
+        "active_agents": len([e for e in executions.values() if e["status"] == "running"]),
+        "total_resources": 0,  # TODO: Query from resource tracking
+        "success_rate": (completed / total_execs) if total_execs > 0 else 0.0,
+        "last_execution": None,  # TODO: Get from most recent execution
+        "period": "7d",
     }
 
 
@@ -613,6 +618,63 @@ async def list_resources(
         }
     except Exception as e:
         logger.error(f"Failed to list resources: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.get("/api/agents")
+async def list_agents(
+    _: AuthDep,
+    status: str | None = Query(None, description="Filter by status (running/completed/failed)"),
+    limit: int = Query(100, description="Maximum number of results"),
+):
+    """List all agents. Requires authentication.
+
+    Queries Table Storage for agent execution information.
+
+    Args:
+        status: Optional status filter
+        limit: Maximum results (default 100)
+
+    Returns:
+        List of agents with metadata
+    """
+    try:
+        # Import agents API functions
+        from azure_haymaker.orchestrator.agents_api import AgentInfo, query_agents_from_table
+
+        # Get Table Storage configuration
+        table_account_name = os.getenv("TABLE_STORAGE_ACCOUNT_NAME")
+        table_name = os.getenv("AGENTS_TABLE_NAME", "agents")
+
+        if not table_account_name:
+            raise HTTPException(
+                status_code=500,
+                detail="Agents storage not configured. Set TABLE_STORAGE_ACCOUNT_NAME."
+            )
+
+        # Create Table Storage client
+        credential = DefaultAzureCredential()
+        table_service_client = TableServiceClient(
+            endpoint=f"https://{table_account_name}.table.core.windows.net",
+            credential=credential,
+        )
+        table_client = table_service_client.get_table_client(table_name)
+
+        # Query agents
+        agents = await query_agents_from_table(
+            table_client,
+            status_filter=status,
+            limit=limit,
+        )
+
+        # Build response
+        return {
+            "agents": [agent.model_dump(mode="json") for agent in agents],
+            "count": len(agents),
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to list agents: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
