@@ -424,11 +424,16 @@ async def status(_: AuthDep):
 @app.get("/api/metrics")
 async def metrics(_: AuthDep):
     """Get execution metrics. Requires authentication."""
+    total_execs = len(executions)
+    completed = len([e for e in executions.values() if e["status"] == "completed"])
+
     return {
-        "executions_total": len(executions),
-        "executions_running": len([e for e in executions.values() if e["status"] == "running"]),
-        "executions_completed": len([e for e in executions.values() if e["status"] == "completed"]),
-        "executions_failed": len([e for e in executions.values() if e["status"] == "failed"]),
+        "total_executions": total_execs,
+        "active_agents": len([e for e in executions.values() if e["status"] == "running"]),
+        "total_resources": 0,  # TODO: Query from resource tracking
+        "success_rate": (completed / total_execs) if total_execs > 0 else 0.0,
+        "last_execution": None,  # TODO: Get from most recent execution
+        "period": "7d",
     }
 
 
