@@ -16,6 +16,7 @@ Uses pytest with real Azure credentials and cleanup fixtures.
 """
 
 import asyncio
+import os
 import socket
 from datetime import datetime
 from uuid import uuid4
