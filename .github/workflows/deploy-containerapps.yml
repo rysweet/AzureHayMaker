@@ -155,6 +155,18 @@ jobs:
             ORCHESTRATOR_NAME="haymaker-fastapi-orch"
           fi
 
+          # Get Key Vault name if output was empty
+          if [ -z "$KEY_VAULT_NAME" ] || [ "$KEY_VAULT_NAME" = "null" ]; then
+            echo "Key Vault name missing from outputs, querying..."
+            KEY_VAULT_NAME=$(az keyvault list --resource-group "$RG_NAME" --query "[?starts_with(name, 'haymaker-${{ env.ENVIRONMENT }}')].name | [0]" -o tsv)
+          fi
+
+          # Get Principal ID if output was empty
+          if [ -z "$ORCHESTRATOR_PRINCIPAL_ID" ] || [ "$ORCHESTRATOR_PRINCIPAL_ID" = "null" ]; then
+            echo "Principal ID missing from outputs, querying..."
+            ORCHESTRATOR_PRINCIPAL_ID=$(az containerapp show --name "$ORCHESTRATOR_NAME" --resource-group "$RG_NAME" --query "identity.principalId" -o tsv)
+          fi
+
           echo "orchestratorName=$ORCHESTRATOR_NAME" >> $GITHUB_OUTPUT
           echo "orchestratorFqdn=$ORCHESTRATOR_FQDN" >> $GITHUB_OUTPUT
           echo "orchestratorPrincipalId=$ORCHESTRATOR_PRINCIPAL_ID" >> $GITHUB_OUTPUT
@@ -214,6 +226,36 @@ jobs:
           fi
 
           echo "✅ Container app ready"
+
+      - name: Grant Key Vault Secrets User Permission
+        run: |
+          RG_NAME="haymaker-${{ env.ENVIRONMENT }}-rg"
+          ORCHESTRATOR="${{ steps.deploy.outputs.orchestratorName }}"
+
+          # Get orchestrator's managed identity principal ID
+          PRINCIPAL_ID=$(az containerapp show \
+            --name "$ORCHESTRATOR" \
+            --resource-group "$RG_NAME" \
+            --query "identity.principalId" -o tsv)
+
+          # Get Key Vault name
+          KV_NAME="${{ steps.deploy.outputs.keyVaultName }}"
+          if [ -z "$KV_NAME" ] || [ "$KV_NAME" = "null" ]; then
+            KV_NAME=$(az keyvault list --resource-group "$RG_NAME" --query "[?starts_with(name, 'haymaker-${{ env.ENVIRONMENT }}')].name | [0]" -o tsv)
+          fi
+
+          echo "Granting Key Vault Secrets User permission..."
+          echo "  Principal ID: $PRINCIPAL_ID"
+          echo "  Key Vault: $KV_NAME"
+
+          # Grant Key Vault Secrets User role
+          az role assignment create \
+            --assignee "$PRINCIPAL_ID" \
+            --role "Key Vault Secrets User" \
+            --scope "/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/$RG_NAME/providers/Microsoft.KeyVault/vaults/$KV_NAME" \
+            --output none || echo "Role assignment already exists"
+
+          echo "✅ Key Vault permission granted"
 
       - name: Setup Python for Secret Injection
         uses: actions/setup-python@v5
