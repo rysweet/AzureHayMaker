@@ -130,7 +130,7 @@ jobs:
                          adminObjectIds="['${{ steps.get-sp-oid.outputs.sp_object_id }}']" \
                          githubOidcClientId="${{ secrets.AZURE_CLIENT_ID }}" \
                          simulationSize="${{ secrets.SIMULATION_SIZE }}" \
-                         containerImage="haymakerorchacr.azurecr.io/haymaker-orchestrator:${{ github.sha }}" \
+                         orchestratorImage="haymakerorchacr.azurecr.io/haymaker-orchestrator:${{ github.sha }}" \
             --name "$DEPLOYMENT_NAME" \
             --mode Incremental \
             --query properties.outputs -o json || true)  # Don't fail on revision timeout
