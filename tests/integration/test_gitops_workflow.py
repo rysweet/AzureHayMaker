@@ -538,6 +538,12 @@ def azure_resource_group():
 
 
 @pytest.fixture(scope="session")
+def azure_container_app_name():
+    """Get Container App name from environment"""
+    return os.environ.get("AZURE_CONTAINER_APP_NAME", "haymaker-fastapi-orch")
+
+
+@pytest.fixture(scope="session")
 def azure_keyvault_name(azure_resource_group):
     """Get Key Vault name from environment"""
     kv = os.environ.get("AZURE_KEYVAULT_NAME")
