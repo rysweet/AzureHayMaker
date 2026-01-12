@@ -66,7 +66,6 @@ resource orchestratorApp 'Microsoft.App/containerApps@2023-05-01' = {
     workloadProfileName: 'E16' // 128GB RAM, 16 vCPU - Captain's specification!
     configuration: {
       activeRevisionsMode: 'Single'
-      secrets: []
       ingress: {
         external: true
         targetPort: 80  // FastAPI/Uvicorn default port
