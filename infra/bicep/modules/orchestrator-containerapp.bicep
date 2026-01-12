@@ -22,6 +22,10 @@ param containerRegistry string = 'haymakerorchacr.azurecr.io'
 @description('Environment name (dev/staging/prod)')
 param environment string
 
+@description('ACR admin password (for username/password auth)')
+@secure()
+param acrPassword string = ''
+
 @description('Key Vault URI')
 param keyVaultUri string
 
@@ -75,10 +79,17 @@ resource orchestratorApp 'Microsoft.App/containerApps@2023-05-01' = {
           }
         ]
       }
-      registries: containerRegistry != '' ? [
+      registries: containerRegistry != '' && acrPassword != '' ? [
         {
           server: containerRegistry
-          identity: 'system'
+          username: 'haymakerorchacr'
+          passwordSecretRef: 'acr-password'
+        }
+      ] : []
+      secrets: containerRegistry != '' && acrPassword != '' ? [
+        {
+          name: 'acr-password'
+          value: acrPassword
         }
       ] : []
     }
