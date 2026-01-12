@@ -62,7 +62,7 @@ class TestCompleteGitOpsWorkflow:
                 "containerapp",
                 "show",
                 "--name",
-                "orchestrator",
+                "haymaker-fastapi-orch",
                 "--resource-group",
                 azure_resource_group,
                 "--subscription",
@@ -89,7 +89,7 @@ class TestCompleteGitOpsWorkflow:
         # Step 3: Inject secrets
         print("Step 3: Injecting secrets to container app...")
         secrets_injected = handler.inject_secrets_to_container_app(
-            container_app_name="orchestrator",
+            container_app_name="haymaker-fastapi-orch",
             keyvault_name=azure_keyvault_name,
             secrets=[
                 {"name": "ANTHROPIC_API_KEY", "keyvault_secret": "anthropic-api-key"},
@@ -110,7 +110,7 @@ class TestCompleteGitOpsWorkflow:
                 "containerapp",
                 "show",
                 "--name",
-                "orchestrator",
+                "haymaker-fastapi-orch",
                 "--resource-group",
                 azure_resource_group,
                 "--subscription",
@@ -136,7 +136,7 @@ class TestCompleteGitOpsWorkflow:
 
         # Check container health
         container_healthy = verifier.check_container_health(
-            container_app_name="orchestrator",
+            container_app_name="haymaker-fastapi-orch",
             wait_ready=True,
             max_wait_seconds=300,
         )
@@ -181,7 +181,7 @@ class TestSecretInjectionStep:
                 "containerapp",
                 "show",
                 "--name",
-                "orchestrator",
+                "haymaker-fastapi-orch",
                 "--resource-group",
                 azure_resource_group,
                 "--query",
@@ -206,7 +206,7 @@ class TestSecretInjectionStep:
 
         # Inject one test secret
         result = handler.inject_secrets_to_container_app(
-            container_app_name="orchestrator",
+            container_app_name="haymaker-fastapi-orch",
             keyvault_name=azure_keyvault_name,
             secrets=[
                 {"name": "TEST_SECRET", "keyvault_secret": "test-secret"},
@@ -233,7 +233,7 @@ class TestSecretInjectionStep:
 
         with pytest.raises(SecretInjectionError):
             handler.inject_secrets_to_container_app(
-                container_app_name="orchestrator",
+                container_app_name="haymaker-fastapi-orch",
                 keyvault_name=azure_keyvault_name,
                 secrets=[
                     {
@@ -260,7 +260,7 @@ class TestDeploymentVerificationStep:
                 "containerapp",
                 "show",
                 "--name",
-                "orchestrator",
+                "haymaker-fastapi-orch",
                 "--resource-group",
                 azure_resource_group,
                 "--query",
@@ -283,7 +283,7 @@ class TestDeploymentVerificationStep:
         )
 
         # Verify container is healthy
-        is_healthy = verifier.check_container_health("orchestrator")
+        is_healthy = verifier.check_container_health("haymaker-fastapi-orch")
 
         assert is_healthy is True
 
@@ -300,7 +300,7 @@ class TestDeploymentVerificationStep:
                 "containerapp",
                 "show",
                 "--name",
-                "orchestrator",
+                "haymaker-fastapi-orch",
                 "--resource-group",
                 azure_resource_group,
                 "--query",
@@ -350,7 +350,7 @@ class TestDeploymentVerificationStep:
                 "containerapp",
                 "show",
                 "--name",
-                "orchestrator",
+                "haymaker-fastapi-orch",
                 "--resource-group",
                 azure_resource_group,
                 "--query",
@@ -374,13 +374,13 @@ class TestDeploymentVerificationStep:
 
         # Generate verification report
         report = verifier.generate_verification_report(
-            container_app_name="orchestrator",
+            container_app_name="haymaker-fastapi-orch",
             api_endpoints=["/api/status", "/api/resources"],
         )
 
         # Verify report structure
         assert "container_app_name" in report
-        assert report["container_app_name"] == "orchestrator"
+        assert report["container_app_name"] == "haymaker-fastapi-orch"
         assert "verification_time" in report
         assert "checks_passed" in report
         assert "checks_failed" in report
@@ -403,7 +403,7 @@ class TestIntegrationTestsStep:
                 "containerapp",
                 "show",
                 "--name",
-                "orchestrator",
+                "haymaker-fastapi-orch",
                 "--resource-group",
                 azure_resource_group,
                 "--query",
@@ -469,7 +469,7 @@ class TestGitOpsErrorRecovery:
                 "containerapp",
                 "show",
                 "--name",
-                "orchestrator",
+                "haymaker-fastapi-orch",
                 "--resource-group",
                 azure_resource_group,
                 "--query",
