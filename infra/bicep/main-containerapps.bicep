@@ -26,6 +26,10 @@ param agentImage string = 'azure-haymaker-agent:latest'
 @description('Simulation size')
 param simulationSize string = 'small'
 
+@description('ACR admin password for username/password authentication')
+@secure()
+param acrPassword string = ''
+
 // Common tags
 var commonTags = {
   Environment: environment
@@ -132,6 +136,7 @@ module orchestrator 'modules/orchestrator-containerapp.bicep' = {
     containerImage: orchestratorImage
     containerRegistry: 'haymakerorchacr.azurecr.io' // ACR created by workflow
     environment: environment
+    acrPassword: acrPassword // ACR password for username/password auth
     keyVaultUri: keyVault.outputs.keyVaultUri
     serviceBusNamespace: serviceBus.outputs.namespaceName
     storageAccountName: storage.outputs.storageAccountName
