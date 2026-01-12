@@ -131,6 +131,7 @@ jobs:
                          githubOidcClientId="${{ secrets.AZURE_CLIENT_ID }}" \
                          simulationSize="${{ secrets.SIMULATION_SIZE }}" \
                          orchestratorImage="haymakerorchacr.azurecr.io/haymaker-orchestrator:${{ github.sha }}" \
+                         acrPassword="${{ secrets.ACR_PASSWORD }}" \
             --name "$DEPLOYMENT_NAME" \
             --mode Incremental \
             --query properties.outputs -o json || true)  # Don't fail on revision timeout
