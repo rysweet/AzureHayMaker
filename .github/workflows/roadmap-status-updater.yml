@@ -24,7 +24,7 @@ jobs:
 
       - name: Get enhancement issues
         id: get-issues
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const issues = await github.rest.issues.listForRepo({
@@ -58,7 +58,7 @@ jobs:
             return enhancements;
 
       - name: Generate status update
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const enhancements = ${{ steps.get-issues.outputs.result }};
@@ -113,7 +113,7 @@ jobs:
 
       - name: Comment on relevant issues
         if: github.event_name == 'issues' && github.event.action == 'closed'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const issue = context.payload.issue;
