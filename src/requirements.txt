@@ -204,7 +204,7 @@ opentelemetry-sdk==1.38.0
     #   microsoft-kiota-http
 opentelemetry-semantic-conventions==0.59b0
     # via opentelemetry-sdk
-orderedmultidict==1.0.1
+orderedmultidict==1.0.2
     # via furl
 propcache==0.4.1
     # via
