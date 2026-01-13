@@ -130,6 +130,8 @@ jobs:
                          adminObjectIds="['${{ steps.get-sp-oid.outputs.sp_object_id }}']" \
                          githubOidcClientId="${{ secrets.AZURE_CLIENT_ID }}" \
                          simulationSize="${{ secrets.SIMULATION_SIZE }}" \
+                         orchestratorImage="haymakerorchacr.azurecr.io/haymaker-orchestrator:${{ github.sha }}" \
+                         acrPassword="${{ secrets.ACR_PASSWORD }}" \
             --name "$DEPLOYMENT_NAME" \
             --mode Incremental \
             --query properties.outputs -o json || true)  # Don't fail on revision timeout
@@ -257,6 +259,33 @@ jobs:
 
           echo "✅ Key Vault permission granted"
 
+      - name: Grant Table Storage Permission
+        run: |
+          RG_NAME="haymaker-${{ env.ENVIRONMENT }}-rg"
+          ORCHESTRATOR="${{ steps.deploy.outputs.orchestratorName }}"
+
+          # Get orchestrator's managed identity principal ID
+          PRINCIPAL_ID=$(az containerapp show \
+            --name "$ORCHESTRATOR" \
+            --resource-group "$RG_NAME" \
+            --query "identity.principalId" -o tsv)
+
+          # Get Storage account name
+          STORAGE_NAME="${{ steps.deploy.outputs.storageName }}"
+
+          echo "Granting Table Storage Data Contributor permission..."
+          echo "  Principal ID: $PRINCIPAL_ID"
+          echo "  Storage: $STORAGE_NAME"
+
+          # Grant Table Storage Data Contributor role
+          az role assignment create \
+            --assignee "$PRINCIPAL_ID" \
+            --role "Storage Table Data Contributor" \
+            --scope "/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/$RG_NAME/providers/Microsoft.Storage/storageAccounts/$STORAGE_NAME" \
+            || echo "⚠️  Role assignment may already exist"
+
+          echo "✅ Table Storage permission granted"
+
       - name: Setup Python for Secret Injection
         uses: actions/setup-python@v5
         with:
@@ -279,7 +308,9 @@ jobs:
             --resource-group "$RG_NAME" \
             --container-app "$ORCHESTRATOR" \
             --keyvault "$KV_NAME" \
-            --principal-id "$PRINCIPAL_ID"
+            --principal-id "$PRINCIPAL_ID" \
+            --max-retries 10 \
+            --initial-backoff 15
 
           echo "✅ Secrets injected successfully"
 

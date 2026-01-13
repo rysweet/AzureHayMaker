@@ -27,6 +27,7 @@ from azure_haymaker.orchestrator.secret_injection_handler import SecretInjection
 class TestCompleteGitOpsWorkflow:
     """Test complete GitOps deployment workflow end-to-end"""
 
+    @pytest.mark.timeout(300)  # 5 minute max for complete workflow
     def test_complete_gitops_deployment_succeeds(
         self,
         azure_subscription_id,
@@ -51,8 +52,8 @@ class TestCompleteGitOpsWorkflow:
         handler = SecretInjectionHandler(
             subscription_id=azure_subscription_id,
             resource_group=azure_resource_group,
-            max_retries=10,
-            initial_backoff_seconds=10,
+            max_retries=3,  # Reduced from 10 - RBAC should already be ready in CI
+            initial_backoff_seconds=5,  # Reduced from 10
         )
 
         # Get orchestrator identity principal ID
@@ -62,7 +63,7 @@ class TestCompleteGitOpsWorkflow:
                 "containerapp",
                 "show",
                 "--name",
-                "orchestrator",
+                "haymaker-fastapi-orch",
                 "--resource-group",
                 azure_resource_group,
                 "--subscription",
@@ -89,7 +90,7 @@ class TestCompleteGitOpsWorkflow:
         # Step 3: Inject secrets
         print("Step 3: Injecting secrets to container app...")
         secrets_injected = handler.inject_secrets_to_container_app(
-            container_app_name="orchestrator",
+            container_app_name="haymaker-fastapi-orch",
             keyvault_name=azure_keyvault_name,
             secrets=[
                 {"name": "ANTHROPIC_API_KEY", "keyvault_secret": "anthropic-api-key"},
@@ -110,7 +111,7 @@ class TestCompleteGitOpsWorkflow:
                 "containerapp",
                 "show",
                 "--name",
-                "orchestrator",
+                "haymaker-fastapi-orch",
                 "--resource-group",
                 azure_resource_group,
                 "--subscription",
@@ -136,9 +137,9 @@ class TestCompleteGitOpsWorkflow:
 
         # Check container health
         container_healthy = verifier.check_container_health(
-            container_app_name="orchestrator",
+            container_app_name="haymaker-fastapi-orch",
             wait_ready=True,
-            max_wait_seconds=300,
+            max_wait_seconds=120,  # Reduced from 300 to prevent long waits
         )
         assert container_healthy is True, "Container is not healthy"
 
@@ -170,8 +171,8 @@ class TestSecretInjectionStep:
         handler = SecretInjectionHandler(
             subscription_id=azure_subscription_id,
             resource_group=azure_resource_group,
-            max_retries=5,
-            initial_backoff_seconds=10,
+            max_retries=3,  # Reduced from 5
+            initial_backoff_seconds=5,  # Reduced from 10
         )
 
         # Get orchestrator identity
@@ -181,7 +182,7 @@ class TestSecretInjectionStep:
                 "containerapp",
                 "show",
                 "--name",
-                "orchestrator",
+                "haymaker-fastapi-orch",
                 "--resource-group",
                 azure_resource_group,
                 "--query",
@@ -206,7 +207,7 @@ class TestSecretInjectionStep:
 
         # Inject one test secret
         result = handler.inject_secrets_to_container_app(
-            container_app_name="orchestrator",
+            container_app_name="haymaker-fastapi-orch",
             keyvault_name=azure_keyvault_name,
             secrets=[
                 {"name": "TEST_SECRET", "keyvault_secret": "test-secret"},
@@ -233,7 +234,7 @@ class TestSecretInjectionStep:
 
         with pytest.raises(SecretInjectionError):
             handler.inject_secrets_to_container_app(
-                container_app_name="orchestrator",
+                container_app_name="haymaker-fastapi-orch",
                 keyvault_name=azure_keyvault_name,
                 secrets=[
                     {
@@ -260,7 +261,7 @@ class TestDeploymentVerificationStep:
                 "containerapp",
                 "show",
                 "--name",
-                "orchestrator",
+                "haymaker-fastapi-orch",
                 "--resource-group",
                 azure_resource_group,
                 "--query",
@@ -283,7 +284,7 @@ class TestDeploymentVerificationStep:
         )
 
         # Verify container is healthy
-        is_healthy = verifier.check_container_health("orchestrator")
+        is_healthy = verifier.check_container_health("haymaker-fastapi-orch")
 
         assert is_healthy is True
 
@@ -300,7 +301,7 @@ class TestDeploymentVerificationStep:
                 "containerapp",
                 "show",
                 "--name",
-                "orchestrator",
+                "haymaker-fastapi-orch",
                 "--resource-group",
                 azure_resource_group,
                 "--query",
@@ -350,7 +351,7 @@ class TestDeploymentVerificationStep:
                 "containerapp",
                 "show",
                 "--name",
-                "orchestrator",
+                "haymaker-fastapi-orch",
                 "--resource-group",
                 azure_resource_group,
                 "--query",
@@ -374,13 +375,13 @@ class TestDeploymentVerificationStep:
 
         # Generate verification report
         report = verifier.generate_verification_report(
-            container_app_name="orchestrator",
+            container_app_name="haymaker-fastapi-orch",
             api_endpoints=["/api/status", "/api/resources"],
         )
 
         # Verify report structure
         assert "container_app_name" in report
-        assert report["container_app_name"] == "orchestrator"
+        assert report["container_app_name"] == "haymaker-fastapi-orch"
         assert "verification_time" in report
         assert "checks_passed" in report
         assert "checks_failed" in report
@@ -403,7 +404,7 @@ class TestIntegrationTestsStep:
                 "containerapp",
                 "show",
                 "--name",
-                "orchestrator",
+                "haymaker-fastapi-orch",
                 "--resource-group",
                 azure_resource_group,
                 "--query",
@@ -458,7 +459,7 @@ class TestGitOpsErrorRecovery:
         handler = SecretInjectionHandler(
             subscription_id=azure_subscription_id,
             resource_group=azure_resource_group,
-            max_retries=10,  # Allow sufficient retries
+            max_retries=3,  # Reduced from 10 - RBAC should be ready in CI
             initial_backoff_seconds=5,
         )
 
@@ -469,7 +470,7 @@ class TestGitOpsErrorRecovery:
                 "containerapp",
                 "show",
                 "--name",
-                "orchestrator",
+                "haymaker-fastapi-orch",
                 "--resource-group",
                 azure_resource_group,
                 "--query",
@@ -533,12 +534,18 @@ def azure_subscription_id():
 @pytest.fixture(scope="session")
 def azure_resource_group():
     """Get Azure resource group from environment"""
-    rg = os.environ.get("AZURE_RESOURCE_GROUP", "rg-azurehaymaker-dev")
+    rg = os.environ.get("AZURE_RESOURCE_GROUP", "haymaker-dev-rg")
     return rg
 
 
 @pytest.fixture(scope="session")
-def azure_keyvault_name():
+def azure_container_app_name():
+    """Get Container App name from environment"""
+    return os.environ.get("AZURE_CONTAINER_APP_NAME", "haymaker-fastapi-orch")
+
+
+@pytest.fixture(scope="session")
+def azure_keyvault_name(azure_resource_group):
     """Get Key Vault name from environment"""
     kv = os.environ.get("AZURE_KEYVAULT_NAME")
     if not kv:
@@ -549,7 +556,7 @@ def azure_keyvault_name():
                 "keyvault",
                 "list",
                 "--resource-group",
-                azure_resource_group(),
+                azure_resource_group,
                 "--query",
                 "[0].name",
                 "-o",
