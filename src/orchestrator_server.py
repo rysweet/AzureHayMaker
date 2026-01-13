@@ -640,7 +640,7 @@ async def list_agents(
     """
     try:
         # Import agents API functions
-        from azure_haymaker.orchestrator.agents_api import AgentInfo, query_agents_from_table
+        from azure_haymaker.orchestrator.agents_api import query_agents_from_table
 
         # Get Table Storage configuration
         table_account_name = os.getenv("TABLE_STORAGE_ACCOUNT_NAME")

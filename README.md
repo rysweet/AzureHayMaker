@@ -4,51 +4,36 @@
 
 [![Session](https://img.shields.io/badge/session-12+%20hours-purple)](.) [![PowerPoint](https://img.shields.io/badge/PowerPoint-ready-success)](.) [![Requirements](https://img.shields.io/badge/requirements-5%2F5-success)](.)
 
-Generate benign service telemetry for Azure Tenant simulation.
-
-## 🎉 **NEW**: Session Deliverables (2025-11-17/18)
-
-**After 12+ hours of intensive work, major improvements delivered**:
-- ✅ **PowerPoint Presentation**: 32 professional slides → `docs/presentations/Azure_HayMaker_Overview.pptx`
-- ✅ **Security Fix**: Secrets in Key Vault (confirmed working in production!)
-- ✅ **Agent Autostart**: Implemented and ready to test
-- ✅ **Log Streaming**: Real-time CLI output with colors
-- ✅ **Comprehensive Docs**: 12,000+ lines of guides and specs
-
-## 🚨 **URGENT**: Cost Alert - $2,164/month!
-
-**Critical finding**: 21 duplicate resource sets from debugging iterations
-- **Current**: $2,164/month
-- **After cleanup**: $498/month
-- **SAVINGS**: **$1,666/month (77%)!**
-
-**Immediate action** (5 min):
-```bash
-./scripts/cleanup-old-function-apps.sh  # Saves $1,533/month NOW!
-```
-
-**Details**: `CRITICAL_COST_ALERT.md` | **Tracked**: Issue #14
-
----
-
-**👉 START HERE**: Read `README_SESSION_DELIVERABLES.md` for complete overview
-
-**Key Documents**:
-- `FINAL_SESSION_SUMMARY.md` - Epic 12-hour journey
-- `NEXT_STEPS.md` - How to complete VM deployment
-- `SESSION_STATUS_REPORT.md` - Detailed progress report
+Generate benign service telemetry for Azure Tenant simulation with realistic Azure infrastructure scenarios and Microsoft 365 knowledge worker activity.
 
 ## What is it?
 
-Azure HayMaker is an orchestration service that simulates realistic Azure tenant activity by deploying and managing 50+ distinct operational scenarios using autonomous goal-seeking agents. Each agent performs a full lifecycle: deployment, 8-hour operation period, and cleanup.
+Azure HayMaker is an orchestration service that simulates realistic Azure tenant activity through two complementary capabilities:
+
+1. **Azure Infrastructure Scenarios**: Deploy and manage 50+ distinct operational scenarios (AI/ML, Analytics, Compute, Containers, Databases, etc.) using autonomous goal-seeking agents. Each agent performs a full lifecycle: deployment, 8-hour operation period, and cleanup.
+
+2. **Microsoft 365 Knowledge Worker Framework**: Simulate 50-300 knowledge workers performing everyday M365 activities including email, Microsoft Teams messaging, calendar events, and document collaboration. Workers are organized into teams with distinct personas and communication patterns.
 
 ## Key Features
 
+### Azure Infrastructure Scenarios
 - **50+ Azure Scenarios** across 10 technology areas (AI/ML, Analytics, Compute, Containers, Databases, etc.)
 - **Autonomous Agents** that self-manage deployments and troubleshoot issues
 - **Scheduled Execution** (4x daily for different global regions)
 - **Complete Automation** using Azure CLI, Terraform, and Bicep
 - **Automatic Cleanup** with resource tracking and forced removal
+
+### Microsoft 365 Knowledge Worker Framework
+- **Realistic M365 Activity**: Email, Microsoft Teams, documents, calendar events
+- **50-300 Knowledge Workers**: Organized by department with distinct personas
+- **AI-Powered Content**: Generate contextual emails using Claude or GPT (including fun themes like limericks!)
+- **Microsoft Teams Integration**: Channel posts, direct messages, @mentions, and reactions
+- **Internal-Only Communications**: Multiple safety layers prevent external email
+- **Email Markers**: Hidden markers for SIEM testing and tracking
+- **Hybrid Endpoints**: Windows 365 Cloud PCs or CLI containers for cost optimization
+- **Full Lifecycle Management**: Deployment, execution, monitoring, and cleanup
+
+See the [Knowledge Worker Framework documentation](docs/knowledge-worker-framework/README.md) for details.
 
 ## Quick Start
 
@@ -100,6 +85,41 @@ docker push haymakerorchacr.azurecr.io/haymaker-orchestrator:latest
 # Orchestrator runs automatically in Azure App Service
 # Access at: https://haymaker-fastapi-app.azurewebsites.net
 ```
+
+## Knowledge Worker Quick Start
+
+Deploy simulated knowledge workers performing M365 activities:
+
+```bash
+# 1. Install the Haymaker CLI
+pip install haymaker-cli
+
+# 2. Initialize M365 app registration
+haymaker kw init --save-config kw_config.env
+source kw_config.env
+
+# 3. Deploy 25 workers with AI-generated limerick emails (2 hours)
+haymaker kw deploy \
+  --workers 25 \
+  --department operations \
+  --duration 2 \
+  --enable-ai-generation \
+  --email-directive "Write all emails as limericks about office work" \
+  --marker-format LIMERICK
+
+# 4. Monitor activity
+haymaker kw telemetry-report --run-id <your-run-id>
+
+# 5. Cleanup when done
+haymaker kw cleanup --run-id <your-run-id>
+```
+
+**Common Use Cases:**
+- **SIEM Testing**: Deploy workers with hidden markers to test security monitoring
+- **Red Team Simulation**: Generate realistic benign traffic to blend with security testing
+- **Load Testing**: Test M365 infrastructure with realistic user patterns
+
+See the [Knowledge Worker Tutorial](docs/knowledge-worker-framework/TUTORIAL_DEPLOY_AND_MONITOR.md) for a complete walkthrough.
 
 ## Configuration
 
@@ -331,11 +351,22 @@ curl https://haymaker-fastapi-app.azurewebsites.net/api/metrics | jq
 
 ## Documentation
 
+### Azure Infrastructure Scenarios
 - **[Deployment Setup](docs/DEPLOYMENT_SETUP.md)** - Complete deployment guide with all requirements
+- **[Architecture](docs/ARCHITECTURE.md)** - Azure HayMaker orchestration service architecture
 - **[Project Requirements](specs/requirements.md)** - Detailed specifications and success criteria
 - **[Initial Prompt](specs/initial-prompt.md)** - Original project conception
 - **[Scenarios](docs/scenarios/)** - 50 operational scenarios with full automation
-- **[Architecture Guide](.claude/skills/azure-haymaker/ARCHITECTURE_GUIDE.md)** - Azure HayMaker orchestration service architecture
+
+### Microsoft 365 Knowledge Worker Framework
+- **[Knowledge Worker Framework Overview](docs/knowledge-worker-framework/README.md)** - Start here for M365 capabilities
+- **[Tutorial: Deploy & Monitor 25 Workers](docs/knowledge-worker-framework/TUTORIAL_DEPLOY_AND_MONITOR.md)** - Complete end-to-end tutorial
+- **[Architecture](docs/knowledge-worker-framework/ARCHITECTURE.md)** - Framework design and components
+- **[AI Email Generation Guide](docs/knowledge-worker-framework/AI_EMAIL_GENERATION.md)** - Generate contextual AI-powered emails
+- **[Email Markers Guide](docs/knowledge-worker-framework/EMAIL_MARKERS_GUIDE.md)** - Track and filter emails with embedded markers
+- **[Security](docs/knowledge-worker-framework/SECURITY.md)** - Safety controls and internal-only enforcement
+- **[Windows 365 Cloud PC](docs/knowledge-worker-framework/WINDOWS365_CLOUD_PC.md)** - Cloud PC endpoint documentation
+- **[M365 Integration Specification](docs/knowledge-worker-framework/KW_REAL_M365_SPECIFICATION.md)** - Technical implementation details
 
 **For Contributors**:
 - **[Quick Start Guide](docs/QUICK_START_CONTRIBUTORS.md)** - Get started in 15 minutes
