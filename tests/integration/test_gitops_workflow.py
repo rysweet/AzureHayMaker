@@ -27,6 +27,7 @@ from azure_haymaker.orchestrator.secret_injection_handler import SecretInjection
 class TestCompleteGitOpsWorkflow:
     """Test complete GitOps deployment workflow end-to-end"""
 
+    @pytest.mark.timeout(300)  # 5 minute max for complete workflow
     def test_complete_gitops_deployment_succeeds(
         self,
         azure_subscription_id,
@@ -51,8 +52,8 @@ class TestCompleteGitOpsWorkflow:
         handler = SecretInjectionHandler(
             subscription_id=azure_subscription_id,
             resource_group=azure_resource_group,
-            max_retries=10,
-            initial_backoff_seconds=10,
+            max_retries=3,  # Reduced from 10 - RBAC should already be ready in CI
+            initial_backoff_seconds=5,  # Reduced from 10
         )
 
         # Get orchestrator identity principal ID
@@ -138,7 +139,7 @@ class TestCompleteGitOpsWorkflow:
         container_healthy = verifier.check_container_health(
             container_app_name="haymaker-fastapi-orch",
             wait_ready=True,
-            max_wait_seconds=300,
+            max_wait_seconds=120,  # Reduced from 300 to prevent long waits
         )
         assert container_healthy is True, "Container is not healthy"
 
@@ -170,8 +171,8 @@ class TestSecretInjectionStep:
         handler = SecretInjectionHandler(
             subscription_id=azure_subscription_id,
             resource_group=azure_resource_group,
-            max_retries=5,
-            initial_backoff_seconds=10,
+            max_retries=3,  # Reduced from 5
+            initial_backoff_seconds=5,  # Reduced from 10
         )
 
         # Get orchestrator identity
@@ -458,7 +459,7 @@ class TestGitOpsErrorRecovery:
         handler = SecretInjectionHandler(
             subscription_id=azure_subscription_id,
             resource_group=azure_resource_group,
-            max_retries=10,  # Allow sufficient retries
+            max_retries=3,  # Reduced from 10 - RBAC should be ready in CI
             initial_backoff_seconds=5,
         )
 
