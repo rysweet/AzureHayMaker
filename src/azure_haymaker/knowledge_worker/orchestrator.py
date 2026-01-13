@@ -6,13 +6,7 @@ The orchestrator manages the full lifecycle of knowledge worker deployments:
 3. Execute - Run worker activities
 4. Cleanup - Remove all created resources
 
-NOTE: This is a LOCAL SIMULATION orchestrator. It demonstrates the deployment
-lifecycle but does not create actual Azure resources. For production use:
-- Integrate with EntraUserManager for real user provisioning
-- Connect to actual M365 endpoints via Graph API
-- Implement proper Azure resource cleanup
-
-The e2e-test CLI command validates real Graph API connectivity separately.
+Manages full lifecycle of knowledge worker deployments with real Azure resources.
 
 Example:
     >>> orchestrator = KnowledgeWorkerOrchestrator(graph_client)
@@ -22,7 +16,9 @@ Example:
 """
 
 import asyncio
+import html
 import logging
+import os
 import random
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -35,10 +31,21 @@ from azure_haymaker.knowledge_worker.agent import (
     KnowledgeWorkerConfig,
 )
 from azure_haymaker.knowledge_worker.cleanup import KnowledgeWorkerResourceInventory
+from azure_haymaker.knowledge_worker.content import (
+    EmailContent,
+    EmailContentGenerator,
+    EmailGenerationConfig,
+    FallbackEmailGenerator,
+)
+from azure_haymaker.knowledge_worker.identity import (
+    EntraGroupManager,
+    PermissionGranter,
+)
 from azure_haymaker.knowledge_worker.models.worker import (
     WorkerConfig,
     WorkerPersona,
 )
+from azure_haymaker.knowledge_worker.state_manager import DeploymentStateManager
 from azure_haymaker.knowledge_worker.worker_registry import WorkerRegistry
 
 if TYPE_CHECKING:
@@ -83,12 +90,17 @@ class DeploymentConfig:
         duration_hours: How long to run activities
         tenant_domain: M365 tenant domain
         m365_app_id: M365 application client ID (optional)
+        email_markers_enabled: Enable email markers for tracking
+        marker_format: Format for markers (e.g., "MARKER", "TAG")
+        marker_style: Where to place markers ("subject", "hidden", "both")
+        email_generation: AI email generation configuration
 
     Note:
         Requires the following environment variables:
         - KW_TENANT_ID: Azure AD tenant ID
         - KW_APP_ID: Application (client) ID with Graph permissions
         - KW_CLIENT_SECRET: Client secret for application
+        - ANTHROPIC_API_KEY: Anthropic API key (if email_generation.enabled=True)
     """
 
     name: str = "kw-deployment"
@@ -97,6 +109,16 @@ class DeploymentConfig:
     duration_hours: int = 8
     tenant_domain: str = ""
     m365_app_id: str = ""
+
+    # Email marker configuration
+    email_markers_enabled: bool = True
+    marker_format: str = "MARKER"
+    marker_style: str = "subject"  # "subject", "hidden", "both"
+
+    # AI email generation configuration
+    email_generation: EmailGenerationConfig = field(
+        default_factory=lambda: EmailGenerationConfig(enabled=False)
+    )
 
     def __post_init__(self) -> None:
         """Set default departments if not provided."""
@@ -178,11 +200,14 @@ class KnowledgeWorkerOrchestrator:
         >>> await orchestrator.start_deployment(run_id)
     """
 
-    def __init__(self, graph_client: "GraphServiceClient") -> None:
+    def __init__(
+        self, graph_client: "GraphServiceClient", config: DeploymentConfig | None = None
+    ) -> None:
         """Initialize the orchestrator.
 
         Args:
             graph_client: Microsoft Graph API client (REQUIRED)
+            config: Optional deployment configuration for initialization
 
         Raises:
             ValueError: If graph_client is None
@@ -198,6 +223,24 @@ class KnowledgeWorkerOrchestrator:
         self._worker_tasks: dict[str, list[asyncio.Task]] = {}
         self._user_manager: EntraUserManager | None = None
         self._worker_registry: WorkerRegistry | None = None
+
+        # Store config for email generation
+        self.config = config or DeploymentConfig()
+        self.current_run_id: str | None = None
+
+        # Initialize email generators
+        self.email_generator: EmailContentGenerator | None = None
+        self.fallback_generator = FallbackEmailGenerator()
+
+        # Initialize state manager for persistence
+        self._state_manager = DeploymentStateManager()
+
+        if self.config.email_generation.enabled:
+            try:
+                self.email_generator = EmailContentGenerator(self.config.email_generation)
+                logger.info("AI email generation enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize AI email generator: {e}. Using fallback.")
 
     def create_deployment(self, config: DeploymentConfig) -> str:
         """Create a new deployment.
@@ -218,6 +261,22 @@ class KnowledgeWorkerOrchestrator:
 
         self._deployments[run_id] = state
         logger.info(f"Created deployment {run_id}: {config.name}")
+
+        # Persist deployment state to disk
+        self._state_manager.save_deployment(
+            run_id=run_id,
+            name=config.name,
+            phase=state.phase.value,
+            status=state.status.value,
+            worker_count=len(state.workers),
+            started_at=state.started_at,
+            config={
+                "total_workers": config.total_workers,
+                "duration_hours": config.duration_hours,
+                "tenant_domain": config.tenant_domain,
+                "departments": config.departments,
+            },
+        )
 
         return run_id
 
@@ -266,6 +325,23 @@ class KnowledgeWorkerOrchestrator:
         try:
             state.status = DeploymentStatus.RUNNING
             state.started_at = datetime.now(UTC)
+            self.current_run_id = run_id
+
+            # Save initial running state
+            self._save_deployment_state(state)
+
+            # Update config if different from initialization
+            if state.config != self.config:
+                self.config = state.config
+                # Reinitialize email generator if needed
+                if self.config.email_generation.enabled and not self.email_generator:
+                    try:
+                        self.email_generator = EmailContentGenerator(self.config.email_generation)
+                        logger.info("AI email generation enabled for deployment")
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to initialize AI email generator: {e}. Using fallback."
+                        )
 
             # Phase 1: Setup
             await self._phase_setup(state)
@@ -283,6 +359,10 @@ class KnowledgeWorkerOrchestrator:
             state.status = DeploymentStatus.FAILED
             state.phase = DeploymentPhase.FAILED
             state.error = str(e)
+
+            # Save failed state
+            self._save_deployment_state(state)
+
             return False
 
     async def stop_deployment(self, run_id: str) -> bool:
@@ -302,6 +382,9 @@ class KnowledgeWorkerOrchestrator:
         state.phase = DeploymentPhase.STOPPING
         logger.info(f"Stopping deployment: {run_id}")
 
+        # Save phase change
+        self._save_deployment_state(state)
+
         # Cancel worker tasks
         tasks = self._worker_tasks.get(run_id, [])
         for task in tasks:
@@ -314,6 +397,9 @@ class KnowledgeWorkerOrchestrator:
         state.phase = DeploymentPhase.COMPLETED
         state.status = DeploymentStatus.COMPLETED
         state.completed_at = datetime.now(UTC)
+
+        # Save final state
+        self._save_deployment_state(state)
 
         logger.info(f"Deployment stopped: {run_id}")
         return True
@@ -335,6 +421,9 @@ class KnowledgeWorkerOrchestrator:
         state.phase = DeploymentPhase.CLEANUP
         logger.info(f"Cleaning up deployment: {run_id}")
 
+        # Save phase change
+        self._save_deployment_state(state)
+
         # In a full implementation, this would:
         # 1. Stop containers
         # 2. Delete Cloud PCs
@@ -346,9 +435,36 @@ class KnowledgeWorkerOrchestrator:
         state.workers.clear()
 
         state.phase = DeploymentPhase.COMPLETED
+
+        # Save final state
+        self._save_deployment_state(state)
+
         logger.info(f"Deployment cleanup complete: {run_id}")
 
         return True
+
+    def _save_deployment_state(self, state: DeploymentState) -> None:
+        """Save deployment state to disk.
+
+        Args:
+            state: Deployment state to save
+        """
+        self._state_manager.save_deployment(
+            run_id=state.run_id,
+            name=state.config.name,
+            phase=state.phase.value,
+            status=state.status.value,
+            worker_count=len(state.workers),
+            started_at=state.started_at,
+            completed_at=state.completed_at,
+            error=state.error,
+            config={
+                "total_workers": state.config.total_workers,
+                "duration_hours": state.config.duration_hours,
+                "tenant_domain": state.config.tenant_domain,
+                "departments": state.config.departments,
+            },
+        )
 
     async def _phase_setup(self, state: DeploymentState) -> None:
         """Setup phase: Create security infrastructure.
@@ -359,13 +475,71 @@ class KnowledgeWorkerOrchestrator:
         state.phase = DeploymentPhase.SETUP
         logger.info(f"[{state.run_id}] Starting setup phase")
 
-        # In a full implementation, this would:
-        # 1. Create security group for all workers
-        # 2. Create transport rules to block external email
-        # 3. Configure app permissions
+        # Save phase change
+        self._save_deployment_state(state)
 
-        # For now, just log
+        # Create all-workers security group for deployment
+        await self._create_security_group(state)
+
+        # Grant Mail.ReadWrite and Mail.Send permissions
+        await self._ensure_mail_permission_granted(state)
+
         logger.info(f"[{state.run_id}] Setup phase complete")
+
+    async def _ensure_mail_permission_granted(self, state: DeploymentState) -> None:
+        """Ensure Mail.ReadWrite permission is granted to the KW app.
+
+        Idempotent - safe to call multiple times. Logs warning on failure
+        but does not block deployment.
+
+        Args:
+            state: Deployment state
+        """
+        try:
+            # Get app ID from config or environment
+            app_id = state.config.m365_app_id or os.getenv("KW_APP_ID", "")
+            if not app_id:
+                logger.warning(
+                    f"[{state.run_id}] No app ID configured. "
+                    "Skipping Mail.ReadWrite permission grant."
+                )
+                return
+
+            logger.info(f"[{state.run_id}] Ensuring Mail.ReadWrite permission for app {app_id}")
+
+            granter = PermissionGranter(self._graph_client, app_id)
+            success = await granter.ensure_mail_permission()
+
+            if not success:
+                logger.warning(
+                    f"[{state.run_id}] Failed to grant Mail.ReadWrite permission. "
+                    "Email operations may fail."
+                )
+
+        except Exception as e:
+            logger.error(f"[{state.run_id}] Permission grant error: {e}")
+
+    async def _create_security_group(self, state: DeploymentState) -> None:
+        """Create all-workers security group for deployment.
+
+        Creates a security group containing all workers for easier
+        management and potential transport rule application.
+
+        Args:
+            state: Deployment state
+        """
+        try:
+            group_manager = EntraGroupManager(self._graph_client, state.run_id)
+
+            group_id = await group_manager.create_all_workers_group(
+                description=f"All workers for deployment {state.config.name}"
+            )
+
+            logger.info(f"[{state.run_id}] Created all-workers security group: {group_id}")
+
+        except Exception as e:
+            logger.warning(f"[{state.run_id}] Failed to create security group: {e}")
+            logger.warning("Continuing without security group - not critical for functionality")
 
     async def _phase_provision(self, state: DeploymentState) -> None:
         """Provision phase: Create Entra users and initialize workers.
@@ -382,6 +556,9 @@ class KnowledgeWorkerOrchestrator:
         state.phase = DeploymentPhase.PROVISIONING
         logger.info(f"[{state.run_id}] Starting provisioning phase")
 
+        # Save phase change
+        self._save_deployment_state(state)
+
         # Validate tenant configuration
         if not state.config.tenant_domain:
             raise ValueError(
@@ -391,6 +568,9 @@ class KnowledgeWorkerOrchestrator:
         await self._provision_users(state)
 
         logger.info(f"[{state.run_id}] Provisioning complete: {len(state.workers)} workers created")
+
+        # Save updated state with workers
+        self._save_deployment_state(state)
 
     async def _provision_users(self, state: DeploymentState) -> None:
         """Provision real Entra users for M365 operations.
@@ -447,6 +627,9 @@ class KnowledgeWorkerOrchestrator:
                 # Register in worker registry
                 self._worker_registry.register(identity)
 
+                # Save worker to state manager
+                self._state_manager.save_worker(state.run_id, identity)
+
                 # Create worker config using provisioned identity
                 worker_config = KnowledgeWorkerConfig(
                     worker_id=identity.worker_id,
@@ -498,6 +681,9 @@ class KnowledgeWorkerOrchestrator:
         state.phase = DeploymentPhase.EXECUTING
         logger.info(f"[{state.run_id}] Starting execution phase")
 
+        # Save phase change
+        self._save_deployment_state(state)
+
         # Create worker tasks
         tasks = []
         for worker in state.workers:
@@ -544,6 +730,7 @@ class KnowledgeWorkerOrchestrator:
             raise
         except Exception as e:
             logger.error(f"Worker {worker_id} error: {e}")
+            logger.error(f"Worker {worker_id} exception details:", exc_info=True)
             worker.on_cleanup(1)
 
     async def _run_activity_loop(
@@ -581,10 +768,27 @@ class KnowledgeWorkerOrchestrator:
                     recipients = worker.get_allowed_recipients()
                     if recipients:
                         to = [random.choice(recipients)]
-                        subject = f"Activity {activity_count + 1} from {worker_id}"
-                        body = f"<p>Automated activity generated at {datetime.now(UTC).isoformat()}</p>"
 
-                        await worker.send_email(to=to, subject=subject, body=body)
+                        # Generate email content (AI or fallback)
+                        email_content = await self._generate_email_content(
+                            worker_id=worker_id,
+                            activity_count=activity_count,
+                            recipient=to[0],
+                            department=worker.worker_config.department,
+                        )
+
+                        # Add markers if enabled
+                        if self.config.email_markers_enabled:
+                            email_content = self._add_email_markers(
+                                email_content,
+                                worker_id=worker_id,
+                                activity_count=activity_count,
+                                run_id=self.current_run_id,
+                            )
+
+                        await worker.send_email(
+                            to=to, subject=email_content.subject, body=email_content.body
+                        )
                         logger.info(f"Worker {worker_id} sent email to {to[0]}")
                     else:
                         logger.debug(f"Worker {worker_id}: no recipients available")
@@ -614,6 +818,104 @@ class KnowledgeWorkerOrchestrator:
                 await asyncio.sleep(5)  # Brief pause on error
 
         logger.info(f"Worker {worker_id} completed {activity_count} activities")
+
+    async def _generate_email_content(
+        self,
+        worker_id: str,
+        activity_count: int,
+        recipient: str,
+        department: str,
+    ) -> EmailContent:
+        """Generate email content with three-level fallback strategy.
+
+        Strategy:
+        1. Try AI generation (if enabled)
+        2. Fall back to simple generator on AI failure
+        3. Fall back to hardcoded content on any error
+
+        Args:
+            worker_id: Worker identifier
+            activity_count: Current activity count
+            recipient: Recipient email address
+            department: Department name
+
+        Returns:
+            EmailContent with subject and body
+        """
+        # Level 1: Try AI generation if enabled
+        if self.email_generator:
+            try:
+                return await self.email_generator.generate_email(
+                    worker_id=worker_id,
+                    department=department,
+                    recipient=recipient,
+                    activity_count=activity_count,
+                    run_id=self.current_run_id,
+                )
+            except Exception as e:
+                logger.warning(f"AI email generation failed for {worker_id}: {e}. Using fallback.")
+
+        # Level 2 & 3: Use fallback generator
+        return self.fallback_generator.generate_email(
+            worker_id=worker_id,
+            activity_count=activity_count,
+            department=department,
+            run_id=self.current_run_id,
+        )
+
+    def _add_email_markers(
+        self,
+        email_content: EmailContent,
+        worker_id: str,
+        activity_count: int,
+        run_id: str | None,
+    ) -> EmailContent:
+        """Add tracking markers to email content.
+
+        Adds markers based on configuration (subject, hidden, or both).
+
+        Args:
+            email_content: Original email content
+            worker_id: Worker identifier
+            activity_count: Current activity count
+            run_id: Deployment run ID
+
+        Returns:
+            EmailContent with markers added
+        """
+        # Security: Escape all marker components to prevent HTML injection
+        safe_format = html.escape(self.config.marker_format)
+        safe_run_id = html.escape(run_id or "unknown")
+        safe_worker_id = html.escape(worker_id)
+        safe_count = html.escape(str(activity_count + 1))
+
+        marker_text = f"[{safe_format}:{safe_run_id}:{safe_worker_id}:{safe_count}]"
+
+        subject = email_content.subject
+        body = email_content.body
+
+        # Add to subject if configured
+        if self.config.marker_style in ("subject", "both"):
+            subject = f"{marker_text} {subject}"
+
+        # Add hidden marker to body if configured
+        if self.config.marker_style in ("hidden", "both"):
+            # Security: HTML comment injection prevention
+            # Escape the marker to prevent breaking out of comments with -->
+            # Double escaping here is intentional - once for the marker text itself,
+            # and the marker_text is already escaped above
+            body = f"<!-- {marker_text} -->\n{body}"
+
+        # Update metadata
+        metadata = email_content.metadata.copy()
+        metadata["marker"] = marker_text
+        metadata["marker_style"] = self.config.marker_style
+
+        return EmailContent(
+            subject=subject,
+            body=body,
+            metadata=metadata,
+        )
 
 
 __all__ = [

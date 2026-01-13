@@ -35,9 +35,7 @@ except ImportError:
     WinRMTimeoutError = None
 
 
-pytestmark = pytest.mark.skipif(
-    not WINRM_AVAILABLE, reason="WinRMConnection not yet implemented"
-)
+pytestmark = pytest.mark.skipif(not WINRM_AVAILABLE, reason="WinRMConnection not yet implemented")
 
 
 # ==============================================================================

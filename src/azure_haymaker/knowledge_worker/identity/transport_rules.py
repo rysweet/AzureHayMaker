@@ -2,6 +2,18 @@
 
 Provides server-side enforcement of internal-only communication
 as part of the defense-in-depth strategy.
+
+**IMPORTANT**: Microsoft Graph API does NOT support Exchange transport rules.
+Transport rules must be configured manually via Exchange Admin Center or
+Exchange Online PowerShell. This module documents the required rule structure
+but cannot create rules programmatically through Graph API.
+
+For manual setup:
+1. Go to Exchange Admin Center -> Mail flow -> Rules
+2. Create a new rule with the structure shown in this module
+3. Or use Exchange Online PowerShell: New-TransportRule
+
+Reference: https://learn.microsoft.com/en-us/exchange/security-and-compliance/mail-flow-rules/
 """
 
 import logging
@@ -101,17 +113,15 @@ class TransportRuleManager:
         #
         # Or use the Exchange Admin Center API
 
-        try:
-            # Placeholder for actual Exchange Online API call
-            # This would need to use the Exchange Online Management module
-            # or a custom API implementation
-
-            logger.info(f"Created transport rule: {rule_name}")
-            return rule_name
-
-        except Exception as e:
-            logger.error(f"Failed to create transport rule {rule_name}: {e}")
-            raise
+        # Graph API does NOT support transport rules
+        raise NotImplementedError(
+            "Microsoft Graph API does not support Exchange transport rules. "
+            "Transport rules must be created manually via:\n"
+            "1. Exchange Admin Center (https://admin.exchange.microsoft.com) -> Mail flow -> Rules\n"
+            "2. Exchange Online PowerShell: New-TransportRule\n\n"
+            f"Use the rule definition logged above to create rule: {rule_name}\n"
+            "Reference: https://learn.microsoft.com/en-us/exchange/security-and-compliance/mail-flow-rules/"
+        )
 
     async def verify_rule_active(self, rule_name: str | None = None) -> bool:
         """Verify transport rule is active and enforcing.
@@ -122,20 +132,17 @@ class TransportRuleManager:
         Returns:
             True if rule is active and enabled
         """
-        target_rule = rule_name or self.RULE_NAME_PATTERN.format(
-            run_id=self.run_id[:8]
+        target_rule = rule_name or self.RULE_NAME_PATTERN.format(run_id=self.run_id[:8])
+
+        # Graph API does NOT support transport rules
+        raise NotImplementedError(
+            "Microsoft Graph API does not support Exchange transport rules. "
+            "To verify transport rules manually:\n"
+            "1. Exchange Admin Center (https://admin.exchange.microsoft.com) -> Mail flow -> Rules\n"
+            "2. Exchange Online PowerShell: Get-TransportRule -Identity <rule_name>\n\n"
+            f"Looking for rule: {target_rule}\n"
+            "Reference: https://learn.microsoft.com/en-us/exchange/security-and-compliance/mail-flow-rules/"
         )
-
-        try:
-            # In production, this would query Exchange Online:
-            # Get-TransportRule -Identity $rule_name
-
-            logger.info(f"Verified transport rule is active: {target_rule}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to verify transport rule {target_rule}: {e}")
-            return False
 
     async def delete_rule(self, rule_name: str | None = None) -> bool:
         """Delete transport rule during cleanup.
@@ -146,20 +153,17 @@ class TransportRuleManager:
         Returns:
             True if deleted successfully
         """
-        target_rule = rule_name or self.RULE_NAME_PATTERN.format(
-            run_id=self.run_id[:8]
+        target_rule = rule_name or self.RULE_NAME_PATTERN.format(run_id=self.run_id[:8])
+
+        # Graph API does NOT support transport rules
+        raise NotImplementedError(
+            "Microsoft Graph API does not support Exchange transport rules. "
+            "To delete transport rules manually:\n"
+            "1. Exchange Admin Center (https://admin.exchange.microsoft.com) -> Mail flow -> Rules\n"
+            "2. Exchange Online PowerShell: Remove-TransportRule -Identity <rule_name> -Confirm:$false\n\n"
+            f"Looking for rule to delete: {target_rule}\n"
+            "Reference: https://learn.microsoft.com/en-us/exchange/security-and-compliance/mail-flow-rules/"
         )
-
-        try:
-            # In production, this would call Exchange Online:
-            # Remove-TransportRule -Identity $rule_name -Confirm:$false
-
-            logger.info(f"Deleted transport rule: {target_rule}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to delete transport rule {target_rule}: {e}")
-            return False
 
     async def list_haymaker_rules(self) -> list[dict[str, Any]]:
         """List all HayMaker transport rules.
@@ -167,16 +171,14 @@ class TransportRuleManager:
         Returns:
             List of rule info dictionaries
         """
-        try:
-            # In production, this would query Exchange Online:
-            # Get-TransportRule | Where-Object { $_.Name -like "HayMaker-*" }
-
-            logger.info("Listed HayMaker transport rules")
-            return []
-
-        except Exception as e:
-            logger.error(f"Failed to list transport rules: {e}")
-            return []
+        # Graph API does NOT support transport rules
+        raise NotImplementedError(
+            "Microsoft Graph API does not support Exchange transport rules. "
+            "To list HayMaker transport rules manually:\n"
+            "1. Exchange Admin Center (https://admin.exchange.microsoft.com) -> Mail flow -> Rules\n"
+            '2. Exchange Online PowerShell: Get-TransportRule | Where-Object { $_.Name -like "HayMaker-*" }\n\n'
+            "Reference: https://learn.microsoft.com/en-us/exchange/security-and-compliance/mail-flow-rules/"
+        )
 
     def get_rule_name(self) -> str:
         """Get the transport rule name for this run.

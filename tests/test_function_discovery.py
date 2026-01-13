@@ -156,7 +156,9 @@ def test_http_api_routes():
 
     # Verify methods match
     for route, method in expected_routes.items():
-        assert found_routes[route] == method, f"Route {route} expected {method}, got {found_routes[route]}"
+        assert (
+            found_routes[route] == method
+        ), f"Route {route} expected {method}, got {found_routes[route]}"
 
 
 if __name__ == "__main__":

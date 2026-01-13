@@ -440,7 +440,9 @@ class ReportGenerator:
 
         # Build agent rows with HTML escaping
         agent_rows = ""
-        for agent in sorted(agents, key=lambda a: a.started_at, reverse=True)[:MAX_RECENT_AGENTS_IN_REPORT]:
+        for agent in sorted(agents, key=lambda a: a.started_at, reverse=True)[
+            :MAX_RECENT_AGENTS_IN_REPORT
+        ]:
             status_color = {
                 "running": "#f59e0b",
                 "completed": "#10b981",
@@ -465,7 +467,9 @@ class ReportGenerator:
 
         # Build resource rows with HTML escaping
         resource_rows = ""
-        for resource in sorted(resources, key=lambda r: r.created_at, reverse=True)[:MAX_RECENT_RESOURCES_IN_REPORT]:
+        for resource in sorted(resources, key=lambda r: r.created_at, reverse=True)[
+            :MAX_RECENT_RESOURCES_IN_REPORT
+        ]:
             status_color = {
                 "created": "#10b981",
                 "deleted": "#6b7280",
@@ -473,9 +477,7 @@ class ReportGenerator:
             }.get(resource.status, "#6b7280")
 
             deleted_str = (
-                resource.deleted_at.strftime("%Y-%m-%d %H:%M:%S")
-                if resource.deleted_at
-                else "-"
+                resource.deleted_at.strftime("%Y-%m-%d %H:%M:%S") if resource.deleted_at else "-"
             )
 
             resource_rows += f"""

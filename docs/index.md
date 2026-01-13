@@ -162,6 +162,38 @@ Azure HayMaker includes 50 scenarios across 10 technology areas:
 
 ---
 
+## Knowledge Worker Framework
+
+Simulate 50-300 knowledge workers performing realistic M365 activities (email, Teams, documents, calendar).
+
+| Resource | Description |
+|:---------|:------------|
+| [Tutorial: Deploy & Monitor 25 Workers](https://github.com/rysweet/AzureHayMaker/blob/main/docs/knowledge-worker-framework/TUTORIAL_DEPLOY_AND_MONITOR.md) | End-to-end tutorial: Deploy 25 workers with AI limerick emails |
+| [AI Email Generation Guide](https://github.com/rysweet/AzureHayMaker/blob/main/docs/knowledge-worker-framework/AI_EMAIL_GENERATION.md) | Complete guide to AI-powered email content generation |
+| [Email Markers Guide](https://github.com/rysweet/AzureHayMaker/blob/main/docs/knowledge-worker-framework/EMAIL_MARKERS_GUIDE.md) | Track and filter emails with embedded markers |
+| [Architecture](https://github.com/rysweet/AzureHayMaker/blob/main/docs/knowledge-worker-framework/ARCHITECTURE.md) | Framework design and component overview |
+| [Windows 365 E2E Demo](https://github.com/rysweet/AzureHayMaker/blob/main/docs/knowledge-worker-framework/WINDOWS365_E2E_DEMO.md) | Full Windows 365 Cloud PC demonstration |
+
+**Getting Started**:
+```bash
+# Install CLI
+pip install haymaker-cli
+
+# Initialize KW app registration
+haymaker kw init --save-config kw_config.env
+
+# Deploy 25 workers with AI limericks
+haymaker kw deploy \
+  --workers 25 \
+  --department operations \
+  --duration 2 \
+  --enable-ai-generation \
+  --email-directive "Write all emails as limericks about office work" \
+  --marker-format LIMERICK
+```
+
+---
+
 ## Key Features
 
 {: .note }
@@ -210,6 +242,13 @@ Every component implements real functionality with no stubs, TODOs, or placehold
     <span>Troubleshooting</span>
   </a>
 </div>
+
+### How-To Guides
+
+Task-focused guides for specific operations:
+
+- [Configure Anthropic Model](/AzureHayMaker/howto/configure-anthropic-model) - Select and configure Claude models for AI email generation
+- [GitOps Deployment](/AzureHayMaker/gitops-deployment) - Fully automated deployment with secret injection and verification
 
 ---
 

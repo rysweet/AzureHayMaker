@@ -388,9 +388,7 @@ class TestMultipleWorkersWithDifferentEndpoints:
             )
         ]
 
-        windows_vm_workers = [
-            w for w in workers if w.endpoint_type == EndpointType.WINDOWS_VM
-        ]
+        windows_vm_workers = [w for w in workers if w.endpoint_type == EndpointType.WINDOWS_VM]
 
         assert len(windows_vm_workers) == 2
         assert all(w.endpoint_type == EndpointType.WINDOWS_VM for w in windows_vm_workers)

@@ -36,7 +36,13 @@ SENSITIVE_PATTERNS = [
     # URLs with credentials
     (re.compile(r"://([^:]+):([^@]+)@", re.IGNORECASE), "url_credentials"),
     # Private keys
-    (re.compile(r"-----BEGIN[A-Z\s]+PRIVATE KEY-----[\s\S]*?-----END[A-Z\s]+PRIVATE KEY-----", re.IGNORECASE), "private_key"),
+    (
+        re.compile(
+            r"-----BEGIN[A-Z\s]+PRIVATE KEY-----[\s\S]*?-----END[A-Z\s]+PRIVATE KEY-----",
+            re.IGNORECASE,
+        ),
+        "private_key",
+    ),
     # Client secrets
     (re.compile(r"client[_-]?secret[=:\s]+['\"]?([^'\";\s]+)", re.IGNORECASE), "client_secret"),
     # Certificates
@@ -110,6 +116,7 @@ def sanitize_error(error_message: str | Exception) -> str:
             def replacer(match):
                 # Keep the keyword and separator, redact the value
                 return match.group(0).replace(match.group(2), "[REDACTED]")
+
             sanitized = pattern.sub(replacer, sanitized)
         else:
             # Simple patterns with one capture group (the value to redact)
@@ -119,6 +126,7 @@ def sanitize_error(error_message: str | Exception) -> str:
                 full_match = match.group(0)
                 secret_value = match.group(match.lastindex if match.lastindex else 1)
                 return full_match.replace(secret_value, "[REDACTED]")
+
             sanitized = pattern.sub(replacer, sanitized)
 
     return sanitized

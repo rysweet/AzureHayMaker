@@ -13,7 +13,6 @@ Components tested:
 Reference: ARCHITECTURE.md Section 7 - Communication Safety Controls
 """
 
-
 import pytest
 
 # Import paths based on ARCHITECTURE.md specification
@@ -26,6 +25,7 @@ try:
         CommunicationValidator,
         ExternalRecipientError,
     )
+
     SAFETY_AVAILABLE = True
 except ImportError:
     SAFETY_AVAILABLE = False
@@ -35,8 +35,7 @@ except ImportError:
 
 
 pytestmark = pytest.mark.skipif(
-    not SAFETY_AVAILABLE,
-    reason="Knowledge Worker safety module not yet implemented"
+    not SAFETY_AVAILABLE, reason="Knowledge Worker safety module not yet implemented"
 )
 
 
@@ -130,72 +129,66 @@ class TestCommunicationValidatorIsInternal:
         assert validator.is_internal("KW-ABC12345-ENGI-001@HAYMAKER.ONMICROSOFT.COM") is True
         assert validator.is_internal("Kw-Abc12345-Engi-001@Haymaker.OnMicrosoft.Com") is True
 
-    def test_is_internal_with_tenant_domain(
-        self, validator: CommunicationValidator
-    ) -> None:
+    def test_is_internal_with_tenant_domain(self, validator: CommunicationValidator) -> None:
         """Test that any address in tenant domain is considered internal."""
         # Even if not in allowed_upns, same domain = internal
         assert validator.is_internal("anyuser@haymaker.onmicrosoft.com") is True
 
-    def test_is_internal_with_whitespace_stripped(
-        self, validator: CommunicationValidator
-    ) -> None:
+    def test_is_internal_with_whitespace_stripped(self, validator: CommunicationValidator) -> None:
         """Test that leading/trailing whitespace is stripped."""
         assert validator.is_internal("  kw-abc12345-engi-001@haymaker.onmicrosoft.com  ") is True
         assert validator.is_internal("\tkw-abc12345-engi-001@haymaker.onmicrosoft.com\n") is True
 
-    def test_is_internal_with_team_mailbox(
-        self, validator: CommunicationValidator
-    ) -> None:
+    def test_is_internal_with_team_mailbox(self, validator: CommunicationValidator) -> None:
         """Test that team/shared mailboxes in allowed list are internal."""
         assert validator.is_internal("team-engineering@haymaker.onmicrosoft.com") is True
 
     # --- Tests for INVALID external recipients ---
 
-    @pytest.mark.parametrize("external_recipient", [
-        "attacker@gmail.com",
-        "external@outlook.com",
-        "hacker@evil.com",
-        "user@competitor.com",
-        "someone@yahoo.com",
-        "test@hotmail.com",
-    ])
+    @pytest.mark.parametrize(
+        "external_recipient",
+        [
+            "attacker@gmail.com",
+            "external@outlook.com",
+            "hacker@evil.com",
+            "user@competitor.com",
+            "someone@yahoo.com",
+            "test@hotmail.com",
+        ],
+    )
     def test_is_internal_rejects_external_domains(
         self, validator: CommunicationValidator, external_recipient: str
     ) -> None:
         """Test that common external domains are rejected."""
         assert validator.is_internal(external_recipient) is False
 
-    @pytest.mark.parametrize("typosquat_domain", [
-        "user@haymakerr.onmicrosoft.com",  # Extra 'r'
-        "user@haymaker.onmicrosoft.net",   # Wrong TLD
-        "user@haymaker.microsoft.com",     # Missing 'on'
-        "user@hay-maker.onmicrosoft.com",  # Extra hyphen
-        "user@haymakeronmicrosoft.com",    # Missing dot
-    ])
+    @pytest.mark.parametrize(
+        "typosquat_domain",
+        [
+            "user@haymakerr.onmicrosoft.com",  # Extra 'r'
+            "user@haymaker.onmicrosoft.net",  # Wrong TLD
+            "user@haymaker.microsoft.com",  # Missing 'on'
+            "user@hay-maker.onmicrosoft.com",  # Extra hyphen
+            "user@haymakeronmicrosoft.com",  # Missing dot
+        ],
+    )
     def test_is_internal_rejects_typosquat_domains(
         self, validator: CommunicationValidator, typosquat_domain: str
     ) -> None:
         """Test that typosquatting domain attempts are rejected."""
         assert validator.is_internal(typosquat_domain) is False
 
-    def test_is_internal_rejects_subdomain_attacks(
-        self, validator: CommunicationValidator
-    ) -> None:
+    def test_is_internal_rejects_subdomain_attacks(self, validator: CommunicationValidator) -> None:
         """Test that subdomain attacks are rejected."""
         # Attacker might try: haymaker.onmicrosoft.com.evil.com
         assert validator.is_internal("user@haymaker.onmicrosoft.com.evil.com") is False
         assert validator.is_internal("user@sub.haymaker.onmicrosoft.com") is False
 
-    def test_is_internal_rejects_empty_string(
-        self, validator: CommunicationValidator
-    ) -> None:
+    def test_is_internal_rejects_empty_string(self, validator: CommunicationValidator) -> None:
         """Test that empty string is rejected."""
         assert validator.is_internal("") is False
 
-    def test_is_internal_rejects_no_at_sign(
-        self, validator: CommunicationValidator
-    ) -> None:
+    def test_is_internal_rejects_no_at_sign(self, validator: CommunicationValidator) -> None:
         """Test that addresses without @ are rejected."""
         assert validator.is_internal("userwithnodomain") is False
         assert validator.is_internal("just-a-string") is False
@@ -223,9 +216,7 @@ class TestCommunicationValidatorFilterRecipients:
             },
         )
 
-    def test_filter_recipients_keeps_internal(
-        self, validator: CommunicationValidator
-    ) -> None:
+    def test_filter_recipients_keeps_internal(self, validator: CommunicationValidator) -> None:
         """Test that internal recipients are kept."""
         recipients = [
             "worker1@haymaker.onmicrosoft.com",
@@ -236,9 +227,7 @@ class TestCommunicationValidatorFilterRecipients:
         assert "worker1@haymaker.onmicrosoft.com" in filtered
         assert "worker2@haymaker.onmicrosoft.com" in filtered
 
-    def test_filter_recipients_removes_external(
-        self, validator: CommunicationValidator
-    ) -> None:
+    def test_filter_recipients_removes_external(self, validator: CommunicationValidator) -> None:
         """Test that external recipients are removed."""
         recipients = [
             "worker1@haymaker.onmicrosoft.com",
@@ -251,9 +240,7 @@ class TestCommunicationValidatorFilterRecipients:
         assert "external@gmail.com" not in filtered
         assert "hacker@evil.com" not in filtered
 
-    def test_filter_recipients_all_external(
-        self, validator: CommunicationValidator
-    ) -> None:
+    def test_filter_recipients_all_external(self, validator: CommunicationValidator) -> None:
         """Test filtering when ALL recipients are external."""
         recipients = [
             "external1@gmail.com",
@@ -263,16 +250,12 @@ class TestCommunicationValidatorFilterRecipients:
         assert len(filtered) == 0
         assert filtered == []
 
-    def test_filter_recipients_empty_list(
-        self, validator: CommunicationValidator
-    ) -> None:
+    def test_filter_recipients_empty_list(self, validator: CommunicationValidator) -> None:
         """Test filtering empty recipient list."""
         filtered = validator.filter_recipients([])
         assert filtered == []
 
-    def test_filter_recipients_preserves_order(
-        self, validator: CommunicationValidator
-    ) -> None:
+    def test_filter_recipients_preserves_order(self, validator: CommunicationValidator) -> None:
         """Test that filtering preserves order of valid recipients."""
         recipients = [
             "worker2@haymaker.onmicrosoft.com",
@@ -283,9 +266,7 @@ class TestCommunicationValidatorFilterRecipients:
         assert filtered[0] == "worker2@haymaker.onmicrosoft.com"
         assert filtered[1] == "worker1@haymaker.onmicrosoft.com"
 
-    def test_filter_recipients_handles_duplicates(
-        self, validator: CommunicationValidator
-    ) -> None:
+    def test_filter_recipients_handles_duplicates(self, validator: CommunicationValidator) -> None:
         """Test that duplicates in input are handled."""
         recipients = [
             "worker1@haymaker.onmicrosoft.com",
@@ -315,9 +296,7 @@ class TestCommunicationValidatorValidateOrRaise:
             },
         )
 
-    def test_validate_or_raise_passes_all_internal(
-        self, validator: CommunicationValidator
-    ) -> None:
+    def test_validate_or_raise_passes_all_internal(self, validator: CommunicationValidator) -> None:
         """Test that all-internal recipients pass validation."""
         recipients = [
             "worker1@haymaker.onmicrosoft.com",
@@ -326,9 +305,7 @@ class TestCommunicationValidatorValidateOrRaise:
         # Should not raise
         validator.validate_or_raise(recipients)
 
-    def test_validate_or_raise_raises_on_external(
-        self, validator: CommunicationValidator
-    ) -> None:
+    def test_validate_or_raise_raises_on_external(self, validator: CommunicationValidator) -> None:
         """Test that external recipient raises ExternalRecipientError."""
         recipients = [
             "worker1@haymaker.onmicrosoft.com",
@@ -352,9 +329,7 @@ class TestCommunicationValidatorValidateOrRaise:
         error_msg = str(exc_info.value)
         assert "external1@gmail.com" in error_msg or "external2@outlook.com" in error_msg
 
-    def test_validate_or_raise_passes_empty_list(
-        self, validator: CommunicationValidator
-    ) -> None:
+    def test_validate_or_raise_passes_empty_list(self, validator: CommunicationValidator) -> None:
         """Test that empty recipient list passes validation."""
         # Empty list = no external recipients = valid
         validator.validate_or_raise([])

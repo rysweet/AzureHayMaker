@@ -26,6 +26,10 @@ param agentImage string = 'azure-haymaker-agent:latest'
 @description('Simulation size')
 param simulationSize string = 'small'
 
+@description('ACR admin password for username/password authentication')
+@secure()
+param acrPassword string = ''
+
 // Common tags
 var commonTags = {
   Environment: environment
@@ -39,8 +43,8 @@ var commonTags = {
 var uniqueSuffix = uniqueString(resourceGroup().id, environment)
 
 // Resource names (keep under 32 chars for Container Apps)
-var containerAppEnvName = 'haymaker-${environment}-${uniqueSuffix}-cae'
-var orchestratorAppName = 'orch-${environment}-${substring(uniqueSuffix, 0, 10)}' // <32 chars
+var containerAppEnvName = 'haymaker-fastapi-cae' // Use existing environment
+var orchestratorAppName = 'haymaker-fastapi-orch' // Fixed name for CLI compatibility
 var keyVaultName = 'haymaker-${environment}-${substring(uniqueSuffix, 0, 6)}-kv'
 var serviceBusName = 'haymaker-${environment}-${uniqueSuffix}-bus'
 var storageName = 'haymaker${environment}${substring(uniqueSuffix, 0, 8)}'
@@ -132,6 +136,7 @@ module orchestrator 'modules/orchestrator-containerapp.bicep' = {
     containerImage: orchestratorImage
     containerRegistry: 'haymakerorchacr.azurecr.io' // ACR created by workflow
     environment: environment
+    acrPassword: acrPassword // ACR password for username/password auth
     keyVaultUri: keyVault.outputs.keyVaultUri
     serviceBusNamespace: serviceBus.outputs.namespaceName
     storageAccountName: storage.outputs.storageAccountName
@@ -144,14 +149,8 @@ module orchestrator 'modules/orchestrator-containerapp.bicep' = {
   }
 }
 
-// Grant Orchestrator access to Key Vault
-module orchestratorKeyVaultRole 'modules/role-assignment.bicep' = {
-  name: 'orchestratorKeyVaultRole-${uniqueSuffix}'
-  params: {
-    principalId: orchestrator.outputs.principalId
-    roleDefinitionId: '4633458b-17de-408a-b874-0445c86b69e6' // Key Vault Secrets User
-  }
-}
+// Note: Orchestrator Key Vault access managed at subscription level
+// Subscription-level "Key Vault Secrets Officer" role granted to GitHub Actions SP
 
 // Grant Orchestrator access to ACR (AcrPull)
 // Note: Role assignment created in workflow after ACR deployment
@@ -161,6 +160,7 @@ module orchestratorKeyVaultRole 'modules/role-assignment.bicep' = {
 output containerAppEnvName string = containerAppsEnv.outputs.environmentName
 output orchestratorName string = orchestrator.outputs.containerAppName
 output orchestratorFqdn string = orchestrator.outputs.fqdn
+output orchestratorPrincipalId string = orchestrator.outputs.principalId
 output keyVaultName string = keyVault.outputs.keyVaultName
 output serviceBusName string = serviceBus.outputs.namespaceName
 output storageName string = storage.outputs.storageAccountName

@@ -57,6 +57,7 @@ def _create_awaitable_mock(return_value):
     Azure async SDK pollers are directly awaitable and return the result.
     This creates a coroutine that can be directly awaited.
     """
+
     async def awaitable():
         return return_value
 
@@ -258,9 +259,7 @@ class TestVMProvisioning:
         mock_vm.provisioning_state = "Succeeded"
 
         mock_compute_client.virtual_machines.begin_create_or_update.return_value = (
-
             _create_awaitable_mock(mock_vm)
-
         )
 
         # Mock network components
@@ -268,32 +267,20 @@ class TestVMProvisioning:
         ip_response.ip_address = "52.168.1.100"
 
         mock_network_client.public_ip_addresses.begin_create_or_update.return_value = (
-
             _create_awaitable_mock(ip_response)
-
         )
 
         nsg_response = MagicMock()
 
-
         mock_network_client.network_security_groups.begin_create_or_update.return_value = (
-
-
             _create_awaitable_mock(nsg_response)
-
-
         )
 
         nic_response = MagicMock()
         nic_response.id = "/subscriptions/sub-id/nic-id"
 
-
         mock_network_client.network_interfaces.begin_create_or_update.return_value = (
-
-
             _create_awaitable_mock(nic_response)
-
-
         )
 
         result = await windows_vm_manager.provision_vm(worker=worker_identity)
@@ -331,16 +318,14 @@ class TestVMProvisioning:
         )
 
         # Mock quota exceeded error on VM creation
-        mock_compute_client.virtual_machines.begin_create_or_update.side_effect = (
-            Exception("QuotaExceeded: Regional quota limit exceeded")
+        mock_compute_client.virtual_machines.begin_create_or_update.side_effect = Exception(
+            "QuotaExceeded: Regional quota limit exceeded"
         )
 
         with pytest.raises(Exception, match=".") as exc_info:
             await windows_vm_manager.provision_vm(worker=worker_identity)
 
-        assert "QuotaExceeded" in str(exc_info.value) or "quota" in str(
-            exc_info.value
-        ).lower()
+        assert "QuotaExceeded" in str(exc_info.value) or "quota" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
     async def test_provision_vm_with_azure_api_error_invalid_location(
@@ -363,16 +348,14 @@ class TestVMProvisioning:
         )
 
         # Mock invalid location error on VM creation
-        mock_compute_client.virtual_machines.begin_create_or_update.side_effect = (
-            Exception("InvalidLocation: Location 'invalid' is not available")
+        mock_compute_client.virtual_machines.begin_create_or_update.side_effect = Exception(
+            "InvalidLocation: Location 'invalid' is not available"
         )
 
         with pytest.raises(Exception, match=".") as exc_info:
             await windows_vm_manager.provision_vm(worker=worker_identity)
 
-        assert "InvalidLocation" in str(exc_info.value) or "location" in str(
-            exc_info.value
-        ).lower()
+        assert "InvalidLocation" in str(exc_info.value) or "location" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
     async def test_provision_vm_tags_resources_with_run_id(
@@ -384,9 +367,7 @@ class TestVMProvisioning:
         mock_vm.provisioning_state = "Succeeded"
 
         mock_compute_client.virtual_machines.begin_create_or_update.return_value = (
-
             _create_awaitable_mock(mock_vm)
-
         )
 
         # Mock network components
@@ -394,32 +375,20 @@ class TestVMProvisioning:
         ip_response.ip_address = "52.168.1.100"
 
         mock_network_client.public_ip_addresses.begin_create_or_update.return_value = (
-
             _create_awaitable_mock(ip_response)
-
         )
 
         nsg_response = MagicMock()
 
-
         mock_network_client.network_security_groups.begin_create_or_update.return_value = (
-
-
             _create_awaitable_mock(nsg_response)
-
-
         )
 
         nic_response = MagicMock()
         nic_response.id = "/subscriptions/sub-id/nic-id"
 
-
         mock_network_client.network_interfaces.begin_create_or_update.return_value = (
-
-
             _create_awaitable_mock(nic_response)
-
-
         )
 
         await windows_vm_manager.provision_vm(worker=worker_identity)
@@ -447,9 +416,7 @@ class TestVMProvisioning:
         mock_vm.provisioning_state = "Succeeded"
 
         mock_compute_client.virtual_machines.begin_create_or_update.return_value = (
-
             _create_awaitable_mock(mock_vm)
-
         )
 
         # Mock network components
@@ -457,32 +424,20 @@ class TestVMProvisioning:
         ip_response.ip_address = "52.168.1.100"
 
         mock_network_client.public_ip_addresses.begin_create_or_update.return_value = (
-
             _create_awaitable_mock(ip_response)
-
         )
 
         nsg_response = MagicMock()
 
-
         mock_network_client.network_security_groups.begin_create_or_update.return_value = (
-
-
             _create_awaitable_mock(nsg_response)
-
-
         )
 
         nic_response = MagicMock()
         nic_response.id = "/subscriptions/sub-id/nic-id"
 
-
         mock_network_client.network_interfaces.begin_create_or_update.return_value = (
-
-
             _create_awaitable_mock(nic_response)
-
-
         )
 
         await windows_vm_manager.provision_vm(worker=worker_identity)
@@ -511,9 +466,7 @@ class TestVMProvisioning:
         mock_vm.provisioning_state = "Succeeded"
 
         mock_compute_client.virtual_machines.begin_create_or_update.return_value = (
-
             _create_awaitable_mock(mock_vm)
-
         )
 
         # Mock network components
@@ -521,32 +474,20 @@ class TestVMProvisioning:
         ip_response.ip_address = "52.168.1.100"
 
         mock_network_client.public_ip_addresses.begin_create_or_update.return_value = (
-
             _create_awaitable_mock(ip_response)
-
         )
 
         nsg_response = MagicMock()
 
-
         mock_network_client.network_security_groups.begin_create_or_update.return_value = (
-
-
             _create_awaitable_mock(nsg_response)
-
-
         )
 
         nic_response = MagicMock()
         nic_response.id = "/subscriptions/sub-id/nic-id"
 
-
         mock_network_client.network_interfaces.begin_create_or_update.return_value = (
-
-
             _create_awaitable_mock(nic_response)
-
-
         )
 
         await windows_vm_manager.provision_vm(worker=worker_identity)
@@ -561,7 +502,9 @@ class TestVMProvisioning:
             image_ref = storage_profile.get("image_reference", {})
         else:
             storage_profile = getattr(vm_params, "storage_profile", None)
-            image_ref = getattr(storage_profile, "image_reference", None) if storage_profile else None
+            image_ref = (
+                getattr(storage_profile, "image_reference", None) if storage_profile else None
+            )
 
         # Should reference Windows Server 2022
         image_str = str(image_ref)
@@ -577,15 +520,13 @@ class TestVMDeletion:
     """Tests for Windows VM deletion operations."""
 
     @pytest.mark.asyncio
-    async def test_delete_vm_success(
-        self, windows_vm_manager, mock_compute_client
-    ):
+    async def test_delete_vm_success(self, windows_vm_manager, mock_compute_client):
         """Test delete_vm removes VM successfully."""
         vm_name = "cua-win-eastus-kw-test-001"
 
         # Mock successful deletion (no cleanup_network so only VM delete is called)
-        mock_compute_client.virtual_machines.begin_delete.return_value = (
-            _create_awaitable_mock(None)
+        mock_compute_client.virtual_machines.begin_delete.return_value = _create_awaitable_mock(
+            None
         )
 
         result = await windows_vm_manager.delete_vm(vm_name=vm_name, cleanup_network=False)
@@ -594,9 +535,7 @@ class TestVMDeletion:
         mock_compute_client.virtual_machines.begin_delete.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_delete_vm_with_missing_vm(
-        self, windows_vm_manager, mock_compute_client
-    ):
+    async def test_delete_vm_with_missing_vm(self, windows_vm_manager, mock_compute_client):
         """Test delete_vm handles missing VM gracefully (returns False)."""
         vm_name = "non-existent-vm"
 
@@ -617,24 +556,22 @@ class TestVMDeletion:
         vm_name = "cua-win-eastus-kw-test-001"
 
         # Mock VM deletion
-        mock_compute_client.virtual_machines.begin_delete.return_value = (
-            _create_awaitable_mock(None)
+        mock_compute_client.virtual_machines.begin_delete.return_value = _create_awaitable_mock(
+            None
         )
 
         # Mock network resource deletion
-        mock_network_client.network_interfaces.begin_delete.return_value = (
-            _create_awaitable_mock(None)
+        mock_network_client.network_interfaces.begin_delete.return_value = _create_awaitable_mock(
+            None
         )
-        mock_network_client.public_ip_addresses.begin_delete.return_value = (
-            _create_awaitable_mock(None)
+        mock_network_client.public_ip_addresses.begin_delete.return_value = _create_awaitable_mock(
+            None
         )
         mock_network_client.network_security_groups.begin_delete.return_value = (
             _create_awaitable_mock(None)
         )
 
-        result = await windows_vm_manager.delete_vm(
-            vm_name=vm_name, cleanup_network=True
-        )
+        result = await windows_vm_manager.delete_vm(vm_name=vm_name, cleanup_network=True)
 
         assert result is True
         mock_compute_client.virtual_machines.begin_delete.assert_called_once()
@@ -664,9 +601,7 @@ class TestVMStatus:
         assert status == "Creating"
 
     @pytest.mark.asyncio
-    async def test_get_vm_status_returns_succeeded(
-        self, windows_vm_manager, mock_compute_client
-    ):
+    async def test_get_vm_status_returns_succeeded(self, windows_vm_manager, mock_compute_client):
         """Test get_vm_status returns 'Succeeded' when VM is ready."""
         vm_name = "cua-win-eastus-kw-test-001"
 
@@ -679,9 +614,7 @@ class TestVMStatus:
         assert status == "Succeeded"
 
     @pytest.mark.asyncio
-    async def test_get_vm_status_returns_failed(
-        self, windows_vm_manager, mock_compute_client
-    ):
+    async def test_get_vm_status_returns_failed(self, windows_vm_manager, mock_compute_client):
         """Test get_vm_status returns 'Failed' when VM provisioning fails."""
         vm_name = "cua-win-eastus-kw-test-001"
 
@@ -700,9 +633,7 @@ class TestVMStatus:
         """Test get_vm_status returns None when VM doesn't exist."""
         vm_name = "non-existent-vm"
 
-        mock_compute_client.virtual_machines.get.side_effect = Exception(
-            "ResourceNotFound"
-        )
+        mock_compute_client.virtual_machines.get.side_effect = Exception("ResourceNotFound")
 
         status = await windows_vm_manager.get_vm_status(vm_name=vm_name)
 
@@ -781,9 +712,7 @@ class TestComputerUseReadiness:
             mock_sock_instance = MagicMock()
             mock_socket.return_value.__enter__.return_value = mock_sock_instance
             # Connection fails
-            mock_sock_instance.connect.side_effect = ConnectionRefusedError(
-                "Connection refused"
-            )
+            mock_sock_instance.connect.side_effect = ConnectionRefusedError("Connection refused")
 
             ready = await windows_vm_manager.verify_computer_use_ready(
                 vm_name=vm_name, public_ip=public_ip, timeout_seconds=1
@@ -846,9 +775,7 @@ class TestWaitForProvisioning:
 
         monkeypatch.setattr(asyncio, "sleep", mock_sleep)
 
-        result = await windows_vm_manager.wait_for_provisioning(
-            vm_name=vm_name, timeout_minutes=5
-        )
+        result = await windows_vm_manager.wait_for_provisioning(vm_name=vm_name, timeout_minutes=5)
 
         assert result is True
         assert call_count[0] >= 2
@@ -873,7 +800,8 @@ class TestWaitForProvisioning:
 
         # Use very short timeout
         result = await windows_vm_manager.wait_for_provisioning(
-            vm_name=vm_name, timeout_minutes=0.01  # 0.6 seconds
+            vm_name=vm_name,
+            timeout_minutes=0.01,  # 0.6 seconds
         )
 
         assert result is False
@@ -903,9 +831,7 @@ class TestWaitForProvisioning:
 
         monkeypatch.setattr(asyncio, "sleep", mock_sleep)
 
-        result = await windows_vm_manager.wait_for_provisioning(
-            vm_name=vm_name, timeout_minutes=5
-        )
+        result = await windows_vm_manager.wait_for_provisioning(vm_name=vm_name, timeout_minutes=5)
 
         assert result is True
         assert call_count[0] >= 2
@@ -963,9 +889,7 @@ class TestVMNaming:
     """Tests for VM naming convention."""
 
     @pytest.mark.asyncio
-    async def test_vm_name_follows_convention(
-        self, windows_vm_manager, worker_identity
-    ):
+    async def test_vm_name_follows_convention(self, windows_vm_manager, worker_identity):
         """Test VM name follows pattern: cua-win-{location}-{worker_id}."""
         vm_name = windows_vm_manager._get_vm_name(worker=worker_identity)
 
@@ -974,9 +898,7 @@ class TestVMNaming:
         assert worker_identity.worker_id.replace("_", "-") in vm_name
 
     @pytest.mark.asyncio
-    async def test_vm_name_is_valid_azure_resource_name(
-        self, windows_vm_manager, worker_identity
-    ):
+    async def test_vm_name_is_valid_azure_resource_name(self, windows_vm_manager, worker_identity):
         """Test VM name is valid Azure resource name (alphanumeric and hyphens)."""
         vm_name = windows_vm_manager._get_vm_name(worker=worker_identity)
 
@@ -1135,9 +1057,7 @@ class TestSecurityFeatures:
         nsg_response = MagicMock()
 
         mock_network_client.network_security_groups.begin_create_or_update.return_value = (
-
             _create_awaitable_mock(nsg_response)
-
         )
 
         await windows_vm_manager_secure._create_nsg("test-nsg", worker_identity)
@@ -1154,7 +1074,6 @@ class TestSecurityFeatures:
         source_ips = [rule["source_address_prefix"] for rule in security_rules]
         assert "1.2.3.4/32" in source_ips
         assert "10.0.0.0/8" in source_ips
-
 
     @pytest.mark.asyncio
     async def test_location_validation_valid_regions(
@@ -1221,10 +1140,10 @@ class TestSecurityFeatures:
     ):
         """Test that invalid resource group names are rejected."""
         invalid_names = [
-            ("rg-test.", "rg-test"),   # Ends with period
-            ("rg@test", "rg-test"),    # Invalid character
-            ("rg test", "rg-test"),    # Space
-            ("", ""),                  # Empty - will fail on empty string
+            ("rg-test.", "rg-test"),  # Ends with period
+            ("rg@test", "rg-test"),  # Invalid character
+            ("rg test", "rg-test"),  # Space
+            ("", ""),  # Empty - will fail on empty string
         ]
 
         for rg_name, vnet_rg in invalid_names:
@@ -1244,7 +1163,10 @@ class TestSecurityFeatures:
                 )
 
             # Should raise ValueError (either for resource_group_name or vnet_id validation)
-            assert "resource_group_name" in str(exc_info.value).lower() or "vnet_id" in str(exc_info.value).lower()
+            assert (
+                "resource_group_name" in str(exc_info.value).lower()
+                or "vnet_id" in str(exc_info.value).lower()
+            )
 
     @pytest.mark.asyncio
     async def test_worker_id_validation_valid_ids(self, windows_vm_manager):
@@ -1261,8 +1183,8 @@ class TestSecurityFeatures:
         invalid_ids = [
             "worker@001",  # Invalid character
             "worker 001",  # Space
-            "",            # Empty
-            "w" * 100,     # Too long
+            "",  # Empty
+            "w" * 100,  # Too long
         ]
 
         for worker_id in invalid_ids:
@@ -1270,7 +1192,6 @@ class TestSecurityFeatures:
                 windows_vm_manager._validate_worker_id(worker_id)
 
             assert "worker_id" in str(exc_info.value).lower()
-
 
 
 if __name__ == "__main__":

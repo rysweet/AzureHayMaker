@@ -44,6 +44,7 @@ Guides for deploying and operating Azure HayMaker.
 - [Deployment Guide](DEPLOYMENT.md) - Main deployment documentation
 - [Deployment Checklist](deployment/DEPLOYMENT_CHECKLIST.md) - Pre-deployment verification
 - [Deployment Validation](deployment/DEPLOYMENT_VALIDATION.md) - Post-deployment testing
+- [Verify Auto-Granted Permissions](howto/verify-auto-granted-permissions.md) - How to verify PermissionGranter auto-consent
 
 ### Operations
 - [Monitoring](operations/MONITORING.md) - Monitoring and observability

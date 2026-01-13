@@ -32,7 +32,6 @@ from azure_haymaker.knowledge_worker.models.worker import WorkerIdentity
 logger = logging.getLogger(__name__)
 
 
-
 class WindowsVMManager:
     """Provisions and manages Azure Windows VMs for Computer Use Agents.
 
@@ -73,17 +72,41 @@ class WindowsVMManager:
 
     # Valid Azure regions (subset for validation)
     VALID_AZURE_REGIONS = {
-        "eastus", "eastus2", "westus", "westus2", "westus3",
-        "centralus", "northcentralus", "southcentralus",
-        "westcentralus", "canadacentral", "canadaeast",
-        "brazilsouth", "northeurope", "westeurope",
-        "uksouth", "ukwest", "francecentral", "germanywestcentral",
-        "norwayeast", "switzerlandnorth", "swedencentral",
-        "eastasia", "southeastasia", "australiaeast",
-        "australiasoutheast", "japaneast", "japanwest",
-        "koreacentral", "koreasouth", "southindia",
-        "centralindia", "westindia", "uaenorth",
-        "southafricanorth", "qatarcentral"
+        "eastus",
+        "eastus2",
+        "westus",
+        "westus2",
+        "westus3",
+        "centralus",
+        "northcentralus",
+        "southcentralus",
+        "westcentralus",
+        "canadacentral",
+        "canadaeast",
+        "brazilsouth",
+        "northeurope",
+        "westeurope",
+        "uksouth",
+        "ukwest",
+        "francecentral",
+        "germanywestcentral",
+        "norwayeast",
+        "switzerlandnorth",
+        "swedencentral",
+        "eastasia",
+        "southeastasia",
+        "australiaeast",
+        "australiasoutheast",
+        "japaneast",
+        "japanwest",
+        "koreacentral",
+        "koreasouth",
+        "southindia",
+        "centralindia",
+        "westindia",
+        "uaenorth",
+        "southafricanorth",
+        "qatarcentral",
     }
 
     def __init__(
@@ -137,9 +160,7 @@ class WindowsVMManager:
 
         # Security: Validate and configure allowed source IPs (REQUIRED)
         self.allowed_source_ips = self._validate_ip_addresses(allowed_source_ips)
-        logger.info(
-            f"NSG configured with {len(self.allowed_source_ips)} allowed source IP ranges"
-        )
+        logger.info(f"NSG configured with {len(self.allowed_source_ips)} allowed source IP ranges")
 
     def _validate_location(self, location: str) -> None:
         """Validate Azure region.
@@ -182,11 +203,11 @@ class WindowsVMManager:
                 f"resource_group_name too long: {len(resource_group_name)} chars (max 90)"
             )
 
-        if resource_group_name.endswith('.'):
+        if resource_group_name.endswith("."):
             raise ValueError("resource_group_name cannot end with a period")
 
         # Allow alphanumeric, underscore, hyphen, period, parentheses
-        if not re.match(r'^[a-zA-Z0-9_\-\.\(\)]+$', resource_group_name):
+        if not re.match(r"^[a-zA-Z0-9_\-\.\(\)]+$", resource_group_name):
             raise ValueError(
                 f"Invalid resource_group_name: '{resource_group_name}'. "
                 "Must contain only alphanumerics, underscores, hyphens, periods, and parentheses"
@@ -269,8 +290,9 @@ class WindowsVMManager:
                 network = ipaddress.ip_network(ip_str, strict=False)
 
                 # Additional check: reject 0.0.0.0/0 and ::/0 after parsing
-                if (network.num_addresses == 2**32 and network.version == 4) or \
-                   (network.num_addresses == 2**128 and network.version == 6):
+                if (network.num_addresses == 2**32 and network.version == 4) or (
+                    network.num_addresses == 2**128 and network.version == 6
+                ):
                     raise ValueError(
                         f"Wildcard CIDR range '{ip_str}' is not allowed. "
                         f"Must specify explicit IP addresses/ranges for security."
@@ -306,7 +328,7 @@ class WindowsVMManager:
             raise ValueError(f"worker_id too long: {len(worker_id)} chars (max 64)")
 
         # Allow alphanumeric, hyphens, and underscores
-        if not re.match(r'^[a-zA-Z0-9_\-]+$', worker_id):
+        if not re.match(r"^[a-zA-Z0-9_\-]+$", worker_id):
             raise ValueError(
                 f"Invalid worker_id: '{worker_id}'. "
                 "Must contain only alphanumerics, hyphens, and underscores"
@@ -448,9 +470,7 @@ class WindowsVMManager:
         # Step 4: Create Virtual Machine
         await self._create_vm(vm_name, nic_id, admin_username, admin_password, worker)
 
-        logger.info(
-            f"VM provisioning initiated: {vm_name} (public IP: {public_ip_address})"
-        )
+        logger.info(f"VM provisioning initiated: {vm_name} (public IP: {public_ip_address})")
 
         return {
             "vm_name": vm_name,
@@ -460,9 +480,7 @@ class WindowsVMManager:
             "rdp_port": self.RDP_PORT,
         }
 
-    async def _create_public_ip(
-        self, public_ip_name: str, worker: WorkerIdentity
-    ) -> str:
+    async def _create_public_ip(self, public_ip_name: str, worker: WorkerIdentity) -> str:
         """Create a public IP address.
 
         Args:
@@ -552,7 +570,7 @@ class WindowsVMManager:
         except Exception as e:
             logger.error(
                 f"Failed to create NSG {nsg_name}: {type(e).__name__}",
-                exc_info=True  # Full details in debug logs only
+                exc_info=True,  # Full details in debug logs only
             )
             raise
 
@@ -642,9 +660,7 @@ class WindowsVMManager:
                     "provision_vm_agent": True,
                 },
             },
-            "network_profile": {
-                "network_interfaces": [{"id": nic_id, "primary": True}]
-            },
+            "network_profile": {"network_interfaces": [{"id": nic_id, "primary": True}]},
             "tags": {
                 "run_id": self.run_id,
                 "worker_id": worker.worker_id,
@@ -660,9 +676,7 @@ class WindowsVMManager:
         await poller
         logger.info(f"VM created: {vm_name}")
 
-    async def delete_vm(
-        self, vm_name: str, cleanup_network: bool = True
-    ) -> bool:
+    async def delete_vm(self, vm_name: str, cleanup_network: bool = True) -> bool:
         """Delete a VM and optionally its network resources.
 
         Args:
@@ -694,7 +708,7 @@ class WindowsVMManager:
             # Sanitize error message - log type only, full details in debug
             logger.error(
                 f"Failed to delete VM {vm_name}: {type(e).__name__}",
-                exc_info=True  # Full stack trace only in debug logs
+                exc_info=True,  # Full stack trace only in debug logs
             )
             return False
 
@@ -764,7 +778,7 @@ class WindowsVMManager:
             # Sanitize error message
             logger.warning(
                 f"Failed to get VM status for {vm_name}: {type(e).__name__}",
-                exc_info=True  # Full details in debug logs only
+                exc_info=True,  # Full details in debug logs only
             )
             return None
 
@@ -808,13 +822,11 @@ class WindowsVMManager:
             # Sanitize error message
             logger.warning(
                 f"RDP port not accessible on {vm_name}: {type(e).__name__}",
-                exc_info=True  # Full details in debug logs only
+                exc_info=True,  # Full details in debug logs only
             )
             return False
 
-    async def wait_for_provisioning(
-        self, vm_name: str, timeout_minutes: int | None = None
-    ) -> bool:
+    async def wait_for_provisioning(self, vm_name: str, timeout_minutes: int | None = None) -> bool:
         """Wait for VM to be provisioned and ready.
 
         Polls VM provisioning status with progress tracking.
@@ -830,18 +842,14 @@ class WindowsVMManager:
         start_time = asyncio.get_event_loop().time()
         deadline = start_time + (timeout * 60)
 
-        logger.info(
-            f"Waiting for VM provisioning: {vm_name} (timeout: {timeout} minutes)"
-        )
+        logger.info(f"Waiting for VM provisioning: {vm_name} (timeout: {timeout} minutes)")
 
         while asyncio.get_event_loop().time() < deadline:
             status = await self.get_vm_status(vm_name)
 
             if status == "Succeeded":
                 elapsed = (asyncio.get_event_loop().time() - start_time) / 60
-                logger.info(
-                    f"VM ready: {vm_name} (elapsed: {elapsed:.1f} minutes)"
-                )
+                logger.info(f"VM ready: {vm_name} (elapsed: {elapsed:.1f} minutes)")
                 return True
 
             elif status == "Failed":
@@ -854,7 +862,5 @@ class WindowsVMManager:
             await asyncio.sleep(self.PROVISIONING_CHECK_INTERVAL_SECONDS)
 
         elapsed = (asyncio.get_event_loop().time() - start_time) / 60
-        logger.warning(
-            f"VM provisioning timeout: {vm_name} (elapsed: {elapsed:.1f} minutes)"
-        )
+        logger.warning(f"VM provisioning timeout: {vm_name} (elapsed: {elapsed:.1f} minutes)")
         return False

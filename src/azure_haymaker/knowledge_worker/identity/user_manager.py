@@ -13,6 +13,10 @@ from typing import Any
 from msgraph.generated.models.password_profile import PasswordProfile
 from msgraph.generated.models.user import User
 
+from azure_haymaker.knowledge_worker.identity.mailbox_waiter import (
+    MailboxProvisioningWaiter,
+    MailboxStatus,
+)
 from azure_haymaker.knowledge_worker.models.worker import (
     WorkerIdentity,
     WorkerPersona,
@@ -58,6 +62,9 @@ class EntraUserManager:
         self.graph_client = graph_client
         self.run_id = run_id
         self.tenant_domain = tenant_domain
+
+        # Initialize mailbox provisioning waiter
+        self.mailbox_waiter = MailboxProvisioningWaiter(graph_client)
 
     async def provision_worker(
         self,
@@ -127,9 +134,26 @@ class EntraUserManager:
                 await self.graph_client.users.by_user_id(created_user.id).patch(body=update_user)
                 logger.debug(f"Set usage location for {username}")
 
-            # Assign E5 license
+            # Assign E5 license and wait for mailbox
             if created_user.id:
-                await self.assign_license(created_user.id)
+                license_assigned = await self.assign_license(created_user.id)
+
+                # Wait for mailbox provisioning
+                if license_assigned:
+                    logger.info(f"Waiting for mailbox provisioning: {username}")
+
+                    wait_result = await self.mailbox_waiter.wait_for_mailbox(
+                        created_user.id, timeout_seconds=900
+                    )
+
+                    if wait_result.status == MailboxStatus.READY:
+                        logger.info(
+                            f"Mailbox ready for {username} ({wait_result.elapsed_seconds:.1f}s)"
+                        )
+                    else:
+                        logger.warning(
+                            f"Mailbox not ready for {username}: {wait_result.status.value}"
+                        )
 
             return WorkerIdentity(
                 worker_id=username,
@@ -314,7 +338,7 @@ class EntraUserManager:
                     "query_parameters": {
                         "filter": filter_query,
                         "select": (
-                            "id,displayName,userPrincipalName," "mailNickname,department,jobTitle"
+                            "id,displayName,userPrincipalName,mailNickname,department,jobTitle"
                         ),
                     }
                 }
@@ -340,7 +364,7 @@ class EntraUserManager:
                 request_configuration={
                     "query_parameters": {
                         "select": (
-                            "id,displayName,userPrincipalName," "mailNickname,department,jobTitle"
+                            "id,displayName,userPrincipalName,mailNickname,department,jobTitle"
                         ),
                     }
                 }

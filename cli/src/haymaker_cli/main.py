@@ -1,18 +1,23 @@
 """Main CLI entry point for HayMaker CLI."""
 
+import sys
 import time
 from typing import Any
 
 import click
+from dotenv import load_dotenv
 from rich.console import Console
 
-from haymaker_cli.cli_utils import get_client, handle_error
-from haymaker_cli.config import (
+# Load environment variables from .env file BEFORE other imports
+load_dotenv()
+
+from haymaker_cli.cli_utils import get_client, handle_error  # noqa: E402
+from haymaker_cli.config import (  # noqa: E402
     get_config_value,
     list_config,
     set_config_value,
 )
-from haymaker_cli.formatters import (
+from haymaker_cli.formatters import (  # noqa: E402
     format_agent_list,
     format_cleanup_response,
     format_execution_response,
@@ -24,10 +29,10 @@ from haymaker_cli.formatters import (
     format_resource_list,
     format_yaml,
 )
-from haymaker_cli.kw.commands import kw
-from haymaker_cli.orch.commands import orch
-from haymaker_cli.scenarios import scenarios
-from haymaker_cli.validate import validate
+from haymaker_cli.kw.commands import kw  # noqa: E402
+from haymaker_cli.orch.commands import orch  # noqa: E402
+from haymaker_cli.scenarios import scenarios  # noqa: E402
+from haymaker_cli.validate import validate  # noqa: E402
 
 console = Console()
 
@@ -140,21 +145,21 @@ def metrics(ctx: click.Context, period: str, scenario: str | None):
 # Orchestrator command group
 
 # Register orch command group from orch.commands module
-cli.add_command(orch)
+cli.add_command(orch)  # type: ignore[arg-type]
 
 # Register scenarios command group
-cli.add_command(scenarios)
+cli.add_command(scenarios)  # type: ignore[arg-type]
 
 # Register validate command
-cli.add_command(validate)
+cli.add_command(validate)  # type: ignore[arg-type]
 
 # Register knowledge worker command group
-cli.add_command(kw)
+cli.add_command(kw)  # type: ignore[arg-type]
 
 # Register report commands
-from haymaker_cli.report import report
+from haymaker_cli.report import report  # noqa: E402
 
-cli.add_command(report)
+cli.add_command(report)  # type: ignore[arg-type]
 
 # Agents command group
 

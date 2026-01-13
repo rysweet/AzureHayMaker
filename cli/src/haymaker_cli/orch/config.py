@@ -138,8 +138,8 @@ def load_orchestrator_config(
     final_subscription_id = env_subscription_id or orch_config.get("subscription_id")
     final_resource_group = env_resource_group or orch_config.get("resource_group")
     final_container_app_name = env_container_app_name or orch_config.get("container_app_name")
-    final_location = env_location if env_location != "eastus" else orch_config.get(
-        "location", "eastus"
+    final_location = (
+        env_location if env_location != "eastus" else orch_config.get("location", "eastus")
     )
     final_tenant_id = env_tenant_id or orch_config.get("tenant_id")
 
@@ -221,7 +221,13 @@ def set_orchestrator_config_value(key: str, value: str) -> None:
         >>> set_orchestrator_config_value('subscription_id', 'my-sub-id')  # doctest: +SKIP
         >>> set_orchestrator_config_value('resource_group', 'my-rg')  # doctest: +SKIP
     """
-    valid_keys = {"subscription_id", "resource_group", "container_app_name", "location", "tenant_id"}
+    valid_keys = {
+        "subscription_id",
+        "resource_group",
+        "container_app_name",
+        "location",
+        "tenant_id",
+    }
 
     if key not in valid_keys:
         raise ConfigError(

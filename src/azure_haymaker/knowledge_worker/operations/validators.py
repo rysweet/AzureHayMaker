@@ -65,9 +65,7 @@ class CommunicationValidator:
         """
         self.tenant_domain = tenant_domain.lower().strip()
         self.allowed_upns: set[str] = (
-            {upn.lower().strip() for upn in allowed_upns}
-            if allowed_upns
-            else set()
+            {upn.lower().strip() for upn in allowed_upns} if allowed_upns else set()
         )
 
     def add_allowed_upn(self, upn: str) -> None:
@@ -145,9 +143,7 @@ class CommunicationValidator:
                 external.append(recipient)
 
         if external:
-            logger.warning(
-                f"Filtered {len(external)} external recipients: {', '.join(external)}"
-            )
+            logger.warning(f"Filtered {len(external)} external recipients: {', '.join(external)}")
 
         return internal
 

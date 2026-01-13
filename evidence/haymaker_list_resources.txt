@@ -1,0 +1,32 @@
+Resources for kw-250569d9
+
+                                  Entra Users
+┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
+┃ Worker ID         ┃ Display Name     ┃ UPN               ┃ Object ID         ┃
+┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
+│ kw-kw-25056-sale… │ KW Sales 2       │ kw-kw-25056-sale… │ 13b46891-9194-47… │
+│ kw-kw-25056-engi… │ KW Engineering 2 │ kw-kw-25056-engi… │ d8d71fd1-5552-44… │
+│ kw-kw-25056-engi… │ KW Engineering 1 │ kw-kw-25056-engi… │ 1b6723c3-f351-4b… │
+│ kw-kw-25056-sale… │ KW Sales 1       │ kw-kw-25056-sale… │ 5bd0336a-3da7-4a… │
+│ kw-kw-25056-engi… │ KW Engineering 3 │ kw-kw-25056-engi… │ e1d27a89-62f0-49… │
+└───────────────────┴──────────────────┴───────────────────┴───────────────────┘
+
+                          Security Groups
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Name                                 ┃ ID                        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ KW Workers - kw-5-test-20251212-0209 │ kw-250569d9-workers-group │
+└──────────────────────────────────────┴───────────────────────────┘
+
+                    Endpoints
+┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━┓
+┃ Worker ID            ┃ Type          ┃ Status  ┃
+┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━┩
+│ kw-kw-25056-sale-001 │ cli_container │ running │
+│ kw-kw-25056-engi-001 │ cli_container │ running │
+│ kw-kw-25056-engi-000 │ cli_container │ running │
+│ kw-kw-25056-sale-000 │ cli_container │ running │
+│ kw-kw-25056-engi-002 │ cli_container │ running │
+└──────────────────────┴───────────────┴─────────┘
+
+Total: 5 users, 1 groups, 5 endpoints

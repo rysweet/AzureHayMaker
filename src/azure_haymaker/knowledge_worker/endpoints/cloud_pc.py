@@ -134,9 +134,7 @@ class Windows365CloudPCManager:
             Cloud PC ID (placeholder until async provisioning completes, or mock ID on fallback)
         """
         try:
-            logger.info(
-                f"Cloud PC provisioning initiated for worker: {worker.worker_id}"
-            )
+            logger.info(f"Cloud PC provisioning initiated for worker: {worker.worker_id}")
 
             # Step 1: Get or create the assignment group for this policy
             group_id = await self._get_or_create_assignment_group(policy_id)
@@ -147,9 +145,7 @@ class Windows365CloudPCManager:
             # Step 3: Assign group to policy (if not already assigned)
             await self._assign_group_to_policy(policy_id, group_id)
 
-            logger.info(
-                f"Cloud PC provisioning group assignment complete for {worker.worker_id}"
-            )
+            logger.info(f"Cloud PC provisioning group assignment complete for {worker.worker_id}")
 
             # Return placeholder ID - actual Cloud PC ID will be available
             # after async provisioning completes
@@ -158,13 +154,15 @@ class Windows365CloudPCManager:
         except Exception as e:
             # Check if this is a permission error
             error_msg = str(e).lower()
-            if "insufficient privileges" in error_msg or "403" in error_msg or "unauthorized" in error_msg:
+            if (
+                "insufficient privileges" in error_msg
+                or "403" in error_msg
+                or "unauthorized" in error_msg
+            ):
                 return await self._handle_permission_fallback(worker, policy_id, e)
 
             # For other errors, re-raise
-            logger.error(
-                f"Failed to provision Cloud PC for {worker.worker_id}: {e}"
-            )
+            logger.error(f"Failed to provision Cloud PC for {worker.worker_id}: {e}")
             raise
 
     async def wait_for_provisioning(
@@ -190,8 +188,7 @@ class Windows365CloudPCManager:
         check_count = 0
 
         logger.info(
-            f"Waiting for Cloud PC provisioning: {worker.worker_id} "
-            f"(timeout: {timeout} minutes)"
+            f"Waiting for Cloud PC provisioning: {worker.worker_id} (timeout: {timeout} minutes)"
         )
 
         while datetime.now() < deadline:
@@ -200,12 +197,14 @@ class Windows365CloudPCManager:
 
             try:
                 # Check provisioning status
-                cloud_pcs = await self.graph_client.device_management.virtual_endpoint.cloud_p_cs.get(
-                    request_configuration={
-                        "query_parameters": {
-                            "filter": f"userPrincipalName eq '{worker.user_principal_name}'"
+                cloud_pcs = (
+                    await self.graph_client.device_management.virtual_endpoint.cloud_p_cs.get(
+                        request_configuration={
+                            "query_parameters": {
+                                "filter": f"userPrincipalName eq '{worker.user_principal_name}'"
+                            }
                         }
-                    }
+                    )
                 )
 
                 if cloud_pcs.value:
@@ -370,9 +369,7 @@ class Windows365CloudPCManager:
 
         async def provision_one(worker: WorkerIdentity) -> tuple[WorkerIdentity, str]:
             async with semaphore:
-                cloud_pc_id = await self.provision_cloud_pc(
-                    worker=worker, policy_id=policy_id
-                )
+                cloud_pc_id = await self.provision_cloud_pc(worker=worker, policy_id=policy_id)
                 return (worker, cloud_pc_id)
 
         tasks = [provision_one(worker) for worker in workers]
@@ -384,9 +381,7 @@ class Windows365CloudPCManager:
             else:
                 results.append(result)
 
-        logger.info(
-            f"Batch provisioning complete: {len(results)}/{len(workers)} successful"
-        )
+        logger.info(f"Batch provisioning complete: {len(results)}/{len(workers)} successful")
         return results
 
     async def _get_or_create_assignment_group(self, policy_id: str) -> str:
@@ -430,9 +425,7 @@ class Windows365CloudPCManager:
             logger.error(f"Failed to get/create assignment group: {e}")
             raise
 
-    async def _add_user_to_group(
-        self, worker: WorkerIdentity, group_id: str
-    ) -> None:
+    async def _add_user_to_group(self, worker: WorkerIdentity, group_id: str) -> None:
         """Add a user to an Entra group.
 
         Args:
@@ -441,15 +434,11 @@ class Windows365CloudPCManager:
         """
         try:
             # Check if user already in group
-            members = await self.graph_client.groups.by_group_id(
-                group_id
-            ).members.get()
+            members = await self.graph_client.groups.by_group_id(group_id).members.get()
 
             member_ids = [m.id for m in (members.value or [])]
             if worker.entra_object_id in member_ids:
-                logger.debug(
-                    f"User {worker.worker_id} already in group {group_id}"
-                )
+                logger.debug(f"User {worker.worker_id} already in group {group_id}")
                 return
 
             # Add user to group
@@ -461,19 +450,13 @@ class Windows365CloudPCManager:
                 body=reference_data
             )
 
-            logger.info(
-                f"Added user {worker.worker_id} to Cloud PC assignment group"
-            )
+            logger.info(f"Added user {worker.worker_id} to Cloud PC assignment group")
 
         except Exception as e:
-            logger.error(
-                f"Failed to add user {worker.worker_id} to group {group_id}: {e}"
-            )
+            logger.error(f"Failed to add user {worker.worker_id} to group {group_id}: {e}")
             raise
 
-    async def _assign_group_to_policy(
-        self, policy_id: str, group_id: str
-    ) -> None:
+    async def _assign_group_to_policy(self, policy_id: str, group_id: str) -> None:
         """Assign an Entra group to a Cloud PC provisioning policy.
 
         Args:
@@ -488,7 +471,9 @@ class Windows365CloudPCManager:
 
             # Check if group already assigned
             assigned_group_ids = [
-                a.target.group_id for a in (assignments.value or []) if hasattr(a.target, "group_id")
+                a.target.group_id
+                for a in (assignments.value or [])
+                if hasattr(a.target, "group_id")
             ]
 
             if group_id in assigned_group_ids:
@@ -505,9 +490,7 @@ class Windows365CloudPCManager:
 
             await self.graph_client.device_management.virtual_endpoint.provisioning_policies.by_cloud_pc_provisioning_policy_id(
                 policy_id
-            ).assignments.post(
-                body=assignment_data
-            )
+            ).assignments.post(body=assignment_data)
 
             logger.info(f"Assigned group {group_id} to policy {policy_id}")
 
@@ -551,11 +534,13 @@ class Windows365CloudPCManager:
             permission: Permission that was missing
             resource_id: Resource ID that triggered fallback
         """
-        self._permission_fallbacks.append({
-            "permission": permission,
-            "resource_id": resource_id,
-            "timestamp": datetime.now(UTC).isoformat(),
-        })
+        self._permission_fallbacks.append(
+            {
+                "permission": permission,
+                "resource_id": resource_id,
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+        )
 
     def get_permission_status(self) -> dict[str, Any]:
         """Get permission fallback status report.

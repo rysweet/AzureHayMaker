@@ -209,7 +209,7 @@ curl https://haymaker-fastapi-app.azurewebsites.net/api/siem/metrics
 // Application Insights query
 requests
 | where cloud_RoleName == "haymaker-fastapi-app"
-| summarize 
+| summarize
     AvailabilityPercent = 100.0 * countif(success) / count(),
     MTTR = avg(duration)
 | extend AvailabilitySLA = iff(AvailabilityPercent >= 99.9, "✅", "❌")

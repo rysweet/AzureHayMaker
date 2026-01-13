@@ -52,7 +52,9 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture
 def mock_playwright():
     """Fixture: Mock Playwright instance with browser."""
-    with patch("azure_haymaker.knowledge_worker.computer_use.browser_automation.async_playwright") as mock:
+    with patch(
+        "azure_haymaker.knowledge_worker.computer_use.browser_automation.async_playwright"
+    ) as mock:
         playwright = AsyncMock()
         browser = AsyncMock()
         context = AsyncMock()
@@ -173,9 +175,7 @@ class TestM365Authentication:
     """Tests for M365 authentication."""
 
     @pytest.mark.asyncio
-    async def test_login_m365_success(
-        self, browser_automation, credentials, mock_playwright
-    ):
+    async def test_login_m365_success(self, browser_automation, credentials, mock_playwright):
         """Test successful M365 login."""
         # Arrange
         await browser_automation.launch_browser()
@@ -214,9 +214,7 @@ class TestM365Authentication:
 
         # Act & Assert
         with pytest.raises(LoginError) as exc_info:
-            await browser_automation.login_m365(
-                username="invalid@tenant.com", password="wrongpass"
-            )
+            await browser_automation.login_m365(username="invalid@tenant.com", password="wrongpass")
         assert "credential" in str(exc_info.value).lower()
         assert browser_automation.is_authenticated is False
 
@@ -231,9 +229,7 @@ class TestM365Authentication:
         assert "browser" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
-    async def test_login_m365_with_mfa(
-        self, browser_automation, credentials, mock_playwright
-    ):
+    async def test_login_m365_with_mfa(self, browser_automation, credentials, mock_playwright):
         """Test M365 login handles MFA prompts."""
         # Arrange
         await browser_automation.launch_browser()
@@ -270,9 +266,7 @@ class TestM365Navigation:
     """Tests for navigation to M365 services."""
 
     @pytest.mark.asyncio
-    async def test_navigate_to_outlook_web(
-        self, browser_automation, credentials, mock_playwright
-    ):
+    async def test_navigate_to_outlook_web(self, browser_automation, credentials, mock_playwright):
         """Test navigation to Outlook Web."""
         # Arrange
         await browser_automation.launch_browser()
@@ -286,15 +280,11 @@ class TestM365Navigation:
         await browser_automation.navigate_to_outlook_web()
 
         # Assert
-        page.goto.assert_called_with(
-            "https://outlook.office.com/mail/", wait_until="networkidle"
-        )
+        page.goto.assert_called_with("https://outlook.office.com/mail/", wait_until="networkidle")
         assert browser_automation.current_service == "outlook"
 
     @pytest.mark.asyncio
-    async def test_navigate_to_teams_web(
-        self, browser_automation, credentials, mock_playwright
-    ):
+    async def test_navigate_to_teams_web(self, browser_automation, credentials, mock_playwright):
         """Test navigation to Teams Web."""
         # Arrange
         await browser_automation.launch_browser()
@@ -308,15 +298,11 @@ class TestM365Navigation:
         await browser_automation.navigate_to_teams_web()
 
         # Assert
-        page.goto.assert_called_with(
-            "https://teams.microsoft.com", wait_until="networkidle"
-        )
+        page.goto.assert_called_with("https://teams.microsoft.com", wait_until="networkidle")
         assert browser_automation.current_service == "teams"
 
     @pytest.mark.asyncio
-    async def test_navigate_without_authentication(
-        self, browser_automation, mock_playwright
-    ):
+    async def test_navigate_without_authentication(self, browser_automation, mock_playwright):
         """Test navigation fails without authentication."""
         # Arrange
         await browser_automation.launch_browser()
@@ -369,9 +355,7 @@ class TestEmailOperations:
         assert len(send_calls) >= 1
 
     @pytest.mark.asyncio
-    async def test_send_email_with_timeout(
-        self, browser_automation, credentials, mock_playwright
-    ):
+    async def test_send_email_with_timeout(self, browser_automation, credentials, mock_playwright):
         """Test send_email_via_browser respects timeout."""
         # Arrange
         await browser_automation.launch_browser()

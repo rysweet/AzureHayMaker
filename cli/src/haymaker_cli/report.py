@@ -20,7 +20,7 @@ def report():
     """Generate reports from orchestrator metrics."""
 
 
-@report.command(name="summary")
+@report.command(name="summary")  # type: ignore[misc]
 @click.option(
     "--period",
     default="30d",
@@ -47,7 +47,7 @@ def summary(ctx: click.Context, period: str, scenario: str | None, output: str):
     try:
         client = get_client(ctx)
 
-        console.print(f"[cyan]Generating summary report...[/cyan]")
+        console.print("[cyan]Generating summary report...[/cyan]")
         console.print(f"[dim]Period: {period}[/dim]")
         if scenario:
             console.print(f"[dim]Scenario: {scenario}[/dim]")
@@ -69,14 +69,14 @@ def summary(ctx: click.Context, period: str, scenario: str | None, output: str):
             output_path=output_path,
         )
 
-        console.print(f"\n[green]Report generated successfully![/green]")
+        console.print("\n[green]Report generated successfully![/green]")
         console.print(f"[cyan]Output:[/cyan] {output_path.absolute()}")
 
     except Exception as e:
         handle_error(e)
 
 
-@report.command(name="scenario")
+@report.command(name="scenario")  # type: ignore[misc]
 @click.argument("scenario_name")
 @click.option(
     "--period",
@@ -123,7 +123,7 @@ def scenario(ctx: click.Context, scenario_name: str, period: str, output: str | 
             output_path=output_path,
         )
 
-        console.print(f"\n[green]Report generated successfully![/green]")
+        console.print("\n[green]Report generated successfully![/green]")
         console.print(f"[cyan]Output:[/cyan] {output_path.absolute()}")
 
     except Exception as e:

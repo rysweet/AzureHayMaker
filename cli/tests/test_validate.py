@@ -175,8 +175,8 @@ class TestCheckApiConnectivity:
 
         with patch("httpx.Client") as mock_client:
             # All requests raise RequestError
-            mock_client.return_value.__enter__.return_value.get.side_effect = (
-                httpx.RequestError("Connection failed")
+            mock_client.return_value.__enter__.return_value.get.side_effect = httpx.RequestError(
+                "Connection failed"
             )
 
             result = check_api_connectivity()
@@ -252,8 +252,9 @@ class TestCheckEnvironmentVariables:
 
         assert result.status == CheckStatus.PASS
         # API key should be masked
-        assert "secret-key-12345" not in result.details
-        assert "****" in result.details
+        details_str = result.details or ""
+        assert "secret-key-12345" not in details_str
+        assert "****" in details_str
 
 
 class TestValidateCommand:
@@ -345,9 +346,7 @@ class TestValidateCommand:
         assert result.exit_code == 0
         output = json.loads(result.output)
         # Check that the API key is masked in JSON output
-        env_result = next(
-            r for r in output["results"] if r["name"] == "Environment Variables"
-        )
+        env_result = next(r for r in output["results"] if r["name"] == "Environment Variables")
         assert "****" in env_result["details"]
 
     @patch("haymaker_cli.validate.check_scenarios_directory")

@@ -73,16 +73,9 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   }
 }
 
-// Grant admin access via RBAC (Key Vault Administrator role)
-resource adminRoleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for objectId in adminObjectIds: {
-  name: guid(keyVault.id, objectId, 'KeyVaultAdministrator')
-  scope: keyVault
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '00482a5a-887f-4fb3-b363-3b7fe8e74483') // Key Vault Administrator
-    principalId: objectId
-    principalType: 'ServicePrincipal'
-  }
-}]
+// Note: Role assignments managed at subscription level to avoid deployment conflicts
+// GitHub Actions SP has subscription-level "Key Vault Secrets Officer" role
+// Manual grant: az role assignment create --assignee <sp-id> --role "Key Vault Secrets Officer" --scope /subscriptions/<sub-id>
 
 // Outputs
 output keyVaultId string = keyVault.id

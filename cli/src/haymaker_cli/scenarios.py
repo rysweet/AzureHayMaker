@@ -173,7 +173,7 @@ def scenarios():
     pass
 
 
-@scenarios.command("list")
+@scenarios.command("list")  # type: ignore[misc]
 @click.option(
     "--category",
     help="Filter by category (e.g., compute, networking, security)",
@@ -196,10 +196,7 @@ def scenarios_list(ctx: click.Context, category: str | None):
         # Filter by category if specified
         if category:
             category_lower = category.lower()
-            all_scenarios = [
-                s for s in all_scenarios
-                if s.category.lower() == category_lower
-            ]
+            all_scenarios = [s for s in all_scenarios if s.category.lower() == category_lower]
 
         if not all_scenarios:
             if category:
@@ -246,13 +243,15 @@ def scenarios_list(ctx: click.Context, category: str | None):
                     scenario.name,
                     scenario.category,
                     scenario.title,
-                    scenario.description[:47] + "..." if len(scenario.description) > 50 else scenario.description,
+                    scenario.description[:47] + "..."
+                    if len(scenario.description) > 50
+                    else scenario.description,
                 )
 
             console.print(table)
 
             # Show available categories
-            categories = sorted(set(s.category for s in all_scenarios))
+            categories = sorted({s.category for s in all_scenarios})
             console.print(f"\n[dim]Categories: {', '.join(categories)}[/dim]")
 
     except click.ClickException:
@@ -261,7 +260,7 @@ def scenarios_list(ctx: click.Context, category: str | None):
         raise click.ClickException(f"Failed to list scenarios: {e}") from e
 
 
-@scenarios.command("describe")
+@scenarios.command("describe")  # type: ignore[misc]
 @click.argument("scenario_name")
 @click.option("--raw", is_flag=True, help="Output raw markdown without rendering")
 @click.pass_context
@@ -299,7 +298,7 @@ def scenarios_describe(ctx: click.Context, scenario_name: str, raw: bool):
         raise click.ClickException(f"Failed to describe scenario: {e}") from e
 
 
-@scenarios.command("categories")
+@scenarios.command("categories")  # type: ignore[misc]
 def scenarios_categories():
     """List all scenario categories.
 

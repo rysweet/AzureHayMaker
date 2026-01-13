@@ -1,0 +1,34 @@
+Checking telemetry for 5 workers...
+Querying last 24 hours
+
+Failed to get emails for kw-kw-25056-sale-001: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-25056-sale-001: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-25056-engi-001: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-25056-engi-001: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-25056-engi-000: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-25056-engi-000: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-25056-sale-000: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-25056-sale-000: 'GraphServiceClient' object has no attribute 'graph'
+Failed to get emails for kw-kw-25056-engi-002: 'GraphServiceClient' object has no attribute 'graph'
+Failed to collect telemetry for kw-kw-25056-engi-002: 'GraphServiceClient' object has no attribute 'graph'
+   Telemetry Summary for
+        kw-250569d9
+┏━━━━━━━━━━━━━━━━━┳━━━━━━━┓
+┃ Metric          ┃ Count ┃
+┡━━━━━━━━━━━━━━━━━╇━━━━━━━┩
+│ Workers         │     5 │
+│ Emails          │     0 │
+│ Calendar Events │     0 │
+│ Teams Messages  │     0 │
+└─────────────────┴───────┘
+
+Per-Worker Breakdown:
+┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━┓
+┃ Worker               ┃ Emails ┃ Calendar ┃ Teams ┃
+┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━┩
+│ kw-kw-25056-sale-001 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-25056-engi-001 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-25056-engi-000 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-25056-sale-000 │  ERROR │    ERROR │ ERROR │
+│ kw-kw-25056-engi-002 │  ERROR │    ERROR │ ERROR │
+└──────────────────────┴────────┴──────────┴───────┘

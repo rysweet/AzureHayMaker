@@ -275,17 +275,13 @@ class TestTelemetryExport:
     """Tests for telemetry export functionality."""
 
     @pytest.mark.asyncio
-    async def test_export_logs_to_storage(
-        self, telemetry_collector, sample_operations
-    ):
+    async def test_export_logs_to_storage(self, telemetry_collector, sample_operations):
         """Test export_logs writes to Azure Storage."""
         # Arrange
         for op in sample_operations:
             telemetry_collector.log_operation(**op)
 
-        with patch(
-            "azure.storage.blob.BlobServiceClient"
-        ) as mock_blob_class:
+        with patch("azure.storage.blob.BlobServiceClient") as mock_blob_class:
             # Mock the BlobServiceClient instance
             mock_service_client = MagicMock()
             mock_blob_class.return_value = mock_service_client
@@ -306,17 +302,13 @@ class TestTelemetryExport:
             mock_blob_client.upload_blob.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_export_logs_handles_storage_error(
-        self, telemetry_collector, sample_operations
-    ):
+    async def test_export_logs_handles_storage_error(self, telemetry_collector, sample_operations):
         """Test export_logs handles storage errors."""
         # Arrange
         for op in sample_operations:
             telemetry_collector.log_operation(**op)
 
-        with patch(
-            "azure.storage.blob.BlobServiceClient"
-        ) as mock_blob_class:
+        with patch("azure.storage.blob.BlobServiceClient") as mock_blob_class:
             # Mock BlobServiceClient constructor to raise exception
             mock_blob_class.side_effect = Exception("Storage unavailable")
 

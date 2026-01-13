@@ -111,9 +111,7 @@ class ComputerUseTelemetryCollector:
 
         self.logs: list[OperationLog] = []
 
-        logger.info(
-            f"ComputerUseTelemetryCollector initialized for {worker_identity.worker_id}"
-        )
+        logger.info(f"ComputerUseTelemetryCollector initialized for {worker_identity.worker_id}")
 
     def log_operation(
         self,
@@ -152,9 +150,7 @@ class ComputerUseTelemetryCollector:
 
         self.logs.append(log_entry)
 
-        logger.debug(
-            f"Logged operation: {operation} ({status}, {duration_ms}ms)"
-        )
+        logger.debug(f"Logged operation: {operation} ({status}, {duration_ms}ms)")
 
         # Persist to disk
         self._persist_log(log_entry)
@@ -407,9 +403,7 @@ class ComputerUseTelemetryCollector:
         blob_service_client = BlobServiceClient(account_url=blob_url)
 
         # Upload blob
-        blob_client = blob_service_client.get_blob_client(
-            container=container, blob=blob_name
-        )
+        blob_client = blob_service_client.get_blob_client(container=container, blob=blob_name)
         blob_client.upload_blob(content, overwrite=True)
 
         logger.info(f"Uploaded logs to Azure Storage: {container}/{blob_name}")

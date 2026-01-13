@@ -105,8 +105,7 @@ class M365OperationBase(ABC):
         is_valid = self.validator.is_internal(recipient)
         if not is_valid:
             logger.warning(
-                f"Blocked external recipient: {recipient} "
-                f"(worker: {self.worker.worker_id})"
+                f"Blocked external recipient: {recipient} (worker: {self.worker.worker_id})"
             )
         return is_valid
 
@@ -127,8 +126,7 @@ class M365OperationBase(ABC):
         if len(valid) < len(recipients):
             blocked_count = len(recipients) - len(valid)
             logger.warning(
-                f"Filtered {blocked_count} external recipients "
-                f"(worker: {self.worker.worker_id})"
+                f"Filtered {blocked_count} external recipients (worker: {self.worker.worker_id})"
             )
 
         return valid
@@ -205,9 +203,7 @@ class M365OperationBase(ABC):
             "worker_id": self.worker.worker_id,
             "operation_count": self._operation_count,
             "last_rate_limit": (
-                self._last_rate_limit_time.isoformat()
-                if self._last_rate_limit_time
-                else None
+                self._last_rate_limit_time.isoformat() if self._last_rate_limit_time else None
             ),
         }
 
@@ -223,5 +219,5 @@ class M365OperationBase(ABC):
     ) -> None:
         """Async context manager exit."""
         # Log any errors that occurred
-        if exc_val is not None:
+        if exc_val is not None and isinstance(exc_val, Exception):
             self._log_error("context_exit", exc_val)

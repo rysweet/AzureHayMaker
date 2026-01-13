@@ -137,9 +137,9 @@ class TeamsIntegration:
                 },
             }
 
-            result = await self.graph_client.groups.by_group_id(
-                m365_group_id
-            ).team.put(body=team_data)
+            result = await self.graph_client.groups.by_group_id(m365_group_id).team.put(
+                body=team_data
+            )
 
             team_id = result.id if result else None
 
@@ -149,18 +149,13 @@ class TeamsIntegration:
                 )
 
             logger.info(
-                f"Created Teams team: {team_name} ({team_id}) "
-                f"for {department} team {team_num}"
+                f"Created Teams team: {team_name} ({team_id}) for {department} team {team_num}"
             )
             return team_id
 
         except Exception as e:
-            logger.error(
-                f"Failed to create Teams team {team_name} from group {m365_group_id}: {e}"
-            )
-            raise TeamsIntegrationError(
-                f"Failed to create Teams team: {str(e)}"
-            ) from e
+            logger.error(f"Failed to create Teams team {team_name} from group {m365_group_id}: {e}")
+            raise TeamsIntegrationError(f"Failed to create Teams team: {str(e)}") from e
 
     async def add_team_members(
         self,
@@ -198,19 +193,14 @@ class TeamsIntegration:
                 await self._add_team_member(team_id, user_id, role)
                 results["success"] += 1
             except Exception as e:
-                logger.warning(
-                    f"Failed to add member {user_id} to team {team_id}: {e}"
-                )
+                logger.warning(f"Failed to add member {user_id} to team {team_id}: {e}")
                 results["failed"] += 1
 
         if results["success"] == 0 and results["failed"] > 0:
-            raise TeamsIntegrationError(
-                f"Failed to add any members to team {team_id}"
-            )
+            raise TeamsIntegrationError(f"Failed to add any members to team {team_id}")
 
         logger.info(
-            f"Added {results['success']} members to team {team_id} "
-            f"({results['failed']} failed)"
+            f"Added {results['success']} members to team {team_id} ({results['failed']} failed)"
         )
 
         return results
@@ -241,13 +231,9 @@ class TeamsIntegration:
             "user@odata.bind": f"https://graph.microsoft.com/v1.0/users/{user_id}",
         }
 
-        await self.graph_client.teams.by_team_id(team_id).members.post(
-            body=member_data
-        )
+        await self.graph_client.teams.by_team_id(team_id).members.post(body=member_data)
 
-        logger.debug(
-            f"Added member {user_id} to team {team_id} with role {role}"
-        )
+        logger.debug(f"Added member {user_id} to team {team_id} with role {role}")
 
     async def create_standard_channels(
         self,
@@ -310,9 +296,7 @@ class TeamsIntegration:
             "description": description or f"Channel for {channel_name}",
         }
 
-        result = await self.graph_client.teams.by_team_id(
-            team_id
-        ).channels.post(body=channel_data)
+        result = await self.graph_client.teams.by_team_id(team_id).channels.post(body=channel_data)
 
         if not result or not result.id:
             raise TeamsIntegrationError(f"Failed to extract channel ID for {channel_name}")
@@ -343,9 +327,7 @@ class TeamsIntegration:
             channel_id = await self._get_channel_id_by_name(team_id, channel_name)
 
             if not channel_id:
-                logger.warning(
-                    f"Channel {channel_name} not found in team {team_id}"
-                )
+                logger.warning(f"Channel {channel_name} not found in team {team_id}")
                 return None
 
             # Build message content
@@ -355,9 +337,7 @@ class TeamsIntegration:
                 # Get team name from team ID for personalization
                 team_info = await self._get_team_info(team_id)
                 team_display_name = team_info.get("display_name", "Team") if team_info else "Team"
-                message_content = self.WELCOME_MESSAGE_TEMPLATE.format(
-                    team_name=team_display_name
-                )
+                message_content = self.WELCOME_MESSAGE_TEMPLATE.format(team_name=team_display_name)
 
             message_body = {
                 "body": {
@@ -366,25 +346,21 @@ class TeamsIntegration:
                 }
             }
 
-            result = await self.graph_client.teams.by_team_id(
-                team_id
-            ).channels.by_channel_id(
-                channel_id
-            ).messages.post(body=message_body)
+            result = (
+                await self.graph_client.teams.by_team_id(team_id)
+                .channels.by_channel_id(channel_id)
+                .messages.post(body=message_body)
+            )
 
             message_id = result.id if result else None
 
             if message_id:
-                logger.info(
-                    f"Posted welcome message to {channel_name} in team {team_id}"
-                )
+                logger.info(f"Posted welcome message to {channel_name} in team {team_id}")
 
             return message_id
 
         except Exception as e:
-            logger.error(
-                f"Failed to post welcome message to {team_id}: {e}"
-            )
+            logger.error(f"Failed to post welcome message to {team_id}: {e}")
             raise TeamsIntegrationError(f"Failed to post message: {str(e)}") from e
 
     async def _get_channel_id_by_name(
@@ -402,9 +378,7 @@ class TeamsIntegration:
             Channel ID if found, None otherwise
         """
         try:
-            channels = await self.graph_client.teams.by_team_id(
-                team_id
-            ).channels.get(
+            channels = await self.graph_client.teams.by_team_id(team_id).channels.get(
                 request_configuration={
                     "query_parameters": {
                         "filter": f"displayName eq '{channel_name}'",

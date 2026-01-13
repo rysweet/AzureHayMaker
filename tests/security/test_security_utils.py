@@ -110,12 +110,7 @@ class TestSanitizeDict:
 
     def test_sanitizes_nested_dict(self):
         """Test nested dictionaries are sanitized recursively."""
-        data = {
-            "config": {
-                "api_key": "sk-123",
-                "endpoint": "api.example.com"
-            }
-        }
+        data = {"config": {"api_key": "sk-123", "endpoint": "api.example.com"}}
         result = sanitize_dict(data)
         assert result["config"]["api_key"] == "[REDACTED]"
         assert result["config"]["endpoint"] == "api.example.com"
@@ -125,7 +120,7 @@ class TestSanitizeDict:
         data = {
             "credentials": [
                 {"username": "user1", "password": "pass1"},
-                {"username": "user2", "token": "token2"}
+                {"username": "user2", "token": "token2"},
             ]
         }
         result = sanitize_dict(data)
@@ -155,12 +150,7 @@ class TestSanitizeDict:
 
     def test_preserves_non_sensitive_data(self):
         """Test non-sensitive data is preserved."""
-        data = {
-            "username": "admin",
-            "email": "user@example.com",
-            "count": 42,
-            "enabled": True
-        }
+        data = {"username": "admin", "email": "user@example.com", "count": 42, "enabled": True}
         result = sanitize_dict(data)
         assert result == data
 
@@ -275,7 +265,9 @@ class TestSanitizeForLog:
 
     def test_handles_winrm_exception_with_password(self):
         """Test WinRM exception containing password is sanitized."""
-        text = "WinRM authentication failed: 401 Unauthorized for user admin with password VmP@ssw0rd!"
+        text = (
+            "WinRM authentication failed: 401 Unauthorized for user admin with password VmP@ssw0rd!"
+        )
         result = sanitize_for_log(text)
         assert "VmP@ssw0rd!" not in result
         assert "[REDACTED]" in result

@@ -1,0 +1,34 @@
+{
+  "run_id": "kw-8c18922f",
+  "phase": "executing",
+  "status": "running",
+  "worker_count": 5,
+  "workers": [
+    {
+      "worker_id": "kw-kw-8c189-engi-000",
+      "department": "engineering",
+      "endpoint_type": "cli_container"
+    },
+    {
+      "worker_id": "kw-kw-8c189-engi-001",
+      "department": "engineering",
+      "endpoint_type": "cli_container"
+    },
+    {
+      "worker_id": "kw-kw-8c189-engi-002",
+      "department": "engineering",
+      "endpoint_type": "cli_container"
+    },
+    {
+      "worker_id": "kw-kw-8c189-sale-000",
+      "department": "sales",
+      "endpoint_type": "cli_container"
+    },
+    {
+      "worker_id": "kw-kw-8c189-sale-001",
+      "department": "sales",
+      "endpoint_type": "cli_container"
+    }
+  ],
+  "timestamp": "2025-12-12T08:16:10.355489+00:00"
+}

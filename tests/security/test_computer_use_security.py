@@ -48,9 +48,7 @@ except ImportError:
 
 
 pytestmark = [
-    pytest.mark.skipif(
-        not SECURITY_AVAILABLE, reason="Security test modules not yet implemented"
-    ),
+    pytest.mark.skipif(not SECURITY_AVAILABLE, reason="Security test modules not yet implemented"),
 ]
 
 
@@ -94,9 +92,7 @@ def sensitive_config():
 class TestCredentialSanitization:
     """Tests for credential sanitization in logs and telemetry."""
 
-    def test_telemetry_sanitizes_passwords(
-        self, worker_identity, sensitive_config
-    ):
+    def test_telemetry_sanitizes_passwords(self, worker_identity, sensitive_config):
         """Test telemetry logs do not contain passwords."""
         # Arrange
         collector = ComputerUseTelemetryCollector(worker_identity=worker_identity)
@@ -143,9 +139,7 @@ class TestCredentialSanitization:
         assert sensitive_config["m365_password"] not in config_str
         assert "***" in config_str or "REDACTED" in config_str
 
-    def test_error_messages_sanitize_credentials(
-        self, worker_identity, sensitive_config
-    ):
+    def test_error_messages_sanitize_credentials(self, worker_identity, sensitive_config):
         """Test error messages do not leak credentials."""
         # Arrange
         with patch(
@@ -341,9 +335,7 @@ class TestAuthenticationSecurity:
             await automation.launch_browser()
 
             # Act
-            await automation.login_m365(
-                username="user@tenant.com", password="SecureP@ss123!"
-            )
+            await automation.login_m365(username="user@tenant.com", password="SecureP@ss123!")
 
             # Assert - password should be typed, not set as attribute
             fill_calls = page.fill.call_args_list

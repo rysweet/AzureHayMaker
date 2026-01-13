@@ -67,8 +67,7 @@ def load_dotenv_with_warnings() -> dict[str, str]:
         )
     else:
         logger.info(
-            "Loading configuration from .env file for local development. "
-            "Environment: %s, Path: %s",
+            "Loading configuration from .env file for local development. Environment: %s, Path: %s",
             azure_env or "development",
             env_path,
         )

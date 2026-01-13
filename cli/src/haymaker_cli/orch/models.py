@@ -46,9 +46,7 @@ class ReplicaInfo(BaseModel):
     running_state: str | None = Field(
         default=None, description="Running state (Running, NotRunning, Unknown)"
     )
-    running_state_details: str | None = Field(
-        default=None, description="Additional state details"
-    )
+    running_state_details: str | None = Field(default=None, description="Additional state details")
 
 
 class RevisionInfo(BaseModel):

@@ -103,3 +103,16 @@ def mock_service_bus_client() -> MockServiceBusClient:
         MockServiceBusClient for topic and queue operations
     """
     return create_mock_service_bus_client()
+
+
+@pytest.fixture
+def anyio_backend():
+    """Force asyncio backend only for all anyio tests.
+
+    This prevents pytest-anyio from trying to run tests with trio backend,
+    which is not installed in this project.
+
+    Returns:
+        'asyncio' to force asyncio-only testing
+    """
+    return "asyncio"

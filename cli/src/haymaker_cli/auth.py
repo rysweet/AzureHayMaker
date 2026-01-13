@@ -22,7 +22,9 @@ class AuthConfig(BaseModel):
     api_key: str | None = Field(default=None, description="API key for api_key auth")
     tenant_id: str | None = Field(default=None, description="Tenant ID for Azure AD auth")
     client_id: str | None = Field(default=None, description="Client ID for service principal")
-    client_secret: str | None = Field(default=None, description="Client secret for service principal")
+    client_secret: str | None = Field(
+        default=None, description="Client secret for service principal"
+    )
 
 
 class AuthProvider(ABC):
@@ -193,6 +195,11 @@ def create_auth_provider(config: AuthConfig | dict[str, Any] | None = None) -> A
                 "AZURE_CLIENT_ID, and AZURE_CLIENT_SECRET (or MAIN_SP_CLIENT_SECRET) "
                 "environment variables, or explicit configuration."
             )
+
+        # Type guard: after the check above, we know these are non-None
+        assert tenant_id is not None
+        assert client_id is not None
+        assert client_secret is not None
 
         # Use the API scope for the orchestrator API
         api_scope = f"api://{client_id}/.default"

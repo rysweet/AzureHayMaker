@@ -49,20 +49,16 @@ class CalendarWorkflow(BaseWorkflow):
 
     async def execute(
         self,
-        subject: str,
-        start_time: str,
-        end_time: str,
-        attendees: list[str] | None = None,
-        **kwargs: Any,
+        **params: Any,
     ) -> dict[str, Any]:
         """Execute calendar event creation workflow.
 
         Args:
-            subject: Event subject/title
-            start_time: Event start time (ISO format)
-            end_time: Event end time (ISO format)
-            attendees: Optional list of attendee email addresses
-            **kwargs: Additional parameters (ignored)
+            **params: Workflow parameters including:
+                - subject: Event subject/title
+                - start_time: Event start time (ISO format)
+                - end_time: Event end time (ISO format)
+                - attendees: Optional list of attendee email addresses
 
         Returns:
             Dict with keys:
@@ -74,7 +70,12 @@ class CalendarWorkflow(BaseWorkflow):
             WorkflowValidationError: If required parameters are invalid
             WorkflowError: If event creation fails
         """
-        # Validate parameters
+        # Extract and validate parameters
+        subject = params.get("subject", "")
+        start_time = params.get("start_time", "")
+        end_time = params.get("end_time", "")
+        attendees = params.get("attendees")
+
         self._validate_required_params(
             params={"subject": subject, "start_time": start_time, "end_time": end_time},
             required=["subject", "start_time", "end_time"],
@@ -104,3 +105,4 @@ class CalendarWorkflow(BaseWorkflow):
 
         except Exception as e:
             await self._handle_workflow_error(e, "Calendar event creation")
+            raise  # _handle_workflow_error always raises, this is unreachable

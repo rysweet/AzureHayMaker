@@ -10,11 +10,11 @@ Replace the sections below with information about your project.
 
 ---
 
-## Project: h2
+## Project: [Your Project Name]
 
 ## Overview
 
-[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://rysweet.github.io/AzureHayMaker/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[Brief description of what your project does]
 
 ## Architecture
 
@@ -26,12 +26,10 @@ Replace the sections below with information about your project.
 
 ### Technology Stack
 
-- **Language**: Python
-- **Language**: JavaScript/TypeScript
-- **Language**: Rust
-- **Language**: Go
+- **Language**: [Primary language(s)]
 - **Framework**: [Main framework if applicable]
 - **Database**: [Database system if applicable]
+- **Other Tools**: [Key dependencies or tools]
 
 ## Development Guidelines
 

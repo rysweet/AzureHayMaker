@@ -1,0 +1,39 @@
+# Knowledge Worker Test Deployment: 5 Workers WITHOUT AI (Basic Test)
+#
+# Purpose: Test basic deployment infrastructure without AI generation
+# - Email markers working
+# - Multi-department setup
+# - Graph API email sending
+# - Monitoring commands
+#
+# Use with:
+#   python deploy_5_workers_basic.py
+
+name: "kw-5-basic-test"
+total_workers: 5
+tenant_domain: "DefenderATEVET12.onmicrosoft.com"
+duration_hours: 1
+
+departments:
+  engineering:
+    count: 3
+    endpoint_type: "cli_container"
+    activity:
+      email_per_hour: 6
+      teams_messages_per_hour: 10
+
+  sales:
+    count: 2
+    endpoint_type: "cli_container"
+    activity:
+      email_per_hour: 8
+      teams_messages_per_hour: 8
+
+# Email markers (no AI)
+email_markers_enabled: true
+marker_style: "both"
+marker_format: "TEST-RUN"
+
+# AI generation DISABLED for this test
+email_generation:
+  enabled: false

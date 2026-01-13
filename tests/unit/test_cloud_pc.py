@@ -62,15 +62,13 @@ def mock_graph_client():
         return_value=MagicMock(value=[])
     )
     client.device_management.virtual_endpoint.provisioning_policies.post = AsyncMock()
-    client.device_management.virtual_endpoint.provisioning_policies.by_cloud_pc_provisioning_policy_id = (
-        MagicMock(
-            return_value=MagicMock(
-                assignments=MagicMock(
-                    post=AsyncMock(),
-                    get=AsyncMock(return_value=MagicMock(value=[])),
-                ),
-                delete=AsyncMock(),
-            )
+    client.device_management.virtual_endpoint.provisioning_policies.by_cloud_pc_provisioning_policy_id = MagicMock(
+        return_value=MagicMock(
+            assignments=MagicMock(
+                post=AsyncMock(),
+                get=AsyncMock(return_value=MagicMock(value=[])),
+            ),
+            delete=AsyncMock(),
         )
     )
     client.device_management.virtual_endpoint.cloud_p_cs.get = AsyncMock(
@@ -172,22 +170,20 @@ class TestProvisioningPolicy:
         # Mock: No existing policies
         mock_policies = MagicMock()
         mock_policies.value = []
-        mock_graph_client.device_management.virtual_endpoint.provisioning_policies.get = (
-            AsyncMock(return_value=mock_policies)
+        mock_graph_client.device_management.virtual_endpoint.provisioning_policies.get = AsyncMock(
+            return_value=mock_policies
         )
 
         # Mock: Policy creation
-        mock_graph_client.device_management.virtual_endpoint.provisioning_policies.post = (
-            AsyncMock(return_value=mock_policy_response)
+        mock_graph_client.device_management.virtual_endpoint.provisioning_policies.post = AsyncMock(
+            return_value=mock_policy_response
         )
 
         result = await cloud_pc_manager.ensure_provisioning_policy()
 
         assert result == mock_policy_response.id
         mock_graph_client.device_management.virtual_endpoint.provisioning_policies.post.assert_called_once()
-        call_args = (
-            mock_graph_client.device_management.virtual_endpoint.provisioning_policies.post.call_args
-        )
+        call_args = mock_graph_client.device_management.virtual_endpoint.provisioning_policies.post.call_args
         assert "body" in call_args.kwargs
         assert "displayName" in call_args.kwargs["body"]
         assert "HayMaker" in call_args.kwargs["body"]["displayName"]
@@ -200,8 +196,8 @@ class TestProvisioningPolicy:
         # Mock: Existing policy found
         mock_policies = MagicMock()
         mock_policies.value = [mock_policy_response]
-        mock_graph_client.device_management.virtual_endpoint.provisioning_policies.get = (
-            AsyncMock(return_value=mock_policies)
+        mock_graph_client.device_management.virtual_endpoint.provisioning_policies.get = AsyncMock(
+            return_value=mock_policies
         )
 
         result = await cloud_pc_manager.ensure_provisioning_policy()
@@ -215,8 +211,8 @@ class TestProvisioningPolicy:
         self, cloud_pc_manager, mock_graph_client
     ):
         """Test provisioning policy creation handles Graph API errors."""
-        mock_graph_client.device_management.virtual_endpoint.provisioning_policies.get = (
-            AsyncMock(side_effect=Exception("Graph API error"))
+        mock_graph_client.device_management.virtual_endpoint.provisioning_policies.get = AsyncMock(
+            side_effect=Exception("Graph API error")
         )
 
         with pytest.raises(Exception, match=".") as exc_info:
@@ -286,21 +282,15 @@ class TestCloudPCProvisioning:
         policy_id = f"policy-{uuid4()}"
 
         # Mock network error
-        mock_graph_client.groups.post = AsyncMock(
-            side_effect=Exception("Network timeout")
-        )
+        mock_graph_client.groups.post = AsyncMock(side_effect=Exception("Network timeout"))
 
         with pytest.raises(Exception, match=".") as exc_info:
-            await cloud_pc_manager.provision_cloud_pc(
-                worker=worker_identity, policy_id=policy_id
-            )
+            await cloud_pc_manager.provision_cloud_pc(worker=worker_identity, policy_id=policy_id)
 
         assert "Network timeout" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_provision_cloud_pc_validates_worker(
-        self, cloud_pc_manager, mock_graph_client
-    ):
+    async def test_provision_cloud_pc_validates_worker(self, cloud_pc_manager, mock_graph_client):
         """Test provision_cloud_pc validates worker parameter."""
         policy_id = f"policy-{uuid4()}"
 
@@ -372,7 +362,8 @@ class TestStatusMonitoring:
 
         # Use very short timeout for testing
         result = await cloud_pc_manager.wait_for_provisioning(
-            worker=worker_identity, timeout_minutes=0.01  # 0.6 seconds
+            worker=worker_identity,
+            timeout_minutes=0.01,  # 0.6 seconds
         )
 
         assert result is False
@@ -431,9 +422,7 @@ class TestBatchProvisioning:
     """Tests for batch Cloud PC provisioning with concurrency."""
 
     @pytest.mark.asyncio
-    async def test_provision_batch_success(
-        self, cloud_pc_manager, mock_graph_client
-    ):
+    async def test_provision_batch_success(self, cloud_pc_manager, mock_graph_client):
         """Test batch provisioning of multiple Cloud PCs concurrently."""
         workers = [
             WorkerIdentity(
@@ -467,9 +456,7 @@ class TestBatchProvisioning:
         assert all(r[1].startswith("pending-") for r in results)
 
     @pytest.mark.asyncio
-    async def test_provision_batch_partial_failure(
-        self, cloud_pc_manager, mock_graph_client
-    ):
+    async def test_provision_batch_partial_failure(self, cloud_pc_manager, mock_graph_client):
         """Test batch provisioning handles partial failures gracefully."""
         workers = [
             WorkerIdentity(
@@ -510,9 +497,7 @@ class TestBatchProvisioning:
         assert len(results) == 2
 
     @pytest.mark.asyncio
-    async def test_provision_batch_concurrency_limit(
-        self, cloud_pc_manager, mock_graph_client
-    ):
+    async def test_provision_batch_concurrency_limit(self, cloud_pc_manager, mock_graph_client):
         """Test batch provisioning respects concurrency limit."""
         workers = [
             WorkerIdentity(
@@ -564,17 +549,13 @@ class TestCloudPCCleanup:
     """Tests for Cloud PC cleanup and deprovisioning."""
 
     @pytest.mark.asyncio
-    async def test_delete_cloud_pc_success(
-        self, cloud_pc_manager, mock_graph_client
-    ):
+    async def test_delete_cloud_pc_success(self, cloud_pc_manager, mock_graph_client):
         """Test delete_cloud_pc removes a Cloud PC successfully."""
         cloud_pc_id = f"cloudpc-{uuid4()}"
 
-        mock_graph_client.device_management.virtual_endpoint.cloud_p_cs.by_cloud_pc_id = (
-            MagicMock()
-        )
-        mock_graph_client.device_management.virtual_endpoint.cloud_p_cs.by_cloud_pc_id.return_value.delete = (
-            AsyncMock(return_value=None)
+        mock_graph_client.device_management.virtual_endpoint.cloud_p_cs.by_cloud_pc_id = MagicMock()
+        mock_graph_client.device_management.virtual_endpoint.cloud_p_cs.by_cloud_pc_id.return_value.delete = AsyncMock(
+            return_value=None
         )
 
         result = await cloud_pc_manager.delete_cloud_pc(cloud_pc_id=cloud_pc_id)
@@ -585,9 +566,7 @@ class TestCloudPCCleanup:
         )
 
     @pytest.mark.asyncio
-    async def test_list_cloud_pcs_for_run(
-        self, cloud_pc_manager, mock_graph_client, run_id
-    ):
+    async def test_list_cloud_pcs_for_run(self, cloud_pc_manager, mock_graph_client, run_id):
         """Test list_cloud_pcs_for_run returns Cloud PCs for the current run."""
         mock_pc1 = MagicMock()
         mock_pc1.id = "pc-001"
@@ -629,9 +608,7 @@ class TestPermissionFallback:
     """Tests for graceful degradation when CloudPC permissions unavailable."""
 
     @pytest.mark.asyncio
-    async def test_permission_status_tracking(
-        self, cloud_pc_manager, mock_graph_client
-    ):
+    async def test_permission_status_tracking(self, cloud_pc_manager, mock_graph_client):
         """Test that manager tracks permission availability status."""
         # Initially, permission status should be unknown
         status = cloud_pc_manager.get_permission_status()
@@ -648,9 +625,7 @@ class TestPermissionFallback:
         policy_id = f"policy-{uuid4()}"
 
         # Mock permission denied
-        mock_graph_client.groups.post = AsyncMock(
-            side_effect=Exception("Insufficient privileges")
-        )
+        mock_graph_client.groups.post = AsyncMock(side_effect=Exception("Insufficient privileges"))
 
         # Should handle gracefully and return mock ID
         result = await cloud_pc_manager.provision_cloud_pc(
@@ -670,9 +645,7 @@ class TestPermissionFallback:
         policy_id = f"policy-{uuid4()}"
 
         # Mock permission denied
-        mock_graph_client.groups.post = AsyncMock(
-            side_effect=Exception("Insufficient privileges")
-        )
+        mock_graph_client.groups.post = AsyncMock(side_effect=Exception("Insufficient privileges"))
 
         with caplog.at_level(logging.WARNING):
             result = await cloud_pc_manager.provision_cloud_pc(

@@ -211,19 +211,23 @@ class CalendarOperations(M365OperationBase):
             }
 
             if response == "accept":
-                await self.client.graph.users.by_user_id(
-                    self.worker.entra_object_id
-                ).events.by_event_id(event_id).accept.post(body=response_body)
+                await (
+                    self.client.graph.users.by_user_id(self.worker.entra_object_id)
+                    .events.by_event_id(event_id)
+                    .accept.post(body=response_body)
+                )
             elif response == "tentative":
-                await self.client.graph.users.by_user_id(
-                    self.worker.entra_object_id
-                ).events.by_event_id(event_id).tentatively_accept.post(
-                    body=response_body
+                await (
+                    self.client.graph.users.by_user_id(self.worker.entra_object_id)
+                    .events.by_event_id(event_id)
+                    .tentatively_accept.post(body=response_body)
                 )
             elif response == "decline":
-                await self.client.graph.users.by_user_id(
-                    self.worker.entra_object_id
-                ).events.by_event_id(event_id).decline.post(body=response_body)
+                await (
+                    self.client.graph.users.by_user_id(self.worker.entra_object_id)
+                    .events.by_event_id(event_id)
+                    .decline.post(body=response_body)
+                )
             else:
                 raise ValueError(f"Invalid response type: {response}")
 
@@ -293,9 +297,11 @@ class CalendarOperations(M365OperationBase):
                 logger.warning("No fields to update for event")
                 return False
 
-            await self.client.graph.users.by_user_id(
-                self.worker.entra_object_id
-            ).events.by_event_id(event_id).patch(body=update_body)
+            await (
+                self.client.graph.users.by_user_id(self.worker.entra_object_id)
+                .events.by_event_id(event_id)
+                .patch(body=update_body)
+            )
 
             self._log_operation(
                 "calendar_update_event",
@@ -325,10 +331,10 @@ class CalendarOperations(M365OperationBase):
         await self._rate_limit()
 
         try:
-            await self.client.graph.users.by_user_id(
-                self.worker.entra_object_id
-            ).events.by_event_id(event_id).cancel.post(
-                body={"comment": comment}
+            await (
+                self.client.graph.users.by_user_id(self.worker.entra_object_id)
+                .events.by_event_id(event_id)
+                .cancel.post(body={"comment": comment})
             )
 
             self._log_operation(
@@ -365,8 +371,7 @@ class CalendarOperations(M365OperationBase):
                 "top": count,
                 "orderby": "start/dateTime",
                 "select": (
-                    "id,subject,start,end,location,isOnlineMeeting,"
-                    "attendees,organizer,isCancelled"
+                    "id,subject,start,end,location,isOnlineMeeting,attendees,organizer,isCancelled"
                 ),
             }
 
@@ -381,9 +386,7 @@ class CalendarOperations(M365OperationBase):
 
             events = await self.client.graph.users.by_user_id(
                 self.worker.entra_object_id
-            ).calendar.events.get(
-                request_configuration={"query_parameters": query_params}
-            )
+            ).calendar.events.get(request_configuration={"query_parameters": query_params})
 
             self._log_operation(
                 "calendar_list_events",
@@ -396,9 +399,7 @@ class CalendarOperations(M365OperationBase):
                     "subject": e.subject,
                     "start": e.start.date_time if e.start else None,
                     "end": e.end.date_time if e.end else None,
-                    "location": (
-                        e.location.display_name if e.location else None
-                    ),
+                    "location": (e.location.display_name if e.location else None),
                     "is_online": e.is_online_meeting,
                     "is_cancelled": e.is_cancelled,
                     "attendee_count": len(e.attendees or []),

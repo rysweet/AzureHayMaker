@@ -456,14 +456,18 @@ def orchestrate_haymaker_run(context: Any) -> Any:
         return execution_report
 
     except HayMakerError as e:
-        logger.error(f"[{run_id}] Orchestration failed with HayMaker error: {str(e)}", exc_info=True)
+        logger.error(
+            f"[{run_id}] Orchestration failed with HayMaker error: {str(e)}", exc_info=True
+        )
         execution_report["status"] = "failed"
         execution_report["error"] = str(e)
         execution_report["error_type"] = type(e).__name__
         execution_report["ended_at"] = context.current_utc_datetime.isoformat()
         return execution_report
     except (HttpResponseError, ClientAuthenticationError, ServiceRequestError) as e:
-        logger.error(f"[{run_id}] Orchestration failed with Azure SDK error: {str(e)}", exc_info=True)
+        logger.error(
+            f"[{run_id}] Orchestration failed with Azure SDK error: {str(e)}", exc_info=True
+        )
         execution_report["status"] = "failed"
         execution_report["error"] = str(e)
         execution_report["error_type"] = type(e).__name__
@@ -509,7 +513,9 @@ async def validate_environment_activity(input_data: Any) -> dict[str, Any]:
             "results": [r.model_dump() for r in result.results],
         }
     except (ConfigurationError, CredentialError, ValidationError) as e:
-        logger.error(f"Activity: validate_environment - Failed with HayMaker error: {str(e)}", exc_info=True)
+        logger.error(
+            f"Activity: validate_environment - Failed with HayMaker error: {str(e)}", exc_info=True
+        )
         return {
             "overall_passed": False,
             "results": [
@@ -522,7 +528,9 @@ async def validate_environment_activity(input_data: Any) -> dict[str, Any]:
             ],
         }
     except (HttpResponseError, ClientAuthenticationError) as e:
-        logger.error(f"Activity: validate_environment - Failed with Azure error: {str(e)}", exc_info=True)
+        logger.error(
+            f"Activity: validate_environment - Failed with Azure error: {str(e)}", exc_info=True
+        )
         return {
             "overall_passed": False,
             "results": [
@@ -583,7 +591,9 @@ async def select_scenarios_activity(input_data: Any) -> dict[str, Any]:
         logger.error(f"Activity: select_scenarios - Configuration error: {str(e)}", exc_info=True)
         return {"scenarios": [], "error": str(e), "error_type": "ConfigurationError"}
     except OSError as e:
-        logger.error(f"Activity: select_scenarios - IO error reading scenarios: {str(e)}", exc_info=True)
+        logger.error(
+            f"Activity: select_scenarios - IO error reading scenarios: {str(e)}", exc_info=True
+        )
         return {"scenarios": [], "error": str(e), "error_type": "IOError"}
 
 
@@ -863,7 +873,9 @@ async def check_agent_status_activity(params: dict[str, Any]) -> dict[str, Any]:
             "log_messages": 0,
         }
     except (ConfigurationError, CredentialError) as e:
-        logger.error(f"Activity: check_agent_status - Config/credential error: {str(e)}", exc_info=True)
+        logger.error(
+            f"Activity: check_agent_status - Config/credential error: {str(e)}", exc_info=True
+        )
         return {
             "running_count": 0,
             "completed_count": 0,
@@ -1169,7 +1181,9 @@ async def generate_report_activity(params: dict[str, Any]) -> dict[str, Any]:
             "generated_at": report["generated_at"],
         }
     except (ConfigurationError, CredentialError) as e:
-        logger.error(f"Activity: generate_report - Config/credential error: {str(e)}", exc_info=True)
+        logger.error(
+            f"Activity: generate_report - Config/credential error: {str(e)}", exc_info=True
+        )
         return {
             "report_url": "",
             "report_id": params.get("run_id"),

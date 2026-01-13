@@ -394,6 +394,10 @@ async def _delete_resource_with_retry(
                 deleted_at=datetime.now(UTC),
             )
 
+        except ClientAuthenticationError as e:
+            last_error = str(e)
+            logger.error(f"Authentication failed deleting resource {resource.resource_id}: {e}")
+            break  # Auth errors are not retryable
         except HttpResponseError as e:
             last_error = str(e)
             logger.warning(
@@ -417,10 +421,6 @@ async def _delete_resource_with_retry(
                 # Non-retryable HTTP error
                 logger.error(f"Non-retryable error for resource {resource.resource_id}: {e}")
                 break
-        except ClientAuthenticationError as e:
-            last_error = str(e)
-            logger.error(f"Authentication failed deleting resource {resource.resource_id}: {e}")
-            break  # Auth errors are not retryable
 
     # All retries exhausted
     logger.error(
@@ -500,10 +500,10 @@ async def _delete_service_principals(  # pyright: ignore[reportGeneralTypeIssues
             except HttpResponseError as e:
                 logger.error(f"HTTP error deleting Key Vault secret {sp.secret_reference}: {e}")
 
-        except (APIError, HttpResponseError, ServiceRequestError) as e:
-            logger.error(f"Failed to delete service principal {sp.sp_name}: {e}")
         except ClientAuthenticationError as e:
             logger.error(f"Authentication failed deleting service principal {sp.sp_name}: {e}")
+        except (APIError, HttpResponseError, ServiceRequestError) as e:
+            logger.error(f"Failed to delete service principal {sp.sp_name}: {e}")
 
     return deleted_sps
 

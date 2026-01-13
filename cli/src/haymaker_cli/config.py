@@ -78,13 +78,13 @@ def load_cli_config(profile: str | None = None) -> ProfileConfig:
     # Check environment variables first (highest priority)
     env_endpoint = os.getenv("HAYMAKER_ENDPOINT")
     env_api_key = os.getenv("HAYMAKER_API_KEY")
-    env_tenant_id = os.getenv("HAYMAKER_TENANT_ID")
+    env_tenant_id = os.getenv("HAYMAKER_TENANT_ID") or os.getenv("AZURE_TENANT_ID")
 
     if env_endpoint:
         # Validate HTTPS for security
         if not env_endpoint.startswith("https://"):
             raise ValueError(
-                f"Insecure endpoint: {env_endpoint}. " "HTTPS is required for API endpoints."
+                f"Insecure endpoint: {env_endpoint}. HTTPS is required for API endpoints."
             )
 
         # Build config from environment variables
@@ -132,7 +132,7 @@ def load_cli_config(profile: str | None = None) -> ProfileConfig:
     is_localhost = profile_config.endpoint.startswith(("http://localhost", "http://127.0.0.1"))
     if not profile_config.endpoint.startswith("https://") and not is_localhost:
         raise ValueError(
-            f"Insecure endpoint: {profile_config.endpoint}. " "HTTPS is required for API endpoints."
+            f"Insecure endpoint: {profile_config.endpoint}. HTTPS is required for API endpoints."
         )
 
     return profile_config
@@ -196,7 +196,7 @@ def set_config_value(key: str, value: str, profile: str = "default") -> None:
         profile_config.auth.tenant_id = value
     else:
         raise ValueError(
-            f"Unknown configuration key: {key}\n" "Valid keys: endpoint, api-key, tenant-id"
+            f"Unknown configuration key: {key}\nValid keys: endpoint, api-key, tenant-id"
         )
 
     # Save updated config

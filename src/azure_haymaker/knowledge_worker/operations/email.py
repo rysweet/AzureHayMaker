@@ -133,9 +133,7 @@ class EmailOperations(M365OperationBase):
                 "contentType": "html",
                 "content": body,
             },
-            "toRecipients": [
-                {"emailAddress": {"address": addr}} for addr in valid_to
-            ],
+            "toRecipients": [{"emailAddress": {"address": addr}} for addr in valid_to],
             "importance": importance,
         }
 
@@ -151,14 +149,50 @@ class EmailOperations(M365OperationBase):
 
         try:
             # Send via Graph API
+            from msgraph.generated.models.email_address import EmailAddress
+            from msgraph.generated.models.item_body import ItemBody
+            from msgraph.generated.models.message import Message
+            from msgraph.generated.models.recipient import Recipient
+            from msgraph.generated.users.item.send_mail.send_mail_post_request_body import (
+                SendMailPostRequestBody,
+            )
+
+            # Create proper Message object with proper nested objects
+            message = Message()
+            message.subject = message_data["subject"]
+
+            # Create ItemBody object (not dict)
+            body_obj = ItemBody()
+            body_obj.content_type = message_data["body"]["contentType"]
+            body_obj.content = message_data["body"]["content"]
+            message.body = body_obj
+
+            # Create Recipient objects (not dicts)
+            message.to_recipients = [
+                Recipient(email_address=EmailAddress(address=addr["emailAddress"]["address"]))
+                for addr in message_data["toRecipients"]
+            ]
+
+            if "ccRecipients" in message_data:
+                message.cc_recipients = [
+                    Recipient(email_address=EmailAddress(address=addr["emailAddress"]["address"]))
+                    for addr in message_data["ccRecipients"]
+                ]
+
+            if "bccRecipients" in message_data:
+                message.bcc_recipients = [
+                    Recipient(email_address=EmailAddress(address=addr["emailAddress"]["address"]))
+                    for addr in message_data["bccRecipients"]
+                ]
+
+            message.importance = message_data.get("importance", "normal")
+
+            # Create request body
+            request_body = SendMailPostRequestBody(message=message, save_to_sent_items=save_to_sent)
+
             result = await self.client.graph.users.by_user_id(
                 self.worker.entra_object_id
-            ).send_mail.post(
-                body={
-                    "message": message_data,
-                    "saveToSentItems": save_to_sent,
-                }
-            )
+            ).send_mail.post(request_body)
 
             self._log_operation(
                 "email_send",
@@ -204,12 +238,10 @@ class EmailOperations(M365OperationBase):
             query_params["filter"] = "isRead eq false"
 
         try:
-            messages = await self.client.graph.users.by_user_id(
-                self.worker.entra_object_id
-            ).mail_folders.by_mail_folder_id(
-                folder
-            ).messages.get(
-                request_configuration={"query_parameters": query_params}
+            messages = (
+                await self.client.graph.users.by_user_id(self.worker.entra_object_id)
+                .mail_folders.by_mail_folder_id(folder)
+                .messages.get(request_configuration={"query_parameters": query_params})
             )
 
             self._log_operation(
@@ -222,9 +254,7 @@ class EmailOperations(M365OperationBase):
                     "id": m.id,
                     "subject": m.subject,
                     "from": (
-                        m.from_.email_address.address
-                        if m.from_ and m.from_.email_address
-                        else None
+                        m.from_.email_address.address if m.from_ and m.from_.email_address else None
                     ),
                     "received": m.received_date_time,
                     "is_read": m.is_read,
@@ -257,12 +287,10 @@ class EmailOperations(M365OperationBase):
             # Get or create the destination folder
             folder_id = await self._get_or_create_folder(folder_name)
 
-            await self.client.graph.users.by_user_id(
-                self.worker.entra_object_id
-            ).messages.by_message_id(
-                message_id
-            ).move.post(
-                body={"destinationId": folder_id}
+            await (
+                self.client.graph.users.by_user_id(self.worker.entra_object_id)
+                .messages.by_message_id(message_id)
+                .move.post(body={"destinationId": folder_id})
             )
 
             self._log_operation(
@@ -273,9 +301,7 @@ class EmailOperations(M365OperationBase):
             return True
 
         except Exception as e:
-            self._log_error(
-                "email_move", e, {"message_id": message_id, "folder": folder_name}
-            )
+            self._log_error("email_move", e, {"message_id": message_id, "folder": folder_name})
             raise
 
     async def reply(
@@ -302,9 +328,11 @@ class EmailOperations(M365OperationBase):
 
         try:
             # SECURITY: Fetch original message to validate reply recipients
-            original = await self.client.graph.users.by_user_id(
-                self.worker.entra_object_id
-            ).messages.by_message_id(message_id).get()
+            original = (
+                await self.client.graph.users.by_user_id(self.worker.entra_object_id)
+                .messages.by_message_id(message_id)
+                .get()
+            )
 
             # Extract sender address
             sender = None
@@ -344,7 +372,8 @@ class EmailOperations(M365OperationBase):
 
                 # Validate all are internal (excluding self)
                 external_recipients = [
-                    r for r in all_recipients
+                    r
+                    for r in all_recipients
                     if not self.validate_recipient(r)
                     and r.lower() != self.worker.user_principal_name.lower()
                 ]
@@ -358,20 +387,16 @@ class EmailOperations(M365OperationBase):
 
             # All recipients validated - safe to reply
             if reply_all:
-                await self.client.graph.users.by_user_id(
-                    self.worker.entra_object_id
-                ).messages.by_message_id(
-                    message_id
-                ).reply_all.post(
-                    body={"comment": body}
+                await (
+                    self.client.graph.users.by_user_id(self.worker.entra_object_id)
+                    .messages.by_message_id(message_id)
+                    .reply_all.post(body={"comment": body})
                 )
             else:
-                await self.client.graph.users.by_user_id(
-                    self.worker.entra_object_id
-                ).messages.by_message_id(
-                    message_id
-                ).reply.post(
-                    body={"comment": body}
+                await (
+                    self.client.graph.users.by_user_id(self.worker.entra_object_id)
+                    .messages.by_message_id(message_id)
+                    .reply.post(body={"comment": body})
                 )
 
             self._log_operation(
@@ -414,17 +439,15 @@ class EmailOperations(M365OperationBase):
         await self._rate_limit()
 
         try:
-            await self.client.graph.users.by_user_id(
-                self.worker.entra_object_id
-            ).messages.by_message_id(
-                message_id
-            ).forward.post(
-                body={
-                    "comment": comment,
-                    "toRecipients": [
-                        {"emailAddress": {"address": addr}} for addr in valid_to
-                    ],
-                }
+            await (
+                self.client.graph.users.by_user_id(self.worker.entra_object_id)
+                .messages.by_message_id(message_id)
+                .forward.post(
+                    body={
+                        "comment": comment,
+                        "toRecipients": [{"emailAddress": {"address": addr}} for addr in valid_to],
+                    }
+                )
             )
 
             self._log_operation(
@@ -460,8 +483,6 @@ class EmailOperations(M365OperationBase):
         # Create new folder
         result = await self.client.graph.users.by_user_id(
             self.worker.entra_object_id
-        ).mail_folders.post(
-            body={"displayName": folder_name}
-        )
+        ).mail_folders.post(body={"displayName": folder_name})
 
         return result.id
