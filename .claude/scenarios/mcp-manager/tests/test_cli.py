@@ -747,4 +747,3 @@ def test_main_import(capsys):
 
         assert result == 0
         mock_import.assert_called_once()
-
