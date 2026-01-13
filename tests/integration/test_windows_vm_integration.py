@@ -16,6 +16,7 @@ Uses pytest with real Azure credentials and cleanup fixtures.
 """
 
 import asyncio
+import os
 import socket
 from datetime import datetime
 from uuid import uuid4
@@ -105,6 +106,18 @@ def azure_clients():
 @pytest.fixture
 def windows_vm_manager(azure_clients, run_id, location, resource_group_name):
     """Fixture: WindowsVMManager instance with real Azure clients."""
+    # Skip if no vnet configured - these tests require real infrastructure
+    vnet_id = os.environ.get("TEST_VNET_ID")
+    if not vnet_id:
+        pytest.skip("TEST_VNET_ID not set - skipping VM provisioning tests")
+
+    # Get allowed IPs - must be specific (no wildcards)
+    allowed_ips_str = os.environ.get("TEST_ALLOWED_IPS")
+    if not allowed_ips_str:
+        pytest.skip("TEST_ALLOWED_IPS not set - skipping VM provisioning tests")
+
+    allowed_ips = [ip.strip() for ip in allowed_ips_str.split(",")]
+
     return WindowsVMManager(
         compute_client=azure_clients["compute"],
         network_client=azure_clients["network"],
@@ -112,6 +125,8 @@ def windows_vm_manager(azure_clients, run_id, location, resource_group_name):
         run_id=run_id,
         location=location,
         resource_group_name=resource_group_name,
+        vnet_id=vnet_id,
+        allowed_source_ips=allowed_ips,
     )
 
 

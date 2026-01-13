@@ -22,6 +22,10 @@ param containerRegistry string = 'haymakerorchacr.azurecr.io'
 @description('Environment name (dev/staging/prod)')
 param environment string
 
+@description('ACR admin password (for username/password auth)')
+@secure()
+param acrPassword string = ''
+
 @description('Key Vault URI')
 param keyVaultUri string
 
@@ -62,7 +66,6 @@ resource orchestratorApp 'Microsoft.App/containerApps@2023-05-01' = {
     workloadProfileName: 'E16' // 128GB RAM, 16 vCPU - Captain's specification!
     configuration: {
       activeRevisionsMode: 'Single'
-      secrets: []
       ingress: {
         external: true
         targetPort: 80  // FastAPI/Uvicorn default port
@@ -75,10 +78,17 @@ resource orchestratorApp 'Microsoft.App/containerApps@2023-05-01' = {
           }
         ]
       }
-      registries: containerRegistry != '' ? [
+      registries: containerRegistry != '' && acrPassword != '' ? [
         {
           server: containerRegistry
-          identity: 'system'
+          username: 'haymakerorchacr'
+          passwordSecretRef: 'acr-password'
+        }
+      ] : []
+      secrets: containerRegistry != '' && acrPassword != '' ? [
+        {
+          name: 'acr-password'
+          value: acrPassword
         }
       ] : []
     }
@@ -107,7 +117,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2023-05-01' = {
               value: subscriptionId
             }
             {
-              name: 'AZURE_CLIENT_ID'
+              name: 'API_CLIENT_ID'
               value: clientId
             }
             // Key Vault

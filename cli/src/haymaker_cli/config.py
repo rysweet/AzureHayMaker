@@ -78,7 +78,7 @@ def load_cli_config(profile: str | None = None) -> ProfileConfig:
     # Check environment variables first (highest priority)
     env_endpoint = os.getenv("HAYMAKER_ENDPOINT")
     env_api_key = os.getenv("HAYMAKER_API_KEY")
-    env_tenant_id = os.getenv("HAYMAKER_TENANT_ID")
+    env_tenant_id = os.getenv("HAYMAKER_TENANT_ID") or os.getenv("AZURE_TENANT_ID")
 
     if env_endpoint:
         # Validate HTTPS for security

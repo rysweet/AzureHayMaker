@@ -32,11 +32,11 @@ def get_auth_config() -> dict[str, str | list[str]]:
         RuntimeError: If required environment variables are not set
     """
     tenant_id = os.getenv("AZURE_TENANT_ID")
-    client_id = os.getenv("AZURE_CLIENT_ID")
+    client_id = os.getenv("API_CLIENT_ID")
 
     if not tenant_id or not client_id:
         raise RuntimeError(
-            "AZURE_TENANT_ID and AZURE_CLIENT_ID must be set for authentication. "
+            "AZURE_TENANT_ID and API_CLIENT_ID must be set for authentication. "
             "The orchestrator requires Azure AD authentication."
         )
 
