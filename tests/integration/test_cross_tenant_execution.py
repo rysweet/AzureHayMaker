@@ -105,6 +105,9 @@ def mock_scenario():
         description="Test scenario",
         estimated_cost=10.0,
         prerequisites=[],
+        scenario_doc_path="docs/scenarios/test-scenario.md",
+        agent_path="agents/test-scenario",
+        technology_area="Compute",
     )
 
 
