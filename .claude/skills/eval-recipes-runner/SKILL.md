@@ -1,3 +1,9 @@
+---
+name: eval-recipes-runner
+version: 1.0.0
+description: Run Microsoft's eval-recipes benchmarks to validate amplihack improvements against baseline agents. Activates when testing with eval-recipes, running evals, or benchmarking changes.
+---
+
 # eval-recipes Runner Skill
 
 ## Purpose
