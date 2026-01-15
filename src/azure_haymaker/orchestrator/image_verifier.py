@@ -17,14 +17,6 @@ class ImageSigningError(Exception):
     pass
 
 
-# Container image signature verification configuration
-# Maps container image names to their expected SHA256 digests (signed)
-IMAGE_SIGNATURE_REGISTRY = {
-    # Format: "registry/image:tag": "sha256:digest"
-    # These must be pre-populated with verified image digests from your container registry
-}
-
-
 class ImageVerifier:
     """Validates container image signatures and registry policies.
 
