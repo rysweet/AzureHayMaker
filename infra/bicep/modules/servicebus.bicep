@@ -91,4 +91,5 @@ output namespaceName string = serviceBusNamespace.name
 output topicName string = agentLogsTopic.name
 output queueName string = executionRequestsQueue.name
 output endpoint string = serviceBusNamespace.properties.serviceBusEndpoint
+// NOTE: Connection string is passed securely to function app - consider migrating to managed identity
 output connectionString string = listKeys('${serviceBusNamespace.id}/AuthorizationRules/RootManageSharedAccessKey', serviceBusNamespace.apiVersion).primaryConnectionString

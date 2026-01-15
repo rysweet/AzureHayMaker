@@ -145,6 +145,7 @@ module containerAppsEnv 'modules/container-apps-env.bicep' = {
 }
 
 // Container Registry (Optional for dev - SKU limitations in some subscriptions)
+// SECURITY: Admin user disabled - use managed identities for authentication
 module containerRegistry 'modules/container-registry.bicep' = if (environment != 'dev') {
   name: 'containerRegistry-${uniqueSuffix}'
   params: {
@@ -152,7 +153,7 @@ module containerRegistry 'modules/container-registry.bicep' = if (environment !=
     location: location
     tags: commonTags
     sku: 'Premium'
-    adminUserEnabled: true
+    adminUserEnabled: false
   }
 }
 

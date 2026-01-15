@@ -20,8 +20,8 @@ param tags object = {}
 ])
 param sku string = 'Premium'
 
-@description('Enable admin user')
-param adminUserEnabled bool = true
+@description('Enable admin user (disabled by default for security - use managed identities instead)')
+param adminUserEnabled bool = false
 
 // Container Registry
 resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
@@ -55,8 +55,7 @@ resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' =
 }
 
 // Outputs
+// SECURITY: Do NOT output credentials - use managed identities for authentication
 output registryId string = containerRegistry.id
 output registryName string = containerRegistry.name
 output loginServer string = containerRegistry.properties.loginServer
-output adminUsername string = containerRegistry.listCredentials().username
-output adminPassword string = containerRegistry.listCredentials().passwords[0].value
