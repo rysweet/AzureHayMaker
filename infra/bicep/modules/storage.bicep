@@ -121,4 +121,5 @@ resource rateLimitsTable 'Microsoft.Storage/storageAccounts/tableServices/tables
 output storageAccountId string = storageAccount.id
 output storageAccountName string = storageAccount.name
 output primaryEndpoints object = storageAccount.properties.primaryEndpoints
+// NOTE: Connection string is passed securely to function app - consider migrating to managed identity
 output connectionString string = 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${storageAccount.listKeys().keys[0].value};EndpointSuffix=${environment().suffixes.storage}'

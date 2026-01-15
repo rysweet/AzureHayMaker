@@ -8,6 +8,7 @@ This file documents non-obvious problems, solutions, and patterns discovered dur
 
 ### Recent (January 2026)
 
+- [PM Analysis: Security Issues Block Production Deployment](#pm-analysis-security-issues-block-production-2026-01-15)
 - [Integration Tests Hang 77+ Minutes - Cumulative Timeout Problem](#integration-tests-hang-77-minutes-2026-01-12)
 
 ### December 2025
@@ -34,6 +35,59 @@ This file documents non-obvious problems, solutions, and patterns discovered dur
 - [Pattern Applicability Framework](#pattern-applicability-analysis-framework-2025-10-20)
 - [Socratic Questioning Pattern](#socratic-questioning-pattern-2025-10-18)
 - [Expert Agent Creation Pattern](#expert-agent-creation-pattern-2025-10-18)
+
+---
+
+## PM Analysis: Security Issues Block Production Deployment (2026-01-15)
+
+### Context
+
+PM skills analysis (backlog-curator, roadmap-strategist patterns) applied to 30 open GitHub issues to identify optimal work priorities for AzureHayMaker.
+
+### Key Finding
+
+**Two CRITICAL security issues are blocking production deployment regardless of feature completeness:**
+
+| Issue | Title | Risk |
+|-------|-------|------|
+| #49 | Remove hardcoded SSH key from vm-dev.bicepparam | Security exposure |
+| #51 | Disable ACR admin user and credential outputs | Security exposure |
+
+### Multi-Criteria Scoring Results
+
+Applied backlog-curator scoring (Priority 40%, Blocking 30%, Ease 20%, Goals 10%):
+
+| Tier | Issues | Score | Rationale |
+|------|--------|-------|-----------|
+| **1: Security** | #49, #51 | 100/100 | Blocks production, simple fixes |
+| **2: P0 Feature** | #145 | 92/100 | Core feature, P0-critical label |
+| **3: P1 Foundation** | #147, #127, #128, #129, #126 | 85/100 | Infrastructure, Phase 1 momentum |
+| **4: Code Quality** | #52, #48, #50 | 78/100 | Philosophy violations (2752/1065 lines) |
+| **5: Bugs** | #165, #164, #30 | 65/100 | Dev workflow friction |
+
+### Strategic Insights
+
+1. **Cross-tenant momentum**: PR #197 (Phase 1) just merged - continue to Phase 2 while context is fresh
+2. **Code quality debt**: power_steering_checker.py (2752 lines) and orchestrator.py (1065 lines) violate 50-line philosophy limit by 55x and 21x respectively
+3. **Test infrastructure fixed**: PR #194 resolved 77+ min integration test hangs
+
+### Recommended Work Order
+
+1. **Immediate**: #49 + #51 (Security) - 2-4 hours
+2. **Then**: #165 + #164 (Pre-commit alignment) - 1-2 hours
+3. **Next Sprint**: #147 Phase 2 (Cross-tenant), #127 (Tracing)
+4. **Then**: #145 (P0 Dynamic Scenario Modeling)
+5. **Tech Debt**: #52, #48, #50 (Refactoring)
+
+### Why Security First
+
+Hardcoded credentials and admin users are deployment blockers. No amount of feature work matters if security prevents production release.
+
+### Related
+
+- Session log: `.claude/runtime/logs/investigation_pm_analysis_20260115_190419/`
+- Skills used: backlog-curator, roadmap-strategist
+- Data sources: GitHub Issues (30), PRs (10 recent), DISCOVERIES.md
 
 ---
 
