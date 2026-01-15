@@ -169,6 +169,10 @@ async def load_config_from_env_and_keyvault() -> OrchestratorConfig:
         anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
         log_analytics_key = os.getenv("LOG_ANALYTICS_WORKSPACE_KEY")
 
+        # Cross-tenant credentials (optional - for deploying to different tenant)
+        target_tenant_sp_id = os.getenv("TARGET_TENANT_SP_CLIENT_ID")
+        target_tenant_sp_secret = os.getenv("TARGET_TENANT_SP_CLIENT_SECRET")
+
         # Only try Key Vault if env vars not set
         if not main_sp_secret or not anthropic_api_key or not log_analytics_key:
             try:
@@ -181,6 +185,19 @@ async def load_config_from_env_and_keyvault() -> OrchestratorConfig:
                     anthropic_api_key = kv_client.get_secret("anthropic-api-key").value
                 if not log_analytics_key:
                     log_analytics_key = kv_client.get_secret("log-analytics-workspace-key").value
+
+                # Try loading cross-tenant secret if target tenant differs and ID provided
+                if (not target_tenant_sp_secret and target_tenant_sp_id
+                    and target_tenant_id != os.getenv("AZURE_TENANT_ID", "")):
+                    secret_name = f"target-tenant-{target_tenant_id[:8]}-sp-secret"
+                    try:
+                        target_tenant_sp_secret = kv_client.get_secret(secret_name).value
+                        logger.info(f"Loaded target tenant SP secret from Key Vault: {secret_name}")
+                    except Exception:
+                        logger.warning(
+                            f"Target tenant SP secret not found in Key Vault: {secret_name}. "
+                            f"Set TARGET_TENANT_SP_CLIENT_SECRET env var if cross-tenant deployment needed."
+                        )
 
             except Exception as e:
                 raise ConfigurationError(
@@ -195,6 +212,8 @@ async def load_config_from_env_and_keyvault() -> OrchestratorConfig:
                 target_subscription_id=target_subscription_id,
                 main_sp_client_id=main_sp_client_id,
                 main_sp_client_secret=SecretStr(main_sp_secret),
+                target_tenant_sp_client_id=target_tenant_sp_id,
+                target_tenant_sp_client_secret=SecretStr(target_tenant_sp_secret) if target_tenant_sp_secret else None,
                 anthropic_api_key=SecretStr(anthropic_api_key),
                 service_bus_namespace=service_bus_namespace,
                 service_bus_topic=service_bus_topic,
@@ -230,6 +249,16 @@ async def load_config_from_env_and_keyvault() -> OrchestratorConfig:
                 vnet_name=vnet_name,
                 subnet_name=subnet_name,
             )
+
+            # Log cross-tenant mode detection
+            if config.is_cross_tenant:
+                orchestrator_tenant = os.getenv("AZURE_TENANT_ID", "unknown")
+                logger.info(
+                    f"Cross-tenant mode enabled: orchestrator={orchestrator_tenant[:8]}... "
+                    f"-> target={target_tenant_id[:8]}..."
+                )
+            else:
+                logger.info("Single-tenant mode (default)")
 
             return config
 

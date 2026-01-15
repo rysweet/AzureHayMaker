@@ -69,6 +69,7 @@ class ExecutionTracker:
         scenarios: list[str],
         duration_hours: int = 8,
         tags: dict[str, str] | None = None,
+        tenant_id: str | None = None,
     ) -> str:
         """Create new execution record.
 
@@ -76,6 +77,7 @@ class ExecutionTracker:
             scenarios: List of scenario names to execute
             duration_hours: Execution duration in hours
             tags: Optional tags for tracking
+            tenant_id: Optional target tenant ID for cross-tenant tracking
 
         Returns:
             Unique execution ID
@@ -88,6 +90,7 @@ class ExecutionTracker:
             ...     scenarios=["compute-01", "networking-01"],
             ...     duration_hours=2,
             ...     tags={"requester": "admin@example.com"},
+            ...     tenant_id="target-tenant-id",
             ... )
         """
         execution_id = f"exec-{datetime.now(UTC).strftime('%Y%m%d')}-{str(uuid4())[:8]}"
@@ -107,6 +110,7 @@ class ExecutionTracker:
         entity = {
             "PartitionKey": execution_id,
             "RowKey": now.isoformat(),
+            "TenantId": tenant_id or "",  # Track which tenant resources deployed to
             "Status": record.status,  # Already converted to string by use_enum_values=True
             "Scenarios": json.dumps(record.scenarios),
             "DurationHours": record.duration_hours,
@@ -165,16 +169,19 @@ class ExecutionTracker:
             duration_hours = latest.get("DurationHours", 8)
             tags = latest.get("Tags", "{}")
             created_at = latest.get("CreatedAt", now.isoformat())
+            tenant_id = latest.get("TenantId", "")
         except ResourceNotFoundError:
             logger.warning(f"Execution not found, creating new: {execution_id}")
             scenarios = "[]"
             duration_hours = 8
             tags = "{}"
             created_at = now.isoformat()
+            tenant_id = ""
 
         entity = {
             "PartitionKey": execution_id,
             "RowKey": now.isoformat(),
+            "TenantId": tenant_id,  # Preserve tenant context
             "Status": status.value,
             "Scenarios": scenarios,
             "DurationHours": duration_hours,
@@ -323,12 +330,14 @@ class ExecutionTracker:
     async def list_executions(
         self,
         status: OnDemandExecutionStatus | None = None,
+        tenant_id: str | None = None,
         limit: int = 100,
     ) -> list[ExecutionStatusResponse]:
         """List recent executions.
 
         Args:
             status: Optional filter by status
+            tenant_id: Optional filter by target tenant ID
             limit: Maximum number of executions to return
 
         Returns:
@@ -337,6 +346,7 @@ class ExecutionTracker:
         Example:
             >>> executions = await tracker.list_executions(
             ...     status=OnDemandExecutionStatus.RUNNING,
+            ...     tenant_id="tenant-abc-123",
             ...     limit=10,
             ... )
         """
@@ -344,8 +354,14 @@ class ExecutionTracker:
         seen_execution_ids = set()
 
         try:
-            # Query all entities, filter and deduplicate
-            query = f"Status eq '{sanitize_odata_value(status.value)}'" if status else ""
+            # Build query with optional filters
+            filters = []
+            if status:
+                filters.append(f"Status eq '{sanitize_odata_value(status.value)}'")
+            if tenant_id:
+                filters.append(f"TenantId eq '{sanitize_odata_value(tenant_id)}'")
+
+            query = " and ".join(filters) if filters else ""
 
             async for entity in self.table.query_entities(query_filter=query if query else None):  # type: ignore[misc]  # ItemPaged is sync iterator - requires async Table SDK refactor
                 execution_id = entity.get("PartitionKey")

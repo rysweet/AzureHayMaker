@@ -1,5 +1,6 @@
 """Configuration models for Azure HayMaker orchestration service."""
 
+import os
 from enum import Enum
 from typing import Any
 
@@ -80,6 +81,16 @@ class OrchestratorConfig(BaseModel):
     main_sp_client_id: str = Field(..., description="Main orchestrator SP client ID")
     main_sp_client_secret: SecretStr = Field(..., description="Main orchestrator SP secret")
 
+    # Cross-tenant credentials (optional - for deploying to different tenant)
+    target_tenant_sp_client_id: str | None = Field(
+        default=None,
+        description="Target tenant SP client ID (for cross-tenant deployment, optional)"
+    )
+    target_tenant_sp_client_secret: SecretStr | None = Field(
+        default=None,
+        description="Target tenant SP secret (for cross-tenant deployment, optional)"
+    )
+
     # External API keys
     anthropic_api_key: SecretStr = Field(..., description="Anthropic API key for Claude")
 
@@ -143,6 +154,36 @@ class OrchestratorConfig(BaseModel):
     def scenario_count(self) -> int:
         """Get the number of scenarios to execute based on simulation size."""
         return self.simulation_size.scenario_count()
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def is_cross_tenant(self) -> bool:
+        """Check if configured for cross-tenant deployment.
+
+        Returns True if:
+        - target_tenant_id differs from orchestrator tenant (AZURE_TENANT_ID env var)
+        - target_tenant_sp_client_id is provided
+
+        Returns:
+            True if cross-tenant mode, False for single-tenant mode
+        """
+        orchestrator_tenant = os.getenv("AZURE_TENANT_ID", "")
+        return (
+            self.target_tenant_id != orchestrator_tenant and
+            self.target_tenant_sp_client_id is not None
+        )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def target_tenant_display(self) -> str:
+        """Get display name for target tenant (for logging).
+
+        Returns:
+            Human-readable tenant description with mode indicator
+        """
+        if self.is_cross_tenant:
+            return f"{self.target_tenant_id[:8]}... (cross-tenant)"
+        return f"{self.target_tenant_id[:8]}... (same as orchestrator)"
 
     def model_post_init(self, __context: Any) -> None:
         """Post-initialization validation."""

@@ -20,9 +20,13 @@ Usage:
 
 import logging
 import threading
+from typing import TYPE_CHECKING
 
-from azure.identity import DefaultAzureCredential
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCredential
+
+if TYPE_CHECKING:
+    from azure_haymaker.models.config import OrchestratorConfig
 
 logger = logging.getLogger(__name__)
 
@@ -154,8 +158,59 @@ def get_async_credential(
     return AzureCredentialFactory.get_async_credential(force_refresh=force_refresh)
 
 
+def get_tenant_credential(config: "OrchestratorConfig") -> DefaultAzureCredential | ClientSecretCredential:
+    """Get credential for target tenant operations (cross-tenant aware).
+
+    In cross-tenant mode: Returns ClientSecretCredential for target tenant
+    In single-tenant mode: Returns cached DefaultAzureCredential (backward compatible)
+
+    Args:
+        config: Orchestrator configuration with optional cross-tenant credentials
+
+    Returns:
+        Credential instance appropriate for target tenant operations
+
+    Raises:
+        ValueError: If cross-tenant mode enabled but credentials missing
+
+    Example:
+        >>> config = load_config()
+        >>> credential = get_tenant_credential(config)
+        >>> # Use credential for target tenant operations (SP creation, deployment)
+        >>> graph_client = GraphServiceClient(credential)
+    """
+    if config.is_cross_tenant:
+        # Validate cross-tenant credentials present
+        if not config.target_tenant_sp_client_id:
+            raise ValueError(
+                "Cross-tenant mode detected (target_tenant_id differs from AZURE_TENANT_ID) "
+                "but TARGET_TENANT_SP_CLIENT_ID not configured. "
+                "Set environment variable or Key Vault secret."
+            )
+        if not config.target_tenant_sp_client_secret:
+            raise ValueError(
+                "Cross-tenant mode detected but TARGET_TENANT_SP_CLIENT_SECRET not configured. "
+                "Set environment variable or Key Vault secret."
+            )
+
+        # Return explicit credential for target tenant
+        logger.debug(
+            f"Using cross-tenant credential for tenant {config.target_tenant_id[:8]}..."
+        )
+        return ClientSecretCredential(
+            tenant_id=config.target_tenant_id,
+            client_id=config.target_tenant_sp_client_id,
+            client_secret=config.target_tenant_sp_client_secret.get_secret_value()
+        )
+
+    # Single-tenant mode: Use existing cached credential
+    logger.debug("Using default orchestrator credential (single-tenant mode)")
+    return get_credential()
+
+
 __all__ = [
     "AzureCredentialFactory",
     "get_credential",
     "get_async_credential",
+    "get_tenant_credential",
 ]

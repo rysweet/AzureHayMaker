@@ -28,15 +28,17 @@ class ResourceInfo(BaseModel):
 
 async def query_resources_from_table(
     table_client,
+    tenant_id: str,
     execution_id: str | None = None,
     scenario: str | None = None,
     status: str | None = None,
     limit: int = 100,
 ) -> list[ResourceInfo]:
-    """Query resources from Table Storage.
+    """Query resources from Table Storage with tenant partitioning.
 
     Args:
         table_client: Table client
+        tenant_id: Target tenant ID (defines partition - required for partitioning)
         execution_id: Optional execution ID filter
         scenario: Optional scenario filter
         status: Optional status filter (created, deleted)
@@ -48,8 +50,8 @@ async def query_resources_from_table(
     resources = []
 
     try:
-        # Build query filter
-        filters = []
+        # Build query filter - partition by tenant_id for isolation
+        filters = [f"PartitionKey eq '{tenant_id}'"]
 
         if execution_id:
             filters.append(f"execution_id eq '{execution_id}'")
@@ -162,12 +164,22 @@ async def list_resources(req: func.HttpRequest) -> func.HttpResponse:
 
         table_account_name = os.getenv("TABLE_STORAGE_ACCOUNT_NAME")
         table_name = os.getenv("RESOURCES_TABLE_NAME", "resources")
+        # Get tenant_id from query param or use target tenant from config (backward compatible)
+        tenant_id = req.params.get("tenant_id") or os.getenv("TARGET_TENANT_ID", "")
 
         if not table_account_name:
             logger.error("TABLE_STORAGE_ACCOUNT_NAME not configured")
             return func.HttpResponse(
                 body='{"error": "Resources storage not configured"}',
                 status_code=500,
+                mimetype="application/json",
+            )
+
+        if not tenant_id:
+            logger.error("tenant_id not provided (query param) or TARGET_TENANT_ID not configured")
+            return func.HttpResponse(
+                body='{"error": "tenant_id required for resource queries"}',
+                status_code=400,
                 mimetype="application/json",
             )
 
@@ -182,6 +194,7 @@ async def list_resources(req: func.HttpRequest) -> func.HttpResponse:
         # Query resources
         resources = await query_resources_from_table(
             table_client,
+            tenant_id=tenant_id,
             execution_id=execution_id,
             scenario=scenario,
             status=status,
@@ -243,12 +256,22 @@ async def get_resource(req: func.HttpRequest) -> func.HttpResponse:
 
         table_account_name = os.getenv("TABLE_STORAGE_ACCOUNT_NAME")
         table_name = os.getenv("RESOURCES_TABLE_NAME", "resources")
+        # Get tenant_id from query param or use target tenant from config (backward compatible)
+        tenant_id = req.params.get("tenant_id") or os.getenv("TARGET_TENANT_ID", "")
 
         if not table_account_name:
             logger.error("TABLE_STORAGE_ACCOUNT_NAME not configured")
             return func.HttpResponse(
                 body='{"error": "Resources storage not configured"}',
                 status_code=500,
+                mimetype="application/json",
+            )
+
+        if not tenant_id:
+            logger.error("tenant_id not provided (query param) or TARGET_TENANT_ID not configured")
+            return func.HttpResponse(
+                body='{"error": "tenant_id required for resource queries"}',
+                status_code=400,
                 mimetype="application/json",
             )
 
@@ -260,10 +283,10 @@ async def get_resource(req: func.HttpRequest) -> func.HttpResponse:
         )
         table_client = table_service_client.get_table_client(table_name)
 
-        # Query specific resource
+        # Query specific resource - use tenant_id as partition key
         try:
             entity = table_client.get_entity(
-                partition_key="resources",  # Assuming all resources use same partition
+                partition_key=tenant_id,  # Partition by tenant for isolation
                 row_key=resource_id,
             )
 

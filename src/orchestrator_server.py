@@ -1127,12 +1127,36 @@ async def run_orchestration(
     executions[run_id] = execution_report
 
     try:
+        # Load config and log tenant context
+        config = await load_config()
+
+        # Log tenant context clearly
+        import os
+        orchestrator_tenant = os.getenv("AZURE_TENANT_ID", "unknown")
+        logger.info(
+            f"[{run_id}] Starting orchestration",
+            extra={
+                "run_id": run_id,
+                "orchestrator_tenant": orchestrator_tenant,
+                "target_tenant": config.target_tenant_id,
+                "target_subscription": config.target_subscription_id,
+                "mode": "cross-tenant" if config.is_cross_tenant else "single-tenant",
+                "simulation_size": config.simulation_size.value
+            }
+        )
+
+        if config.is_cross_tenant:
+            logger.info(
+                f"[{run_id}] Cross-tenant deployment: "
+                f"orchestrator tenant {orchestrator_tenant[:8]}... -> "
+                f"target tenant {config.target_tenant_id[:8]}..."
+            )
+
         # ========================================================================
         # PHASE 1: VALIDATION (can be skipped for testing)
         # ========================================================================
         if not skip_validation:
             logger.info(f"[{run_id}] Phase 1: Validation")
-            config = await load_config()
             validation_result = await validate_environment(config)
 
             if not validation_result.overall_passed:
@@ -1152,7 +1176,6 @@ async def run_orchestration(
             logger.info(f"[{run_id}] Validation passed")
         else:
             logger.warning(f"[{run_id}] Skipping validation (skip_validation=true)")
-            config = await load_config()
             execution_report["phases"]["validation"] = {
                 "status": "skipped",
             }

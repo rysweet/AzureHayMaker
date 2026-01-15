@@ -9,6 +9,10 @@ import asyncio
 import logging
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from azure_haymaker.models.config import OrchestratorConfig
 
 from azure.core.exceptions import (
     ResourceNotFoundError,
@@ -22,7 +26,7 @@ from msgraph.generated.models.service_principal import ServicePrincipal
 from msgraph.graph_service_client import GraphServiceClient
 from pydantic import BaseModel, Field
 
-from azure_haymaker.utils.credentials import get_credential
+from azure_haymaker.utils.credentials import get_credential, get_tenant_credential
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +112,7 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
     subscription_id: str,
     roles: list[str],
     key_vault_client: SecretClient,
+    config: "OrchestratorConfig",
     secret_validity_days: int = DEFAULT_SECRET_VALIDITY_DAYS,
 ) -> ServicePrincipalDetails:
     """Create ephemeral service principal for scenario execution.
@@ -116,11 +121,15 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
     'AzureHayMaker-{scenario_name}-admin', assigns the specified roles,
     stores the secret in Key Vault, and returns the SP details.
 
+    In cross-tenant mode: Creates SP in target tenant using target tenant credentials
+    In single-tenant mode: Uses orchestrator credentials (backward compatible)
+
     Args:
         scenario_name: Name of the scenario (used in SP name)
         subscription_id: Azure subscription ID for role assignments
         roles: List of role names to assign (e.g., ["Contributor", "Reader"])
         key_vault_client: Key Vault client for storing SP secret
+        config: Orchestrator configuration with tenant context
         secret_validity_days: Number of days until secret expires (default 30)
 
     Returns:
@@ -133,22 +142,19 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
     secret_name = f"scenario-sp-{scenario_name}-secret"
 
     try:
-        # Initialize Microsoft Graph client with explicit service principal credentials
-        # Use ClientSecretCredential instead of DefaultAzureCredential to ensure
-        # we use the SP credentials from environment variables (AZURE_CLIENT_ID/SECRET)
-        import os
+        # Use tenant-aware credential (cross-tenant aware)
+        credential = get_tenant_credential(config)
 
-        from azure.identity import ClientSecretCredential
-
-        tenant_id = os.getenv("AZURE_TENANT_ID")
-        client_id = os.getenv("AZURE_CLIENT_ID")
-        client_secret = os.getenv("AZURE_CLIENT_SECRET")
-
-        logger.info(f"Creating SP for {scenario_name} using client_id={(client_id or '')[:8]}...")
-
-        credential = ClientSecretCredential(
-            tenant_id=tenant_id, client_id=client_id, client_secret=client_secret
+        # Log which tenant we're creating SP in
+        logger.info(
+            "Creating service principal in target tenant",
+            extra={
+                "scenario": scenario_name,
+                "target_tenant": config.target_tenant_id[:8] + "...",
+                "mode": "cross-tenant" if config.is_cross_tenant else "single-tenant"
+            }
         )
+
         graph_client = GraphServiceClient(credential)
 
         # Create application registration
