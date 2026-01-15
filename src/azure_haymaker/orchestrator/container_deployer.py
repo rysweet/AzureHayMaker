@@ -86,15 +86,21 @@ class ContainerDeployer:
         app_name = self._generate_app_name(scenario.scenario_name)
 
         try:
-            # Use explicit SP credentials like sp_manager.py
-            import os
+            # Use tenant-aware credential for Container Apps deployment
+            from azure_haymaker.utils.credentials import get_tenant_credential
 
-            from azure.identity import ClientSecretCredential
+            credential = get_tenant_credential(self.config)
 
-            credential = ClientSecretCredential(
-                tenant_id=os.getenv("AZURE_TENANT_ID"),
-                client_id=os.getenv("AZURE_CLIENT_ID"),
-                client_secret=os.getenv("AZURE_CLIENT_SECRET"),
+            # Log deployment target
+            logger.info(
+                "Deploying container to target tenant",
+                extra={
+                    "scenario": scenario.scenario_name,
+                    "target_tenant": self.config.target_tenant_id[:8] + "...",
+                    "target_subscription": self.config.target_subscription_id,
+                    "resource_group": self.config.resource_group_name,
+                    "mode": "cross-tenant" if self.config.is_cross_tenant else "single-tenant"
+                }
             )
 
             # Build container configuration
@@ -166,25 +172,49 @@ class ContainerDeployer:
             # value appears only in the process environment (more restricted access)
             # rather than the command line arguments.
 
-            # Validate required credentials exist
-            client_id = os.getenv("AZURE_CLIENT_ID", "")
-            tenant_id = os.getenv("AZURE_TENANT_ID", "")
-            client_secret = os.getenv("AZURE_CLIENT_SECRET", "")
+            # Authenticate Azure CLI with target tenant credentials
+            # In cross-tenant mode, use target tenant SP for authentication
+            if self.config.is_cross_tenant:
+                # Use target tenant SP for Azure CLI authentication
+                if not self.config.target_tenant_sp_client_id:
+                    raise ContainerAppError(
+                        "Cross-tenant mode but TARGET_TENANT_SP_CLIENT_ID not configured"
+                    )
+                if not self.config.target_tenant_sp_client_secret:
+                    raise ContainerAppError(
+                        "Cross-tenant mode but TARGET_TENANT_SP_CLIENT_SECRET not configured"
+                    )
 
-            if not all([client_id, tenant_id, client_secret]):
-                raise ContainerAppError(
-                    "Missing required Azure credentials: AZURE_CLIENT_ID, "
-                    "AZURE_CLIENT_SECRET, and AZURE_TENANT_ID must be set"
+                login_shell_cmd = (
+                    f"az login --service-principal "
+                    f"-u {shlex.quote(self.config.target_tenant_sp_client_id)} "
+                    f"-t {shlex.quote(self.config.target_tenant_id)} "
+                    f'-p "$TARGET_TENANT_SP_SECRET"'
                 )
 
-            # Build login command using env var for password to avoid cmdline exposure
-            # The $AZURE_CLIENT_SECRET is expanded by the shell from the environment
-            login_shell_cmd = (
-                f"az login --service-principal "
-                f"-u {shlex.quote(client_id)} "
-                f"-t {shlex.quote(tenant_id)} "
-                f'-p "$AZURE_CLIENT_SECRET"'
-            )
+                # Set TARGET_TENANT_SP_SECRET in environment for shell expansion
+                login_env = os.environ.copy()
+                login_env["TARGET_TENANT_SP_SECRET"] = self.config.target_tenant_sp_client_secret.get_secret_value()
+            else:
+                # Single-tenant mode: Use orchestrator credentials
+                client_id = os.getenv("AZURE_CLIENT_ID", "")
+                tenant_id = os.getenv("AZURE_TENANT_ID", "")
+                client_secret = os.getenv("AZURE_CLIENT_SECRET", "")
+
+                if not all([client_id, tenant_id, client_secret]):
+                    raise ContainerAppError(
+                        "Missing required Azure credentials: AZURE_CLIENT_ID, "
+                        "AZURE_CLIENT_SECRET, and AZURE_TENANT_ID must be set"
+                    )
+
+                login_shell_cmd = (
+                    f"az login --service-principal "
+                    f"-u {shlex.quote(client_id)} "
+                    f"-t {shlex.quote(tenant_id)} "
+                    f'-p "$AZURE_CLIENT_SECRET"'
+                )
+
+                login_env = os.environ
 
             login_result = await asyncio.to_thread(
                 subprocess.run,
@@ -192,7 +222,7 @@ class ContainerDeployer:
                 shell=True,
                 capture_output=True,
                 text=True,
-                env=os.environ,
+                env=login_env,
             )
             if login_result.returncode != 0:
                 logger.warning(
