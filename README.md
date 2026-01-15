@@ -41,6 +41,7 @@ See the [Knowledge Worker Framework documentation](docs/knowledge-worker-framewo
 
 ```bash
 uv sync --all-extras
+pre-commit install  # Install git hooks for code quality
 ```
 
 ### 2. Configure Environment
@@ -374,14 +375,17 @@ curl https://haymaker-fastapi-app.azurewebsites.net/api/metrics | jq
 ## Development
 
 ```bash
+# First-time setup: Install pre-commit hooks
+pre-commit install
+
 # Run tests
 pytest
 
 # Linting and type checking
-ruff check .
+ruff check src/
 pyright
 
-# Pre-commit hooks
+# Pre-commit hooks (run manually on all files)
 pre-commit run --all-files
 ```
 
