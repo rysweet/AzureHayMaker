@@ -88,9 +88,16 @@ async def generate_report_activity(params: dict[str, Any]) -> dict[str, Any]:
             },
         }
 
-        # Store to blob
+        # Store to blob with tenant prefix for cross-tenant isolation
+        # Cross-tenant: {tenant_id}/{run_id}/report.json
+        # Single-tenant: {run_id}/report.json (backward compatible)
+        if config.is_cross_tenant:
+            blob_path = f"{config.target_tenant_id}/{run_id}/report.json"
+        else:
+            blob_path = f"{run_id}/report.json"
+
         container_client = blob_service_client.get_container_client("execution-reports")
-        blob_client = container_client.get_blob_client(f"{run_id}/report.json")
+        blob_client = container_client.get_blob_client(blob_path)
         await blob_client.upload_blob(json.dumps(report, indent=2), overwrite=True)  # type: ignore[misc]
 
         report_url = blob_client.url
