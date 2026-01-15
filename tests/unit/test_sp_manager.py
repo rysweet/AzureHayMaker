@@ -112,6 +112,11 @@ class TestCreateServicePrincipal:
         # Mock Azure authorization client
         mock_auth_client = MagicMock()
 
+        # Mock config for single-tenant mode
+        mock_config = MagicMock()
+        mock_config.is_cross_tenant = False
+        mock_config.target_tenant_id = "test-tenant-id"
+
         # Mock environment variables for credential initialization
         mock_env = {
             "AZURE_TENANT_ID": "test-tenant-id",
@@ -136,6 +141,7 @@ class TestCreateServicePrincipal:
                 subscription_id="sub-12345",
                 roles=["Contributor"],
                 key_vault_client=mock_kv_client,
+                config=mock_config,
             )
 
         # Verify SP details
@@ -160,6 +166,11 @@ class TestCreateServicePrincipal:
 
         mock_kv_client = AsyncMock(spec=SecretClient)
 
+        # Mock config for single-tenant mode
+        mock_config = MagicMock()
+        mock_config.is_cross_tenant = False
+        mock_config.target_tenant_id = "test-tenant-id"
+
         # Mock environment variables for credential initialization
         mock_env = {
             "AZURE_TENANT_ID": "test-tenant-id",
@@ -181,6 +192,7 @@ class TestCreateServicePrincipal:
                 subscription_id="sub-12345",
                 roles=["Contributor"],
                 key_vault_client=mock_kv_client,
+                config=mock_config,
             )
 
     @pytest.mark.asyncio
@@ -210,6 +222,11 @@ class TestCreateServicePrincipal:
         mock_kv_client = AsyncMock(spec=SecretClient)
         mock_kv_client.set_secret.side_effect = Exception("Key Vault error")
 
+        # Mock config for single-tenant mode
+        mock_config = MagicMock()
+        mock_config.is_cross_tenant = False
+        mock_config.target_tenant_id = "test-tenant-id"
+
         # Mock environment variables for credential initialization
         mock_env = {
             "AZURE_TENANT_ID": "test-tenant-id",
@@ -231,6 +248,7 @@ class TestCreateServicePrincipal:
                 subscription_id="sub-12345",
                 roles=["Contributor"],
                 key_vault_client=mock_kv_client,
+                config=mock_config,
             )
 
     @pytest.mark.asyncio
@@ -259,6 +277,11 @@ class TestCreateServicePrincipal:
         mock_kv_client = AsyncMock(spec=SecretClient)
         mock_auth_client = MagicMock()
 
+        # Mock config for single-tenant mode
+        mock_config = MagicMock()
+        mock_config.is_cross_tenant = False
+        mock_config.target_tenant_id = "test-tenant-id"
+
         # Mock environment variables for credential initialization
         mock_env = {
             "AZURE_TENANT_ID": "test-tenant-id",
@@ -283,6 +306,7 @@ class TestCreateServicePrincipal:
                 subscription_id="sub-12345",
                 roles=["Contributor", "Reader"],
                 key_vault_client=mock_kv_client,
+                config=mock_config,
             )
 
         # Verify both roles were assigned
