@@ -1,5 +1,6 @@
 ---
 name: roadmap-strategist
+version: 1.0.0
 description: Expert strategist managing project roadmaps, goals, milestones, and strategic direction. Tracks goal progress, ensures alignment, and provides strategic recommendations. Activates when planning roadmaps, setting goals, tracking milestones, or discussing strategic direction.
 ---
 

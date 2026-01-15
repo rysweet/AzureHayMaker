@@ -1,5 +1,6 @@
 ---
 name: workstream-coordinator
+version: 1.0.0
 description: Expert workstream coordinator managing multiple concurrent tasks, tracking progress, detecting conflicts and stalls, analyzing dependencies, and ensuring smooth parallel execution. Activates when coordinating workstreams, tracking progress, checking status, or managing concurrent work.
 ---
 

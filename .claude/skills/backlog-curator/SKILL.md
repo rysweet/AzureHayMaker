@@ -1,5 +1,6 @@
 ---
 name: backlog-curator
+version: 1.0.0
 description: Expert backlog manager that prioritizes work using multi-criteria scoring, analyzes dependencies, and recommends optimal next tasks. Activates when managing backlogs, prioritizing work, adding items, or analyzing what to work on next.
 ---
 
