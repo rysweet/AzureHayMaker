@@ -58,6 +58,29 @@ class Schedule(BaseModel):
         description="Schedule creation timestamp",
     )
 
+    # Health check and quarantine fields (Milestone 1: Issue #129)
+    quarantined: bool = Field(
+        default=False,
+        description="Whether the schedule is quarantined due to failures",
+    )
+    quarantined_at: datetime | None = Field(
+        default=None,
+        description="Timestamp when schedule was quarantined",
+    )
+    quarantine_reason: str | None = Field(
+        default=None,
+        description="Reason for quarantine (e.g., 'Exceeded failure threshold')",
+    )
+    failure_count_24h: int = Field(
+        default=0,
+        description="Number of failures in the last 24 hours",
+        ge=0,
+    )
+    last_failure_at: datetime | None = Field(
+        default=None,
+        description="Timestamp of most recent failure",
+    )
+
     class Config:
         """Pydantic configuration."""
 
@@ -70,6 +93,11 @@ class Schedule(BaseModel):
                 "scenario_count": 5,
                 "enabled": True,
                 "created_at": "2025-11-25T00:00:00+00:00",
+                "quarantined": False,
+                "quarantined_at": None,
+                "quarantine_reason": None,
+                "failure_count_24h": 0,
+                "last_failure_at": None,
             }
         }
 
@@ -195,6 +223,28 @@ class ScheduleResponse(BaseModel):
     created_at: datetime = Field(..., description="Schedule creation timestamp")
     next_run: str | None = Field(default=None, description="Next scheduled run time (ISO format)")
 
+    # Health check and quarantine fields (Milestone 1: Issue #129)
+    quarantined: bool = Field(
+        default=False,
+        description="Whether the schedule is quarantined due to failures",
+    )
+    quarantined_at: datetime | None = Field(
+        default=None,
+        description="Timestamp when schedule was quarantined",
+    )
+    quarantine_reason: str | None = Field(
+        default=None,
+        description="Reason for quarantine",
+    )
+    failure_count_24h: int = Field(
+        default=0,
+        description="Number of failures in the last 24 hours",
+    )
+    last_failure_at: datetime | None = Field(
+        default=None,
+        description="Timestamp of most recent failure",
+    )
+
     class Config:
         """Pydantic configuration."""
 
@@ -208,5 +258,10 @@ class ScheduleResponse(BaseModel):
                 "enabled": True,
                 "created_at": "2025-11-25T00:00:00+00:00",
                 "next_run": "2025-11-25T06:00:00+00:00",
+                "quarantined": False,
+                "quarantined_at": None,
+                "quarantine_reason": None,
+                "failure_count_24h": 0,
+                "last_failure_at": None,
             }
         }
