@@ -133,11 +133,15 @@ def mock_blob_service_client():
 
     # Setup list_blobs as an async generator
     async def async_list_blobs(name_starts_with=None):
-        blobs = [
-            MagicMock(name=f"{name_starts_with}report.json"),
-            MagicMock(name=f"{name_starts_with}logs.txt"),
-            MagicMock(name=f"{name_starts_with}metrics.json"),
-        ]
+        # Create mock blobs with name as a regular attribute, not the mock's display name
+        prefix = name_starts_with or ""
+        blob1 = MagicMock()
+        blob1.name = f"{prefix}report.json"
+        blob2 = MagicMock()
+        blob2.name = f"{prefix}logs.txt"
+        blob3 = MagicMock()
+        blob3.name = f"{prefix}metrics.json"
+        blobs = [blob1, blob2, blob3]
         for blob in blobs:
             yield blob
 
@@ -291,24 +295,40 @@ class TestTenantStorageManager:
         actual_blob_client.delete_blob.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_list_tenant_artifacts(self, storage_manager, mock_blob_service_client):
+    async def test_list_tenant_artifacts(self, mock_blob_service_client):
         """Test listing artifacts for a tenant execution."""
-        # This test needs special handling for the async generator
+        # Create fresh manager for this test to properly mock list_blobs
         container_client = mock_blob_service_client.get_container_client.return_value
 
-        # Create proper async iterator for list_blobs
-        async def mock_list_blobs(name_starts_with=None):
+        # Create proper async iterator class for list_blobs
+        class MockAsyncIterator:
+            def __init__(self, items):
+                self.items = items
+                self.index = 0
+
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                if self.index >= len(self.items):
+                    raise StopAsyncIteration
+                item = self.items[self.index]
+                self.index += 1
+                return item
+
+        def mock_list_blobs(name_starts_with=None):
             prefix = name_starts_with or ""
-            blobs = [
-                MagicMock(name=f"{prefix}report.json"),
-                MagicMock(name=f"{prefix}logs.txt"),
-            ]
-            for blob in blobs:
-                yield blob
+            # Create mock blobs with name as a regular attribute, not the mock's display name
+            blob1 = MagicMock()
+            blob1.name = f"{prefix}report.json"
+            blob2 = MagicMock()
+            blob2.name = f"{prefix}logs.txt"
+            return MockAsyncIterator([blob1, blob2])
 
         container_client.list_blobs = mock_list_blobs
 
-        artifacts = await storage_manager.list_tenant_artifacts(
+        manager = TenantStorageManager(mock_blob_service_client)
+        artifacts = await manager.list_tenant_artifacts(
             tenant_id="tenant-abc",
             execution_id="exec-123",
         )
@@ -325,10 +345,12 @@ class TestTenantStorageManager:
         # Create proper async iterator for list_blobs
         async def mock_list_blobs(name_starts_with=None):
             prefix = name_starts_with or ""
-            blobs = [
-                MagicMock(name=f"{prefix}report.json"),
-                MagicMock(name=f"{prefix}logs.txt"),
-            ]
+            # Create mock blobs with name as a regular attribute
+            blob1 = MagicMock()
+            blob1.name = f"{prefix}report.json"
+            blob2 = MagicMock()
+            blob2.name = f"{prefix}logs.txt"
+            blobs = [blob1, blob2]
             for blob in blobs:
                 yield blob
 
@@ -401,11 +423,14 @@ class TestStorageErrorHandling:
         # Create proper async iterator for list_blobs
         async def mock_list_blobs(name_starts_with=None):
             prefix = name_starts_with or ""
-            blobs = [
-                MagicMock(name=f"{prefix}file1.json"),
-                MagicMock(name=f"{prefix}file2.json"),  # This delete will fail
-                MagicMock(name=f"{prefix}file3.json"),
-            ]
+            # Create mock blobs with name as a regular attribute
+            blob1 = MagicMock()
+            blob1.name = f"{prefix}file1.json"
+            blob2 = MagicMock()
+            blob2.name = f"{prefix}file2.json"  # This delete will fail
+            blob3 = MagicMock()
+            blob3.name = f"{prefix}file3.json"
+            blobs = [blob1, blob2, blob3]
             for blob in blobs:
                 yield blob
 
