@@ -16,6 +16,12 @@ implement IRepository. It will be migrated in a future refactoring.
 
 from .base_repository import IRepository, RepositoryError
 from .container_repository import ContainerAppRepository, ContainerAppResource
+from .failure_tracking_repository import (
+    METRICS_TABLE_NAME,
+    FailureTrackingRepository,
+    ScenarioExecutionRecord,
+    ScenarioMetrics,
+)
 from .monitoring_repository import MonitoringRepository
 
 __all__ = [
@@ -25,6 +31,11 @@ __all__ = [
     # Container operations (implements IRepository)
     "ContainerAppRepository",
     "ContainerAppResource",
+    # Failure tracking operations (Issue #129)
+    "FailureTrackingRepository",
+    "ScenarioExecutionRecord",
+    "ScenarioMetrics",
+    "METRICS_TABLE_NAME",
     # Monitoring operations (legacy, does not implement IRepository)
     "MonitoringRepository",
 ]

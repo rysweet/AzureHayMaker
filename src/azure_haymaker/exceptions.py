@@ -22,7 +22,12 @@ Exception Hierarchy:
     │   └── ContainerMonitorError
     ├── GraphAPIError
     ├── KeyVaultError
-    └── OrchestrationError
+    ├── OrchestrationError
+    ├── CleanupError
+    ├── CircuitBreakerError
+    │   └── CircuitOpenError
+    ├── QuarantineError
+    └── CostQueryError
 """
 
 from typing import Any
@@ -363,6 +368,69 @@ class CleanupError(HayMakerError):
 
 
 # =============================================================================
+# Circuit Breaker Errors (Milestone 1: Issue #129)
+# =============================================================================
+
+
+class CircuitBreakerError(HayMakerError):
+    """Base exception for circuit breaker operations.
+
+    Raised when circuit breaker operations fail or circuits are in
+    an error state that prevents execution.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        circuit_name: str | None = None,
+        state: str | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        details = details or {}
+        if circuit_name:
+            details["circuit_name"] = circuit_name
+        if state:
+            details["state"] = state
+        super().__init__(message, details)
+        self.circuit_name = circuit_name
+        self.state = state
+
+
+class CircuitOpenError(CircuitBreakerError):
+    """Raised when a call is rejected because the circuit is open.
+
+    This indicates the circuit breaker has detected too many failures
+    and is preventing further calls to protect the system.
+    """
+
+    pass
+
+
+class QuarantineError(HayMakerError):
+    """Raised when operations are blocked due to quarantine status.
+
+    Indicates that a scenario or schedule has been quarantined due to
+    repeated failures and cannot be executed until released.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        scenario_name: str | None = None,
+        quarantine_reason: str | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        details = details or {}
+        if scenario_name:
+            details["scenario_name"] = scenario_name
+        if quarantine_reason:
+            details["quarantine_reason"] = quarantine_reason
+        super().__init__(message, details)
+        self.scenario_name = scenario_name
+        self.quarantine_reason = quarantine_reason
+
+
+# =============================================================================
 # Cost Query Errors
 # =============================================================================
 
@@ -418,6 +486,10 @@ __all__ = [
     # Orchestration errors
     "OrchestrationError",
     "CleanupError",
+    # Circuit breaker errors (Issue #129)
+    "CircuitBreakerError",
+    "CircuitOpenError",
+    "QuarantineError",
     # Cost query errors
     "CostQueryError",
 ]
