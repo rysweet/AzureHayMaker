@@ -32,6 +32,7 @@ Module Structure:
 - scenario_selector.py: Scenario selection from docs/scenarios/
 - sp_manager.py: Service principal lifecycle management
 - image_verifier.py: Container image signature verification
+- meta_orchestrator.py: Multi-tenant parallel execution (Phase 3)
 """
 
 from . import activities  # noqa: F401
@@ -120,4 +121,12 @@ __all__ = [
     "ContainerMonitor",
     "ContainerLifecycle",
     "ImageVerifier",
+    # Meta-orchestrator (Phase 3)
+    "FailureMode",
+    "FanOutController",
+    "MetaExecutionRequest",
+    "MetaExecutionResult",
+    "MetaOrchestrator",
+    "TenantExecutionState",
+    "TenantExecutionStatus",
 ]
