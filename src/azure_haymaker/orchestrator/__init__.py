@@ -5,13 +5,25 @@ This module provides the public API for the orchestrator, including:
 - Event bus integration (Service Bus)
 - Scenario selection
 - Service principal management
+- Azure Durable Functions orchestration (timer trigger, workflow, activities)
 
 Architecture:
-The orchestrator runs as a FastAPI application on Azure Container Apps (128GB RAM).
-Scheduling is handled via KEDA CRON triggers (4x daily).
-See orchestrator_server.py for the main FastAPI application.
+The orchestrator runs as Azure Durable Functions with:
+- Timer trigger: 4x daily (00:00, 06:00, 12:00, 18:00 UTC)
+- 7-phase workflow orchestration
+- Activity functions for each phase
 
 Module Structure:
+- orchestrator_app.py: Shared FunctionApp instance
+- timer_trigger.py: Timer trigger for scheduled execution
+- workflow_orchestrator.py: Main durable orchestration function
+- activities/: Activity functions organized by phase
+  - validation.py: Environment validation
+  - selection.py: Scenario selection
+  - provisioning.py: SP creation and container deployment
+  - monitoring.py: Agent status monitoring
+  - cleanup.py: Cleanup verification and forced cleanup
+  - reporting.py: Report generation
 - container_manager.py: Container App deployment and management
 - container_deployer.py: Container deployment logic
 - container_monitor.py: Container status monitoring
@@ -22,7 +34,7 @@ Module Structure:
 - image_verifier.py: Container image signature verification
 """
 
-# Container management modules
+from . import activities  # noqa: F401
 from .container_deployer import ContainerDeployer
 from .container_lifecycle import ContainerLifecycle, delete_container_app
 from .container_manager import (
@@ -39,6 +51,7 @@ from .event_bus import (
     subscribe_to_agent_logs,
 )
 from .image_verifier import ImageVerifier, verify_image_signature
+from .orchestrator_app import app
 from .scenario_selector import (
     list_available_scenarios,
     parse_scenario_metadata,
@@ -52,8 +65,16 @@ from .sp_manager import (
     list_haymaker_service_principals,
     verify_sp_deleted,
 )
+from .timer_trigger import haymaker_timer
+from .workflow_orchestrator import orchestrate_haymaker_run
 
 __all__ = [
+    # Azure Functions app instance
+    "app",
+    # Timer trigger
+    "haymaker_timer",
+    # Workflow orchestration
+    "orchestrate_haymaker_run",
     # Event bus
     "EventBusClient",
     "parse_resource_events",
