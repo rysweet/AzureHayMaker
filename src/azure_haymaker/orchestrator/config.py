@@ -23,6 +23,7 @@ from azure_haymaker.models.config import (
     SimulationSize,
     StorageConfig,
     TableStorageConfig,
+    TenantConfig,
 )
 from azure_haymaker.orchestrator.config_env_loader import load_dotenv_with_warnings
 
@@ -286,3 +287,199 @@ async def load_config() -> OrchestratorConfig:
         ConfigurationError: If configuration loading fails
     """
     return await load_config_from_env_and_keyvault()
+
+
+def load_tenant_configs_from_keyvault(
+    kv_client: SecretClient,
+    prefix_filter: str | None = None
+) -> dict[str, TenantConfig]:
+    """Load tenant configurations from Key Vault (Phase 2 multi-tenant support).
+
+    Discovers and loads tenant configurations stored in Key Vault following
+    the naming convention:
+    - tenant-{prefix}-config: JSON with tenant_id, subscription_id, sp_client_id,
+                              display_name, enabled, resource_group
+    - tenant-{prefix}-secret: Service principal client secret
+
+    Args:
+        kv_client: Authenticated SecretClient for Key Vault
+        prefix_filter: Optional prefix to filter tenants (e.g., "prod" loads only
+                      tenant-prod-* secrets). If None, loads all tenant-*-config secrets.
+
+    Returns:
+        Dictionary mapping tenant_id to TenantConfig
+
+    Raises:
+        ConfigurationError: If a tenant config is malformed or missing required fields
+
+    Example:
+        >>> credential = DefaultAzureCredential()
+        >>> kv_client = SecretClient(vault_url="https://my-vault.vault.azure.net", credential=credential)
+        >>> tenants = load_tenant_configs_from_keyvault(kv_client)
+        >>> for tenant_id, config in tenants.items():
+        ...     print(f"Loaded tenant: {config.display}")
+
+    Key Vault Secret Format:
+        # tenant-customerA-config (JSON):
+        {
+            "tenant_id": "12345678-...",
+            "subscription_id": "87654321-...",
+            "sp_client_id": "abcdef12-...",
+            "display_name": "Customer A",
+            "enabled": true,
+            "resource_group": "rg-customerA"
+        }
+
+        # tenant-customerA-secret (plain text):
+        the-sp-client-secret-value
+    """
+    import json
+
+    tenants: dict[str, TenantConfig] = {}
+
+    try:
+        # List all secrets to find tenant configs
+        secret_properties = list(kv_client.list_properties_of_secrets())
+
+        # Find all tenant config secrets
+        config_secrets = []
+        for prop in secret_properties:
+            name = prop.name
+            if name and name.startswith("tenant-") and name.endswith("-config"):
+                # Extract prefix (e.g., "customerA" from "tenant-customerA-config")
+                prefix = name[7:-7]  # Strip "tenant-" and "-config"
+                if prefix_filter is None or prefix.startswith(prefix_filter):
+                    config_secrets.append((name, prefix))
+
+        logger.info(f"Found {len(config_secrets)} tenant config(s) in Key Vault")
+
+        # Load each tenant config
+        for config_name, prefix in config_secrets:
+            secret_name = f"tenant-{prefix}-secret"
+
+            try:
+                # Load config JSON
+                config_secret = kv_client.get_secret(config_name)
+                if not config_secret.value:
+                    logger.warning(f"Empty config secret: {config_name}, skipping")
+                    continue
+
+                config_data = json.loads(config_secret.value)
+
+                # Load SP secret
+                try:
+                    sp_secret = kv_client.get_secret(secret_name)
+                    if not sp_secret.value:
+                        raise ConfigurationError(
+                            f"Empty SP secret for tenant {prefix}: {secret_name}"
+                        )
+                except Exception as e:
+                    raise ConfigurationError(
+                        f"Failed to load SP secret for tenant {prefix}: {secret_name}. "
+                        f"Ensure the secret exists. Error: {e}"
+                    ) from e
+
+                # Validate required fields
+                required_fields = ["tenant_id", "subscription_id", "sp_client_id"]
+                missing = [f for f in required_fields if f not in config_data]
+                if missing:
+                    raise ConfigurationError(
+                        f"Tenant config {config_name} missing required fields: {missing}"
+                    )
+
+                # Build TenantConfig
+                tenant_config = TenantConfig(
+                    tenant_id=config_data["tenant_id"],
+                    subscription_id=config_data["subscription_id"],
+                    sp_client_id=config_data["sp_client_id"],
+                    sp_client_secret=SecretStr(sp_secret.value),
+                    display_name=config_data.get("display_name"),
+                    enabled=config_data.get("enabled", True),
+                    resource_group=config_data.get("resource_group"),
+                )
+
+                tenants[tenant_config.tenant_id] = tenant_config
+                logger.info(f"Loaded tenant config: {tenant_config.display}")
+
+            except json.JSONDecodeError as e:
+                raise ConfigurationError(
+                    f"Invalid JSON in tenant config {config_name}: {e}"
+                ) from e
+            except ValidationError as e:
+                raise ConfigurationError(
+                    f"Invalid tenant config {config_name}: {e}"
+                ) from e
+
+    except Exception as e:
+        if isinstance(e, ConfigurationError):
+            raise
+        raise ConfigurationError(
+            f"Failed to load tenant configs from Key Vault: {e}"
+        ) from e
+
+    return tenants
+
+
+async def load_config_with_tenants(
+    load_tenants_from_keyvault: bool = True,
+    tenant_prefix_filter: str | None = None
+) -> OrchestratorConfig:
+    """Load configuration with multi-tenant registry from Key Vault.
+
+    This is the recommended entry point for Phase 2+ deployments that need
+    multi-tenant support. It loads the base configuration and optionally
+    populates the tenant registry from Key Vault.
+
+    Args:
+        load_tenants_from_keyvault: If True, load tenant configs from Key Vault
+        tenant_prefix_filter: Optional prefix to filter tenant configs
+
+    Returns:
+        OrchestratorConfig with populated tenant registry
+
+    Raises:
+        ConfigurationError: If configuration loading fails
+
+    Example:
+        >>> config = await load_config_with_tenants()
+        >>> print(f"Loaded {len(config.tenants)} tenants")
+        >>> for tenant in config.list_tenants():
+        ...     print(f"  - {tenant.display}")
+    """
+    # Load base configuration
+    config = await load_config_from_env_and_keyvault()
+
+    if load_tenants_from_keyvault:
+        try:
+            credential = DefaultAzureCredential()
+            kv_client = SecretClient(
+                vault_url=config.key_vault_url,
+                credential=credential
+            )
+
+            tenants = load_tenant_configs_from_keyvault(
+                kv_client,
+                prefix_filter=tenant_prefix_filter
+            )
+
+            # Update config with loaded tenants
+            # Note: Pydantic models are immutable by default, so we create a new config
+            config_dict = config.model_dump()
+            config_dict["tenants"] = {
+                tid: t.model_dump() for tid, t in tenants.items()
+            }
+            config = OrchestratorConfig(**config_dict)
+
+            if tenants:
+                logger.info(
+                    f"Multi-tenant mode: loaded {len(tenants)} tenant(s) from Key Vault"
+                )
+
+        except Exception as e:
+            # Log warning but don't fail - tenants are optional
+            logger.warning(
+                f"Failed to load tenant configs from Key Vault: {e}. "
+                "Continuing without multi-tenant registry."
+            )
+
+    return config

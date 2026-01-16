@@ -7,6 +7,43 @@ from typing import Any
 from pydantic import BaseModel, Field, SecretStr, computed_field
 
 
+class TenantConfig(BaseModel):
+    """Configuration for a single tenant in multi-tenant deployments.
+
+    This model stores credentials and metadata for deploying scenarios
+    to a specific Azure tenant. Used by Phase 2+ multi-tenant support.
+
+    Example:
+        >>> tenant = TenantConfig(
+        ...     tenant_id="12345678-...",
+        ...     subscription_id="87654321-...",
+        ...     sp_client_id="client-id-...",
+        ...     sp_client_secret=SecretStr("secret"),
+        ...     display_name="Customer A"
+        ... )
+    """
+
+    tenant_id: str = Field(..., description="Azure AD tenant ID")
+    subscription_id: str = Field(..., description="Target subscription ID for deployments")
+    sp_client_id: str = Field(..., description="Service principal client ID for this tenant")
+    sp_client_secret: SecretStr = Field(..., description="Service principal secret for this tenant")
+    display_name: str | None = Field(
+        default=None, description="Human-readable name for this tenant"
+    )
+    enabled: bool = Field(default=True, description="Whether this tenant is active for deployments")
+    resource_group: str | None = Field(
+        default=None, description="Default resource group for deployments (optional)"
+    )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def display(self) -> str:
+        """Get display string for logging (safe, no secrets)."""
+        name = self.display_name or f"tenant-{self.tenant_id[:8]}"
+        status = "enabled" if self.enabled else "disabled"
+        return f"{name} ({status})"
+
+
 class SimulationSize(str, Enum):
     """Simulation size determines how many scenarios to execute."""
 
@@ -149,6 +186,12 @@ class OrchestratorConfig(BaseModel):
         default=90, description="Maximum age of secrets before forced rotation", ge=1
     )
 
+    # Phase 2: Multi-tenant registry (optional - backward compatible)
+    tenants: dict[str, TenantConfig] = Field(
+        default_factory=dict,
+        description="Registry of configured tenants for multi-tenant deployments"
+    )
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def scenario_count(self) -> int:
@@ -184,6 +227,53 @@ class OrchestratorConfig(BaseModel):
         if self.is_cross_tenant:
             return f"{self.target_tenant_id[:8]}... (cross-tenant)"
         return f"{self.target_tenant_id[:8]}... (same as orchestrator)"
+
+    def get_tenant_config(self, tenant_id: str) -> TenantConfig | None:
+        """Get configuration for a specific tenant from the registry.
+
+        Args:
+            tenant_id: The Azure AD tenant ID to look up
+
+        Returns:
+            TenantConfig if found and enabled, None otherwise
+
+        Example:
+            >>> config = orchestrator_config.get_tenant_config("12345678-...")
+            >>> if config:
+            ...     print(f"Found tenant: {config.display}")
+        """
+        tenant = self.tenants.get(tenant_id)
+        if tenant and tenant.enabled:
+            return tenant
+        return None
+
+    def list_tenants(self, include_disabled: bool = False) -> list[TenantConfig]:
+        """List all configured tenants.
+
+        Args:
+            include_disabled: If True, include disabled tenants in the list
+
+        Returns:
+            List of TenantConfig objects
+
+        Example:
+            >>> tenants = orchestrator_config.list_tenants()
+            >>> for t in tenants:
+            ...     print(f"Tenant: {t.display}")
+        """
+        if include_disabled:
+            return list(self.tenants.values())
+        return [t for t in self.tenants.values() if t.enabled]
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def has_multi_tenant_registry(self) -> bool:
+        """Check if multi-tenant registry has any tenants configured.
+
+        Returns:
+            True if at least one tenant is configured in the registry
+        """
+        return len(self.tenants) > 0
 
     def model_post_init(self, __context: Any) -> None:
         """Post-initialization validation."""
