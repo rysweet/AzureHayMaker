@@ -2,11 +2,21 @@
 
 ## Overview
 
-Enable Azure HayMaker to deploy scenarios from an orchestrator tenant (Tenant A) to a different target tenant (Tenant B).
+Enable Azure HayMaker to deploy scenarios from an orchestrator tenant (Tenant A) to different target tenants (Tenant B, C, D...).
 
-**Use Case**: Run orchestrator in "infrastructure tenant", deploy resources to "customer tenant".
+**Use Case**: Run orchestrator in "infrastructure tenant", deploy resources to "customer tenants".
+
+## Phase Support
+
+| Phase | Feature | Status |
+|-------|---------|--------|
+| Phase 1 MVP | Single target tenant with explicit credentials | Supported |
+| Phase 2 | Multi-tenant registry with Key Vault storage | Supported |
+| Phase 3+ | Fan-out, CLI management, auto-discovery | Planned |
 
 **Phase 1 MVP Scope**: Deploy one scenario to a single different Azure tenant using explicit cross-tenant credentials, with tenant-aware logging and storage partitioning.
+
+**Phase 2 Scope**: Configure multiple tenants in a registry (stored in Key Vault), with thread-safe credential caching and programmatic tenant selection.
 
 ## Prerequisites
 
@@ -97,6 +107,189 @@ az ad sp create-for-rbac \
 ```
 
 **Critical**: Target tenant SP needs **Application.ReadWrite.All** to create ephemeral service principals for scenarios.
+
+## Phase 2: Multi-Tenant Registry Configuration
+
+Phase 2 adds support for managing multiple tenants through a registry stored in Key Vault.
+
+### Key Vault Secret Structure
+
+Store tenant configurations as JSON in Key Vault following this naming convention:
+
+```
+tenant-{prefix}-config  -> JSON configuration
+tenant-{prefix}-secret  -> SP client secret (plain text)
+```
+
+#### Config Secret Format (JSON)
+
+```bash
+# Create tenant config secret
+az keyvault secret set \
+  --vault-name <orchestrator-key-vault> \
+  --name "tenant-customerA-config" \
+  --value '{
+    "tenant_id": "12345678-1234-1234-1234-123456789abc",
+    "subscription_id": "87654321-4321-4321-4321-cba987654321",
+    "sp_client_id": "abcdef12-3456-7890-abcd-ef1234567890",
+    "display_name": "Customer A",
+    "enabled": true,
+    "resource_group": "rg-customerA-haymaker"
+  }'
+
+# Create corresponding secret
+az keyvault secret set \
+  --vault-name <orchestrator-key-vault> \
+  --name "tenant-customerA-secret" \
+  --value "<sp-client-secret>"
+```
+
+#### Configuration Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| tenant_id | Yes | Azure AD tenant ID |
+| subscription_id | Yes | Target subscription for deployments |
+| sp_client_id | Yes | Service principal client ID |
+| display_name | No | Human-readable name for logging |
+| enabled | No | Whether tenant is active (default: true) |
+| resource_group | No | Default resource group for deployments |
+
+### Loading Multi-Tenant Configuration
+
+#### Automatic Loading
+
+Use `load_config_with_tenants()` to automatically discover and load tenant configs from Key Vault:
+
+```python
+from azure_haymaker.orchestrator.config import load_config_with_tenants
+
+# Load all tenants
+config = await load_config_with_tenants()
+print(f"Loaded {len(config.tenants)} tenants")
+
+# Load with prefix filter (e.g., only production tenants)
+config = await load_config_with_tenants(tenant_prefix_filter="prod")
+
+# Skip Key Vault loading (fall back to Phase 1 behavior)
+config = await load_config_with_tenants(load_tenants_from_keyvault=False)
+```
+
+#### Manual Loading
+
+For more control, load tenants manually:
+
+```python
+from azure.keyvault.secrets import SecretClient
+from azure.identity import DefaultAzureCredential
+from azure_haymaker.orchestrator.config import load_tenant_configs_from_keyvault
+
+credential = DefaultAzureCredential()
+kv_client = SecretClient(vault_url="https://my-vault.vault.azure.net", credential=credential)
+
+tenants = load_tenant_configs_from_keyvault(kv_client)
+for tenant_id, config in tenants.items():
+    print(f"Tenant: {config.display}")
+```
+
+### Using Multi-Tenant Credentials
+
+#### Get Credential for Specific Tenant
+
+```python
+from azure_haymaker.utils.credentials import get_tenant_credential
+
+# Phase 2: Get credential for specific tenant from registry
+credential = get_tenant_credential(config, tenant_id="12345678-...")
+
+# Falls back to Phase 1 behavior if tenant not in registry
+```
+
+#### Direct Factory Access
+
+```python
+from azure_haymaker.utils.credentials import MultiTenantCredentialFactory
+
+# Get cached credential for tenant
+tenant_config = config.get_tenant_config("12345678-...")
+credential = MultiTenantCredentialFactory.get_credential_for_tenant(tenant_config)
+
+# Clear cache for specific tenant
+MultiTenantCredentialFactory.clear_cache("12345678-...")
+
+# Clear all cached credentials
+MultiTenantCredentialFactory.clear_cache()
+```
+
+### Listing and Managing Tenants
+
+```python
+# List all enabled tenants
+for tenant in config.list_tenants():
+    print(f"Tenant: {tenant.display}")
+
+# List all tenants including disabled
+for tenant in config.list_tenants(include_disabled=True):
+    print(f"Tenant: {tenant.display}")
+
+# Get specific tenant config
+tenant = config.get_tenant_config("12345678-...")
+if tenant:
+    print(f"Found: {tenant.display}")
+
+# Check if registry has any tenants
+if config.has_multi_tenant_registry:
+    print(f"Multi-tenant mode with {len(config.tenants)} tenant(s)")
+```
+
+### Adding New Tenants
+
+To add a new tenant to the registry:
+
+1. Create the service principal in the target tenant (same as Phase 1)
+2. Add config and secret to Key Vault:
+
+```bash
+# Add config
+az keyvault secret set \
+  --vault-name <orchestrator-key-vault> \
+  --name "tenant-newcustomer-config" \
+  --value '{
+    "tenant_id": "<new-tenant-id>",
+    "subscription_id": "<new-subscription-id>",
+    "sp_client_id": "<new-sp-client-id>",
+    "display_name": "New Customer",
+    "enabled": true
+  }'
+
+# Add secret
+az keyvault secret set \
+  --vault-name <orchestrator-key-vault> \
+  --name "tenant-newcustomer-secret" \
+  --value "<new-sp-secret>"
+```
+
+3. Restart orchestrator or reload configuration to pick up new tenant.
+
+### Disabling Tenants
+
+To temporarily disable a tenant without removing it:
+
+```bash
+# Update config with enabled=false
+az keyvault secret set \
+  --vault-name <orchestrator-key-vault> \
+  --name "tenant-customerA-config" \
+  --value '{
+    "tenant_id": "...",
+    "subscription_id": "...",
+    "sp_client_id": "...",
+    "display_name": "Customer A",
+    "enabled": false
+  }'
+```
+
+Disabled tenants are not returned by `get_tenant_config()` or `list_tenants()` (unless `include_disabled=True`).
 
 ## Verification
 
@@ -314,22 +507,30 @@ System automatically detects single-tenant mode and uses orchestrator credential
 - Each tenant's resources stored in separate Table Storage partitions
 - Blob paths prefixed with tenant_id
 
-## Limitations (Phase 1 MVP)
+## Limitations
 
-### What's Supported
+### Phase 1 MVP - What's Supported
 
 - ✅ Single target tenant per execution
 - ✅ Explicit credential configuration via environment variables
 - ✅ Tenant-isolated storage and tracking
 - ✅ Full backward compatibility with single-tenant mode
 
+### Phase 2 - What's Supported
+
+- ✅ Multiple tenant configurations in Key Vault registry
+- ✅ Thread-safe credential caching per tenant
+- ✅ Programmatic tenant selection via `get_tenant_credential(config, tenant_id)`
+- ✅ Tenant enable/disable without removal
+- ✅ Prefix-based filtering for tenant discovery
+- ✅ 100% backward compatible with Phase 1
+
 ### What's NOT Supported (Deferred to Future Phases)
 
 - ❌ Multiple target tenants in one execution (fan-out)
 - ❌ CLI commands for tenant management
-- ❌ Automatic tenant discovery
+- ❌ Automatic tenant discovery from Azure
 - ❌ Meta-orchestrator (orchestrator of orchestrators)
-- ❌ Dynamic tenant selection at runtime
 
 ## Next Steps
 
@@ -371,5 +572,5 @@ For issues or questions:
 
 ---
 
-**Documentation Version**: Phase 1 MVP (Cross-Tenant Foundation)
-**Last Updated**: 2024-01-15
+**Documentation Version**: Phase 2 (Multi-Tenant Configuration Support)
+**Last Updated**: 2026-01-16
