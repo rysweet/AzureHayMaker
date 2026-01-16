@@ -98,7 +98,10 @@ class TestEndToEndIntegration:
             "src/azure_haymaker/orchestrator/event_bus.py",
             "src/azure_haymaker/orchestrator/cleanup.py",
             "src/azure_haymaker/orchestrator/monitoring_api.py",
-            "src/azure_haymaker/orchestrator/orchestrator.py",
+            # Modular Durable Functions architecture (replaced monolithic orchestrator.py)
+            "src/azure_haymaker/orchestrator/orchestrator_app.py",
+            "src/azure_haymaker/orchestrator/timer_trigger.py",
+            "src/azure_haymaker/orchestrator/workflow_orchestrator.py",
         ]
 
         for module in required_modules:
