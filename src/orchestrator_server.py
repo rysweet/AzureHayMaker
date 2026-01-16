@@ -31,7 +31,6 @@ from azure_haymaker.models.execution import (
     ExecutionCounts,
     MultiTenantExecutionRequest,
     MultiTenantExecutionResponse,
-    MultiTenantFailureMode,
     ScenarioStats,
     TenantExecutionDetail,
     TenantExecutionStatusEnum,
