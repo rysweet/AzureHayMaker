@@ -1161,7 +1161,6 @@ async def run_orchestration(
     executions[run_id] = execution_report
 
     # Add trace attributes to current span
-    tracer = get_tracer(__name__)
     from opentelemetry import trace as otel_trace
     current_span = otel_trace.get_current_span()
     if current_span.is_recording():
