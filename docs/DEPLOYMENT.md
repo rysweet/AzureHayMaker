@@ -36,14 +36,15 @@ Azure HayMaker uses a fully automated GitOps deployment pipeline with:
 ```
 GitHub Repository
     ├── .github/workflows/
-    │   ├── deploy-dev.yml      (Auto-deploy on push to develop)
-    │   ├── deploy-staging.yml  (Auto-deploy on push to main)
-    │   └── deploy-prod.yml     (Manual deploy on release)
+    │   ├── deploy-containerapps.yml  (Primary: Container Apps deployment)
+    │   ├── deploy-vm-orchestrator.yml (Alternative: VM deployment)
+    │   └── deploy-*.yml              (Environment-specific workflows)
     │
     └── infra/bicep/
-        ├── main.bicep          (Root template)
-        ├── modules/            (Reusable modules)
-        └── parameters/         (Environment configs)
+        ├── main-containerapps.bicep  (Primary: Container Apps template)
+        ├── main-vm.bicep             (Alternative: VM template)
+        ├── modules/                  (Reusable modules)
+        └── parameters/               (Environment configs)
 ```
 
 ## Prerequisites
@@ -266,12 +267,12 @@ For testing Bicep templates locally:
 az login
 
 # Validate templates
-az bicep build --file infra/bicep/main.bicep
+az bicep build --file infra/bicep/main-containerapps.bicep
 
 # Validate deployment
 az deployment sub validate \
   --location eastus \
-  --template-file infra/bicep/main.bicep \
+  --template-file infra/bicep/main-containerapps.bicep \
   --parameters infra/bicep/parameters/dev.bicepparam \
   --parameters adminObjectIds="['<your-object-id>']" \
   --parameters githubOidcClientId="<your-client-id>"
@@ -279,7 +280,7 @@ az deployment sub validate \
 # What-if analysis (preview changes)
 az deployment sub what-if \
   --location eastus \
-  --template-file infra/bicep/main.bicep \
+  --template-file infra/bicep/main-containerapps.bicep \
   --parameters infra/bicep/parameters/dev.bicepparam \
   --parameters adminObjectIds="['<your-object-id>']" \
   --parameters githubOidcClientId="<your-client-id>"
@@ -287,7 +288,7 @@ az deployment sub what-if \
 # Deploy
 az deployment sub create \
   --location eastus \
-  --template-file infra/bicep/main.bicep \
+  --template-file infra/bicep/main-containerapps.bicep \
   --parameters infra/bicep/parameters/dev.bicepparam \
   --parameters adminObjectIds="['<your-object-id>']" \
   --parameters githubOidcClientId="<your-client-id>"
@@ -344,16 +345,16 @@ az ad app federated-credential create \
 
 **Solution**:
 ```bash
-# Grant Key Vault Secrets User role to Function App
-FUNCTION_APP_PRINCIPAL_ID=$(az functionapp show \
-  --name <function-app-name> \
+# Grant Key Vault Secrets User role to Container App
+CONTAINER_APP_PRINCIPAL_ID=$(az containerapp show \
+  --name <container-app-name> \
   --resource-group <rg-name> \
   --query identity.principalId \
   --output tsv)
 
 az role assignment create \
   --role "Key Vault Secrets User" \
-  --assignee $FUNCTION_APP_PRINCIPAL_ID \
+  --assignee $CONTAINER_APP_PRINCIPAL_ID \
   --scope /subscriptions/<subscription-id>/resourceGroups/<rg-name>/providers/Microsoft.KeyVault/vaults/<kv-name>
 ```
 
@@ -370,45 +371,48 @@ az bicep version
 az bicep upgrade
 
 # Validate template
-az bicep build --file infra/bicep/main.bicep
+az bicep build --file infra/bicep/main-containerapps.bicep
 
 # Check for syntax errors in output
 ```
 
-#### 4. Function App Not Starting
+#### 4. Container App Not Starting
 
-**Error**: Function app shows "Stopped" status
+**Error**: Container app shows "Failed" or "Provisioning" status for too long
 
 **Solution**:
 ```bash
-# Check app settings
-az functionapp config appsettings list \
-  --name <function-app-name> \
-  --resource-group <rg-name>
+# Check container app status
+az containerapp show \
+  --name <container-app-name> \
+  --resource-group <rg-name> \
+  --query "properties.runningStatus"
 
 # Check logs
-az functionapp log tail \
-  --name <function-app-name> \
-  --resource-group <rg-name>
+az containerapp logs show \
+  --name <container-app-name> \
+  --resource-group <rg-name> \
+  --follow
 
-# Restart function app
-az functionapp restart \
-  --name <function-app-name> \
-  --resource-group <rg-name>
+# Restart container app by creating new revision
+az containerapp revision restart \
+  --name <container-app-name> \
+  --resource-group <rg-name> \
+  --revision <revision-name>
 ```
 
 #### 5. Secrets Not Available
 
-**Error**: Function app cannot read Key Vault secrets
+**Error**: Container app cannot read Key Vault secrets
 
 **Solution**:
 ```bash
 # Verify secrets exist in Key Vault
 az keyvault secret list --vault-name <kv-name>
 
-# Check Function App identity has access
+# Check Container App identity has access
 az role assignment list \
-  --assignee <function-app-principal-id> \
+  --assignee <container-app-principal-id> \
   --scope /subscriptions/<subscription-id>/resourceGroups/<rg-name>/providers/Microsoft.KeyVault/vaults/<kv-name>
 
 # Manually inject secrets if needed
@@ -462,12 +466,12 @@ PREVIOUS_DEPLOYMENT=$(az deployment sub list \
   --query "[?properties.provisioningState=='Succeeded'] | [1].name" \
   --output tsv)
 
-# Redeploy previous deployment
-az deployment sub create \
+# Redeploy previous deployment (Container Apps)
+az deployment group create \
   --name "rollback-$(date +%s)" \
-  --location eastus \
-  --template-file infra/bicep/main.bicep \
-  --parameters @infra/bicep/parameters/prod.bicepparam
+  --resource-group "haymaker-prod-rg" \
+  --template-file infra/bicep/main-containerapps.bicep \
+  --parameters environment=prod
 ```
 
 #### Option 3: Point-in-Time Restore
@@ -493,16 +497,17 @@ az cosmosdb restore \
 To immediately stop all orchestrator operations:
 
 ```bash
-# Stop Function App
-az functionapp stop \
-  --name <function-app-name> \
-  --resource-group <rg-name>
-
-# Disable all functions
-az functionapp config appsettings set \
-  --name <function-app-name> \
+# Scale Container App to 0 replicas
+az containerapp update \
+  --name <container-app-name> \
   --resource-group <rg-name> \
-  --settings AzureWebJobsStorage=""
+  --min-replicas 0 \
+  --max-replicas 0
+
+# Or stop the entire Container Apps environment
+az containerapp env delete \
+  --name <env-name> \
+  --resource-group <rg-name>
 ```
 
 ### Complete Infrastructure Teardown
@@ -536,7 +541,7 @@ az group delete \
 ### Post-Deployment Checklist
 
 - [ ] Smoke tests passed
-- [ ] Function App responding
+- [ ] Container App running and responding
 - [ ] No errors in Application Insights
 - [ ] Secrets accessible from Key Vault
 - [ ] Monitoring dashboards updated
@@ -546,7 +551,7 @@ az group delete \
 
 Monitor these metrics for 24 hours after production deployment:
 
-1. **Function App Health**:
+1. **Container App Health**:
    - Response times
    - Error rates
    - Request counts
@@ -572,7 +577,8 @@ Monitor these metrics for 24 hours after production deployment:
 
 - [Azure Bicep Documentation](https://learn.microsoft.com/azure/azure-resource-manager/bicep/)
 - [GitHub Actions OIDC with Azure](https://learn.microsoft.com/azure/developer/github/connect-from-azure)
-- [Azure Functions Documentation](https://learn.microsoft.com/azure/azure-functions/)
+- [Azure Container Apps Documentation](https://learn.microsoft.com/azure/container-apps/)
+- [KEDA Scaling Documentation](https://keda.sh/docs/)
 - [Project Architecture](./ARCHITECTURE.md)
 
 ## Support

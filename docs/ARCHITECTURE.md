@@ -37,8 +37,8 @@ Azure HayMaker is an orchestration service that generates benign telemetry to si
 
 ```mermaid
 graph TB
-    subgraph "Azure Functions - Orchestrator"
-        Timer[Timer Trigger<br/>4x Daily]
+    subgraph "Azure Container Apps - Orchestrator (128GB RAM)"
+        Timer[KEDA CRON Trigger<br/>4x Daily]
         Config[Configuration<br/>Validator]
         Selector[Scenario<br/>Selector]
         SPMgr[Service Principal<br/>Manager]
@@ -91,10 +91,10 @@ graph TB
 
 Azure HayMaker is designed around five primary components:
 
-1. **Orchestrator Service** (Azure Functions) - Schedules and coordinates scenario execution, manages service principal lifecycle, and enforces cleanup policies
-   - [orchestrator_server.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/orchestrator_server.py) - Main orchestrator application
+1. **Orchestrator Service** (Azure Container Apps) - Schedules and coordinates scenario execution, manages service principal lifecycle, and enforces cleanup policies. Runs on E16 workload profile with 128GB RAM for memory-intensive operations.
+   - [orchestrator_server.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/orchestrator_server.py) - Main FastAPI orchestrator application
    - [workflow_orchestrator.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/workflow_orchestrator.py) - Workflow coordination
-   - [timer_trigger.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/timer_trigger.py) - Scheduled execution
+   - KEDA CRON trigger for scheduled execution (4x daily)
 
 2. **Agent Containers** (Azure Container Apps) - Execute individual scenarios in isolated environments and generate operational telemetry
    - [container_manager.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/container_manager.py) - Container lifecycle management
@@ -204,21 +204,22 @@ docs/scenarios/
 
 ## Design Decisions
 
-### Decision 1: Azure Functions vs. Container Apps for Orchestrator
+### Decision 1: Container Apps vs. Azure Functions for Orchestrator
 
-**Chosen**: Azure Functions (Timer Trigger)
+**Chosen**: Azure Container Apps (E16 Workload Profile with KEDA CRON)
 
 **Rationale**:
-- **Scheduling**: Built-in timer trigger for 4x daily execution
-- **Cost**: Pay-per-execution model (runs 4x daily)
-- **Serverless**: No infrastructure management required
-- **Integration**: Native Azure SDK support
-- **Simplicity**: Straightforward deployment model
+- **Memory**: 128GB RAM available (Azure Functions limited to 14GB max)
+- **Long-running**: Better suited for 8-hour scenario orchestration cycles
+- **Scheduling**: KEDA CRON provides 4x daily execution with scale-to-zero
+- **Dedicated Resources**: E16 workload profile guarantees dedicated hardware
+- **Integration**: Native Azure SDK support with FastAPI server
+- **Cost**: Scale-to-zero when idle, ~$876/month for E16 profile
 
 **Alternatives Considered**:
-- **Container Apps**: More complex for scheduling, better for long-running processes
-- **Logic Apps**: Less flexible for complex Python logic
-- **VM-based**: Higher cost and maintenance burden
+- **Azure Functions**: Memory limitation (14GB max) insufficient for Claude Code operations requiring 128GB
+- **VM-based**: Similar cost but higher maintenance burden, no scale-to-zero
+- **Logic Apps**: Less flexible for complex Python orchestration logic
 
 ### Decision 2: Azure Service Bus vs. Event Hubs vs. Event Grid
 
@@ -725,15 +726,15 @@ Query execution status.
 ### Deployment Considerations
 
 The Azure HayMaker architecture is designed to use:
-- Azure Functions for orchestration scheduling - see [function_app.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/function_app.py)
+- Azure Container Apps for orchestration - see [orchestrator_server.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/orchestrator_server.py)
 - Azure Service Bus for logging infrastructure - see [servicebus.bicep](https://github.com/rysweet/AzureHayMaker/blob/main/infra/bicep/modules/servicebus.bicep)
 - Azure Key Vault for credential management - see [keyvault.bicep](https://github.com/rysweet/AzureHayMaker/blob/main/infra/bicep/modules/keyvault.bicep)
 - Azure Container Apps for isolated scenario execution - see [container-apps-env.bicep](https://github.com/rysweet/AzureHayMaker/blob/main/infra/bicep/modules/container-apps-env.bicep)
 - Tag-based resource tracking for cleanup verification - see [cleanup.py](https://github.com/rysweet/AzureHayMaker/blob/main/src/azure_haymaker/orchestrator/cleanup.py)
 
 **Infrastructure Templates**:
-- [main.bicep](https://github.com/rysweet/AzureHayMaker/blob/main/infra/bicep/main.bicep) - Main infrastructure template
-- [main-containerapps.bicep](https://github.com/rysweet/AzureHayMaker/blob/main/infra/bicep/main-containerapps.bicep) - Container Apps deployment
+- [main-containerapps.bicep](https://github.com/rysweet/AzureHayMaker/blob/main/infra/bicep/main-containerapps.bicep) - Main Container Apps infrastructure template
+- [main-vm.bicep](https://github.com/rysweet/AzureHayMaker/blob/main/infra/bicep/main-vm.bicep) - Alternative VM deployment (128GB RAM)
 - [GitHub Workflows](https://github.com/rysweet/AzureHayMaker/tree/main/.github/workflows) - CI/CD pipelines
 
 ---
