@@ -4,31 +4,36 @@ Infrastructure as Code for Azure HayMaker using Azure Bicep.
 
 ## Overview
 
-This directory contains all infrastructure definitions for deploying Azure HayMaker across multiple environments.
+This directory contains all infrastructure definitions for deploying Azure HayMaker. The orchestrator runs on Azure Container Apps with E16 workload profile (128GB RAM) using KEDA CRON triggers for scheduling.
 
 ```
 infra/
 ├── bicep/
-│   ├── main.bicep              # Root orchestration template
-│   ├── modules/                # Reusable Bicep modules
+│   ├── main-containerapps.bicep   # Primary: Container Apps deployment
+│   ├── main-vm.bicep              # Alternative: VM deployment
+│   ├── modules/                   # Reusable Bicep modules
 │   │   ├── log-analytics.bicep
 │   │   ├── storage.bicep
 │   │   ├── servicebus.bicep
 │   │   ├── keyvault.bicep
 │   │   ├── cosmosdb.bicep
-│   │   ├── container-apps-env.bicep
-│   │   ├── container-registry.bicep
-│   │   └── function-app.bicep
-│   └── parameters/             # Environment-specific parameters
-│       ├── dev.bicepparam
-│       ├── staging.bicepparam
-│       └── prod.bicepparam
+│   │   ├── containerapp-environment.bicep
+│   │   ├── orchestrator-containerapp.bicep
+│   │   └── container-registry.bicep
+│   └── (no parameter files - passed via workflow)
 └── README.md
 ```
 
 ## Architecture
 
-### Resources Deployed
+### Deployment Options
+
+| Option | Template | Use Case |
+|--------|----------|----------|
+| **Container Apps (Primary)** | main-containerapps.bicep | Production orchestrator with 128GB RAM, KEDA CRON scheduling |
+| **VM (Alternative)** | main-vm.bicep | Alternative deployment for specific requirements |
+
+### Resources Deployed (Container Apps)
 
 | Resource | Purpose | Module |
 |----------|---------|--------|
@@ -37,9 +42,9 @@ infra/
 | Service Bus | Message queue for agent logs and requests | servicebus.bicep |
 | Key Vault | Secure secret storage | keyvault.bicep |
 | Cosmos DB | NoSQL database for metrics | cosmosdb.bicep |
-| Container Apps Environment | Agent container hosting | container-apps-env.bicep |
+| Container Apps Environment | E16 workload profile hosting | containerapp-environment.bicep |
 | Container Registry | Private image registry | container-registry.bicep |
-| Function App | Orchestrator logic | function-app.bicep |
+| Container App (Orchestrator) | FastAPI orchestrator (128GB RAM) | orchestrator-containerapp.bicep |
 
 ### Resource Naming Convention
 
@@ -50,9 +55,9 @@ Resources follow this naming pattern:
 ```
 
 Examples:
-- `haymaker-dev-func` - Function App in dev
+- `haymaker-dev-orchestrator` - Container App in dev
 - `haymaker-prod-kv` - Key Vault in production
-- `haymakerdevst123456` - Storage Account (no hyphens, with unique suffix)
+- `haymakerprodst123456` - Storage Account (no hyphens, with unique suffix)
 
 ### Environment Differences
 
@@ -83,61 +88,79 @@ Examples:
 
 ```bash
 # Compile Bicep to ARM JSON
-az bicep build --file bicep/main.bicep
+az bicep build --file bicep/main-containerapps.bicep
 
-# Validate deployment
-az deployment sub validate \
-  --location eastus \
-  --template-file bicep/main.bicep \
-  --parameters bicep/parameters/dev.bicepparam \
-  --parameters adminObjectIds="['<your-object-id>']" \
-  --parameters githubOidcClientId="<client-id>"
+# Validate deployment (parameters passed directly)
+az deployment group validate \
+  --resource-group "haymaker-dev-rg" \
+  --template-file bicep/main-containerapps.bicep \
+  --parameters environment=dev \
+               adminObjectIds="['<your-object-id>']" \
+               githubOidcClientId="<client-id>"
 ```
 
 ### Preview Changes
 
 ```bash
 # What-if analysis (preview changes without deploying)
-az deployment sub what-if \
-  --location eastus \
-  --template-file bicep/main.bicep \
-  --parameters bicep/parameters/dev.bicepparam \
-  --parameters adminObjectIds="['<your-object-id>']" \
-  --parameters githubOidcClientId="<client-id>"
+az deployment group what-if \
+  --resource-group "haymaker-dev-rg" \
+  --template-file bicep/main-containerapps.bicep \
+  --parameters environment=dev \
+               adminObjectIds="['<your-object-id>']" \
+               githubOidcClientId="<client-id>"
 ```
 
 ### Deploy Locally
 
 ```bash
-# Deploy to dev environment
-az deployment sub create \
+# Create resource group first
+az group create --name "haymaker-dev-rg" --location eastus
+
+# Deploy Container Apps infrastructure
+az deployment group create \
   --name "haymaker-dev-$(date +%s)" \
-  --location eastus \
-  --template-file bicep/main.bicep \
-  --parameters bicep/parameters/dev.bicepparam \
-  --parameters adminObjectIds="['<your-object-id>']" \
-  --parameters githubOidcClientId="<client-id>"
+  --resource-group "haymaker-dev-rg" \
+  --template-file bicep/main-containerapps.bicep \
+  --parameters environment=dev \
+               adminObjectIds="['<your-object-id>']" \
+               githubOidcClientId="<client-id>"
 ```
 
 ## Module Documentation
 
-### main.bicep
+### main-containerapps.bicep
 
-Root template that orchestrates all module deployments.
+Primary template deploying Container Apps-based orchestrator.
 
 **Parameters**:
 - `environment`: Environment name (dev, staging, prod)
-- `location`: Azure region (default: eastus)
-- `namingPrefix`: Resource name prefix (default: haymaker)
-- `tenantId`: Azure AD tenant ID
-- `subscriptionId`: Azure subscription ID
 - `adminObjectIds`: Object IDs with Key Vault admin access
 - `githubOidcClientId`: Client ID for GitHub OIDC
+- `simulationSize`: Simulation size configuration
+- `orchestratorImage`: Container image for orchestrator
+- `acrPassword`: ACR password for image pull
 
 **Outputs**:
 - Resource group name
-- All resource names and endpoints
-- Function App URL and principal ID
+- Orchestrator name and FQDN
+- Key Vault name
+- All resource endpoints
+
+**Architecture**:
+- E16 workload profile (128GB RAM, 16 vCPU)
+- KEDA CRON triggers (4x daily: 00:00, 06:00, 12:00, 18:00 UTC)
+- System-assigned managed identity
+- FastAPI orchestrator running orchestrator_server.py
+
+### main-vm.bicep
+
+Alternative template deploying VM-based orchestrator.
+
+**Use when**:
+- Container Apps not suitable for specific requirements
+- Need direct VM access for debugging
+- Specific networking requirements
 
 ### log-analytics.bicep
 
@@ -209,7 +232,7 @@ Deploys Key Vault with RBAC authorization.
 
 **RBAC Roles**:
 - Admins get Key Vault Administrator role
-- Function App gets Key Vault Secrets User role (via main.bicep)
+- Container App gets Key Vault Secrets User role
 
 ### cosmosdb.bicep
 
@@ -229,9 +252,9 @@ Deploys Cosmos DB account with database and containers.
 - `metrics` - Execution metrics (partitioned by scenario_name)
 - `runs` - Run records (partitioned by run_id)
 
-### container-apps-env.bicep
+### containerapp-environment.bicep
 
-Deploys Container Apps Environment for agent containers.
+Deploys Container Apps Environment with E16 workload profile.
 
 **Parameters**:
 - `environmentName`: Environment name
@@ -245,7 +268,7 @@ Deploys Container Apps Environment for agent containers.
 
 ### container-registry.bicep
 
-Deploys Azure Container Registry for agent images.
+Deploys Azure Container Registry for orchestrator image.
 
 **Parameters**:
 - `registryName`: Globally unique name (alphanumeric only)
@@ -256,39 +279,34 @@ Deploys Azure Container Registry for agent images.
 - Registry ID, name, and login server
 - Admin username and password
 
-### function-app.bicep
+### orchestrator-containerapp.bicep
 
-Deploys Function App with App Service Plan and Application Insights.
+Deploys the Container App running the FastAPI orchestrator.
 
 **Parameters**:
-- `functionAppName`: Function App name
-- `appServicePlanName`: App Service Plan name
-- `storageConnectionString`: Storage connection string
+- `name`: Container App name
+- `environmentId`: Container Apps Environment ID
+- `image`: Container image to deploy
 - `keyVaultUri`: Key Vault URI for secret references
-- `serviceBusConnectionString`: Service Bus connection string
-- `cosmosDbConnectionString`: Cosmos DB connection string
-- `environment`: Environment name
-- `pythonVersion`: Python runtime version (default: 3.13)
 
 **Outputs**:
-- Function App ID, name, and URL
+- Container App ID, name, and FQDN
 - Principal ID (managed identity)
-- Application Insights connection string
 
-**App Settings**:
-- All required environment variables
-- Key Vault secret references (using @Microsoft.KeyVault syntax)
-- Service connections (Service Bus, Cosmos DB, Storage)
+**Configuration**:
+- 128GB RAM (E16 workload profile)
+- KEDA CRON scaling (4x daily)
+- System-assigned managed identity
+- Health checks configured
 
 ## Deployment Workflow
 
 ### Automated (GitOps)
 
-Deployments are automated via GitHub Actions:
+Deployments are automated via GitHub Actions using `deploy-containerapps.yml`:
 
-1. **Dev**: Push to `develop` branch
-2. **Staging**: Push to `main` branch
-3. **Production**: Create GitHub release
+1. **Environment Selection**: Choose dev, staging, or prod via workflow_dispatch
+2. **Auto-trigger**: Push to `develop` or `main` branch
 
 See: [Deployment Guide](../docs/DEPLOYMENT.md)
 
@@ -296,30 +314,28 @@ See: [Deployment Guide](../docs/DEPLOYMENT.md)
 
 1. **Validate**:
    ```bash
-   az bicep build --file bicep/main.bicep
-   az deployment sub validate --template-file bicep/main.bicep --parameters @bicep/parameters/dev.bicepparam
+   az bicep build --file bicep/main-containerapps.bicep
    ```
 
-2. **What-If**:
+2. **Create Resource Group**:
    ```bash
-   az deployment sub what-if --template-file bicep/main.bicep --parameters @bicep/parameters/dev.bicepparam
+   az group create --name "haymaker-dev-rg" --location eastus
    ```
 
 3. **Deploy**:
    ```bash
-   az deployment sub create --template-file bicep/main.bicep --parameters @bicep/parameters/dev.bicepparam
+   az deployment group create \
+     --resource-group "haymaker-dev-rg" \
+     --template-file bicep/main-containerapps.bicep \
+     --parameters environment=dev \
+                  adminObjectIds="['<your-object-id>']" \
+                  githubOidcClientId="<client-id>"
    ```
 
 4. **Inject Secrets**:
    ```bash
    az keyvault secret set --vault-name <kv-name> --name main-sp-client-secret --value "<secret>"
    az keyvault secret set --vault-name <kv-name> --name anthropic-api-key --value "<key>"
-   ```
-
-5. **Deploy Function App**:
-   ```bash
-   cd ../src
-   func azure functionapp publish <function-app-name> --python
    ```
 
 ## Troubleshooting
@@ -333,31 +349,39 @@ See: [Deployment Guide](../docs/DEPLOYMENT.md)
 az bicep upgrade
 
 # Check for syntax errors
-az bicep build --file bicep/main.bicep
+az bicep build --file bicep/main-containerapps.bicep
 ```
 
-#### Deployment Validation Fails
+#### Container App Not Starting
 
 ```bash
-# Check parameter values
-cat bicep/parameters/dev.bicepparam
+# Check container app status
+az containerapp show \
+  --name <container-app-name> \
+  --resource-group <rg-name> \
+  --query "properties.provisioningState"
 
-# Verify subscription and permissions
-az account show
-az role assignment list --assignee $(az account show --query user.name -o tsv)
+# Check logs
+az containerapp logs show \
+  --name <container-app-name> \
+  --resource-group <rg-name> \
+  --follow
 ```
 
-#### Resource Name Conflicts
+#### ACR Pull Permission Issues
 
 ```bash
-# Check existing resources
-az resource list --name "*haymaker*" --output table
+# Get Container App's managed identity
+PRINCIPAL_ID=$(az containerapp show \
+  --name <container-app-name> \
+  --resource-group <rg-name> \
+  --query "identity.principalId" -o tsv)
 
-# Use different naming prefix
-az deployment sub create \
-  --template-file bicep/main.bicep \
-  --parameters @bicep/parameters/dev.bicepparam \
-  --parameters namingPrefix="myorg"
+# Grant AcrPull role
+az role assignment create \
+  --assignee "$PRINCIPAL_ID" \
+  --role AcrPull \
+  --scope <acr-resource-id>
 ```
 
 ### Debug Mode
@@ -365,9 +389,10 @@ az deployment sub create \
 Enable detailed ARM template logging:
 
 ```bash
-az deployment sub create \
-  --template-file bicep/main.bicep \
-  --parameters @bicep/parameters/dev.bicepparam \
+az deployment group create \
+  --resource-group "haymaker-dev-rg" \
+  --template-file bicep/main-containerapps.bicep \
+  --parameters environment=dev \
   --debug
 ```
 
@@ -382,7 +407,6 @@ az deployment sub create \
 
 ### Production
 
-- Use parameter files for configuration
 - Enable purge protection on Key Vault
 - Use GRS redundancy for critical data
 - Enable versioning on storage accounts
@@ -391,13 +415,12 @@ az deployment sub create \
 ### Maintenance
 
 - Regularly update Bicep modules
-- Keep parameter files in sync
 - Document custom modifications
 - Use semantic versioning for releases
 
 ## Additional Resources
 
 - [Azure Bicep Documentation](https://learn.microsoft.com/azure/azure-resource-manager/bicep/)
-- [Bicep Best Practices](https://learn.microsoft.com/azure/azure-resource-manager/bicep/best-practices)
+- [Container Apps Documentation](https://learn.microsoft.com/azure/container-apps/)
+- [KEDA Scaling Documentation](https://keda.sh/docs/)
 - [Deployment Guide](../docs/DEPLOYMENT.md)
-- [GitOps Setup Guide](../docs/GITOPS_SETUP.md)

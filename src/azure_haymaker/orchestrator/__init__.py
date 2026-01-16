@@ -1,73 +1,28 @@
 """Azure HayMaker orchestration service.
 
-Backward Compatibility Facade:
-This module maintains backward compatibility after splitting orchestrator.py
-into separate modules. All orchestrator functions and the app instance are
-imported from their new locations and re-exported here.
+This module provides the public API for the orchestrator, including:
+- Container management (deployment, monitoring, lifecycle)
+- Event bus integration (Service Bus)
+- Scenario selection
+- Service principal management
 
-New Module Structure:
-- orchestrator_app.py: Shared FunctionApp instance
-- timer_trigger.py: Timer trigger function
-- workflow_orchestrator.py: Main orchestration function
-- activities/: Activity functions organized by phase
-  - validation.py: Environment validation
-  - selection.py: Scenario selection
-  - provisioning.py: SP and container deployment
-  - monitoring.py: Agent status monitoring
-  - cleanup.py: Cleanup verification and forced cleanup
-  - reporting.py: Report generation
+Architecture:
+The orchestrator runs as a FastAPI application on Azure Container Apps (128GB RAM).
+Scheduling is handled via KEDA CRON triggers (4x daily).
+See orchestrator_server.py for the main FastAPI application.
 
-Design Pattern: Facade Pattern
-- Maintains existing import paths
-- Enables gradual migration
-- All existing code continues to work
+Module Structure:
+- container_manager.py: Container App deployment and management
+- container_deployer.py: Container deployment logic
+- container_monitor.py: Container status monitoring
+- container_lifecycle.py: Container cleanup/deletion
+- event_bus.py: Azure Service Bus integration
+- scenario_selector.py: Scenario selection from docs/scenarios/
+- sp_manager.py: Service principal lifecycle management
+- image_verifier.py: Container image signature verification
 """
 
-# Conditional imports to avoid azure-functions-durable dependency in test environment
-# When running tests, the durable functions decorators cause import errors if the
-# azure-functions-durable package is not installed. This try-except allows tests
-# to import other orchestrator modules without requiring the full Azure Functions stack.
-try:
-    # Import all functions from monolithic function_app.py (Issue #28 fix)
-    # function_app.py is in src/ directory, import it from parent
-    import sys
-    from pathlib import Path
-
-    # Add src directory to path
-    src_dir = Path(__file__).parent.parent.parent
-    if str(src_dir) not in sys.path:
-        sys.path.insert(0, str(src_dir))
-
-    from function_app import (
-        app,
-        check_agent_status_activity,
-        create_service_principal_activity,
-        deploy_container_app_activity,
-        force_cleanup_activity,
-        generate_report_activity,
-        haymaker_timer,
-        orchestrate_haymaker_run,
-        select_scenarios_activity,
-        validate_environment_activity,
-        verify_cleanup_activity,
-    )
-except Exception:
-    # In test environment without azure-functions-durable, create None placeholders
-    # Note: We catch Exception (not just ImportError) because the durable functions
-    # decorators raise Exception when the azure-functions-durable package is missing
-    app = None
-    haymaker_timer = None
-    orchestrate_haymaker_run = None
-    validate_environment_activity = None
-    select_scenarios_activity = None
-    create_service_principal_activity = None
-    deploy_container_app_activity = None
-    check_agent_status_activity = None
-    force_cleanup_activity = None
-    verify_cleanup_activity = None
-    generate_report_activity = None
-
-# Other orchestrator modules (unchanged)
+# Container management modules
 from .container_deployer import ContainerDeployer
 from .container_lifecycle import ContainerLifecycle, delete_container_app
 from .container_manager import (
@@ -99,19 +54,6 @@ from .sp_manager import (
 )
 
 __all__ = [
-    # Orchestrator core
-    "app",
-    "haymaker_timer",
-    "orchestrate_haymaker_run",
-    # Activity functions
-    "validate_environment_activity",
-    "select_scenarios_activity",
-    "create_service_principal_activity",
-    "deploy_container_app_activity",
-    "check_agent_status_activity",
-    "verify_cleanup_activity",
-    "force_cleanup_activity",
-    "generate_report_activity",
     # Event bus
     "EventBusClient",
     "parse_resource_events",
