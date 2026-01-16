@@ -256,3 +256,158 @@ class AnalyticsSummary(BaseModel):
     top_scenarios: list[ScenarioStats] = Field(
         default_factory=list, description="Top 10 scenarios by execution count"
     )
+
+
+# ==============================================================================
+# MULTI-TENANT EXECUTION MODELS (Phase 3)
+# ==============================================================================
+
+
+class MultiTenantFailureMode(str, Enum):
+    """Controls behavior when a tenant execution fails."""
+
+    CONTINUE = "continue"  # Continue with remaining tenants
+    FAIL_FAST = "fail_fast"  # Stop on first failure
+
+
+class MultiTenantExecutionRequest(BaseModel):
+    """Request to execute orchestration across multiple tenants.
+
+    Example:
+        >>> request = MultiTenantExecutionRequest(
+        ...     tenant_ids=["tenant-1", "tenant-2"],
+        ...     scenarios=["compute-01-linux-vm"],
+        ...     max_parallelism=5,
+        ... )
+    """
+
+    tenant_ids: list[str] = Field(
+        ...,
+        description="List of tenant IDs to execute on (must be in registry)",
+        min_length=1,
+    )
+    scenarios: list[str] | None = Field(
+        default=None,
+        description="Specific scenarios to run (None = use default selection)",
+    )
+    scenario_count: int | None = Field(
+        default=None,
+        description="Number of scenarios to select if scenarios not specified",
+        ge=1,
+        le=30,
+    )
+    duration_hours: int = Field(
+        default=8,
+        description="Execution duration in hours per tenant",
+        ge=1,
+        le=24,
+    )
+    max_parallelism: int = Field(
+        default=10,
+        description="Maximum number of tenants to execute in parallel",
+        ge=1,
+        le=50,
+    )
+    failure_mode: MultiTenantFailureMode = Field(
+        default=MultiTenantFailureMode.CONTINUE,
+        description="How to handle tenant execution failures",
+    )
+    skip_validation: bool = Field(
+        default=False,
+        description="Skip environment validation for each tenant",
+    )
+    tags: dict[str, str] = Field(
+        default_factory=dict,
+        description="Optional tags for tracking",
+    )
+
+    class Config:
+        """Pydantic configuration."""
+
+        use_enum_values = True
+        json_schema_extra = {
+            "example": {
+                "tenant_ids": ["tenant-abc-123", "tenant-def-456"],
+                "scenarios": ["compute-01-linux-vm-web-server"],
+                "duration_hours": 8,
+                "max_parallelism": 10,
+                "failure_mode": "continue",
+            }
+        }
+
+
+class TenantExecutionStatusEnum(str, Enum):
+    """State of execution for a single tenant."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
+class TenantExecutionDetail(BaseModel):
+    """Execution status for a single tenant within a multi-tenant execution."""
+
+    tenant_id: str = Field(..., description="Azure tenant ID")
+    tenant_display_name: str | None = Field(
+        default=None, description="Human-readable tenant name"
+    )
+    status: TenantExecutionStatusEnum = Field(
+        default=TenantExecutionStatusEnum.PENDING,
+        description="Current execution state",
+    )
+    execution_id: str | None = Field(
+        default=None, description="Per-tenant execution ID"
+    )
+    started_at: datetime | None = Field(default=None, description="Execution start time")
+    completed_at: datetime | None = Field(default=None, description="Execution end time")
+    error_message: str | None = Field(
+        default=None, description="Error message if execution failed"
+    )
+    scenarios_completed: int = Field(default=0, description="Scenarios completed")
+    scenarios_failed: int = Field(default=0, description="Scenarios that failed")
+
+    class Config:
+        """Pydantic configuration."""
+
+        use_enum_values = True
+
+
+class MultiTenantExecutionResponse(BaseModel):
+    """Response for multi-tenant execution request.
+
+    Example:
+        >>> response = MultiTenantExecutionResponse(
+        ...     meta_execution_id="abc-123",
+        ...     status="running",
+        ...     total_tenants=5,
+        ...     tenant_statuses=[...],
+        ... )
+    """
+
+    meta_execution_id: str = Field(..., description="Unique ID for this meta-execution")
+    status: str = Field(..., description="Overall execution status")
+    started_at: datetime = Field(..., description="Execution start time")
+    completed_at: datetime | None = Field(default=None, description="Execution end time")
+    total_tenants: int = Field(..., description="Total number of tenants")
+    succeeded_count: int = Field(default=0, description="Tenants that succeeded")
+    failed_count: int = Field(default=0, description="Tenants that failed")
+    skipped_count: int = Field(default=0, description="Tenants skipped")
+    tenant_statuses: list[TenantExecutionDetail] = Field(
+        default_factory=list,
+        description="Status for each tenant",
+    )
+    failure_mode: MultiTenantFailureMode = Field(
+        default=MultiTenantFailureMode.CONTINUE,
+        description="Failure mode used",
+    )
+    aborted_early: bool = Field(
+        default=False,
+        description="True if stopped early due to FAIL_FAST",
+    )
+
+    class Config:
+        """Pydantic configuration."""
+
+        use_enum_values = True

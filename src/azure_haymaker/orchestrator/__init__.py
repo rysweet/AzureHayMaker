@@ -51,6 +51,15 @@ from .event_bus import (
     subscribe_to_agent_logs,
 )
 from .image_verifier import ImageVerifier, verify_image_signature
+from .meta_orchestrator import (
+    FailureMode,
+    FanOutController,
+    MetaExecutionRequest,
+    MetaExecutionResult,
+    MetaOrchestrator,
+    TenantExecutionState,
+    TenantExecutionStatus,
+)
 from .orchestrator_app import app
 from .scenario_selector import (
     list_available_scenarios,
@@ -75,6 +84,14 @@ __all__ = [
     "haymaker_timer",
     # Workflow orchestration
     "orchestrate_haymaker_run",
+    # Meta-orchestrator (Phase 3 multi-tenant)
+    "MetaOrchestrator",
+    "MetaExecutionRequest",
+    "MetaExecutionResult",
+    "FanOutController",
+    "FailureMode",
+    "TenantExecutionState",
+    "TenantExecutionStatus",
     # Event bus
     "EventBusClient",
     "parse_resource_events",

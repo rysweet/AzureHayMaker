@@ -29,7 +29,11 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 from azure_haymaker.models.execution import (
     AnalyticsSummary,
     ExecutionCounts,
+    MultiTenantExecutionRequest,
+    MultiTenantExecutionResponse,
     ScenarioStats,
+    TenantExecutionDetail,
+    TenantExecutionStatusEnum,
 )
 from azure_haymaker.models.schedule import (
     Schedule,
@@ -71,6 +75,9 @@ scheduler = AsyncIOScheduler()
 
 # Track running executions
 executions: dict[str, dict[str, Any]] = {}
+
+# Track multi-tenant meta-executions (Phase 3)
+meta_executions: dict[str, MultiTenantExecutionResponse] = {}
 
 # Schedule table client (initialized on startup)
 _schedule_table_client = None
@@ -1111,6 +1118,204 @@ async def delete_schedule(schedule_id: str, _: AuthDep):
 
 
 # ==============================================================================
+# MULTI-TENANT EXECUTION API ENDPOINTS (Phase 3)
+# ==============================================================================
+
+
+@app.post("/api/execute/multi-tenant", response_model=MultiTenantExecutionResponse, status_code=202)
+async def execute_multi_tenant(_: AuthDep, request: MultiTenantExecutionRequest):
+    """Execute orchestration across multiple tenants in parallel.
+
+    This endpoint starts a meta-execution that runs orchestration for each
+    specified tenant. Execution happens in parallel (up to max_parallelism).
+
+    Requires authentication. Tenant IDs must exist in the tenant registry
+    (loaded from Key Vault).
+
+    Args:
+        request: MultiTenantExecutionRequest with tenant IDs and parameters
+
+    Returns:
+        MultiTenantExecutionResponse with meta_execution_id and initial status
+
+    Raises:
+        HTTPException 400: If no valid tenants found
+        HTTPException 500: If execution fails to start
+    """
+    from azure_haymaker.orchestrator.config import load_config_with_tenants
+    from azure_haymaker.orchestrator.meta_orchestrator import (
+        FailureMode,
+        MetaExecutionRequest,
+        MetaOrchestrator,
+    )
+
+    try:
+        # Load config with tenant registry from Key Vault
+        config = await load_config_with_tenants()
+
+        if not config.has_multi_tenant_registry:
+            raise HTTPException(
+                status_code=400,
+                detail="Multi-tenant registry is empty. Configure tenants in Key Vault first."
+            )
+
+        # Convert API request to internal request
+        internal_request = MetaExecutionRequest(
+            tenant_ids=request.tenant_ids,
+            scenarios=request.scenarios,
+            scenario_count=request.scenario_count,
+            duration_hours=request.duration_hours,
+            max_parallelism=request.max_parallelism,
+            failure_mode=FailureMode(request.failure_mode.value),
+            skip_validation=request.skip_validation,
+            tags=request.tags,
+        )
+
+        # Validate tenants before starting (fail fast on bad tenant IDs)
+        valid_tenants, invalid_ids = MetaOrchestrator.validate_tenants(
+            config, request.tenant_ids
+        )
+
+        if not valid_tenants:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No valid tenants found. Invalid/disabled: {invalid_ids}"
+            )
+
+        # Create initial response
+        from datetime import UTC
+        meta_execution_id = str(uuid4())
+        started_at = datetime.now(UTC)
+
+        initial_statuses = [
+            TenantExecutionDetail(
+                tenant_id=t.tenant_id,
+                tenant_display_name=t.display_name,
+                status=TenantExecutionStatusEnum.PENDING,
+            )
+            for t in valid_tenants
+        ]
+
+        # Add skipped status for invalid tenants
+        for invalid_id in invalid_ids:
+            initial_statuses.append(
+                TenantExecutionDetail(
+                    tenant_id=invalid_id,
+                    status=TenantExecutionStatusEnum.SKIPPED,
+                    error_message="Tenant not found or disabled in registry",
+                )
+            )
+
+        response = MultiTenantExecutionResponse(
+            meta_execution_id=meta_execution_id,
+            status="running",
+            started_at=started_at,
+            total_tenants=len(request.tenant_ids),
+            skipped_count=len(invalid_ids),
+            tenant_statuses=initial_statuses,
+            failure_mode=request.failure_mode,
+        )
+
+        # Store in memory for status tracking
+        meta_executions[meta_execution_id] = response
+
+        # Start execution in background
+        async def run_meta_execution():
+            try:
+                result = await MetaOrchestrator.execute(
+                    config=config,
+                    request=internal_request,
+                    run_orchestration_fn=run_orchestration,
+                )
+
+                # Update stored response with final results
+                final_statuses = [
+                    TenantExecutionDetail(
+                        tenant_id=s.tenant_id,
+                        tenant_display_name=s.tenant_display_name,
+                        status=TenantExecutionStatusEnum(s.state.value),
+                        execution_id=s.execution_id,
+                        started_at=s.started_at,
+                        completed_at=s.completed_at,
+                        error_message=s.error_message,
+                        scenarios_completed=s.scenarios_completed,
+                        scenarios_failed=s.scenarios_failed,
+                    )
+                    for s in result.tenant_statuses
+                ]
+
+                meta_executions[meta_execution_id] = MultiTenantExecutionResponse(
+                    meta_execution_id=result.meta_execution_id,
+                    status="completed" if result.all_succeeded else "completed_with_failures",
+                    started_at=result.started_at,
+                    completed_at=result.completed_at,
+                    total_tenants=result.total_tenants,
+                    succeeded_count=result.succeeded_count,
+                    failed_count=result.failed_count,
+                    skipped_count=result.skipped_count,
+                    tenant_statuses=final_statuses,
+                    failure_mode=request.failure_mode,
+                    aborted_early=result.aborted_early,
+                )
+
+            except Exception as e:
+                logger.error(f"Meta-execution {meta_execution_id} failed: {e}", exc_info=True)
+                meta_executions[meta_execution_id].status = "failed"
+
+        asyncio.create_task(run_meta_execution())
+
+        logger.info(
+            f"Started multi-tenant execution {meta_execution_id} "
+            f"for {len(valid_tenants)} tenants"
+        )
+
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to start multi-tenant execution: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to start multi-tenant execution: {str(e)}"
+        ) from e
+
+
+@app.get("/api/executions/{meta_execution_id}/tenants", response_model=MultiTenantExecutionResponse)
+async def get_multi_tenant_execution(meta_execution_id: str, _: AuthDep):
+    """Get status of a multi-tenant execution.
+
+    Returns the current status of all tenant executions within a meta-execution.
+
+    Args:
+        meta_execution_id: The meta-execution ID returned from POST /api/execute/multi-tenant
+
+    Returns:
+        MultiTenantExecutionResponse with current status of all tenants
+
+    Raises:
+        HTTPException 404: If meta_execution_id not found
+    """
+    if meta_execution_id not in meta_executions:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Multi-tenant execution not found: {meta_execution_id}"
+        )
+
+    return meta_executions[meta_execution_id]
+
+
+@app.get("/api/meta-executions", response_model=list[MultiTenantExecutionResponse])
+async def list_multi_tenant_executions(_: AuthDep):
+    """List all multi-tenant executions.
+
+    Returns:
+        List of all meta-executions with their current status
+    """
+    return list(meta_executions.values())
+
+
+# ==============================================================================
 # ORCHESTRATION LOGIC
 # ==============================================================================
 
@@ -1129,6 +1334,7 @@ async def run_orchestration(
     scenario_names: list[str] | None = None,
     scenario_count: int | None = None,
     trace_context: TraceContext | None = None,
+    tenant_config: dict[str, Any] | None = None,
 ):
     """Main orchestration workflow.
 
@@ -1138,6 +1344,8 @@ async def run_orchestration(
         scenario_names: Specific scenarios to run (None = random selection)
         scenario_count: Number of scenarios to select (overrides config)
         trace_context: Optional trace context for distributed tracing
+        tenant_config: Optional per-tenant config for multi-tenant execution.
+                      Keys: tenant_id, subscription_id, credential, resource_group
 
     Phases:
     1. Validation: Verify environment
@@ -1176,27 +1384,53 @@ async def run_orchestration(
         # Load config and log tenant context
         config = await load_config()
 
-        # Log tenant context clearly
+        # Determine target tenant (use tenant_config override if provided)
         import os
         orchestrator_tenant = os.getenv("AZURE_TENANT_ID", "unknown")
-        logger.info(
-            f"[{run_id}] Starting orchestration",
-            extra={
-                "run_id": run_id,
-                "orchestrator_tenant": orchestrator_tenant,
-                "target_tenant": config.target_tenant_id,
-                "target_subscription": config.target_subscription_id,
-                "mode": "cross-tenant" if config.is_cross_tenant else "single-tenant",
-                "simulation_size": config.simulation_size.value
-            }
-        )
 
-        if config.is_cross_tenant:
+        # Multi-tenant mode: use tenant_config to override target
+        if tenant_config:
+            target_tenant = tenant_config.get("tenant_id", config.target_tenant_id)
+            target_subscription = tenant_config.get("subscription_id", config.target_subscription_id)
+            mode = "multi-tenant"
             logger.info(
-                f"[{run_id}] Cross-tenant deployment: "
-                f"orchestrator tenant {orchestrator_tenant[:8]}... -> "
-                f"target tenant {config.target_tenant_id[:8]}..."
+                f"[{run_id}] Multi-tenant execution for tenant {target_tenant[:8]}...",
+                extra={
+                    "run_id": run_id,
+                    "target_tenant": target_tenant,
+                    "target_subscription": target_subscription,
+                    "mode": mode,
+                }
             )
+        else:
+            target_tenant = config.target_tenant_id
+            target_subscription = config.target_subscription_id
+            mode = "cross-tenant" if config.is_cross_tenant else "single-tenant"
+            logger.info(
+                f"[{run_id}] Starting orchestration",
+                extra={
+                    "run_id": run_id,
+                    "orchestrator_tenant": orchestrator_tenant,
+                    "target_tenant": target_tenant,
+                    "target_subscription": target_subscription,
+                    "mode": mode,
+                    "simulation_size": config.simulation_size.value
+                }
+            )
+
+            if config.is_cross_tenant:
+                logger.info(
+                    f"[{run_id}] Cross-tenant deployment: "
+                    f"orchestrator tenant {orchestrator_tenant[:8]}... -> "
+                    f"target tenant {target_tenant[:8]}..."
+                )
+
+        # Store tenant context in execution report for visibility
+        execution_report["tenant_config"] = {
+            "target_tenant": target_tenant,
+            "target_subscription": target_subscription,
+            "mode": mode,
+        }
 
         # ========================================================================
         # PHASE 1: VALIDATION (can be skipped for testing)
