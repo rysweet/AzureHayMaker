@@ -56,6 +56,8 @@ from azure_haymaker.orchestrator.webhooks import (
     notify_execution_failed,
     notify_execution_started,
 )
+from azure_haymaker.tracing import TraceContext, get_tracer, init_tracing
+from azure_haymaker.tracing.instrumentation import add_span_attributes, traced_async
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -358,6 +360,10 @@ async def _load_schedules_on_startup() -> None:
 async def lifespan(app: FastAPI):
     """Application lifespan handler - starts/stops scheduler."""
     logger.info("Starting orchestrator server")
+
+    # Initialize distributed tracing (optional - depends on connection string)
+    init_tracing("azure-haymaker-orchestrator")
+
     scheduler.start()
 
     # Schedule default orchestration runs: 4x daily (00:00, 06:00, 12:00, 18:00 UTC)
@@ -377,6 +383,10 @@ async def lifespan(app: FastAPI):
 
     logger.info("Shutting down orchestrator server")
     scheduler.shutdown()
+
+    # Shutdown tracing to flush any pending spans
+    from azure_haymaker.tracing.core import shutdown_tracing
+    shutdown_tracing()
 
 
 async def _load_schedules_with_timeout():
@@ -497,14 +507,30 @@ async def execute(_: AuthDep, request: dict[str, Any] | None = None):
     skip_validation = request.get("skip_validation", False) if request else False
     logger.info(f"Manual execution triggered: run_id={run_id}, skip_validation={skip_validation}")
 
-    # Start orchestration in background
-    asyncio.create_task(run_orchestration(run_id, skip_validation=skip_validation))
+    # Create trace context for this execution
+    tracer = get_tracer(__name__)
+    with tracer.start_as_current_span(
+        "execute-orchestration",
+        attributes={
+            "haymaker.run_id": run_id,
+            "haymaker.skip_validation": skip_validation,
+        },
+    ) as span:
+        # Create trace context for propagation to containers
+        trace_ctx = TraceContext.create_new(run_id=run_id)
+        add_span_attributes(span, **{"haymaker.trace_id": trace_ctx.trace_id})
 
-    return {
-        "execution_id": run_id,
-        "status": "started",
-        "started_at": datetime.now(UTC).isoformat(),
-    }
+        # Start orchestration in background with trace context
+        asyncio.create_task(
+            run_orchestration(run_id, skip_validation=skip_validation, trace_context=trace_ctx)
+        )
+
+        return {
+            "execution_id": run_id,
+            "status": "started",
+            "started_at": datetime.now(UTC).isoformat(),
+            "trace_id": trace_ctx.trace_id,
+        }
 
 
 @app.post("/api/validate")
@@ -1096,11 +1122,13 @@ async def run_scheduled_orchestration():
     await run_orchestration(run_id)
 
 
+@traced_async("run-orchestration")
 async def run_orchestration(
     run_id: str,
     skip_validation: bool = False,
     scenario_names: list[str] | None = None,
     scenario_count: int | None = None,
+    trace_context: TraceContext | None = None,
 ):
     """Main orchestration workflow.
 
@@ -1109,6 +1137,7 @@ async def run_orchestration(
         skip_validation: Skip environment validation (for testing)
         scenario_names: Specific scenarios to run (None = random selection)
         scenario_count: Number of scenarios to select (overrides config)
+        trace_context: Optional trace context for distributed tracing
 
     Phases:
     1. Validation: Verify environment
@@ -1118,13 +1147,31 @@ async def run_orchestration(
     5. Cleanup: Verify and force cleanup
     6. Reporting: Generate report
     """
+    # Create trace context if not provided (for scheduled runs)
+    if trace_context is None:
+        trace_context = TraceContext.create_new(run_id=run_id)
+
     execution_report = {
         "run_id": run_id,
         "started_at": datetime.now(UTC).isoformat(),
         "status": "running",
         "phases": {},
+        "trace_id": trace_context.trace_id,
     }
     executions[run_id] = execution_report
+
+    # Add trace attributes to current span
+    tracer = get_tracer(__name__)
+    from opentelemetry import trace as otel_trace
+    current_span = otel_trace.get_current_span()
+    if current_span.is_recording():
+        add_span_attributes(
+            current_span,
+            **{
+                "haymaker.run_id": run_id,
+                "haymaker.trace_id": trace_context.trace_id,
+            }
+        )
 
     try:
         # Load config and log tenant context
