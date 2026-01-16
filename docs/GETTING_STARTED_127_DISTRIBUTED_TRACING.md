@@ -47,7 +47,7 @@ uv sync
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.exporter.azure.monitor import AzureMonitorTraceExporter
+from azure.monitor.opentelemetry.exporter import AzureMonitorTraceExporter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 # Configure tracer
