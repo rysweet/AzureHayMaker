@@ -34,19 +34,7 @@ Module Structure:
 - image_verifier.py: Container image signature verification
 """
 
-# Azure Functions app instance (shared across all modules)
-from .orchestrator_app import app
-
-# Timer trigger function
-from .timer_trigger import haymaker_timer
-
-# Workflow orchestration function
-from .workflow_orchestrator import orchestrate_haymaker_run
-
-# Import activities module to register all activity functions
 from . import activities  # noqa: F401
-
-# Container management modules
 from .container_deployer import ContainerDeployer
 from .container_lifecycle import ContainerLifecycle, delete_container_app
 from .container_manager import (
@@ -63,6 +51,7 @@ from .event_bus import (
     subscribe_to_agent_logs,
 )
 from .image_verifier import ImageVerifier, verify_image_signature
+from .orchestrator_app import app
 from .scenario_selector import (
     list_available_scenarios,
     parse_scenario_metadata,
@@ -76,6 +65,8 @@ from .sp_manager import (
     list_haymaker_service_principals,
     verify_sp_deleted,
 )
+from .timer_trigger import haymaker_timer
+from .workflow_orchestrator import orchestrate_haymaker_run
 
 __all__ = [
     # Azure Functions app instance
