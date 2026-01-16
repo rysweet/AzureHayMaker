@@ -20,6 +20,138 @@ Architecture and implementation details for the orchestrator service.
 
 ## Overview
 
+The orchestrator service is the central coordination layer for Azure HayMaker, built on **Azure Durable Functions** for reliable, scalable workflow orchestration. It manages the complete lifecycle of chaos engineering scenarios: from scheduled triggering through scenario selection, provisioning, monitoring, cleanup, and reporting.
+
+## Azure Durable Functions Architecture
+
+The orchestrator runs as Azure Durable Functions with a modular architecture designed for maintainability and testability.
+
+### Module Structure
+
+```
+src/azure_haymaker/orchestrator/
+├── __init__.py                # Public API exports
+├── orchestrator_app.py        # Shared FunctionApp instance
+├── timer_trigger.py           # Timer trigger (scheduled execution)
+├── workflow_orchestrator.py   # Main durable orchestration function
+├── activities/                # Activity functions organized by phase
+│   ├── __init__.py
+│   ├── validation.py          # Environment validation
+│   ├── selection.py           # Scenario selection
+│   ├── provisioning.py        # SP creation and container deployment
+│   ├── monitoring.py          # Agent status monitoring
+│   ├── cleanup.py             # Cleanup verification and forced cleanup
+│   └── reporting.py           # Report generation
+├── container_manager.py       # Container App deployment and management
+├── container_deployer.py      # Container deployment logic
+├── container_monitor.py       # Container status monitoring
+├── container_lifecycle.py     # Container cleanup/deletion
+├── event_bus.py               # Azure Service Bus integration
+├── scenario_selector.py       # Scenario selection from docs/scenarios/
+├── sp_manager.py              # Service principal lifecycle management
+└── image_verifier.py          # Container image signature verification
+```
+
+### Timer Trigger
+
+**File**: `timer_trigger.py`
+
+The timer trigger initiates HayMaker runs on a scheduled basis.
+
+```python
+from azure_haymaker.orchestrator import haymaker_timer
+```
+
+**Schedule**: Runs 4x daily at 00:00, 06:00, 12:00, and 18:00 UTC
+
+**Behavior**:
+- Triggers the durable orchestration workflow
+- Passes configuration from environment variables
+- Logs trigger events for monitoring
+
+### Workflow Orchestrator
+
+**File**: `workflow_orchestrator.py`
+
+The main durable orchestration function that coordinates the 7-phase workflow.
+
+```python
+from azure_haymaker.orchestrator import orchestrate_haymaker_run
+```
+
+**7-Phase Workflow**:
+
+1. **Validation Phase**: Verify environment, credentials, and prerequisites
+2. **Selection Phase**: Select scenarios based on simulation size
+3. **Provisioning Phase**: Create service principals and deploy container apps
+4. **Monitoring Phase**: Monitor agent execution and collect logs
+5. **Cleanup Phase**: Verify resource cleanup, force delete if needed
+6. **Reporting Phase**: Generate execution reports
+7. **Completion Phase**: Final status update and notifications
+
+**Key Features**:
+- Fault-tolerant: Automatic retry on transient failures
+- Checkpointing: Resume from last successful phase after failures
+- Parallel execution: Multiple scenarios run concurrently
+- Event-driven: Publishes events to Service Bus for observability
+
+### Activity Functions
+
+Activity functions implement the actual work for each workflow phase. They are organized in the `activities/` directory.
+
+#### Validation Activity (`activities/validation.py`)
+- Validates Azure credentials
+- Checks subscription access
+- Verifies required permissions
+- Validates Key Vault connectivity
+
+#### Selection Activity (`activities/selection.py`)
+- Lists available scenarios from `docs/scenarios/`
+- Randomly selects scenarios based on simulation size
+- Returns scenario metadata for provisioning
+
+#### Provisioning Activity (`activities/provisioning.py`)
+- Creates ephemeral service principals
+- Stores credentials in Key Vault
+- Deploys container apps with VNet integration
+- Assigns RBAC roles
+
+#### Monitoring Activity (`activities/monitoring.py`)
+- Polls container app status
+- Collects agent logs via Service Bus
+- Tracks resource creation events
+- Detects completion or failure states
+
+#### Cleanup Activity (`activities/cleanup.py`)
+- Queries managed resources via Resource Graph
+- Verifies cleanup completion
+- Force deletes remaining resources
+- Cleans up service principals
+
+#### Reporting Activity (`activities/reporting.py`)
+- Generates execution reports
+- Uploads to Blob Storage
+- Sends notifications on completion
+
+### Shared FunctionApp Instance
+
+**File**: `orchestrator_app.py`
+
+All Azure Functions share a single `FunctionApp` instance for consistent configuration.
+
+```python
+from azure_haymaker.orchestrator import app
+
+# The app instance is used to register all functions
+@app.timer_trigger(...)
+async def haymaker_timer(timer: func.TimerRequest):
+    ...
+```
+
+---
+
+## Cleanup Module
+
 The cleanup module handles post-scenario cleanup and resource verification for the Azure HayMaker orchestration service. It provides:
 
 1. **Query managed resources** - Find all AzureHayMaker-managed resources via Azure Resource Graph
