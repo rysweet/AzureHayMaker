@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
+    "click>=8.1.0",
     "anthropic>=0.40.0",
     "azure-functions>=1.20.0",
     "azure-functions-durable>=1.2.0",
@@ -55,6 +56,9 @@ dev = [
     "pre-commit>=4.0.0",
     "azure-functions-durable>=1.2.0",
 ]
+
+[project.scripts]
+haymaker = "azure_haymaker.cli:cli"
 
 [build-system]
 requires = ["hatchling"]
