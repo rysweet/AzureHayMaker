@@ -7,7 +7,7 @@ Tests cover:
 - Threshold detection
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -18,7 +18,6 @@ from azure_haymaker.orchestrator.repositories.failure_tracking_repository import
     ScenarioExecutionRecord,
     ScenarioMetrics,
 )
-
 
 # =============================================================================
 # Schedule Model Health Extension Tests

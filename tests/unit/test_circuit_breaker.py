@@ -9,10 +9,8 @@ Tests cover:
 - Registry operations
 """
 
-import asyncio
 import threading
 import time
-from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -20,11 +18,9 @@ from azure_haymaker.exceptions import CircuitOpenError
 from azure_haymaker.orchestrator.circuit_breaker import (
     AgentCircuitBreaker,
     CircuitBreakerConfig,
-    CircuitBreakerMetrics,
     CircuitBreakerRegistry,
     CircuitState,
 )
-
 
 # =============================================================================
 # CircuitState Tests
@@ -134,6 +130,7 @@ class TestStateTransitions:
     @pytest.mark.asyncio
     async def test_closed_to_open_on_failures(self, breaker):
         """Circuit should open after reaching failure threshold."""
+
         # Create a failing function
         async def failing_func():
             raise ValueError("Test failure")
@@ -237,6 +234,7 @@ class TestSuccessFailureRecording:
     @pytest.mark.asyncio
     async def test_success_increments_metrics(self, breaker):
         """Successful calls should increment success metrics."""
+
         async def success_func():
             return "result"
 
@@ -250,6 +248,7 @@ class TestSuccessFailureRecording:
     @pytest.mark.asyncio
     async def test_failure_increments_metrics(self, breaker):
         """Failed calls should increment failure metrics."""
+
         async def failing_func():
             raise ValueError("Test")
 
@@ -265,6 +264,7 @@ class TestSuccessFailureRecording:
     @pytest.mark.asyncio
     async def test_success_resets_failure_count(self, breaker):
         """Success should reset consecutive failure count."""
+
         async def failing_func():
             raise ValueError("Test")
 

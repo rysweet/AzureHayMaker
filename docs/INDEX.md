@@ -36,6 +36,12 @@ Detailed implementation guides and specifications.
 - [Implementation Spec](implementation/IMPLEMENTATION_SPEC.md) - Technical specifications
 - [Design Decisions](design/DESIGN_DECISIONS.md) - Key architectural decisions
 
+### Multi-Tenant Support
+
+- [Tenant Resource Isolation](TENANT_RESOURCE_ISOLATION.md) - Per-tenant resource tagging and cost tracking
+- [Cost Management](COST_MANAGEMENT.md) - Budget enforcement and cleanup
+- [Getting Started: Multi-Tenant (#126)](GETTING_STARTED_126_MULTI_TENANT.md) - Full multi-tenant setup guide
+
 ## 🚀 Deployment & Operations
 
 Guides for deploying and operating Azure HayMaker.

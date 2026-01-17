@@ -26,6 +26,7 @@ try:
         AllEndpointsFailedError,
         EndpointManager,
     )
+
     from azure_haymaker.knowledge_worker.models.worker import (
         EndpointType,
         WorkerIdentity,

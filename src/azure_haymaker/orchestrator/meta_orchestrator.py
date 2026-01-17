@@ -65,9 +65,7 @@ class TenantExecutionStatus(BaseModel):
     """Execution status for a single tenant within a meta-execution."""
 
     tenant_id: str = Field(..., description="Azure tenant ID")
-    tenant_display_name: str | None = Field(
-        default=None, description="Human-readable tenant name"
-    )
+    tenant_display_name: str | None = Field(default=None, description="Human-readable tenant name")
     state: TenantExecutionState = Field(
         default=TenantExecutionState.PENDING, description="Current execution state"
     )
@@ -76,9 +74,7 @@ class TenantExecutionStatus(BaseModel):
     )
     started_at: datetime | None = Field(default=None, description="Execution start time")
     completed_at: datetime | None = Field(default=None, description="Execution end time")
-    error_message: str | None = Field(
-        default=None, description="Error message if execution failed"
-    )
+    error_message: str | None = Field(default=None, description="Error message if execution failed")
     scenarios_completed: int = Field(default=0, description="Number of scenarios completed")
     scenarios_failed: int = Field(default=0, description="Number of scenarios that failed")
 
@@ -328,9 +324,7 @@ class FanOutController:
             run_id = str(uuid4())
             status.execution_id = run_id
 
-            logger.info(
-                f"Starting execution for tenant {tenant.display}: run_id={run_id}"
-            )
+            logger.info(f"Starting execution for tenant {tenant.display}: run_id={run_id}")
 
             try:
                 # Get credential for this tenant
@@ -355,9 +349,7 @@ class FanOutController:
 
                 status.state = TenantExecutionState.COMPLETED
                 status.completed_at = datetime.now(UTC)
-                logger.info(
-                    f"Completed execution for tenant {tenant.display}: run_id={run_id}"
-                )
+                logger.info(f"Completed execution for tenant {tenant.display}: run_id={run_id}")
 
             except Exception as e:
                 status.state = TenantExecutionState.FAILED
@@ -369,15 +361,10 @@ class FanOutController:
                 )
 
                 # Signal abort if FAIL_FAST mode
-                if (
-                    request.failure_mode == FailureMode.FAIL_FAST
-                    and not self._abort_event.is_set()
-                ):
+                if request.failure_mode == FailureMode.FAIL_FAST and not self._abort_event.is_set():
                     self._first_failure = e
                     self._abort_event.set()
-                    logger.warning(
-                        "FAIL_FAST: Aborting remaining tenant executions"
-                    )
+                    logger.warning("FAIL_FAST: Aborting remaining tenant executions")
 
             return status
 
@@ -429,9 +416,7 @@ class MetaOrchestrator:
                 # Check if tenant exists but is disabled
                 if tenant_id in config.tenants:
                     disabled_tenant = config.tenants[tenant_id]
-                    logger.warning(
-                        f"Tenant {disabled_tenant.display} is disabled, skipping"
-                    )
+                    logger.warning(f"Tenant {disabled_tenant.display} is disabled, skipping")
                 invalid_ids.append(tenant_id)
 
         return valid_tenants, invalid_ids
@@ -484,9 +469,7 @@ class MetaOrchestrator:
         valid_tenants, invalid_ids = cls.validate_tenants(config, request.tenant_ids)
 
         if not valid_tenants:
-            raise ValueError(
-                f"No valid tenants found. Invalid/disabled tenant IDs: {invalid_ids}"
-            )
+            raise ValueError(f"No valid tenants found. Invalid/disabled tenant IDs: {invalid_ids}")
 
         if invalid_ids:
             logger.warning(
@@ -497,6 +480,7 @@ class MetaOrchestrator:
         if run_orchestration_fn is None:
             # Late import to avoid circular dependency
             from orchestrator_server import run_orchestration
+
             run_orchestration_fn = run_orchestration
 
         # Create FanOutController and execute

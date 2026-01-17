@@ -29,7 +29,6 @@ from azure_haymaker.orchestrator.meta_orchestrator import (
     TenantExecutionStatus,
 )
 
-
 # =============================================================================
 # Fixtures
 # =============================================================================
@@ -88,6 +87,7 @@ def basic_request():
 @pytest.fixture
 def mock_run_orchestration():
     """Create a mock run_orchestration function."""
+
     async def _run_orchestration(**kwargs):
         # Simulate successful execution
         await asyncio.sleep(0.01)  # Small delay to simulate work

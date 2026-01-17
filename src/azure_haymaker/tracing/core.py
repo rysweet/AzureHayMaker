@@ -86,8 +86,7 @@ def init_tracing(
             )
         except ImportError:
             logger.warning(
-                "azure-monitor-opentelemetry-exporter not installed, "
-                "Azure export disabled"
+                "azure-monitor-opentelemetry-exporter not installed, Azure export disabled"
             )
         except Exception as e:
             logger.warning(f"Failed to initialize Azure Monitor exporter: {e}")

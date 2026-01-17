@@ -452,14 +452,10 @@ class CircuitBreakerRegistry:
                     "total": len(self._breakers),
                     "open": len(self.get_open_circuits()),
                     "closed": sum(
-                        1
-                        for b in self._breakers.values()
-                        if b.state == CircuitState.CLOSED
+                        1 for b in self._breakers.values() if b.state == CircuitState.CLOSED
                     ),
                     "half_open": sum(
-                        1
-                        for b in self._breakers.values()
-                        if b.state == CircuitState.HALF_OPEN
+                        1 for b in self._breakers.values() if b.state == CircuitState.HALF_OPEN
                     ),
                 },
             }

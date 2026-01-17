@@ -7,7 +7,7 @@ Tests the distributed tracing functionality including:
 """
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -228,6 +228,7 @@ class TestTracingDecorators:
 
         with patch.dict(os.environ, {"APPLICATIONINSIGHTS_CONNECTION_STRING": ""}, clear=False):
             from azure_haymaker.tracing.core import init_tracing
+
             init_tracing("test-service")
 
     def test_traced_decorator(self):
@@ -291,6 +292,7 @@ class TestInstrumentationHelpers:
 
         with patch.dict(os.environ, {"APPLICATIONINSIGHTS_CONNECTION_STRING": ""}, clear=False):
             from azure_haymaker.tracing.core import init_tracing
+
             init_tracing("test-service")
 
     def test_add_span_attributes(self):

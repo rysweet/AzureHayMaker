@@ -232,7 +232,16 @@ def delete_resource(
     elif resource.resource_type == ResourceType.FUNCTION_APP:
         cmd = ["functionapp", "delete", "--name", resource.name, "-g", resource_group, "--yes"]
     elif resource.resource_type == ResourceType.STORAGE_ACCOUNT:
-        cmd = ["storage", "account", "delete", "--name", resource.name, "-g", resource_group, "--yes"]
+        cmd = [
+            "storage",
+            "account",
+            "delete",
+            "--name",
+            resource.name,
+            "-g",
+            resource_group,
+            "--yes",
+        ]
     else:
         logger.warning(f"Unknown resource type: {resource.resource_type}")
         return False
@@ -360,7 +369,9 @@ def print_status(resource_group: str, keep_pattern: str) -> None:
     print(f"Current Monthly Cost:    ${total_cost:.2f}")
     print(f"Potential Savings:       ${total_savings_potential:.2f}")
     print(f"Cost After Cleanup:      ${total_cost - total_savings_potential:.2f}")
-    print(f"Savings Percentage:      {(total_savings_potential/total_cost*100) if total_cost > 0 else 0:.1f}%")
+    print(
+        f"Savings Percentage:      {(total_savings_potential / total_cost * 100) if total_cost > 0 else 0:.1f}%"
+    )
     print("=" * 60)
 
 

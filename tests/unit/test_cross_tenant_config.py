@@ -210,7 +210,9 @@ def test_get_tenant_credential_raises_on_missing_client_id():
         )
 
         # Mock is_cross_tenant to stay True even though we'll clear credentials
-        with patch.object(type(config), "is_cross_tenant", new_callable=lambda: property(lambda self: True)):
+        with patch.object(
+            type(config), "is_cross_tenant", new_callable=lambda: property(lambda self: True)
+        ):
             # Manually set to None to simulate missing credentials
             config.target_tenant_sp_client_id = None
 
@@ -229,7 +231,9 @@ def test_get_tenant_credential_raises_on_missing_secret():
         )
 
         # Mock is_cross_tenant to stay True even though we'll clear credentials
-        with patch.object(type(config), "is_cross_tenant", new_callable=lambda: property(lambda self: True)):
+        with patch.object(
+            type(config), "is_cross_tenant", new_callable=lambda: property(lambda self: True)
+        ):
             # Manually set to None to simulate missing credentials
             config.target_tenant_sp_client_secret = None
 

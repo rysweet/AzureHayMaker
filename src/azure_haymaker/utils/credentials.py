@@ -177,13 +177,11 @@ class MultiTenantCredentialFactory:
 
         with cls._lock:
             if tenant_id not in cls._credentials or force_refresh:
-                logger.debug(
-                    f"Creating new ClientSecretCredential for tenant {tenant_id[:8]}..."
-                )
+                logger.debug(f"Creating new ClientSecretCredential for tenant {tenant_id[:8]}...")
                 cls._credentials[tenant_id] = ClientSecretCredential(
                     tenant_id=tenant_config.tenant_id,
                     client_id=tenant_config.sp_client_id,
-                    client_secret=tenant_config.sp_client_secret.get_secret_value()
+                    client_secret=tenant_config.sp_client_secret.get_secret_value(),
                 )
             return cls._credentials[tenant_id]
 
@@ -258,8 +256,7 @@ def get_async_credential(
 
 
 def get_tenant_credential(
-    config: "OrchestratorConfig",
-    tenant_id: str | None = None
+    config: "OrchestratorConfig", tenant_id: str | None = None
 ) -> DefaultAzureCredential | ClientSecretCredential:
     """Get credential for target tenant operations (multi-tenant aware).
 
@@ -293,9 +290,7 @@ def get_tenant_credential(
     if tenant_id:
         tenant_config = config.get_tenant_config(tenant_id)
         if tenant_config:
-            logger.debug(
-                f"Using multi-tenant registry credential for {tenant_config.display}"
-            )
+            logger.debug(f"Using multi-tenant registry credential for {tenant_config.display}")
             return MultiTenantCredentialFactory.get_credential_for_tenant(tenant_config)
         else:
             # Check if tenant exists but is disabled
@@ -306,8 +301,7 @@ def get_tenant_credential(
                 )
             # Tenant not in registry - fall through to Phase 1 logic
             logger.debug(
-                f"Tenant {tenant_id[:8]}... not found in registry, "
-                "falling back to Phase 1 logic"
+                f"Tenant {tenant_id[:8]}... not found in registry, falling back to Phase 1 logic"
             )
 
     # Phase 1: Cross-tenant mode with explicit credentials
@@ -326,13 +320,11 @@ def get_tenant_credential(
             )
 
         # Return explicit credential for target tenant
-        logger.debug(
-            f"Using cross-tenant credential for tenant {config.target_tenant_id[:8]}..."
-        )
+        logger.debug(f"Using cross-tenant credential for tenant {config.target_tenant_id[:8]}...")
         return ClientSecretCredential(
             tenant_id=config.target_tenant_id,
             client_id=config.target_tenant_sp_client_id,
-            client_secret=config.target_tenant_sp_client_secret.get_secret_value()
+            client_secret=config.target_tenant_sp_client_secret.get_secret_value(),
         )
 
     # Single-tenant mode: Use existing cached credential

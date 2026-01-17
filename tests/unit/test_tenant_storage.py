@@ -12,7 +12,7 @@ Testing Strategy:
 - Mock BlobServiceClient for async operations
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -21,7 +21,6 @@ from azure_haymaker.storage.tenant_storage import (
     TenantStorageManager,
     get_tenant_blob_path,
 )
-
 
 # =============================================================================
 # get_tenant_blob_path Tests

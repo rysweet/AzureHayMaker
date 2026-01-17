@@ -200,7 +200,9 @@ async def test_container_deployment_uses_target_tenant_credential(
     # Mock Container Apps API client
     mock_env_client = MagicMock()
     mock_env = MagicMock()
-    mock_env.id = "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.App/managedEnvironments/env"
+    mock_env.id = (
+        "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.App/managedEnvironments/env"
+    )
     mock_env.name = "haymaker-fastapi-cae"
     mock_env.provisioning_state = "Succeeded"
     mock_env.location = "eastus"
@@ -212,9 +214,7 @@ async def test_container_deployment_uses_target_tenant_credential(
     )
 
     # Mock subprocess for Azure CLI
-    mock_subprocess = mocker.patch(
-        "azure_haymaker.orchestrator.container_deployer.subprocess.run"
-    )
+    mock_subprocess = mocker.patch("azure_haymaker.orchestrator.container_deployer.subprocess.run")
     mock_result = MagicMock()
     mock_result.returncode = 0
     mock_result.stdout = "test-app.internal.azurecontainerapps.io"
@@ -230,9 +230,7 @@ async def test_container_deployment_uses_target_tenant_credential(
         mock_get_tenant_cred.assert_called_with(cross_tenant_config)
 
         # Verify az login called with target tenant
-        assert any(
-            "target-tenant-id" in str(call) for call in mock_subprocess.call_args_list
-        )
+        assert any("target-tenant-id" in str(call) for call in mock_subprocess.call_args_list)
     except Exception:
         # Test validates credential selection even if deployment fails
         mock_get_tenant_cred.assert_called_with(cross_tenant_config)
@@ -277,7 +275,7 @@ async def test_execution_tracker_tenant_filtering(mocker):
             "Tags": "{}",
             "CreatedAt": "2024-01-01T00:00:00Z",
             "ResourcesCreated": 5,
-            "ContainerIds": '[]',
+            "ContainerIds": "[]",
         }
     ]
 
@@ -285,9 +283,7 @@ async def test_execution_tracker_tenant_filtering(mocker):
         for item in items:
             yield item
 
-    mock_table_client.query_entities = MagicMock(
-        return_value=async_iter(mock_entities)
-    )
+    mock_table_client.query_entities = MagicMock(return_value=async_iter(mock_entities))
 
     tracker = ExecutionTracker(mock_table_client)
 
@@ -305,9 +301,7 @@ async def test_execution_tracker_tenant_filtering(mocker):
 async def test_single_tenant_uses_default_credential(single_tenant_config, mocker):
     """Test single-tenant mode uses DefaultAzureCredential."""
     mock_get_cred = mocker.patch("azure_haymaker.utils.credentials.get_credential")
-    mock_get_tenant_cred = mocker.patch(
-        "azure_haymaker.utils.credentials.get_tenant_credential"
-    )
+    mock_get_tenant_cred = mocker.patch("azure_haymaker.utils.credentials.get_tenant_credential")
     mock_default_cred = MagicMock()
     mock_get_cred.return_value = mock_default_cred
 
@@ -326,21 +320,15 @@ async def test_cross_tenant_azure_cli_login(cross_tenant_config, mocker):
     """Test Azure CLI login uses target tenant credentials in cross-tenant mode."""
     from azure_haymaker.orchestrator.container_deployer import ContainerDeployer
 
-    mock_subprocess = mocker.patch(
-        "azure_haymaker.orchestrator.container_deployer.subprocess.run"
-    )
+    mock_subprocess = mocker.patch("azure_haymaker.orchestrator.container_deployer.subprocess.run")
     mock_result = MagicMock()
     mock_result.returncode = 0
     mock_result.stdout = ""
     mock_result.stderr = ""
     mock_subprocess.return_value = mock_result
 
-    mocker.patch(
-        "azure_haymaker.orchestrator.container_deployer.get_tenant_credential"
-    )
-    mocker.patch(
-        "azure_haymaker.orchestrator.container_deployer.ContainerAppsAPIClient"
-    )
+    mocker.patch("azure_haymaker.orchestrator.container_deployer.get_tenant_credential")
+    mocker.patch("azure_haymaker.orchestrator.container_deployer.ContainerAppsAPIClient")
     mocker.patch("asyncio.to_thread", new=AsyncMock())
 
     deployer = ContainerDeployer(cross_tenant_config)
@@ -356,9 +344,7 @@ async def test_cross_tenant_azure_cli_login(cross_tenant_config, mocker):
         pass  # Deployment may fail, we're testing credential usage
 
     # Verify az login was called with target tenant
-    login_calls = [
-        call for call in mock_subprocess.call_args_list if "az login" in str(call)
-    ]
+    login_calls = [call for call in mock_subprocess.call_args_list if "az login" in str(call)]
     assert len(login_calls) > 0
     login_call_str = str(login_calls[0])
     assert "target-tenant-id" in login_call_str

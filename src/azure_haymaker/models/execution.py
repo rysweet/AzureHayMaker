@@ -350,21 +350,15 @@ class TenantExecutionDetail(BaseModel):
     """Execution status for a single tenant within a multi-tenant execution."""
 
     tenant_id: str = Field(..., description="Azure tenant ID")
-    tenant_display_name: str | None = Field(
-        default=None, description="Human-readable tenant name"
-    )
+    tenant_display_name: str | None = Field(default=None, description="Human-readable tenant name")
     status: TenantExecutionStatusEnum = Field(
         default=TenantExecutionStatusEnum.PENDING,
         description="Current execution state",
     )
-    execution_id: str | None = Field(
-        default=None, description="Per-tenant execution ID"
-    )
+    execution_id: str | None = Field(default=None, description="Per-tenant execution ID")
     started_at: datetime | None = Field(default=None, description="Execution start time")
     completed_at: datetime | None = Field(default=None, description="Execution end time")
-    error_message: str | None = Field(
-        default=None, description="Error message if execution failed"
-    )
+    error_message: str | None = Field(default=None, description="Error message if execution failed")
     scenarios_completed: int = Field(default=0, description="Scenarios completed")
     scenarios_failed: int = Field(default=0, description="Scenarios that failed")
 

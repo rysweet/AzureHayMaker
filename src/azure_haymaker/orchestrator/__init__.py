@@ -47,6 +47,7 @@ from .container_manager import (
     deploy_container_app,
 )
 from .container_monitor import ContainerMonitor, get_container_status
+from .cost_query import TenantCostSummary, get_tenant_cost_summary
 from .event_bus import (
     EventBusClient,
     parse_resource_events,
@@ -64,6 +65,13 @@ from .meta_orchestrator import (
     TenantExecutionStatus,
 )
 from .orchestrator_app import app
+from .resource_tagging import (
+    MAX_TAG_VALUE_LENGTH,
+    REQUIRED_TAGS,
+    generate_resource_tags,
+    sanitize_tag_value,
+    validate_tags,
+)
 from .scenario_selector import (
     list_available_scenarios,
     parse_scenario_metadata,
@@ -122,12 +130,13 @@ __all__ = [
     "ContainerMonitor",
     "ContainerLifecycle",
     "ImageVerifier",
-    # Meta-orchestrator (Phase 3)
-    "FailureMode",
-    "FanOutController",
-    "MetaExecutionRequest",
-    "MetaExecutionResult",
-    "MetaOrchestrator",
-    "TenantExecutionState",
-    "TenantExecutionStatus",
+    # Resource tagging (Issue #126 Phase 1)
+    "generate_resource_tags",
+    "validate_tags",
+    "sanitize_tag_value",
+    "REQUIRED_TAGS",
+    "MAX_TAG_VALUE_LENGTH",
+    # Tenant cost query (Issue #126 Phase 1)
+    "TenantCostSummary",
+    "get_tenant_cost_summary",
 ]

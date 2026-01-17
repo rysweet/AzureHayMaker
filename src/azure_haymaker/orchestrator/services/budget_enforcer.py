@@ -303,9 +303,7 @@ class BudgetEnforcer:
 
         # Build scope
         if self.resource_group:
-            scope = (
-                f"/subscriptions/{self.subscription_id}/" f"resourceGroups/{self.resource_group}"
-            )
+            scope = f"/subscriptions/{self.subscription_id}/resourceGroups/{self.resource_group}"
         else:
             scope = f"/subscriptions/{self.subscription_id}"
 
@@ -392,7 +390,7 @@ class BudgetEnforcer:
                 )
             elif projected / limit >= self.config.warn_threshold:
                 warnings.append(
-                    f"{period.value}: ${projected:.2f} is {projected/limit*100:.0f}% of ${limit:.2f}"
+                    f"{period.value}: ${projected:.2f} is {projected / limit * 100:.0f}% of ${limit:.2f}"
                 )
 
         # Determine action
@@ -513,11 +511,11 @@ class BudgetEnforcer:
             elif ratio >= self.config.alert_threshold:
                 if status not in ("exceeded",):
                     status = "alert"
-                messages.append(f"{period.title()} at {ratio*100:.0f}% of budget")
+                messages.append(f"{period.title()} at {ratio * 100:.0f}% of budget")
             elif ratio >= self.config.warn_threshold:
                 if status not in ("exceeded", "alert"):
                     status = "warning"
-                messages.append(f"{period.title()} at {ratio*100:.0f}% of budget")
+                messages.append(f"{period.title()} at {ratio * 100:.0f}% of budget")
 
         message = "; ".join(messages) if messages else "All budgets within limits"
 
