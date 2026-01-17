@@ -18,10 +18,21 @@ import time
 from unittest.mock import patch
 
 import pytest
-from fastapi import HTTPException
-from fastapi.security import HTTPAuthorizationCredentials
 
-from azure_haymaker.orchestrator.auth import (
+# FastAPI may not be installed in all environments
+try:
+    from fastapi import HTTPException
+    from fastapi.security import HTTPAuthorizationCredentials
+
+    FASTAPI_AVAILABLE = True
+except ImportError:
+    FASTAPI_AVAILABLE = False
+    HTTPException = None  # type: ignore
+    HTTPAuthorizationCredentials = None  # type: ignore
+
+pytestmark = pytest.mark.skipif(not FASTAPI_AVAILABLE, reason="fastapi not installed")
+
+from azure_haymaker.orchestrator.auth import (  # noqa: E402
     _jwks_cache,
     _tenant_metadata_cache,
     get_auth_config,
