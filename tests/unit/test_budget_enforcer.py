@@ -298,15 +298,19 @@ class TestBudgetEnforcerCostQuery:
         """Test successful cost query."""
         enforcer = BudgetEnforcer(subscription_id="test-sub")
 
-        mock_result = MagicMock()
-        mock_result.rows = [[100.0]]
-
-        with patch.object(enforcer, "_get_cost_client") as mock_client:
-            mock_client.return_value.query.usage = MagicMock(return_value=mock_result)
-
+        # Mock _query_cost_for_period directly since asyncio.to_thread
+        # doesn't work well with deep mock chains
+        with patch.object(
+            enforcer,
+            "_query_cost_for_period",
+            new_callable=AsyncMock,
+            return_value=100.0,
+        ):
             spend = await enforcer.get_current_spend(use_cache=False)
 
-            assert spend.daily > 0 or spend.weekly > 0 or spend.monthly > 0
+            assert spend.daily == 100.0
+            assert spend.weekly == 100.0
+            assert spend.monthly == 100.0
 
     @pytest.mark.asyncio
     async def test_get_current_spend_uses_cache(self):
