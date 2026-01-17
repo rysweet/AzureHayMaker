@@ -8,16 +8,18 @@ and image verification while maintaining backward compatibility.
 import logging
 from typing import Any
 
+from azure_haymaker.exceptions import ContainerError
 from azure_haymaker.models.config import OrchestratorConfig
 from azure_haymaker.models.scenario import ScenarioMetadata
 from azure_haymaker.models.service_principal import ServicePrincipalDetails
 
-# Import specialized classes
-# Import exceptions and functions for re-export
-from .container_deployer import ContainerAppError, ContainerDeployer
+from .container_deployer import ContainerDeployer
 from .container_lifecycle import ContainerLifecycle
 from .container_monitor import ContainerMonitor
 from .image_verifier import ImageSigningError, ImageVerifier, verify_image_signature
+
+# Backward compatibility alias for exception re-export
+ContainerAppError = ContainerError
 
 # Configure logging
 logger = logging.getLogger(__name__)

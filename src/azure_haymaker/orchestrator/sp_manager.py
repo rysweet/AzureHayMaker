@@ -26,6 +26,7 @@ from msgraph.generated.models.service_principal import ServicePrincipal
 from msgraph.graph_service_client import GraphServiceClient
 from pydantic import BaseModel, Field
 
+from azure_haymaker.exceptions import ServicePrincipalError
 from azure_haymaker.utils.credentials import get_credential, get_tenant_credential
 
 logger = logging.getLogger(__name__)
@@ -45,12 +46,6 @@ def sanitize_odata_value(value: str) -> str:
     """
     # Escape single quotes by doubling them (OData standard)
     return value.replace("'", "''")
-
-
-class ServicePrincipalError(Exception):
-    """Raised when service principal operations fail."""
-
-    pass
 
 
 class ServicePrincipalDetails(BaseModel):
@@ -151,8 +146,8 @@ async def create_service_principal(  # pyright: ignore[reportGeneralTypeIssues,r
             extra={
                 "scenario": scenario_name,
                 "target_tenant": config.target_tenant_id[:8] + "...",
-                "mode": "cross-tenant" if config.is_cross_tenant else "single-tenant"
-            }
+                "mode": "cross-tenant" if config.is_cross_tenant else "single-tenant",
+            },
         )
 
         graph_client = GraphServiceClient(credential)

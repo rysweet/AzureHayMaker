@@ -8,6 +8,7 @@ import asyncio
 import logging
 from typing import Any
 
+from azure_haymaker.exceptions import ContainerError
 from azure_haymaker.models.config import OrchestratorConfig
 from azure_haymaker.models.scenario import ScenarioMetadata
 from azure_haymaker.models.service_principal import ServicePrincipalDetails
@@ -15,11 +16,8 @@ from azure_haymaker.models.service_principal import ServicePrincipalDetails
 # Configure logging
 logger = logging.getLogger(__name__)
 
-
-class ContainerAppError(Exception):
-    """Raised when container app operations fail."""
-
-    pass
+# Backward compatibility alias - use ContainerError from central exceptions
+ContainerAppError = ContainerError
 
 
 class ContainerDeployer:
@@ -99,8 +97,8 @@ class ContainerDeployer:
                     "target_tenant": self.config.target_tenant_id[:8] + "...",
                     "target_subscription": self.config.target_subscription_id,
                     "resource_group": self.config.resource_group_name,
-                    "mode": "cross-tenant" if self.config.is_cross_tenant else "single-tenant"
-                }
+                    "mode": "cross-tenant" if self.config.is_cross_tenant else "single-tenant",
+                },
             )
 
             # Build container configuration
@@ -194,7 +192,9 @@ class ContainerDeployer:
 
                 # Set TARGET_TENANT_SP_SECRET in environment for shell expansion
                 login_env = os.environ.copy()
-                login_env["TARGET_TENANT_SP_SECRET"] = self.config.target_tenant_sp_client_secret.get_secret_value()
+                login_env["TARGET_TENANT_SP_SECRET"] = (
+                    self.config.target_tenant_sp_client_secret.get_secret_value()
+                )
             else:
                 # Single-tenant mode: Use orchestrator credentials
                 client_id = os.getenv("AZURE_CLIENT_ID", "")

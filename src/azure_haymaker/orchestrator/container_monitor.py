@@ -10,14 +10,13 @@ import logging
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
 
+from azure_haymaker.exceptions import ContainerError
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
-
-class ContainerAppError(Exception):
-    """Raised when container app operations fail."""
-
-    pass
+# Backward compatibility alias - use ContainerError from central exceptions
+ContainerAppError = ContainerError
 
 
 class ContainerMonitor:

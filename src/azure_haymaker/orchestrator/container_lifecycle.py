@@ -6,17 +6,16 @@ on Azure using the repository pattern for clean abstraction.
 
 import logging
 
+from azure_haymaker.exceptions import ContainerError
+
 from .repositories.base_repository import RepositoryError
 from .repositories.container_repository import ContainerAppRepository
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-
-class ContainerAppError(Exception):
-    """Raised when container app operations fail."""
-
-    pass
+# Backward compatibility alias - use ContainerError from central exceptions
+ContainerAppError = ContainerError
 
 
 class ContainerLifecycle:
