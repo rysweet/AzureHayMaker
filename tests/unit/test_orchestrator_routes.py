@@ -58,14 +58,12 @@ class TestHealthRoutes:
         assert health_router is not None
         assert hasattr(health_router, "routes")
 
-    def test_health_endpoint_returns_healthy_status(self):
+    @pytest.mark.asyncio
+    async def test_health_endpoint_returns_healthy_status(self):
         """Test health endpoint returns expected format."""
-        # Call the endpoint function directly
-        import asyncio
-
         from azure_haymaker.orchestrator.routes.health_routes import health
 
-        result = asyncio.get_event_loop().run_until_complete(health())
+        result = await health()
 
         assert result["status"] == "healthy"
         assert result["service"] == "azure-haymaker-orchestrator"
