@@ -302,9 +302,7 @@ class TestMultiTenantCredentialFactory:
         tenant = _create_tenant_config("tenant-12345678")
 
         cred1 = MultiTenantCredentialFactory.get_credential_for_tenant(tenant)
-        cred2 = MultiTenantCredentialFactory.get_credential_for_tenant(
-            tenant, force_refresh=True
-        )
+        cred2 = MultiTenantCredentialFactory.get_credential_for_tenant(tenant, force_refresh=True)
 
         # Different objects
         assert cred1 is not cred2
@@ -534,9 +532,7 @@ class TestLoadTenantConfigsFromKeyVault:
 
         mock_kv_client.get_secret = mock_get_secret
 
-        result = load_tenant_configs_from_keyvault(
-            mock_kv_client, prefix_filter="prod"
-        )
+        result = load_tenant_configs_from_keyvault(mock_kv_client, prefix_filter="prod")
 
         assert len(result) == 1
         assert "prod-tenant" in result

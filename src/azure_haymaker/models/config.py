@@ -121,11 +121,10 @@ class OrchestratorConfig(BaseModel):
     # Cross-tenant credentials (optional - for deploying to different tenant)
     target_tenant_sp_client_id: str | None = Field(
         default=None,
-        description="Target tenant SP client ID (for cross-tenant deployment, optional)"
+        description="Target tenant SP client ID (for cross-tenant deployment, optional)",
     )
     target_tenant_sp_client_secret: SecretStr | None = Field(
-        default=None,
-        description="Target tenant SP secret (for cross-tenant deployment, optional)"
+        default=None, description="Target tenant SP secret (for cross-tenant deployment, optional)"
     )
 
     # External API keys
@@ -189,7 +188,7 @@ class OrchestratorConfig(BaseModel):
     # Phase 2: Multi-tenant registry (optional - backward compatible)
     tenants: dict[str, TenantConfig] = Field(
         default_factory=dict,
-        description="Registry of configured tenants for multi-tenant deployments"
+        description="Registry of configured tenants for multi-tenant deployments",
     )
 
     @computed_field  # type: ignore[prop-decorator]
@@ -212,8 +211,8 @@ class OrchestratorConfig(BaseModel):
         """
         orchestrator_tenant = os.getenv("AZURE_TENANT_ID", "")
         return (
-            self.target_tenant_id != orchestrator_tenant and
-            self.target_tenant_sp_client_id is not None
+            self.target_tenant_id != orchestrator_tenant
+            and self.target_tenant_sp_client_id is not None
         )
 
     @computed_field  # type: ignore[prop-decorator]

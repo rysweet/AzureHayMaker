@@ -7,21 +7,19 @@ Tests BudgetEnforcer functionality including:
 - Azure Cost Management integration (mocked)
 """
 
-from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from azure_haymaker.orchestrator.services.budget_enforcer import (
+    VM_HOURLY_RATES,
     BudgetConfig,
     BudgetEnforcer,
-    BudgetPeriod,
-    BudgetStatus,
     CostEstimate,
     DeploymentDecision,
     SpendSummary,
     ThrottleAction,
-    VM_HOURLY_RATES,
 )
 
 

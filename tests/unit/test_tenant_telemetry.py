@@ -14,8 +14,6 @@ Testing Strategy:
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from azure_haymaker.telemetry.tenant_context import (
     EXECUTION_ID_ATTRIBUTE,
     SCENARIO_NAME_ATTRIBUTE,
@@ -25,7 +23,6 @@ from azure_haymaker.telemetry.tenant_context import (
     get_current_tenant_id,
     set_tenant_context,
 )
-
 
 # =============================================================================
 # get_current_tenant_id Tests
