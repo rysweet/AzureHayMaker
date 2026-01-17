@@ -19,7 +19,6 @@ import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Any
 
 from azure.core.exceptions import (
     ClientAuthenticationError,
@@ -305,8 +304,7 @@ class BudgetEnforcer:
         # Build scope
         if self.resource_group:
             scope = (
-                f"/subscriptions/{self.subscription_id}/"
-                f"resourceGroups/{self.resource_group}"
+                f"/subscriptions/{self.subscription_id}/" f"resourceGroups/{self.resource_group}"
             )
         else:
             scope = f"/subscriptions/{self.subscription_id}"
@@ -392,10 +390,6 @@ class BudgetEnforcer:
                 violations.append(
                     f"{period.value}: ${projected:.2f} would exceed ${limit:.2f} limit"
                 )
-            elif projected / limit >= self.config.alert_threshold:
-                warnings.append(
-                    f"{period.value}: ${projected:.2f} is {projected/limit*100:.0f}% of ${limit:.2f}"
-                )
             elif projected / limit >= self.config.warn_threshold:
                 warnings.append(
                     f"{period.value}: ${projected:.2f} is {projected/limit*100:.0f}% of ${limit:.2f}"
@@ -469,17 +463,22 @@ class BudgetEnforcer:
         # Network cost (estimate 10% of compute)
         network = compute * 0.10
 
-        # Total
-        total = compute + storage + network
+        # Round individual components first
+        compute_rounded = round(compute, 2)
+        storage_rounded = round(storage, 4)
+        network_rounded = round(network, 2)
+
+        # Total from rounded values ensures total == compute + storage + network
+        total_rounded = round(compute_rounded + storage_rounded + network_rounded, 2)
 
         # Confidence based on vm_size being known
         confidence = 0.9 if vm_size in VM_HOURLY_RATES else 0.6
 
         return CostEstimate(
-            compute=round(compute, 2),
-            storage=round(storage, 4),
-            network=round(network, 2),
-            total=round(total, 2),
+            compute=compute_rounded,
+            storage=storage_rounded,
+            network=network_rounded,
+            total=total_rounded,
             duration_hours=duration_hours,
             confidence=confidence,
         )
