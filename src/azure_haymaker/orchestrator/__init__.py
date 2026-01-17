@@ -35,11 +35,13 @@ Module Structure:
 - meta_orchestrator.py: Multi-tenant parallel execution (Phase 3)
 """
 
+from azure_haymaker.exceptions import ContainerError as ContainerAppError
+from azure_haymaker.exceptions import ServicePrincipalError
+
 from . import activities  # noqa: F401
 from .container_deployer import ContainerDeployer
 from .container_lifecycle import ContainerLifecycle, delete_container_app
 from .container_manager import (
-    ContainerAppError,
     ContainerManager,
     ImageSigningError,
     deploy_container_app,
@@ -69,7 +71,6 @@ from .scenario_selector import (
 )
 from .sp_manager import (
     ServicePrincipalDetails,
-    ServicePrincipalError,
     create_service_principal,
     delete_service_principal,
     list_haymaker_service_principals,

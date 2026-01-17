@@ -16,6 +16,7 @@ from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 from pydantic import SecretStr, ValidationError
 
+from azure_haymaker.exceptions import ConfigurationError
 from azure_haymaker.models.config import (
     CosmosDBConfig,
     LogAnalyticsConfig,
@@ -28,12 +29,6 @@ from azure_haymaker.models.config import (
 from azure_haymaker.orchestrator.config_env_loader import load_dotenv_with_warnings
 
 logger = logging.getLogger(__name__)
-
-
-class ConfigurationError(Exception):
-    """Raised when configuration is invalid or missing."""
-
-    pass
 
 
 def _get_required_env(var_name: str, dotenv_vars: dict[str, str] | None = None) -> str:
@@ -188,8 +183,11 @@ async def load_config_from_env_and_keyvault() -> OrchestratorConfig:
                     log_analytics_key = kv_client.get_secret("log-analytics-workspace-key").value
 
                 # Try loading cross-tenant secret if target tenant differs and ID provided
-                if (not target_tenant_sp_secret and target_tenant_sp_id
-                    and target_tenant_id != os.getenv("AZURE_TENANT_ID", "")):
+                if (
+                    not target_tenant_sp_secret
+                    and target_tenant_sp_id
+                    and target_tenant_id != os.getenv("AZURE_TENANT_ID", "")
+                ):
                     secret_name = f"target-tenant-{target_tenant_id[:8]}-sp-secret"
                     try:
                         target_tenant_sp_secret = kv_client.get_secret(secret_name).value
@@ -214,7 +212,9 @@ async def load_config_from_env_and_keyvault() -> OrchestratorConfig:
                 main_sp_client_id=main_sp_client_id,
                 main_sp_client_secret=SecretStr(main_sp_secret),
                 target_tenant_sp_client_id=target_tenant_sp_id,
-                target_tenant_sp_client_secret=SecretStr(target_tenant_sp_secret) if target_tenant_sp_secret else None,
+                target_tenant_sp_client_secret=SecretStr(target_tenant_sp_secret)
+                if target_tenant_sp_secret
+                else None,
                 anthropic_api_key=SecretStr(anthropic_api_key),
                 service_bus_namespace=service_bus_namespace,
                 service_bus_topic=service_bus_topic,
@@ -290,8 +290,7 @@ async def load_config() -> OrchestratorConfig:
 
 
 def load_tenant_configs_from_keyvault(
-    kv_client: SecretClient,
-    prefix_filter: str | None = None
+    kv_client: SecretClient, prefix_filter: str | None = None
 ) -> dict[str, TenantConfig]:
     """Load tenant configurations from Key Vault (Phase 2 multi-tenant support).
 
@@ -402,27 +401,20 @@ def load_tenant_configs_from_keyvault(
                 logger.info(f"Loaded tenant config: {tenant_config.display}")
 
             except json.JSONDecodeError as e:
-                raise ConfigurationError(
-                    f"Invalid JSON in tenant config {config_name}: {e}"
-                ) from e
+                raise ConfigurationError(f"Invalid JSON in tenant config {config_name}: {e}") from e
             except ValidationError as e:
-                raise ConfigurationError(
-                    f"Invalid tenant config {config_name}: {e}"
-                ) from e
+                raise ConfigurationError(f"Invalid tenant config {config_name}: {e}") from e
 
     except Exception as e:
         if isinstance(e, ConfigurationError):
             raise
-        raise ConfigurationError(
-            f"Failed to load tenant configs from Key Vault: {e}"
-        ) from e
+        raise ConfigurationError(f"Failed to load tenant configs from Key Vault: {e}") from e
 
     return tenants
 
 
 async def load_config_with_tenants(
-    load_tenants_from_keyvault: bool = True,
-    tenant_prefix_filter: str | None = None
+    load_tenants_from_keyvault: bool = True, tenant_prefix_filter: str | None = None
 ) -> OrchestratorConfig:
     """Load configuration with multi-tenant registry from Key Vault.
 
@@ -452,28 +444,20 @@ async def load_config_with_tenants(
     if load_tenants_from_keyvault:
         try:
             credential = DefaultAzureCredential()
-            kv_client = SecretClient(
-                vault_url=config.key_vault_url,
-                credential=credential
-            )
+            kv_client = SecretClient(vault_url=config.key_vault_url, credential=credential)
 
             tenants = load_tenant_configs_from_keyvault(
-                kv_client,
-                prefix_filter=tenant_prefix_filter
+                kv_client, prefix_filter=tenant_prefix_filter
             )
 
             # Update config with loaded tenants
             # Note: Pydantic models are immutable by default, so we create a new config
             config_dict = config.model_dump()
-            config_dict["tenants"] = {
-                tid: t.model_dump() for tid, t in tenants.items()
-            }
+            config_dict["tenants"] = {tid: t.model_dump() for tid, t in tenants.items()}
             config = OrchestratorConfig(**config_dict)
 
             if tenants:
-                logger.info(
-                    f"Multi-tenant mode: loaded {len(tenants)} tenant(s) from Key Vault"
-                )
+                logger.info(f"Multi-tenant mode: loaded {len(tenants)} tenant(s) from Key Vault")
 
         except Exception as e:
             # Log warning but don't fail - tenants are optional
