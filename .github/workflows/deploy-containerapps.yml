@@ -104,6 +104,58 @@ jobs:
           SP_OBJECT_ID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)
           echo "sp_object_id=$SP_OBJECT_ID" >> $GITHUB_OUTPUT
 
+      - name: Cleanup Old Deployment Resource Groups
+        continue-on-error: true  # Don't fail deployment if cleanup has issues
+        run: |
+          RG_NAME_PATTERN="haymaker-${{ env.ENVIRONMENT }}-"
+          MAIN_RG="haymaker-${{ env.ENVIRONMENT }}-rg"
+          RETENTION_COUNT=3
+          CUTOFF_DAYS=7
+
+          echo "🧹 Cleaning up old deployment resource groups..."
+          echo "  Pattern: ${RG_NAME_PATTERN}*"
+          echo "  Excluding: $MAIN_RG"
+          echo "  Retention: Keep last $RETENTION_COUNT deployments"
+          echo "  Age cutoff: > $CUTOFF_DAYS days"
+
+          # List all matching RGs (excluding main RG)
+          RGS=$(az group list \
+            --query "[?starts_with(name, '${RG_NAME_PATTERN}') && name != '${MAIN_RG}'].{name:name, createdTime:properties.provisioningState}" \
+            --output tsv | awk '{print $1}')
+
+          if [ -z "$RGS" ]; then
+            echo "✅ No old resource groups to clean up"
+            exit 0
+          fi
+
+          echo "Found resource groups:"
+          echo "$RGS"
+
+          # Get RG count
+          RG_COUNT=$(echo "$RGS" | wc -l)
+          echo "Total RGs to evaluate: $RG_COUNT"
+
+          # Keep last N deployments
+          if [ $RG_COUNT -gt $RETENTION_COUNT ]; then
+            RGS_TO_DELETE=$(echo "$RGS" | head -n -$RETENTION_COUNT)
+            echo "Resource groups to delete (keeping last $RETENTION_COUNT):"
+            echo "$RGS_TO_DELETE"
+
+            # Delete old RGs
+            for RG in $RGS_TO_DELETE; do
+              echo "Deleting resource group: $RG"
+              az group delete --name "$RG" --yes --no-wait || {
+                echo "⚠️  Failed to delete $RG (may have resource locks - manual cleanup needed)"
+                continue
+              }
+              echo "✅ Queued deletion: $RG"
+            done
+          else
+            echo "✅ RG count ($RG_COUNT) within retention limit ($RETENTION_COUNT) - no cleanup needed"
+          fi
+
+          echo "🎉 Cleanup complete - deployment will continue"
+
       - name: Create Resource Group
         run: |
           RG_NAME="haymaker-${{ env.ENVIRONMENT }}-rg"
