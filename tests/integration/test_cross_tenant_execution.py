@@ -128,12 +128,12 @@ def mock_sp_details():
 async def test_sp_creation_uses_target_tenant_credential(cross_tenant_config, mocker):
     """Test SP creation uses target tenant credential in cross-tenant mode."""
     mock_get_tenant_cred = mocker.patch(
-        "azure_haymaker.orchestrator.sp_manager.get_tenant_credential"
+        "azure_haymaker.orchestrator.sp_lifecycle.get_tenant_credential"
     )
     mock_credential = MagicMock()
     mock_get_tenant_cred.return_value = mock_credential
 
-    mock_graph = mocker.patch("azure_haymaker.orchestrator.sp_manager.GraphServiceClient")
+    mock_graph = mocker.patch("azure_haymaker.orchestrator.sp_lifecycle.GraphServiceClient")
     mock_kv_client = MagicMock()
 
     # Mock Graph API responses
@@ -159,7 +159,7 @@ async def test_sp_creation_uses_target_tenant_credential(cross_tenant_config, mo
     mock_kv_client.set_secret = MagicMock()
 
     # Mock role assignment
-    mocker.patch("azure_haymaker.orchestrator.sp_manager.AuthorizationManagementClient")
+    mocker.patch("azure_haymaker.orchestrator.rbac_manager.AuthorizationManagementClient")
     mocker.patch("asyncio.to_thread", new=AsyncMock())
 
     try:
