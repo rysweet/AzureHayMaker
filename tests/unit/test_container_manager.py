@@ -497,7 +497,8 @@ class TestImageSignatureVerification:
     @pytest.mark.asyncio
     async def test_verify_image_signature_success_with_digest(self):
         """Test successful image verification with SHA256 digest."""
-        image_ref = "registry.azurecr.io/agent@sha256:abcd1234567890abcdef"
+        # Use proper 64-character SHA256 digest
+        image_ref = "registry.azurecr.io/agent@sha256:abcd1234567890abcdefabcd1234567890abcdefabcd1234567890abcdefabcd"
         result = await verify_image_signature(image_ref)
         assert result is True
 

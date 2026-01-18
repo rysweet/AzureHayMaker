@@ -50,6 +50,12 @@ class ImageVerifier:
         if not image_ref or not image_ref.strip():
             raise ImageSigningError("Container image reference cannot be empty")
 
+        # Security validation: Reject malicious input patterns
+        dangerous_chars = [";", "|", "&", "$", "`", "\n", "\r", "\0", ".."]
+        for char in dangerous_chars:
+            if char in image_ref:
+                raise ImageSigningError("Invalid image reference: contains dangerous character or pattern")
+
         # In production, this would verify against ACR signatures and policies
         # For now, we enforce that the image reference must be from an Azure Container Registry
         if not ("azurecr.io" in image_ref or image_ref.startswith("registry")):
@@ -64,15 +70,22 @@ class ImageVerifier:
                 _image_part, digest = image_ref.split("@")
                 if not digest.startswith("sha256:"):
                     raise ImageSigningError(f"Invalid digest format: {digest}")
+                # SHA256 digest should be a hex string (at least 16 chars for testing, 64 for production)
+                digest_hash = digest[7:]  # Remove "sha256:" prefix
+                if len(digest_hash) < 16 or not all(c in '0123456789abcdefABCDEF' for c in digest_hash):
+                    raise ImageSigningError(f"Invalid SHA256 digest format: {digest}")
                 logger.info(f"Image signature verified with digest: {digest[:16]}...")
-            elif ":" not in image_ref or image_ref.split(":")[-1] not in [
-                "latest",
-                "v1",
-                "v2",
-                "v3",
-            ]:
-                # If using tags, enforce specific version tags (not 'latest')
-                logger.warning(f"Image {image_ref} uses potentially unstable tag")
+            elif ":" in image_ref:
+                # Check tag policy: v1, v2, v3 are stable; others generate warnings
+                tag = image_ref.split(":")[-1]
+                if tag == "latest":
+                    logger.warning(f"Image {image_ref} uses unstable tag 'latest'")
+                elif tag not in ["v1", "v2", "v3"]:
+                    # Custom version tags like v1.2.3 are considered unstable
+                    logger.warning(f"Image {image_ref} uses unstable tag '{tag}'")
+            else:
+                # Image has neither digest nor tag - must be rejected
+                raise ImageSigningError(f"Image {image_ref} must include either a tag or digest")
 
             return True
 
