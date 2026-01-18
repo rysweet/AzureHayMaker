@@ -21,7 +21,7 @@ Philosophy:
 import ipaddress
 import logging
 import socket
-from typing import Callable
+from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -121,11 +121,9 @@ class SecurityValidator:
         Returns:
             True if network is wildcard, False otherwise
         """
-        if network.version == 4 and network.num_addresses == 2**32:
-            return True
-        if network.version == 6 and network.num_addresses == 2**128:
-            return True
-        return False
+        return (network.version == 4 and network.num_addresses == 2**32) or (
+            network.version == 6 and network.num_addresses == 2**128
+        )
 
 
 async def verify_computer_use_ready(
