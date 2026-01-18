@@ -91,52 +91,73 @@ class TestJWTSignatureValidation:
 
             assert exc_info.value.status_code == 401
 
-    def test_expired_token_rejected(self, mock_jwks, valid_token_payload, config):
+    @pytest.mark.anyio
+    async def test_expired_token_rejected(self, mock_jwks, valid_token_payload, config):
         """Test that expired tokens are rejected."""
         # Create expired token
         now = datetime.now(timezone.utc)
         valid_token_payload["exp"] = int((now - timedelta(hours=1)).timestamp())
 
-        token = jwt.encode(valid_token_payload, "secret", algorithm="HS256")
+        with patch("azure_haymaker.orchestrator.auth.get_jwks_with_ttl") as mock_get_jwks:
+            mock_get_jwks.return_value = mock_jwks
+            token = jwt.encode(valid_token_payload, "secret", algorithm="HS256")
 
-        # Should raise ExpiredSignatureError
-        with pytest.raises(NotImplementedError):
-            validate_jwt_signature(token, mock_jwks)
+            # Should raise HTTPException with expired message
+            with pytest.raises(HTTPException) as exc_info:
+                await validate_jwt_signature(token, config["tenant_id"], config)
 
-    def test_invalid_signature_rejected(self, mock_jwks, valid_token_payload, config):
+            assert exc_info.value.status_code == 401
+
+    @pytest.mark.anyio
+    async def test_invalid_signature_rejected(self, mock_jwks, valid_token_payload, config):
         """Test that tokens with invalid signatures are rejected."""
-        token = jwt.encode(valid_token_payload, "secret", algorithm="HS256")
+        with patch("azure_haymaker.orchestrator.auth.get_jwks_with_ttl") as mock_get_jwks:
+            mock_get_jwks.return_value = mock_jwks
+            token = jwt.encode(valid_token_payload, "secret", algorithm="HS256")
 
-        # Tamper with the token (change one character in signature)
-        parts = token.split(".")
-        tampered_signature = parts[2][:-1] + ("a" if parts[2][-1] != "a" else "b")
-        tampered_token = f"{parts[0]}.{parts[1]}.{tampered_signature}"
+            # Tamper with the token (change one character in signature)
+            parts = token.split(".")
+            tampered_signature = parts[2][:-1] + ("a" if parts[2][-1] != "a" else "b")
+            tampered_token = f"{parts[0]}.{parts[1]}.{tampered_signature}"
 
-        # Should raise JWSSignatureError
-        with pytest.raises(NotImplementedError):
-            validate_jwt_signature(tampered_token, mock_jwks)
+            # Should raise HTTPException due to signature validation failure
+            with pytest.raises(HTTPException) as exc_info:
+                await validate_jwt_signature(tampered_token, config["tenant_id"], config)
 
-    def test_wrong_issuer_rejected(self, mock_jwks, valid_token_payload, config):
+            assert exc_info.value.status_code == 401
+
+    @pytest.mark.anyio
+    async def test_wrong_issuer_rejected(self, mock_jwks, valid_token_payload, config):
         """Test that tokens from wrong issuer are rejected."""
         valid_token_payload["iss"] = "https://evil.com/v2.0"
 
-        token = jwt.encode(valid_token_payload, "secret", algorithm="HS256")
+        with patch("azure_haymaker.orchestrator.auth.get_jwks_with_ttl") as mock_get_jwks:
+            mock_get_jwks.return_value = mock_jwks
+            token = jwt.encode(valid_token_payload, "secret", algorithm="HS256")
 
-        # Should raise JWTClaimsError
-        with pytest.raises(NotImplementedError):
-            validate_jwt_signature(token, mock_jwks)
+            # Should raise HTTPException due to invalid issuer
+            with pytest.raises(HTTPException) as exc_info:
+                await validate_jwt_signature(token, config["tenant_id"], config)
 
-    def test_wrong_audience_rejected(self, mock_jwks, valid_token_payload, config):
+            assert exc_info.value.status_code == 401
+
+    @pytest.mark.anyio
+    async def test_wrong_audience_rejected(self, mock_jwks, valid_token_payload, config):
         """Test that tokens for wrong audience are rejected."""
         valid_token_payload["aud"] = "different-client-id"
 
-        token = jwt.encode(valid_token_payload, "secret", algorithm="HS256")
+        with patch("azure_haymaker.orchestrator.auth.get_jwks_with_ttl") as mock_get_jwks:
+            mock_get_jwks.return_value = mock_jwks
+            token = jwt.encode(valid_token_payload, "secret", algorithm="HS256")
 
-        # Should raise JWTClaimsError
-        with pytest.raises(NotImplementedError):
-            validate_jwt_signature(token, mock_jwks)
+            # Should raise HTTPException due to invalid audience
+            with pytest.raises(HTTPException) as exc_info:
+                await validate_jwt_signature(token, config["tenant_id"], config)
 
-    def test_malformed_token_rejected(self, mock_jwks):
+            assert exc_info.value.status_code == 401
+
+    @pytest.mark.anyio
+    async def test_malformed_token_rejected(self, mock_jwks, config):
         """Test that malformed tokens are rejected."""
         malformed_tokens = [
             "not.a.token",
@@ -146,9 +167,14 @@ class TestJWTSignatureValidation:
             "a.b.c.d",  # Too many parts
         ]
 
-        for token in malformed_tokens:
-            with pytest.raises(NotImplementedError):
-                validate_jwt_signature(token, mock_jwks)
+        with patch("azure_haymaker.orchestrator.auth.get_jwks_with_ttl") as mock_get_jwks:
+            mock_get_jwks.return_value = mock_jwks
+
+            for token in malformed_tokens:
+                with pytest.raises(HTTPException) as exc_info:
+                    await validate_jwt_signature(token, config["tenant_id"], config)
+
+                assert exc_info.value.status_code == 401
 
 
 class TestTokenReplayProtection:
