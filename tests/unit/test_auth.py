@@ -34,9 +34,8 @@ pytestmark = pytest.mark.skipif(not FASTAPI_AVAILABLE, reason="fastapi not insta
 
 from azure_haymaker.orchestrator.auth import (  # noqa: E402
     _jwks_cache,
-    _tenant_metadata_cache,
     get_auth_config,
-    get_jwks,
+    get_jwks_with_ttl,
     get_tenant_metadata,
     optional_auth,
     require_auth,
@@ -444,26 +443,6 @@ class TestOptionalAuth:
 class TestGetTenantMetadata:
     """Tests for get_tenant_metadata function."""
 
-    @pytest.fixture(autouse=True)
-    def clear_cache(self):
-        """Clear the metadata cache before each test."""
-        _tenant_metadata_cache.clear()
-        yield
-        _tenant_metadata_cache.clear()
-
-    @pytest.mark.anyio
-    async def test_returns_cached_metadata(self):
-        """Test that cached metadata is returned without network call."""
-        # Pre-populate the cache
-        _tenant_metadata_cache["cached-tenant"] = {
-            "issuer": "https://login.microsoftonline.com/cached-tenant/v2.0",
-            "jwks_uri": "https://login.microsoftonline.com/cached-tenant/keys",
-        }
-
-        result = await get_tenant_metadata("cached-tenant")
-
-        assert result["issuer"] == "https://login.microsoftonline.com/cached-tenant/v2.0"
-
     def test_metadata_url_format(self):
         """Test that the correct Azure AD URL format would be used."""
         tenant_id = "test-tenant-123"
@@ -477,35 +456,41 @@ class TestGetTenantMetadata:
 
 
 # ============================================================================
-# Unit Tests - get_jwks() (60%)
+# Unit Tests - get_jwks_with_ttl() (60%)
 # ============================================================================
 
 
-class TestGetJwks:
-    """Tests for get_jwks function."""
+class TestGetJwksWithTtl:
+    """Tests for get_jwks_with_ttl function."""
 
     @pytest.fixture(autouse=True)
     def clear_cache(self):
         """Clear caches before each test."""
         _jwks_cache.clear()
-        _tenant_metadata_cache.clear()
         yield
         _jwks_cache.clear()
-        _tenant_metadata_cache.clear()
 
     @pytest.mark.anyio
     async def test_returns_cached_jwks(self):
         """Test that cached JWKS is returned without network call."""
-        # Pre-populate the cache
-        _jwks_cache["cached-tenant"] = {"keys": [{"kid": "cached-key", "kty": "RSA"}]}
+        # Import the JWKSCacheEntry dataclass
+        from azure_haymaker.orchestrator.auth import JWKSCacheEntry
 
-        result = await get_jwks("cached-tenant")
+        # Pre-populate the cache with the new structure
+        test_jwks = {"keys": [{"kid": "cached-key", "kty": "RSA"}]}
+        _jwks_cache["cached-tenant"] = JWKSCacheEntry(
+            jwks=test_jwks, fetched_at=time.time(), ttl=3600
+        )
+
+        result = await get_jwks_with_ttl("cached-tenant")
 
         assert result["keys"][0]["kid"] == "cached-key"
         assert result["keys"][0]["kty"] == "RSA"
 
     def test_jwks_cache_structure(self):
         """Test that JWKS cache stores proper structure."""
+        from azure_haymaker.orchestrator.auth import JWKSCacheEntry
+
         test_jwks = {
             "keys": [
                 {"kty": "RSA", "use": "sig", "kid": "key-1"},
@@ -513,10 +498,12 @@ class TestGetJwks:
             ]
         }
 
-        _jwks_cache["test-tenant"] = test_jwks
+        _jwks_cache["test-tenant"] = JWKSCacheEntry(
+            jwks=test_jwks, fetched_at=time.time(), ttl=3600
+        )
 
         assert "test-tenant" in _jwks_cache
-        assert len(_jwks_cache["test-tenant"]["keys"]) == 2
+        assert len(_jwks_cache["test-tenant"].jwks["keys"]) == 2
 
 
 # ============================================================================
