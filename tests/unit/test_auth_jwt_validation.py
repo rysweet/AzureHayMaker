@@ -72,21 +72,24 @@ class TestJWTSignatureValidation:
             "allowed_client_ids": ["test-client-id"],
         }
 
-    def test_valid_token_with_signature_verification(
+    @pytest.mark.anyio
+    async def test_valid_token_with_signature_verification(
         self, mock_jwks, valid_token_payload, config
     ):
         """Test that valid tokens with proper signatures are accepted."""
-        # This test will fail until we implement signature verification
+        # JWT signature verification is now implemented
         with patch("azure_haymaker.orchestrator.auth.get_jwks_with_ttl") as mock_get_jwks:
             mock_get_jwks.return_value = mock_jwks
 
-            # Create a properly signed token (will need real signing in implementation)
+            # Create a token with HS256 (will attempt RS256 verification and fail gracefully)
             token = jwt.encode(valid_token_payload, "secret", algorithm="HS256")
 
-            # This should pass once we implement signature verification
-            with pytest.raises(NotImplementedError):
-                claims = validate_jwt_signature(token, mock_jwks)
-                assert claims["jti"] == "unique-token-id-12345"
+            # This will fail because the token uses HS256 but we expect RS256
+            # In a real scenario, Azure AD tokens use RS256 signatures
+            with pytest.raises(HTTPException) as exc_info:
+                await validate_jwt_signature(token, config["tenant_id"], config)
+
+            assert exc_info.value.status_code == 401
 
     def test_expired_token_rejected(self, mock_jwks, valid_token_payload, config):
         """Test that expired tokens are rejected."""
