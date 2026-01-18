@@ -185,20 +185,18 @@ class TestTokenReplayProtection:
         jti = "unique-jti-12345"
         exp = int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp())
 
-        # First use should succeed
-        with pytest.raises(NotImplementedError):
-            check_token_replay(jti, exp)
+        # First use should succeed (no exception raised)
+        check_token_replay(jti, exp)
 
     def test_replay_attack_detected(self):
         """Test that replay attacks are detected and rejected."""
         jti = "duplicate-jti-67890"
         exp = int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp())
 
-        # First use
-        with pytest.raises(NotImplementedError):
-            check_token_replay(jti, exp)
+        # First use succeeds
+        check_token_replay(jti, exp)
 
-        # Second use should fail
+        # Second use should fail with TokenReplayError
         with pytest.raises(TokenReplayError):
             check_token_replay(jti, exp)
 
@@ -208,16 +206,15 @@ class TestTokenReplayProtection:
         past_exp = int((datetime.now(timezone.utc) - timedelta(hours=1)).timestamp())
         jti_expired = "expired-jti"
 
-        with pytest.raises(NotImplementedError):
-            check_token_replay(jti_expired, past_exp)
+        # This will be added to the cache even though it's expired
+        check_token_replay(jti_expired, past_exp)
 
         # Cleanup should remove it
         cleanup_expired_jtis()
 
-        # After cleanup, same jti should be usable again
+        # After cleanup, same jti should be usable again (no replay error)
         future_exp = int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp())
-        with pytest.raises(NotImplementedError):
-            check_token_replay(jti_expired, future_exp)
+        check_token_replay(jti_expired, future_exp)
 
     def test_concurrent_token_tracking(self):
         """Test that multiple different tokens can be tracked concurrently."""
@@ -226,11 +223,10 @@ class TestTokenReplayProtection:
         # Track multiple different tokens
         for i in range(100):
             jti = f"concurrent-jti-{i}"
-            with pytest.raises(NotImplementedError):
-                check_token_replay(jti, exp)
+            check_token_replay(jti, exp)
 
         # All should be tracked
-        # Replay any should fail
+        # Replay any should fail with TokenReplayError
         with pytest.raises(TokenReplayError):
             check_token_replay("concurrent-jti-50", exp)
 
