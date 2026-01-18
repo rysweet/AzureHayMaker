@@ -238,7 +238,7 @@ class DeploymentPhaseManager:
             group_manager = EntraGroupManager(self._graph_client, context.run_id)
 
             group_id = await group_manager.create_all_workers_group(
-                description=f"All workers for deployment"
+                description="All workers for deployment"
             )
 
             logger.info(

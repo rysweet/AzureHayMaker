@@ -68,7 +68,7 @@ class WorkerProvisioningService:
         self._graph_client = graph_client
         self._run_id = run_id
         self._tenant_domain = tenant_domain
-        self._user_manager: "EntraUserManager | None" = None
+        self._user_manager: EntraUserManager | None = None
         self._worker_registry: WorkerRegistry | None = None
 
     async def provision_workers(
