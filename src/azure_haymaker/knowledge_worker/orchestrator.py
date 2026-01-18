@@ -30,7 +30,7 @@ from uuid import uuid4
 
 from azure_haymaker.knowledge_worker.agent import KnowledgeWorkerAgent
 from azure_haymaker.knowledge_worker.cleanup import KnowledgeWorkerResourceInventory
-from azure_haymaker.knowledge_worker.content import EmailGenerationConfig
+from azure_haymaker.knowledge_worker.content import EmailContent, EmailGenerationConfig
 from azure_haymaker.knowledge_worker.deployment_phases import (
     DeploymentPhaseContext,
     DeploymentPhaseManager,
@@ -456,6 +456,30 @@ class KnowledgeWorkerOrchestrator:
         logger.info(f"Deployment cleanup complete: {run_id}")
 
         return True
+
+    def _add_email_markers(
+        self,
+        email_content: EmailContent,
+        worker_id: str,
+        activity_count: int,
+        run_id: str | None,
+    ) -> EmailContent:
+        """Backward compatibility method for email marker injection.
+
+        Delegates to email_content_service.add_email_markers().
+
+        Args:
+            email_content: Email content to add markers to
+            worker_id: Worker identifier
+            activity_count: Current activity count
+            run_id: Deployment run ID
+
+        Returns:
+            EmailContent with markers added
+        """
+        return self._email_content_service.add_email_markers(
+            email_content, worker_id, activity_count, run_id
+        )
 
     def _save_deployment_state(self, state: DeploymentState) -> None:
         """Save deployment state to disk.
