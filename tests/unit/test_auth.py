@@ -128,7 +128,7 @@ def mock_jwt_validation(valid_token_claims):
             if claims.get("iss") not in expected_issuers:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid token claims",
+                    detail="Invalid issuer in token claims",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 
@@ -137,7 +137,7 @@ def mock_jwt_validation(valid_token_claims):
             if token_client_id and token_client_id not in config.get("allowed_client_ids", []):
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid token claims",
+                    detail="Unauthorized client in token claims",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 
