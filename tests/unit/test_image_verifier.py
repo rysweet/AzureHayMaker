@@ -230,7 +230,7 @@ class TestTagPolicyEnforcement:
         """Test that digest-based references don't generate warnings."""
         with caplog.at_level(logging.WARNING):
             await image_verifier.verify_signature(
-                "myregistry.azurecr.io/app@sha256:abc123"
+                "myregistry.azurecr.io/app@sha256:abc123def456abc123def456abc123def456abc123def456abc123def456abc1"
             )
 
             # Should NOT generate any warnings
@@ -402,7 +402,7 @@ class TestMultipleImageVerification:
         images = [
             "registry1.azurecr.io/app1:v1",
             "registry2.azurecr.io/app2:v2",
-            "registry3.azurecr.io/app3@sha256:abc123",
+            "registry3.azurecr.io/app3@sha256:abc123def456abc123def456abc123def456abc123def456abc123def456abc1",
         ]
 
         results = []
@@ -601,9 +601,9 @@ class TestProductionReadiness:
 
         # Production images typically use digest for immutability
         production_images = [
-            "prod.azurecr.io/frontend@sha256:abc123def456",
-            "prod.azurecr.io/backend@sha256:def789ghi012",
-            "prod.azurecr.io/worker@sha256:ghi345jkl678",
+            "prod.azurecr.io/frontend@sha256:abc123def456abc123def456abc123def456abc123def456abc123def456abc1",
+            "prod.azurecr.io/backend@sha256:def789ghi012def789ghi012def789ghi012def789ghi012def789ghi012def7",
+            "prod.azurecr.io/worker@sha256:ghi345jkl678ghi345jkl678ghi345jkl678ghi345jkl678ghi345jkl678ghi3",
         ]
 
         for image in production_images:
