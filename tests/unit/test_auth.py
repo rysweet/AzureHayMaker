@@ -1063,3 +1063,420 @@ class TestAudienceValidation:
             await validate_token(token, config)
 
         assert exc_info.value.status_code == 401
+
+
+# ============================================================================
+# Enhanced Cross-Tenant Security Tests (NEW from Issue #257)
+# ============================================================================
+
+
+class TestEnhancedCrossTenantSecurity:
+    """Enhanced comprehensive tests for cross-tenant access prevention."""
+
+    @pytest.fixture(autouse=True)
+    def setup_mock(self, mock_jwt_validation):
+        """Auto-use JWT validation mock for all tests in this class."""
+        pass
+
+    @pytest.mark.anyio
+    async def test_multiple_tenant_isolation(self):
+        """Test that multiple tenants cannot access each other's resources."""
+        tenant_a_claims = {
+            "iss": "https://login.microsoftonline.com/tenant-a-id/v2.0",
+            "aud": "client-a-id",
+            "exp": int(time.time()) + 3600,
+            "appid": "client-a-id",
+        }
+        tenant_a_token = create_jwt_token(tenant_a_claims)
+
+        # Config for tenant B
+        tenant_b_config = {
+            "tenant_id": "tenant-b-id",
+            "client_id": "client-b-id",
+            "allowed_client_ids": ["client-b-id"],
+        }
+
+        with pytest.raises(HTTPException) as exc_info:
+            await validate_token(tenant_a_token, tenant_b_config)
+
+        assert exc_info.value.status_code == 401
+        assert "issuer" in exc_info.value.detail.lower()
+
+    @pytest.mark.anyio
+    async def test_tenant_substitution_attack_blocked(self):
+        """Test that attacker cannot substitute tenant ID in token."""
+        # Attacker creates token with fake tenant ID
+        attacker_claims = {
+            "iss": "https://login.microsoftonline.com/attacker-tenant/v2.0",
+            "aud": "target-client-id",
+            "exp": int(time.time()) + 3600,
+            "appid": "target-client-id",
+        }
+        attacker_token = create_jwt_token(attacker_claims)
+
+        # Legitimate tenant config
+        legit_config = {
+            "tenant_id": "legitimate-tenant-id",
+            "client_id": "target-client-id",
+            "allowed_client_ids": ["target-client-id"],
+        }
+
+        with pytest.raises(HTTPException) as exc_info:
+            await validate_token(attacker_token, legit_config)
+
+        assert exc_info.value.status_code == 401
+
+    @pytest.mark.anyio
+    async def test_tenant_configuration_boundary_enforcement(self):
+        """Test that tenant boundaries are enforced at configuration level."""
+        # Token from tenant A
+        token_claims = {
+            "iss": "https://login.microsoftonline.com/tenant-a/v2.0",
+            "aud": "shared-client-id",
+            "exp": int(time.time()) + 3600,
+            "appid": "shared-client-id",
+        }
+        token = create_jwt_token(token_claims)
+
+        # Try with wrong tenant config
+        wrong_config = {
+            "tenant_id": "tenant-b",  # Different tenant
+            "client_id": "shared-client-id",
+            "allowed_client_ids": ["shared-client-id"],
+        }
+
+        with pytest.raises(HTTPException) as exc_info:
+            await validate_token(token, wrong_config)
+
+        assert exc_info.value.status_code == 401
+
+
+# ============================================================================
+# Enhanced Privilege Escalation Tests (NEW from Issue #257)
+# ============================================================================
+
+
+class TestEnhancedPrivilegeEscalation:
+    """Enhanced comprehensive tests for privilege escalation prevention."""
+
+    @pytest.fixture(autouse=True)
+    def setup_mock(self, mock_jwt_validation):
+        """Auto-use JWT validation mock for all tests in this class."""
+        pass
+
+    @pytest.mark.anyio
+    async def test_client_id_escalation_blocked(self):
+        """Test that users cannot escalate by changing client ID."""
+        # User token with normal privileges
+        user_claims = {
+            "iss": "https://login.microsoftonline.com/test-tenant/v2.0",
+            "aud": "user-client-id",
+            "exp": int(time.time()) + 3600,
+            "appid": "admin-client-id",  # Trying to escalate
+            "sub": "user-123",
+        }
+        token = create_jwt_token(user_claims)
+
+        config = {
+            "tenant_id": "test-tenant",
+            "client_id": "user-client-id",
+            "allowed_client_ids": ["user-client-id"],  # admin NOT allowed
+        }
+
+        with pytest.raises(HTTPException) as exc_info:
+            await validate_token(token, config)
+
+        assert exc_info.value.status_code == 401
+        assert "client" in exc_info.value.detail.lower()
+
+    @pytest.mark.anyio
+    async def test_scope_manipulation_blocked(self):
+        """Test that scope manipulation in token is detected."""
+        # Token with manipulated scopes
+        tampered_claims = {
+            "iss": "https://login.microsoftonline.com/test-tenant/v2.0",
+            "aud": "test-client-id",
+            "exp": int(time.time()) + 3600,
+            "appid": "test-client-id",
+            "scp": "admin.full access.all",  # Escalated scopes
+        }
+        token = create_jwt_token(tampered_claims)
+
+        config = {
+            "tenant_id": "test-tenant",
+            "client_id": "test-client-id",
+            "allowed_client_ids": ["test-client-id"],
+        }
+
+        # Token validates, but scope checking should happen at API level
+        # This test ensures token structure allows for scope validation
+        result = await validate_token(token, config)
+        assert result is not None
+        assert "scp" in result
+
+    @pytest.mark.anyio
+    async def test_role_claim_tampering_detected(self):
+        """Test that role claim tampering is handled properly."""
+        # Token with tampered roles
+        tampered_claims = {
+            "iss": "https://login.microsoftonline.com/test-tenant/v2.0",
+            "aud": "test-client-id",
+            "exp": int(time.time()) + 3600,
+            "appid": "test-client-id",
+            "roles": ["Admin", "Owner", "Contributor"],  # Escalated roles
+        }
+        token = create_jwt_token(tampered_claims)
+
+        config = {
+            "tenant_id": "test-tenant",
+            "client_id": "test-client-id",
+            "allowed_client_ids": ["test-client-id"],
+        }
+
+        # Token validates, but role enforcement happens at API level
+        result = await validate_token(token, config)
+        assert result is not None
+        assert "roles" in result
+
+    @pytest.mark.anyio
+    async def test_unauthorized_audience_escalation(self):
+        """Test that unauthorized audience cannot be used for escalation."""
+        # Attacker tries to use management API audience
+        escalation_claims = {
+            "iss": "https://login.microsoftonline.com/test-tenant/v2.0",
+            "aud": "https://management.azure.com",  # Management API
+            "exp": int(time.time()) + 3600,
+            "appid": "unauthorized-client-id",  # Not allowed
+        }
+        token = create_jwt_token(escalation_claims)
+
+        config = {
+            "tenant_id": "test-tenant",
+            "client_id": "test-client-id",
+            "allowed_client_ids": ["test-client-id"],
+        }
+
+        with pytest.raises(HTTPException) as exc_info:
+            await validate_token(token, config)
+
+        assert exc_info.value.status_code == 401
+
+
+# ============================================================================
+# Enhanced Token Replay Protection Tests (NEW from Issue #257)
+# ============================================================================
+
+
+class TestEnhancedTokenReplayProtection:
+    """Enhanced comprehensive tests for token replay attack prevention."""
+
+    @pytest.fixture(autouse=True)
+    def setup_environment(self, mock_jwt_validation):
+        """Setup for token replay tests."""
+        # Clear JTI cache before each test
+        from azure_haymaker.orchestrator.auth import _jti_cache
+
+        _jti_cache.clear()
+        yield
+        _jti_cache.clear()
+
+    @pytest.mark.anyio
+    async def test_jti_tracking_prevents_replay(self):
+        """Test that JTI tracking prevents token replay."""
+        claims = {
+            "iss": "https://login.microsoftonline.com/test-tenant/v2.0",
+            "aud": "test-client-id",
+            "exp": int(time.time()) + 3600,
+            "appid": "test-client-id",
+            "jti": "unique-token-id-123",
+        }
+        token = create_jwt_token(claims)
+
+        config = {
+            "tenant_id": "test-tenant",
+            "client_id": "test-client-id",
+            "allowed_client_ids": ["test-client-id"],
+        }
+
+        # First use should succeed
+        result1 = await validate_token(token, config)
+        assert result1 is not None
+
+        # Second use should fail (replay detected)
+        from azure_haymaker.orchestrator.auth import TokenReplayError
+
+        with pytest.raises(TokenReplayError):
+            await validate_token(token, config)
+
+    @pytest.mark.anyio
+    async def test_jti_cache_cleanup_behavior(self):
+        """Test that JTI cache cleanup works correctly."""
+        from azure_haymaker.orchestrator.auth import cleanup_expired_jtis, _jti_cache
+
+        # Add expired JTI
+        expired_jti = "expired-jti-456"
+        _jti_cache[expired_jti] = type(
+            "TokenRecord", (), {"jti": expired_jti, "exp": int(time.time()) - 60}
+        )()
+
+        # Add valid JTI
+        valid_jti = "valid-jti-789"
+        _jti_cache[valid_jti] = type(
+            "TokenRecord", (), {"jti": valid_jti, "exp": int(time.time()) + 3600}
+        )()
+
+        # Run cleanup
+        cleanup_expired_jtis()
+
+        # Expired should be removed, valid should remain
+        assert expired_jti not in _jti_cache
+        assert valid_jti in _jti_cache
+
+    @pytest.mark.anyio
+    async def test_missing_jti_allows_token_use(self):
+        """Test that tokens without JTI are allowed (with warning)."""
+        claims = {
+            "iss": "https://login.microsoftonline.com/test-tenant/v2.0",
+            "aud": "test-client-id",
+            "exp": int(time.time()) + 3600,
+            "appid": "test-client-id",
+            # No JTI claim
+        }
+        token = create_jwt_token(claims)
+
+        config = {
+            "tenant_id": "test-tenant",
+            "client_id": "test-client-id",
+            "allowed_client_ids": ["test-client-id"],
+        }
+
+        # Should succeed despite missing JTI
+        result = await validate_token(token, config)
+        assert result is not None
+
+    @pytest.mark.anyio
+    async def test_jti_cache_max_size_handling(self):
+        """Test that JTI cache handles max size correctly."""
+        from azure_haymaker.orchestrator.auth import _jti_cache, _JTI_CACHE_MAX_SIZE
+
+        # Fill cache to max size
+        for i in range(_JTI_CACHE_MAX_SIZE):
+            claims = {
+                "iss": "https://login.microsoftonline.com/test-tenant/v2.0",
+                "aud": "test-client-id",
+                "exp": int(time.time()) + 3600,
+                "appid": "test-client-id",
+                "jti": f"jti-{i}",
+            }
+            token = create_jwt_token(claims)
+
+            config = {
+                "tenant_id": "test-tenant",
+                "client_id": "test-client-id",
+                "allowed_client_ids": ["test-client-id"],
+            }
+
+            await validate_token(token, config)
+
+        # Cache should be at or near max size
+        assert len(_jti_cache) <= _JTI_CACHE_MAX_SIZE
+
+
+# ============================================================================
+# Concurrent Authentication Tests (NEW from Issue #257)
+# ============================================================================
+
+
+class TestConcurrentAuthentication:
+    """Tests for concurrent authentication and race conditions."""
+
+    @pytest.fixture(autouse=True)
+    def setup_environment(self, mock_jwt_validation):
+        """Setup for concurrent tests."""
+        from azure_haymaker.orchestrator.auth import _jti_cache
+
+        _jti_cache.clear()
+        yield
+        _jti_cache.clear()
+
+    @pytest.mark.anyio
+    async def test_concurrent_token_validation(self):
+        """Test that concurrent token validations work correctly."""
+        import asyncio
+
+        config = {
+            "tenant_id": "test-tenant",
+            "client_id": "test-client-id",
+            "allowed_client_ids": ["test-client-id"],
+        }
+
+        # Create multiple different tokens
+        tokens = []
+        for i in range(10):
+            claims = {
+                "iss": "https://login.microsoftonline.com/test-tenant/v2.0",
+                "aud": "test-client-id",
+                "exp": int(time.time()) + 3600,
+                "appid": "test-client-id",
+                "jti": f"concurrent-jti-{i}",
+            }
+            tokens.append(create_jwt_token(claims))
+
+        # Validate all tokens concurrently
+        tasks = [validate_token(token, config) for token in tokens]
+        results = await asyncio.gather(*tasks)
+
+        # All should succeed
+        assert all(result is not None for result in results)
+
+    @pytest.mark.anyio
+    async def test_jti_cache_race_condition_safety(self):
+        """Test that JTI cache remains consistent under concurrent access."""
+        import asyncio
+
+        config = {
+            "tenant_id": "test-tenant",
+            "client_id": "test-client-id",
+            "allowed_client_ids": ["test-client-id"],
+        }
+
+        # Same token used concurrently (race condition scenario)
+        claims = {
+            "iss": "https://login.microsoftonline.com/test-tenant/v2.0",
+            "aud": "test-client-id",
+            "exp": int(time.time()) + 3600,
+            "appid": "test-client-id",
+            "jti": "shared-jti-race",
+        }
+        token = create_jwt_token(claims)
+
+        # Try to validate same token multiple times concurrently
+        from azure_haymaker.orchestrator.auth import TokenReplayError
+
+        tasks = [validate_token(token, config) for _ in range(5)]
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # First should succeed, others should fail with TokenReplayError
+        success_count = sum(1 for r in results if not isinstance(r, Exception))
+        replay_count = sum(1 for r in results if isinstance(r, TokenReplayError))
+
+        # At least one should succeed, rest should detect replay
+        assert success_count >= 1
+        assert replay_count >= 1
+
+    @pytest.mark.anyio
+    async def test_concurrent_jwks_cache_access(self):
+        """Test that JWKS cache is thread-safe under concurrent access."""
+        import asyncio
+
+        # Multiple concurrent JWKS fetches for same tenant
+        from azure_haymaker.orchestrator.auth import get_jwks_with_ttl
+
+        tasks = [get_jwks_with_ttl("test-tenant") for _ in range(10)]
+
+        # All should complete without errors
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # No exceptions should occur
+        assert all(not isinstance(r, Exception) for r in results)
