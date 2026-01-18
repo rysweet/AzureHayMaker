@@ -19,25 +19,17 @@ This facade maintains backward compatibility for existing imports.
 """
 
 # Re-export from sp_validation
-from azure_haymaker.orchestrator.sp_validation import sanitize_odata_value
+# Re-export ServicePrincipalError from exceptions
+from azure_haymaker.exceptions import ServicePrincipalError
+
+# Re-export from graph_operations
+from azure_haymaker.orchestrator.graph_operations import DEFAULT_SECRET_VALIDITY_DAYS
 
 # Re-export from rbac_manager
 from azure_haymaker.orchestrator.rbac_manager import (
     CUSTOM_RBAC_ROLE_DEFINITION,
     ROLE_DEFINITIONS,
     ROLE_PROPAGATION_WAIT,
-)
-
-# Re-export from graph_operations
-from azure_haymaker.orchestrator.graph_operations import DEFAULT_SECRET_VALIDITY_DAYS
-
-# Re-export from sp_lifecycle
-from azure_haymaker.orchestrator.sp_lifecycle import (
-    ServicePrincipalDetails,
-    create_service_principal,
-    delete_service_principal,
-    list_haymaker_service_principals,
-    verify_sp_deleted,
 )
 
 # Re-export from secret_rotation
@@ -48,8 +40,15 @@ from azure_haymaker.orchestrator.secret_rotation import (
     rotate_service_principal_secret,
 )
 
-# Re-export ServicePrincipalError from exceptions
-from azure_haymaker.exceptions import ServicePrincipalError
+# Re-export from sp_lifecycle
+from azure_haymaker.orchestrator.sp_lifecycle import (
+    ServicePrincipalDetails,
+    create_service_principal,
+    delete_service_principal,
+    list_haymaker_service_principals,
+    verify_sp_deleted,
+)
+from azure_haymaker.orchestrator.sp_validation import sanitize_odata_value
 
 # Maintain __all__ for explicit public API
 __all__ = [
