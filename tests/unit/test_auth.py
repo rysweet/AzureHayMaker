@@ -280,7 +280,9 @@ class TestValidateToken:
         assert "Invalid authentication token" in exc_info.value.detail
 
     @pytest.mark.anyio
-    async def test_expired_token_raises_401(self, expired_token_claims, auth_config):
+    async def test_expired_token_raises_401(
+        self, expired_token_claims, auth_config, mock_jwt_validation
+    ):
         """Test that expired token raises 401 HTTPException."""
         token = create_jwt_token(expired_token_claims)
 
