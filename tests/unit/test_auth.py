@@ -85,10 +85,54 @@ def auth_config():
 @pytest.fixture
 def mock_jwt_validation(valid_token_claims):
     """Mock JWT signature validation to bypass real cryptographic checks."""
-    with patch("azure_haymaker.orchestrator.auth.validate_jwt_signature") as mock:
-        # By default, return valid claims
-        mock.return_value = valid_token_claims
-        yield mock
+
+    async def mock_validate(token: str, tenant_id: str, config: dict, force_jwks_refresh: bool = False):
+        """Mock validation that decodes token and checks expiration."""
+        import base64
+        import json
+        from fastapi import HTTPException, status
+
+        # Decode the token to get claims (bypass signature check)
+        try:
+            parts = token.split(".")
+            if len(parts) != 3:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid authentication token",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+            # Decode payload
+            payload = parts[1]
+            # Add padding if needed
+            missing_padding = len(payload) % 4
+            if missing_padding:
+                payload += "=" * (4 - missing_padding)
+
+            claims = json.loads(base64.urlsafe_b64decode(payload))
+
+            # Check expiration
+            exp = claims.get("exp", 0)
+            if exp < time.time():
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Token has expired",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+            return claims
+
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+    with patch("azure_haymaker.orchestrator.auth.validate_jwt_signature", side_effect=mock_validate):
+        yield
 
 
 def create_jwt_token(claims: dict) -> str:
