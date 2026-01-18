@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from azure_haymaker.models.config import OrchestratorConfig
 
 from azure.keyvault.secrets import SecretClient
+from msgraph.graph_service_client import GraphServiceClient
 from pydantic import BaseModel, Field
 
 from azure_haymaker.exceptions import ServicePrincipalError
@@ -38,7 +39,6 @@ from azure_haymaker.orchestrator.secret_manager import (
     store_secret,
 )
 from azure_haymaker.utils.credentials import get_credential, get_tenant_credential
-from msgraph.graph_service_client import GraphServiceClient
 
 logger = logging.getLogger(__name__)
 

@@ -12,13 +12,14 @@ Philosophy:
 
 import asyncio
 import logging
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, TypeVar, Callable, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 if TYPE_CHECKING:
     from msgraph.generated.models.application import Application
-    from msgraph.generated.models.service_principal import ServicePrincipal
     from msgraph.generated.models.password_credential import PasswordCredential
+    from msgraph.generated.models.service_principal import ServicePrincipal
 
 from msgraph.generated.models.application import Application
 from msgraph.generated.models.password_credential import PasswordCredential
