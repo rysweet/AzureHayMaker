@@ -772,6 +772,11 @@ class TestAuthEdgeCases:
 class TestCrossTenantAccessControl:
     """Security tests for cross-tenant access prevention."""
 
+    @pytest.fixture(autouse=True)
+    def setup_mock(self, mock_jwt_validation):
+        """Auto-use JWT validation mock for all tests in this class."""
+        pass
+
     @pytest.mark.anyio
     async def test_cross_tenant_access_denied(self, valid_token_claims):
         """Test that tokens from different tenant are rejected."""
@@ -901,6 +906,11 @@ class TestCrossTenantAccessControl:
 
 class TestTokenInjectionAttacks:
     """Security tests for token injection and manipulation attacks."""
+
+    @pytest.fixture(autouse=True)
+    def setup_mock(self, mock_jwt_validation):
+        """Auto-use JWT validation mock for all tests in this class."""
+        pass
 
     @pytest.mark.anyio
     async def test_sql_injection_in_claims_rejected(self):
