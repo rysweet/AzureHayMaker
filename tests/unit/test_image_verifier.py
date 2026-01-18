@@ -39,7 +39,8 @@ def image_verifier():
 @pytest.fixture
 def approved_acr_image():
     """Example of approved ACR image with digest."""
-    return "myregistry.azurecr.io/myapp@sha256:abc123def456"
+    # Use proper 64-character SHA256 digest
+    return "myregistry.azurecr.io/myapp@sha256:abc123def456abc123def456abc123def456abc123def456abc123def456abc1"
 
 
 @pytest.fixture
