@@ -66,10 +66,13 @@ class ImageVerifier:
                     raise ImageSigningError(f"Invalid digest format: {digest}")
                 logger.info(f"Image signature verified with digest: {digest[:16]}...")
             elif ":" in image_ref:
-                # Check for 'latest' tag which is unstable
+                # Check tag policy: v1, v2, v3 are stable; others generate warnings
                 tag = image_ref.split(":")[-1]
                 if tag == "latest":
                     logger.warning(f"Image {image_ref} uses unstable tag 'latest'")
+                elif tag not in ["v1", "v2", "v3"]:
+                    # Custom version tags like v1.2.3 are considered unstable
+                    logger.warning(f"Image {image_ref} uses unstable tag '{tag}'")
 
             return True
 
