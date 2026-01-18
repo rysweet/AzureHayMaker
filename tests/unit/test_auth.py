@@ -1469,14 +1469,20 @@ class TestConcurrentAuthentication:
     async def test_concurrent_jwks_cache_access(self):
         """Test that JWKS cache is thread-safe under concurrent access."""
         import asyncio
+        from unittest.mock import AsyncMock, patch
 
         # Multiple concurrent JWKS fetches for same tenant
         from azure_haymaker.orchestrator.auth import get_jwks_with_ttl
 
-        tasks = [get_jwks_with_ttl("test-tenant") for _ in range(10)]
+        # Mock the network calls
+        mock_jwks = {"keys": [{"kid": "test-key", "kty": "RSA"}]}
 
-        # All should complete without errors
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        with patch("azure_haymaker.orchestrator.auth.get_tenant_metadata", new=AsyncMock(return_value={"jwks_uri": "https://test.com/jwks"})):
+            with patch("httpx.AsyncClient.get", new=AsyncMock(return_value=AsyncMock(json=lambda: mock_jwks, raise_for_status=lambda: None))):
+                tasks = [get_jwks_with_ttl("test-tenant") for _ in range(10)]
 
-        # No exceptions should occur
-        assert all(not isinstance(r, Exception) for r in results)
+                # All should complete without errors
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+
+                # No exceptions should occur
+                assert all(not isinstance(r, Exception) for r in results)
