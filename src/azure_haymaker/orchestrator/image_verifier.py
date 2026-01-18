@@ -54,7 +54,7 @@ class ImageVerifier:
         dangerous_chars = [";", "|", "&", "$", "`", "\n", "\r", "\0", ".."]
         for char in dangerous_chars:
             if char in image_ref:
-                raise ImageSigningError("Invalid image reference: contains dangerous character or pattern")
+                raise ImageSigningError(f"Invalid image reference: contains dangerous character or pattern")
 
         # In production, this would verify against ACR signatures and policies
         # For now, we enforce that the image reference must be from an Azure Container Registry
