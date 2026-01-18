@@ -44,7 +44,15 @@ VPN_CONNECTION="azurehaymaker-vpn-conn-${UNIQUE_ID}"
 # Simulated on-premises network
 LOCAL_NETWORK_PREFIX="192.168.0.0/16"
 LOCAL_GATEWAY_IP="203.0.113.12"  # Simulated public IP
-SHARED_KEY="AzureHayMaker2024Secure"
+
+# VPN Shared Key - SECURITY: Retrieve from Azure Key Vault
+# Generate strong key: openssl rand -base64 32
+# Store in vault: az keyvault secret set --vault-name "${KEY_VAULT_NAME}" --name "vpn-shared-key" --value "<your-key>"
+SHARED_KEY=$(az keyvault secret show \
+  --vault-name "${KEY_VAULT_NAME}" \
+  --name "vpn-shared-key" \
+  --query "value" \
+  --output tsv)
 
 # Tags
 TAGS="AzureHayMaker-managed=true Scenario=networking-vpn-gateway Owner=AzureHayMaker"
