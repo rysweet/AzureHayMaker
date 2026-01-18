@@ -77,7 +77,7 @@ class TestJWTSignatureValidation:
     ):
         """Test that valid tokens with proper signatures are accepted."""
         # This test will fail until we implement signature verification
-        with patch("azure_haymaker.orchestrator.auth.get_jwks") as mock_get_jwks:
+        with patch("azure_haymaker.orchestrator.auth.get_jwks_with_ttl") as mock_get_jwks:
             mock_get_jwks.return_value = mock_jwks
 
             # Create a properly signed token (will need real signing in implementation)
