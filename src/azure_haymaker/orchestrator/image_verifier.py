@@ -50,6 +50,12 @@ class ImageVerifier:
         if not image_ref or not image_ref.strip():
             raise ImageSigningError("Container image reference cannot be empty")
 
+        # Security validation: Reject malicious input patterns
+        dangerous_chars = [";", "|", "&", "$", "`", "\n", "\r", "\0", ".."]
+        for char in dangerous_chars:
+            if char in image_ref:
+                raise ImageSigningError(f"Invalid image reference: contains dangerous character or pattern")
+
         # In production, this would verify against ACR signatures and policies
         # For now, we enforce that the image reference must be from an Azure Container Registry
         if not ("azurecr.io" in image_ref or image_ref.startswith("registry")):
