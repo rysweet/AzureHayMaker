@@ -603,8 +603,8 @@ class TestProductionReadiness:
         # Production images typically use digest for immutability
         production_images = [
             "prod.azurecr.io/frontend@sha256:abc123def456abc123def456abc123def456abc123def456abc123def456abc1",
-            "prod.azurecr.io/backend@sha256:def789ghi012def789ghi012def789ghi012def789ghi012def789ghi012def7",
-            "prod.azurecr.io/worker@sha256:ghi345jkl678ghi345jkl678ghi345jkl678ghi345jkl678ghi345jkl678ghi3",
+            "prod.azurecr.io/backend@sha256:def789abc012def789abc012def789abc012def789abc012def789abc012def7",
+            "prod.azurecr.io/worker@sha256:fedcba987654fedcba987654fedcba987654fedcba987654fedcba987654fedc",
         ]
 
         for image in production_images:
