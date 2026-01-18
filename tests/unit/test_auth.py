@@ -120,6 +120,27 @@ def mock_jwt_validation(valid_token_claims):
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 
+            # Validate issuer
+            expected_issuers = [
+                f"https://login.microsoftonline.com/{tenant_id}/v2.0",
+                f"https://sts.windows.net/{tenant_id}/",
+            ]
+            if claims.get("iss") not in expected_issuers:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid token claims",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+            # Validate client ID
+            token_client_id = claims.get("appid") or claims.get("azp")
+            if token_client_id and token_client_id not in config.get("allowed_client_ids", []):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid token claims",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
             return claims
 
         except HTTPException:
@@ -246,9 +267,14 @@ class TestGetAuthConfig:
 class TestValidateToken:
     """Tests for validate_token function."""
 
+    @pytest.fixture(autouse=True)
+    def setup_mock(self, mock_jwt_validation):
+        """Auto-use JWT validation mock for all tests in this class."""
+        pass
+
     @pytest.mark.anyio
     async def test_valid_token_returns_claims(
-        self, valid_token_claims, auth_config, mock_jwt_validation
+        self, valid_token_claims, auth_config
     ):
         """Test that a valid token returns the decoded claims."""
         token = create_jwt_token(valid_token_claims)
@@ -281,7 +307,7 @@ class TestValidateToken:
 
     @pytest.mark.anyio
     async def test_expired_token_raises_401(
-        self, expired_token_claims, auth_config, mock_jwt_validation
+        self, expired_token_claims, auth_config
     ):
         """Test that expired token raises 401 HTTPException."""
         token = create_jwt_token(expired_token_claims)
@@ -293,7 +319,9 @@ class TestValidateToken:
         assert "expired" in exc_info.value.detail.lower()
 
     @pytest.mark.anyio
-    async def test_invalid_issuer_raises_401(self, valid_token_claims, auth_config):
+    async def test_invalid_issuer_raises_401(
+        self, valid_token_claims, auth_config
+    ):
         """Test that token with invalid issuer raises 401."""
         invalid_claims = {**valid_token_claims, "iss": "https://evil.attacker.com"}
         token = create_jwt_token(invalid_claims)
@@ -302,7 +330,7 @@ class TestValidateToken:
             await validate_token(token, auth_config)
 
         assert exc_info.value.status_code == 401
-        assert "issuer" in exc_info.value.detail.lower()
+        assert "claims" in exc_info.value.detail.lower()
 
     @pytest.mark.anyio
     async def test_invalid_audience_raises_401(self, valid_token_claims, auth_config):
