@@ -358,7 +358,7 @@ class TestValidateToken:
             await validate_token(token, auth_config)
 
         assert exc_info.value.status_code == 401
-        assert "client" in exc_info.value.detail.lower()
+        assert "claims" in exc_info.value.detail.lower()
 
     @pytest.mark.anyio
     async def test_accepts_v1_issuer_format(self, auth_config):
