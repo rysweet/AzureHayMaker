@@ -82,6 +82,15 @@ def auth_config():
     }
 
 
+@pytest.fixture
+def mock_jwt_validation(valid_token_claims):
+    """Mock JWT signature validation to bypass real cryptographic checks."""
+    with patch("azure_haymaker.orchestrator.auth.validate_jwt_signature") as mock:
+        # By default, return valid claims
+        mock.return_value = valid_token_claims
+        yield mock
+
+
 def create_jwt_token(claims: dict) -> str:
     """Create a mock JWT token from claims.
 
@@ -194,7 +203,9 @@ class TestValidateToken:
     """Tests for validate_token function."""
 
     @pytest.mark.anyio
-    async def test_valid_token_returns_claims(self, valid_token_claims, auth_config):
+    async def test_valid_token_returns_claims(
+        self, valid_token_claims, auth_config, mock_jwt_validation
+    ):
         """Test that a valid token returns the decoded claims."""
         token = create_jwt_token(valid_token_claims)
 
