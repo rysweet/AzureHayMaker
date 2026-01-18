@@ -79,6 +79,9 @@ class ImageVerifier:
                 elif tag not in ["v1", "v2", "v3"]:
                     # Custom version tags like v1.2.3 are considered unstable
                     logger.warning(f"Image {image_ref} uses unstable tag '{tag}'")
+            else:
+                # Image has neither digest nor tag - must be rejected
+                raise ImageSigningError(f"Image {image_ref} must include either a tag or digest")
 
             return True
 
