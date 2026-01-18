@@ -1,25 +1,67 @@
 """Azure AD authentication for the orchestrator API.
 
-This module provides Azure AD token validation for securing API endpoints.
-Clients must authenticate using a service principal and provide a Bearer token.
+This module provides Azure AD token validation with full cryptographic
+signature verification using python-jose library.
+
+Security Features:
+- Full JWT signature verification using JWKS from Azure AD
+- Token replay protection via JTI (JWT ID) tracking
+- JWKS caching with TTL-based refresh (1 hour default)
+- Comprehensive claim validation (iss, aud, exp, nbf, iat, jti)
+- Secure error handling (generic user messages, detailed logs)
 """
 
 import logging
 import os
+import time
+from dataclasses import dataclass
 from typing import Annotated
 
 import httpx
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import jwt
+from jose.exceptions import ExpiredSignatureError, JWTClaimsError, JWTError
 
 logger = logging.getLogger(__name__)
 
 # Security scheme
 security = HTTPBearer(auto_error=False)
 
-# Cache for JWKS keys and tenant metadata
-_jwks_cache: dict[str, dict] = {}
-_tenant_metadata_cache: dict[str, dict] = {}
+# Cache for JWKS keys with TTL
+@dataclass
+class JWKSCacheEntry:
+    """JWKS cache entry with TTL tracking."""
+
+    jwks: dict
+    fetched_at: float
+    ttl: int = 3600  # 1 hour default
+
+
+_jwks_cache: dict[str, JWKSCacheEntry] = {}
+
+# JTI (JWT ID) tracking for replay protection
+@dataclass
+class TokenRecord:
+    """Token tracking record for replay detection."""
+
+    jti: str
+    exp: int  # Expiration timestamp
+
+
+_jti_cache: dict[str, TokenRecord] = {}
+_JTI_CACHE_MAX_SIZE = 10000  # Max 10,000 concurrent tokens
+
+
+class TokenReplayError(HTTPException):
+    """Raised when token replay is detected."""
+
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token replay detected",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 
 def get_auth_config() -> dict[str, str | list[str]]:
@@ -59,31 +101,42 @@ async def get_tenant_metadata(tenant_id: str) -> dict:
     Returns:
         OpenID configuration dictionary
     """
-    if tenant_id in _tenant_metadata_cache:
-        return _tenant_metadata_cache[tenant_id]
-
     url = f"https://login.microsoftonline.com/{tenant_id}/v2.0/.well-known/openid-configuration"
 
     async with httpx.AsyncClient() as client:
         response = await client.get(url)
         response.raise_for_status()
-        metadata = response.json()
-        _tenant_metadata_cache[tenant_id] = metadata
-        return metadata
+        return response.json()
 
 
-async def get_jwks(tenant_id: str) -> dict:
-    """Fetch JSON Web Key Set for token validation.
+async def get_jwks_with_ttl(tenant_id: str, force_refresh: bool = False) -> dict:
+    """Fetch JSON Web Key Set with TTL-based caching.
+
+    Implements TTL-based refresh (1 hour default) to handle key rotation scenarios.
 
     Args:
         tenant_id: Azure AD tenant ID
+        force_refresh: Force refresh even if cache is valid (for key rotation)
 
     Returns:
         JWKS dictionary with keys
     """
-    if tenant_id in _jwks_cache:
-        return _jwks_cache[tenant_id]
+    now = time.time()
 
+    # Check cache unless force refresh
+    if not force_refresh and tenant_id in _jwks_cache:
+        entry = _jwks_cache[tenant_id]
+        cache_age = now - entry.fetched_at
+
+        # Return cached if still valid
+        if cache_age < entry.ttl:
+            logger.debug(f"JWKS cache hit for tenant {tenant_id} (age: {cache_age:.0f}s)")
+            return entry.jwks
+
+        logger.debug(f"JWKS cache expired for tenant {tenant_id} (age: {cache_age:.0f}s)")
+
+    # Fetch fresh JWKS
+    logger.info(f"Fetching JWKS for tenant {tenant_id}")
     metadata = await get_tenant_metadata(tenant_id)
     jwks_uri = metadata["jwks_uri"]
 
@@ -91,89 +144,201 @@ async def get_jwks(tenant_id: str) -> dict:
         response = await client.get(jwks_uri)
         response.raise_for_status()
         jwks = response.json()
-        _jwks_cache[tenant_id] = jwks
-        return jwks
+
+    # Update cache
+    _jwks_cache[tenant_id] = JWKSCacheEntry(jwks=jwks, fetched_at=now)
+
+    return jwks
 
 
-async def validate_token(token: str, config: dict) -> dict:
-    """Validate an Azure AD access token.
+def cleanup_expired_jtis() -> None:
+    """Remove expired JTI entries from replay cache.
 
-    This performs basic validation. For production, consider using
-    a library like python-jose or msal for full JWT validation.
+    Called periodically to prevent memory leaks.
+    Removes entries where token has expired.
+    """
+    now = time.time()
+    expired = [jti for jti, record in _jti_cache.items() if record.exp < now]
+
+    if expired:
+        for jti in expired:
+            del _jti_cache[jti]
+        logger.debug(f"Cleaned up {len(expired)} expired JTI entries")
+
+
+def check_token_replay(jti: str | None, exp: int) -> None:
+    """Check for token replay and track JTI.
+
+    Args:
+        jti: JWT ID claim (unique token identifier)
+        exp: Token expiration timestamp
+
+    Raises:
+        TokenReplayError: If token has already been used
+    """
+    # Skip replay check if no JTI (some tokens might not have it)
+    if not jti:
+        logger.warning("Token missing JTI claim - replay protection skipped")
+        return
+
+    # Check if JTI already seen
+    if jti in _jti_cache:
+        logger.warning(f"Token replay detected: jti={jti}")
+        raise TokenReplayError()
+
+    # Clean up if cache is getting large
+    if len(_jti_cache) >= _JTI_CACHE_MAX_SIZE:
+        cleanup_expired_jtis()
+
+    # Track this JTI
+    _jti_cache[jti] = TokenRecord(jti=jti, exp=exp)
+    logger.debug(f"Tracking token: jti={jti}, cache_size={len(_jti_cache)}")
+
+
+async def validate_jwt_signature(
+    token: str, tenant_id: str, config: dict, force_jwks_refresh: bool = False
+) -> dict:
+    """Validate JWT signature and all claims using python-jose.
+
+    This performs FULL cryptographic validation:
+    - Signature verification using JWKS from Azure AD
+    - Issuer validation (must be from our tenant)
+    - Audience validation (must be for our API)
+    - Expiration check
+    - Not-before-time check
+    - Issued-at-time check
 
     Args:
         token: JWT access token
-        config: Auth configuration with tenant_id and allowed_client_ids
+        tenant_id: Azure AD tenant ID
+        config: Auth configuration with client_id and allowed_client_ids
+        force_jwks_refresh: Force JWKS refresh (for key rotation)
 
     Returns:
-        Decoded token claims
+        Decoded and validated token claims
 
     Raises:
         HTTPException: If token is invalid
     """
-    import base64
-    import json as json_module
-
     try:
-        # Decode token parts (header.payload.signature)
-        parts = token.split(".")
-        if len(parts) != 3:
-            raise ValueError("Invalid token format")
+        # Fetch JWKS for signature verification
+        jwks = await get_jwks_with_ttl(tenant_id, force_refresh=force_jwks_refresh)
 
-        # Decode payload (add padding if needed)
-        payload = parts[1]
-        payload += "=" * (4 - len(payload) % 4)
-        claims = json_module.loads(base64.urlsafe_b64decode(payload))
-
-        # Validate issuer (must be from our tenant)
+        # Expected issuer values
         expected_issuers = [
-            f"https://login.microsoftonline.com/{config['tenant_id']}/v2.0",
-            f"https://sts.windows.net/{config['tenant_id']}/",
+            f"https://login.microsoftonline.com/{tenant_id}/v2.0",
+            f"https://sts.windows.net/{tenant_id}/",
         ]
-        if claims.get("iss") not in expected_issuers:
-            logger.warning(f"Invalid issuer: {claims.get('iss')}")
-            raise ValueError("Invalid token issuer")
 
-        # Validate audience (must be for our app or Microsoft Graph)
+        # Valid audience values
         valid_audiences = [
             config["client_id"],
             f"api://{config['client_id']}",
             "https://management.azure.com",
             "https://management.core.windows.net/",
         ]
-        token_aud = claims.get("aud")
-        if token_aud not in valid_audiences:
-            logger.warning(f"Invalid audience: {token_aud}")
-            raise ValueError("Invalid token audience")
 
-        # Validate expiration
-        import time
+        # Decode and validate token with full verification
+        claims = jwt.decode(
+            token,
+            jwks,
+            algorithms=["RS256"],
+            audience=valid_audiences,
+            options={
+                "verify_signature": True,
+                "verify_aud": True,
+                "verify_iat": True,
+                "verify_exp": True,
+                "verify_nbf": True,
+                "verify_iss": False,  # Manual issuer check below for multi-issuer
+            },
+        )
 
-        if claims.get("exp", 0) < time.time():
-            raise ValueError("Token has expired")
+        # Manually validate issuer (multi-value check)
+        if claims.get("iss") not in expected_issuers:
+            logger.warning(f"Invalid issuer: {claims.get('iss')}")
+            raise JWTClaimsError("Invalid token issuer")
 
         # Validate client ID (appid or azp claim)
         token_client_id = claims.get("appid") or claims.get("azp")
         if token_client_id not in config["allowed_client_ids"]:
             logger.warning(f"Unauthorized client: {token_client_id}")
-            raise ValueError("Unauthorized client application")
+            raise JWTClaimsError("Unauthorized client application")
 
-        logger.debug(f"Token validated for client: {token_client_id}")
+        logger.debug(f"Token signature validated for client: {token_client_id}")
         return claims
 
-    except ValueError as e:
+    except ExpiredSignatureError as e:
+        logger.warning("Token expired")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),
+            detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
-    except Exception as e:
-        logger.error(f"Token validation error: {e}")
+
+    except JWTClaimsError as e:
+        logger.warning(f"Token claims validation failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token claims",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from e
+
+    except JWTError as e:
+        # Signature validation failure - try refreshing JWKS once
+        # This handles key rotation scenarios
+        if not force_jwks_refresh:
+            logger.info("Signature validation failed - refreshing JWKS and retrying")
+            return await validate_jwt_signature(
+                token, tenant_id, config, force_jwks_refresh=True
+            )
+
+        logger.error(f"JWT validation error after JWKS refresh: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication token",
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
+
+    except Exception as e:
+        logger.error(f"Unexpected token validation error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication token",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from e
+
+
+async def validate_token(token: str, config: dict) -> dict:
+    """Validate an Azure AD access token with full security checks.
+
+    This implements:
+    - Full cryptographic signature verification
+    - Token replay protection via JTI tracking
+    - All standard JWT claim validation
+    - JWKS caching with TTL-based refresh
+
+    Args:
+        token: JWT access token
+        config: Auth configuration with tenant_id and allowed_client_ids
+
+    Returns:
+        Validated token claims
+
+    Raises:
+        HTTPException: If token is invalid
+    """
+    tenant_id = config["tenant_id"]
+
+    # Validate signature and all claims
+    claims = await validate_jwt_signature(token, tenant_id, config)
+
+    # Check for token replay
+    jti = claims.get("jti")
+    exp = claims.get("exp", 0)
+    check_token_replay(jti, exp)
+
+    return claims
 
 
 async def require_auth(
@@ -238,3 +403,16 @@ async def optional_auth(
         return await validate_token(credentials.credentials, config)
     except Exception:
         return None
+
+
+__all__ = [
+    "require_auth",
+    "optional_auth",
+    "get_auth_config",
+    "validate_token",
+    "validate_jwt_signature",
+    "check_token_replay",
+    "cleanup_expired_jtis",
+    "get_jwks_with_ttl",
+    "TokenReplayError",
+]
