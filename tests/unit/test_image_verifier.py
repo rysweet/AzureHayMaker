@@ -342,8 +342,8 @@ class TestImageVerifierErrorHandling:
         # Image reference that might cause unexpected errors
         image_ref = "myregistry.azurecr.io/app@sha256:short"
 
-        # Should raise ImageSigningError with appropriate message about invalid digest
-        with pytest.raises(ImageSigningError, match="Invalid SHA256"):
+        # Should raise ImageSigningError with appropriate message about invalid digest format
+        with pytest.raises(ImageSigningError, match="Invalid SHA256 digest format"):
             await image_verifier.verify_signature(image_ref)
 
     @pytest.mark.anyio
