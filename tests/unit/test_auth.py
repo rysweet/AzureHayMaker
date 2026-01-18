@@ -613,6 +613,11 @@ class TestGetJwksWithTtl:
 class TestAuthIntegration:
     """Integration tests for auth module components."""
 
+    @pytest.fixture(autouse=True)
+    def setup_mock(self, mock_jwt_validation):
+        """Auto-use JWT validation mock for all tests in this class."""
+        pass
+
     @pytest.mark.anyio
     async def test_full_auth_flow_valid_token(self, valid_token_claims):
         """Test complete auth flow with valid token."""
