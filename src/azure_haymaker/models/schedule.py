@@ -265,3 +265,10 @@ class ScheduleResponse(BaseModel):
                 "last_failure_at": None,
             }
         }
+
+__all__ = [
+    "Schedule",
+    "ScheduleCreate",
+    "ScheduleResponse",
+    "ScheduleUpdate",
+]

@@ -328,3 +328,7 @@ def orchestrate_haymaker_run(context: Any) -> Any:
         execution_report["error"] = str(e)
         execution_report["ended_at"] = context.current_utc_datetime.isoformat()
         return execution_report
+
+__all__ = [
+    "orchestrate_haymaker_run",
+]

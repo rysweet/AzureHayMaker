@@ -148,3 +148,10 @@ def is_tracing_enabled() -> bool:
         True if init_tracing has been called, False otherwise.
     """
     return _initialized
+
+__all__ = [
+    "get_tracer",
+    "init_tracing",
+    "is_tracing_enabled",
+    "shutdown_tracing",
+]
