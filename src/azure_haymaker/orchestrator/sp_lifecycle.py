@@ -32,7 +32,11 @@ from azure_haymaker.orchestrator.graph_operations import (
     verify_application_exists,
 )
 from azure_haymaker.orchestrator.rbac_manager import assign_roles
-from azure_haymaker.orchestrator.secret_manager import delete_secret, get_secret_name_for_sp, store_secret
+from azure_haymaker.orchestrator.secret_manager import (
+    delete_secret,
+    get_secret_name_for_sp,
+    store_secret,
+)
 from azure_haymaker.utils.credentials import get_credential, get_tenant_credential
 from msgraph.graph_service_client import GraphServiceClient
 
@@ -113,10 +117,7 @@ async def create_service_principal(
 
         # Generate password credential (client secret) with expiration
         password_result = await add_application_password(
-            graph_client,
-            app.id,
-            f"{sp_name}-secret",
-            secret_validity_days
+            graph_client, app.id, f"{sp_name}-secret", secret_validity_days
         )
 
         # Store secret in Key Vault

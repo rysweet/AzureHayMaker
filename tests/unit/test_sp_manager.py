@@ -4,6 +4,7 @@ This module tests the creation, role assignment, and deletion of ephemeral
 service principals for scenario execution.
 """
 
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -96,6 +97,7 @@ class TestCreateServicePrincipal:
 
         mock_password_credential = MagicMock()
         mock_password_credential.secret_text = "test-secret-value"
+        mock_password_credential.end_date_time = datetime.now(UTC) + timedelta(days=30)
 
         # Configure mock chains - Graph SDK methods are async so need AsyncMock
         mock_graph_client.applications.post = AsyncMock(return_value=mock_app_result)
@@ -125,15 +127,34 @@ class TestCreateServicePrincipal:
         }
         with (
             patch(
-                "azure_haymaker.orchestrator.sp_manager.GraphServiceClient",
-                return_value=mock_graph_client,
+                "azure_haymaker.orchestrator.sp_lifecycle.create_application",
+                new_callable=AsyncMock,
+                return_value=mock_app_result,
             ),
             patch(
-                "azure_haymaker.orchestrator.sp_manager.AuthorizationManagementClient",
-                return_value=mock_auth_client,
+                "azure_haymaker.orchestrator.sp_lifecycle.verify_application_exists",
+                new_callable=AsyncMock,
             ),
-            patch("azure_haymaker.orchestrator.sp_manager.asyncio.sleep", new_callable=AsyncMock),
+            patch(
+                "azure_haymaker.orchestrator.sp_lifecycle.create_service_principal_for_app",
+                new_callable=AsyncMock,
+                return_value=mock_sp_result,
+            ),
+            patch(
+                "azure_haymaker.orchestrator.sp_lifecycle.add_application_password",
+                new_callable=AsyncMock,
+                return_value=mock_password_credential,
+            ),
+            patch(
+                "azure_haymaker.orchestrator.sp_lifecycle.assign_roles",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "azure_haymaker.orchestrator.sp_lifecycle.GraphServiceClient",
+                return_value=mock_graph_client,
+            ),
             patch("azure.identity.ClientSecretCredential"),
+            patch("asyncio.to_thread", side_effect=lambda f, *args, **kwargs: f(*args, **kwargs)),
             patch.dict("os.environ", mock_env),
         ):
             result = await create_service_principal(
@@ -180,7 +201,7 @@ class TestCreateServicePrincipal:
 
         with (
             patch(
-                "azure_haymaker.orchestrator.sp_manager.GraphServiceClient",
+                "azure_haymaker.orchestrator.sp_lifecycle.GraphServiceClient",
                 return_value=mock_graph_client,
             ),
             patch.dict("os.environ", mock_env),
@@ -208,6 +229,7 @@ class TestCreateServicePrincipal:
 
         mock_password_credential = MagicMock()
         mock_password_credential.secret_text = "test-secret-value"
+        mock_password_credential.end_date_time = datetime.now(UTC) + timedelta(days=30)
 
         # Use AsyncMock for async Graph SDK methods
         mock_graph_client.applications.post = AsyncMock(return_value=mock_app_result)
@@ -236,7 +258,7 @@ class TestCreateServicePrincipal:
 
         with (
             patch(
-                "azure_haymaker.orchestrator.sp_manager.GraphServiceClient",
+                "azure_haymaker.orchestrator.sp_lifecycle.GraphServiceClient",
                 return_value=mock_graph_client,
             ),
             patch("azure_haymaker.orchestrator.sp_manager.asyncio.sleep", new_callable=AsyncMock),
@@ -264,6 +286,7 @@ class TestCreateServicePrincipal:
 
         mock_password_credential = MagicMock()
         mock_password_credential.secret_text = "test-secret-value"
+        mock_password_credential.end_date_time = datetime.now(UTC) + timedelta(days=30)
 
         # Use AsyncMock for async Graph SDK methods
         mock_graph_client.applications.post = AsyncMock(return_value=mock_app_result)
@@ -291,11 +314,11 @@ class TestCreateServicePrincipal:
 
         with (
             patch(
-                "azure_haymaker.orchestrator.sp_manager.GraphServiceClient",
+                "azure_haymaker.orchestrator.sp_lifecycle.GraphServiceClient",
                 return_value=mock_graph_client,
             ),
             patch(
-                "azure_haymaker.orchestrator.sp_manager.AuthorizationManagementClient",
+                "azure_haymaker.orchestrator.rbac_manager.AuthorizationManagementClient",
                 return_value=mock_auth_client,
             ),
             patch("azure_haymaker.orchestrator.sp_manager.asyncio.sleep", new_callable=AsyncMock),
@@ -331,7 +354,7 @@ class TestDeleteServicePrincipal:
         mock_kv_client = AsyncMock(spec=SecretClient)
 
         with patch(
-            "azure_haymaker.orchestrator.sp_manager.GraphServiceClient",
+            "azure_haymaker.orchestrator.sp_lifecycle.GraphServiceClient",
             return_value=mock_graph_client,
         ):
             await delete_service_principal(
@@ -359,7 +382,7 @@ class TestDeleteServicePrincipal:
         mock_kv_client = AsyncMock(spec=SecretClient)
 
         with patch(
-            "azure_haymaker.orchestrator.sp_manager.GraphServiceClient",
+            "azure_haymaker.orchestrator.sp_lifecycle.GraphServiceClient",
             return_value=mock_graph_client,
         ):
             # Should not raise error, just log warning
@@ -387,7 +410,7 @@ class TestDeleteServicePrincipal:
         mock_kv_client.begin_delete_secret.side_effect = ResourceNotFoundError("Secret not found")
 
         with patch(
-            "azure_haymaker.orchestrator.sp_manager.GraphServiceClient",
+            "azure_haymaker.orchestrator.sp_lifecycle.GraphServiceClient",
             return_value=mock_graph_client,
         ):
             # Should not raise error for missing secret
@@ -413,7 +436,7 @@ class TestVerifySpDeleted:
         mock_graph_client.service_principals.get.return_value = mock_sp_list
 
         with patch(
-            "azure_haymaker.orchestrator.sp_manager.GraphServiceClient",
+            "azure_haymaker.orchestrator.sp_lifecycle.GraphServiceClient",
             return_value=mock_graph_client,
         ):
             result = await verify_sp_deleted("AzureHayMaker-test-scenario-admin")
@@ -433,7 +456,7 @@ class TestVerifySpDeleted:
         mock_graph_client.service_principals.get.return_value = mock_sp_list
 
         with patch(
-            "azure_haymaker.orchestrator.sp_manager.GraphServiceClient",
+            "azure_haymaker.orchestrator.sp_lifecycle.GraphServiceClient",
             return_value=mock_graph_client,
         ):
             result = await verify_sp_deleted("AzureHayMaker-test-scenario-admin")
@@ -447,7 +470,7 @@ class TestVerifySpDeleted:
         mock_graph_client.service_principals.get.return_value = None
 
         with patch(
-            "azure_haymaker.orchestrator.sp_manager.GraphServiceClient",
+            "azure_haymaker.orchestrator.sp_lifecycle.GraphServiceClient",
             return_value=mock_graph_client,
         ):
             result = await verify_sp_deleted("AzureHayMaker-test-scenario-admin")
@@ -462,7 +485,7 @@ class TestVerifySpDeleted:
 
         with (
             patch(
-                "azure_haymaker.orchestrator.sp_manager.GraphServiceClient",
+                "azure_haymaker.orchestrator.sp_lifecycle.GraphServiceClient",
                 return_value=mock_graph_client,
             ),
             pytest.raises(ServicePrincipalError, match="Graph API error"),
@@ -492,7 +515,7 @@ class TestListHaymakerServicePrincipals:
         mock_graph_client.service_principals.get.return_value = mock_sp_list
 
         with patch(
-            "azure_haymaker.orchestrator.sp_manager.GraphServiceClient",
+            "azure_haymaker.orchestrator.sp_lifecycle.GraphServiceClient",
             return_value=mock_graph_client,
         ):
             result = await list_haymaker_service_principals()
@@ -513,7 +536,7 @@ class TestListHaymakerServicePrincipals:
         mock_graph_client.service_principals.get.return_value = mock_sp_list
 
         with patch(
-            "azure_haymaker.orchestrator.sp_manager.GraphServiceClient",
+            "azure_haymaker.orchestrator.sp_lifecycle.GraphServiceClient",
             return_value=mock_graph_client,
         ):
             result = await list_haymaker_service_principals()
