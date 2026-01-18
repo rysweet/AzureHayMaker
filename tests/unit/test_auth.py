@@ -682,6 +682,11 @@ class TestAuthIntegration:
 class TestAuthEdgeCases:
     """Edge case and boundary tests for auth module."""
 
+    @pytest.fixture(autouse=True)
+    def setup_mock(self, mock_jwt_validation):
+        """Auto-use JWT validation mock for all tests in this class."""
+        pass
+
     @pytest.mark.anyio
     async def test_token_exactly_at_expiration(self):
         """Test token exactly at expiration boundary."""
