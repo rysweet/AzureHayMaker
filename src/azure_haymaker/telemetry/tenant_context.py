@@ -300,3 +300,14 @@ def iter_tenant_spans(
         "Query your telemetry backend directly. "
         "See function docstring for Azure Application Insights KQL example."
     )
+
+__all__ = [
+    "EXECUTION_ID_ATTRIBUTE",
+    "SCENARIO_NAME_ATTRIBUTE",
+    "TENANT_ID_ATTRIBUTE",
+    "TenantTelemetryContext",
+    "create_tenant_span",
+    "get_current_tenant_id",
+    "iter_tenant_spans",
+    "set_tenant_context",
+]
