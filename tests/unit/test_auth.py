@@ -425,6 +425,11 @@ class TestValidateToken:
 class TestRequireAuth:
     """Tests for require_auth FastAPI dependency."""
 
+    @pytest.fixture(autouse=True)
+    def setup_mock(self, mock_jwt_validation):
+        """Auto-use JWT validation mock for all tests in this class."""
+        pass
+
     @pytest.mark.anyio
     async def test_no_credentials_raises_401(self):
         """Test that missing credentials raises 401."""
@@ -471,6 +476,11 @@ class TestRequireAuth:
 
 class TestOptionalAuth:
     """Tests for optional_auth FastAPI dependency."""
+
+    @pytest.fixture(autouse=True)
+    def setup_mock(self, mock_jwt_validation):
+        """Auto-use JWT validation mock for all tests in this class."""
+        pass
 
     @pytest.mark.anyio
     async def test_no_credentials_returns_none(self):
