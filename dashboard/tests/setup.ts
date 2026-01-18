@@ -9,3 +9,11 @@ afterEach(() => {
 
 // Mock WebSocket globally
 global.WebSocket = vi.fn() as any;
+
+// Mock ResizeObserver (required for Recharts)
+global.ResizeObserver = class ResizeObserver {
+  constructor() {}
+  disconnect() {}
+  observe() {}
+  unobserve() {}
+} as any;
