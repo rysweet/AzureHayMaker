@@ -261,7 +261,7 @@ class TestCreateServicePrincipal:
                 "azure_haymaker.orchestrator.sp_lifecycle.GraphServiceClient",
                 return_value=mock_graph_client,
             ),
-            patch("azure_haymaker.orchestrator.sp_manager.asyncio.sleep", new_callable=AsyncMock),
+            patch("azure_haymaker.orchestrator.rbac_manager.asyncio.sleep", new_callable=AsyncMock),
             patch.dict("os.environ", mock_env),
             pytest.raises(ServicePrincipalError, match="Key Vault error"),
         ):
@@ -321,7 +321,7 @@ class TestCreateServicePrincipal:
                 "azure_haymaker.orchestrator.rbac_manager.AuthorizationManagementClient",
                 return_value=mock_auth_client,
             ),
-            patch("azure_haymaker.orchestrator.sp_manager.asyncio.sleep", new_callable=AsyncMock),
+            patch("azure_haymaker.orchestrator.rbac_manager.asyncio.sleep", new_callable=AsyncMock),
             patch.dict("os.environ", mock_env),
         ):
             await create_service_principal(
