@@ -379,6 +379,7 @@ class KnowledgeWorkerCleanupManager:
         delete_method = self._get_delete_method(resource_type)
         if not delete_method:
             logger.error(f"Unknown resource type: {resource_type}")
+            report.complete()
             return report
 
         for resource_id in inventory.get(resource_type):
