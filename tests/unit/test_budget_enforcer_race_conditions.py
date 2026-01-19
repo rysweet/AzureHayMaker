@@ -24,6 +24,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from azure.core.exceptions import HttpResponseError
 
 from azure_haymaker.orchestrator.services.budget_enforcer import (
     BudgetConfig,
@@ -556,7 +557,7 @@ class TestErrorHandlingUnderConcurrency:
             nonlocal call_count
             call_count += 1
             if call_count % 2 == 0:  # Fail every other call
-                raise Exception("API error")
+                raise HttpResponseError("API error")
             return 50.0
 
         with patch.object(
