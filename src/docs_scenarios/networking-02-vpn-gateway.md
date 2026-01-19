@@ -234,10 +234,13 @@ az network vnet subnet list \
   --output table
 
 # Operation 5: Update VPN Connection shared key (change encryption key)
+# SECURITY: Generate new key and store in Key Vault first
+# NEW_SHARED_KEY=$(openssl rand -base64 32)
+# az keyvault secret set --vault-name "${KEY_VAULT_NAME}" --name "vpn-shared-key" --value "${NEW_SHARED_KEY}"
 az network vpn-connection shared-key update \
   --resource-group "${RESOURCE_GROUP}" \
   --connection-name "${VPN_CONNECTION}" \
-  --value "NewAzureHayMaker2024Key"
+  --value "$(az keyvault secret show --vault-name "${KEY_VAULT_NAME}" --name "vpn-shared-key" --query "value" --output tsv)"
 
 # Operation 6: Get VPN Gateway supported VPN protocols
 az network vnet-gateway supported-vpn-devices \
