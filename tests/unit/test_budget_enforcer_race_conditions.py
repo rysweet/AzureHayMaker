@@ -546,7 +546,7 @@ class TestErrorHandlingUnderConcurrency:
     async def test_api_error_during_concurrent_checks(self):
         """Test handling of API errors during concurrent budget checks.
 
-        Expected: Errors don't affect other concurrent operations.
+        Expected: Errors are handled gracefully, enforcer returns empty spend on failure.
         """
         enforcer = BudgetEnforcer(subscription_id="test-sub")
 
@@ -564,13 +564,15 @@ class TestErrorHandlingUnderConcurrency:
             "_query_cost_for_period",
             side_effect=failing_query,
         ):
-            # 10 concurrent queries, some will fail
+            # 10 concurrent queries
             tasks = [enforcer.get_current_spend(use_cache=False) for _ in range(10)]
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            # Some succeed, some return cached/empty spend
+            # All should return SpendSummary (either success or empty on error)
+            # get_current_spend catches exceptions and returns empty SpendSummary
             successful = [r for r in results if isinstance(r, SpendSummary)]
-            assert len(successful) >= 1  # At least some should succeed
+            assert len(successful) == 10  # All return SpendSummary
+            assert call_count >= 30  # At least 3 periods × 10 queries
 
 
 class TestPerformanceUnderLoad:
