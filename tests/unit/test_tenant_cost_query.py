@@ -192,7 +192,7 @@ class TestGetTenantCostSummary:
             patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
             patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
-                "azure_haymaker.orchestrator.cost_query.aggregation._query_tenant_costs",
+                "azure_haymaker.orchestrator.cost_query.queries._query_tenant_costs",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
@@ -218,7 +218,7 @@ class TestGetTenantCostSummary:
             patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
             patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
-                "azure_haymaker.orchestrator.cost_query.aggregation._query_tenant_costs",
+                "azure_haymaker.orchestrator.cost_query.queries._query_tenant_costs",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
@@ -244,7 +244,7 @@ class TestGetTenantCostSummary:
             patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
             patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
-                "azure_haymaker.orchestrator.cost_query.aggregation._query_tenant_costs",
+                "azure_haymaker.orchestrator.cost_query.queries._query_tenant_costs",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
@@ -277,7 +277,7 @@ class TestGetTenantCostSummary:
             patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
             patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
-                "azure_haymaker.orchestrator.cost_query.aggregation._query_tenant_costs",
+                "azure_haymaker.orchestrator.cost_query.queries._query_tenant_costs",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
@@ -306,7 +306,7 @@ class TestGetTenantCostSummary:
             patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
             patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
-                "azure_haymaker.orchestrator.cost_query.aggregation._query_tenant_costs",
+                "azure_haymaker.orchestrator.cost_query.queries._query_tenant_costs",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
@@ -338,7 +338,7 @@ class TestGetTenantCostSummary:
             patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
             patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
-                "azure_haymaker.orchestrator.cost_query.aggregation._query_tenant_costs",
+                "azure_haymaker.orchestrator.cost_query.queries._query_tenant_costs",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
@@ -369,7 +369,7 @@ class TestGetTenantCostSummary:
             patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
             patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
-                "azure_haymaker.orchestrator.cost_query.aggregation._query_tenant_costs",
+                "azure_haymaker.orchestrator.cost_query.queries._query_tenant_costs",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
@@ -417,7 +417,7 @@ class TestGetTenantCostSummary:
             patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
             patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
-                "azure_haymaker.orchestrator.cost_query.aggregation._query_tenant_costs",
+                "azure_haymaker.orchestrator.cost_query.queries._query_tenant_costs",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
@@ -442,7 +442,7 @@ class TestGetTenantCostSummary:
             patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
             patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
-                "azure_haymaker.orchestrator.cost_query.aggregation._query_tenant_costs",
+                "azure_haymaker.orchestrator.cost_query.queries._query_tenant_costs",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
@@ -481,7 +481,7 @@ class TestGetTenantCostSummary:
             patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
             patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
-                "azure_haymaker.orchestrator.cost_query.aggregation._query_tenant_costs",
+                "azure_haymaker.orchestrator.cost_query.queries._query_tenant_costs",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
@@ -516,7 +516,7 @@ class TestTenantCostQueryIntegration:
             patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
             patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
-                "azure_haymaker.orchestrator.cost_query.aggregation._query_tenant_costs",
+                "azure_haymaker.orchestrator.cost_query.queries._query_tenant_costs",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
@@ -562,7 +562,7 @@ class TestTenantCostQueryIntegration:
             patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
             patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
-                "azure_haymaker.orchestrator.cost_query.aggregation._query_tenant_costs",
+                "azure_haymaker.orchestrator.cost_query.queries._query_tenant_costs",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):

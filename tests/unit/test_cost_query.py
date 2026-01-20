@@ -95,7 +95,7 @@ class TestGetCostSummary:
             patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
             patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
-                "azure_haymaker.orchestrator.cost_query.aggregation._query_costs_grouped_by",
+                "azure_haymaker.orchestrator.cost_query.queries._query_costs_grouped_by",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
@@ -124,7 +124,7 @@ class TestGetCostSummary:
             patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
             patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
-                "azure_haymaker.orchestrator.cost_query.aggregation._query_costs_grouped_by",
+                "azure_haymaker.orchestrator.cost_query.queries._query_costs_grouped_by",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
@@ -155,7 +155,7 @@ class TestGetCostSummary:
             patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
             patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
-                "azure_haymaker.orchestrator.cost_query.aggregation._query_costs_grouped_by",
+                "azure_haymaker.orchestrator.cost_query.queries._query_costs_grouped_by",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
@@ -202,7 +202,7 @@ class TestGetCostSummary:
             patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
             patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
-                "azure_haymaker.orchestrator.cost_query.aggregation._query_costs_grouped_by",
+                "azure_haymaker.orchestrator.cost_query.queries._query_costs_grouped_by",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
@@ -229,7 +229,7 @@ class TestGetCostSummary:
             patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
             patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
-                "azure_haymaker.orchestrator.cost_query.aggregation._query_costs_grouped_by",
+                "azure_haymaker.orchestrator.cost_query.queries._query_costs_grouped_by",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
@@ -275,7 +275,7 @@ class TestGetCostSummary:
             patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
             patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
-                "azure_haymaker.orchestrator.cost_query.aggregation._query_costs_grouped_by",
+                "azure_haymaker.orchestrator.cost_query.queries._query_costs_grouped_by",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
