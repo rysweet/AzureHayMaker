@@ -293,6 +293,7 @@ class OrchestratorConfig(BaseModel):
         # Validate on assignment
         validate_assignment = True
 
+
 __all__ = [
     "CosmosDBConfig",
     "LogAnalyticsConfig",

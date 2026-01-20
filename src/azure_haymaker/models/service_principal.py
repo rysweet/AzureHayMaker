@@ -156,6 +156,7 @@ class ServicePrincipal(BaseModel):
         use_enum_values = False
         validate_assignment = True
 
+
 __all__ = [
     "SecretExpirationStatus",
     "ServicePrincipal",

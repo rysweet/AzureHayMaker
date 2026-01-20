@@ -369,9 +369,7 @@ class TestKnowledgeWorkerCleanupManager:
     async def test_cleanup_all_empty_inventory(self):
         """Test cleanup with empty inventory completes successfully."""
         mock_graph = MagicMock()
-        manager = KnowledgeWorkerCleanupManager(
-            graph_client=mock_graph, run_id="test-run-123"
-        )
+        manager = KnowledgeWorkerCleanupManager(graph_client=mock_graph, run_id="test-run-123")
         inventory = KnowledgeWorkerResourceInventory(run_id="test-run-123")
 
         report = await manager.cleanup_all(inventory)
@@ -387,9 +385,7 @@ class TestKnowledgeWorkerCleanupManager:
         mock_graph = MagicMock()
         mock_graph.users.by_user_id.return_value.delete = AsyncMock()
 
-        manager = KnowledgeWorkerCleanupManager(
-            graph_client=mock_graph, run_id="test-run-123"
-        )
+        manager = KnowledgeWorkerCleanupManager(graph_client=mock_graph, run_id="test-run-123")
         inventory = KnowledgeWorkerResourceInventory(run_id="test-run-123")
         inventory.register("entra_users", "user-123")
 
@@ -407,9 +403,7 @@ class TestKnowledgeWorkerCleanupManager:
         mock_graph.users.by_user_id.return_value.delete = AsyncMock()
         mock_graph.groups.by_group_id.return_value.delete = AsyncMock()
 
-        manager = KnowledgeWorkerCleanupManager(
-            graph_client=mock_graph, run_id="test-run-123"
-        )
+        manager = KnowledgeWorkerCleanupManager(graph_client=mock_graph, run_id="test-run-123")
         inventory = KnowledgeWorkerResourceInventory(run_id="test-run-123")
         inventory.register("entra_users", "user-123")
         inventory.register("security_groups", "group-456")
@@ -427,9 +421,7 @@ class TestKnowledgeWorkerCleanupManager:
         mock_graph = MagicMock()
         mock_graph.users.by_user_id.return_value.delete = AsyncMock()
 
-        manager = KnowledgeWorkerCleanupManager(
-            graph_client=mock_graph, run_id="test-run-123"
-        )
+        manager = KnowledgeWorkerCleanupManager(graph_client=mock_graph, run_id="test-run-123")
         inventory = KnowledgeWorkerResourceInventory(run_id="test-run-123")
         inventory.register("entra_users", "user-123")
         inventory.register("security_groups", "group-456")  # Should not be deleted
@@ -446,9 +438,7 @@ class TestKnowledgeWorkerCleanupManager:
     async def test_cleanup_by_unknown_type(self):
         """Test cleanup by unknown type returns empty report."""
         mock_graph = MagicMock()
-        manager = KnowledgeWorkerCleanupManager(
-            graph_client=mock_graph, run_id="test-run-123"
-        )
+        manager = KnowledgeWorkerCleanupManager(graph_client=mock_graph, run_id="test-run-123")
         inventory = KnowledgeWorkerResourceInventory(run_id="test-run-123")
 
         report = await manager.cleanup_by_type(inventory, "unknown_type")
@@ -459,9 +449,7 @@ class TestKnowledgeWorkerCleanupManager:
     def test_get_delete_method(self):
         """Test _get_delete_method returns correct method for each type."""
         mock_graph = MagicMock()
-        manager = KnowledgeWorkerCleanupManager(
-            graph_client=mock_graph, run_id="test-run-123"
-        )
+        manager = KnowledgeWorkerCleanupManager(graph_client=mock_graph, run_id="test-run-123")
 
         # Test all valid resource types
         assert manager._get_delete_method("entra_users") is not None
@@ -482,9 +470,7 @@ class TestKnowledgeWorkerCleanupManager:
         mock_graph = MagicMock()
         mock_graph.users.by_user_id.return_value.delete = AsyncMock()
 
-        manager = KnowledgeWorkerCleanupManager(
-            graph_client=mock_graph, run_id="test-run-123"
-        )
+        manager = KnowledgeWorkerCleanupManager(graph_client=mock_graph, run_id="test-run-123")
 
         result = await manager._delete_entra_user("user-123")
 
@@ -499,9 +485,7 @@ class TestKnowledgeWorkerCleanupManager:
             side_effect=Exception("User not found")
         )
 
-        manager = KnowledgeWorkerCleanupManager(
-            graph_client=mock_graph, run_id="test-run-123"
-        )
+        manager = KnowledgeWorkerCleanupManager(graph_client=mock_graph, run_id="test-run-123")
 
         result = await manager._delete_entra_user("user-123")
 
@@ -515,9 +499,7 @@ class TestKnowledgeWorkerCleanupManager:
             side_effect=Exception("does not exist")
         )
 
-        manager = KnowledgeWorkerCleanupManager(
-            graph_client=mock_graph, run_id="test-run-123"
-        )
+        manager = KnowledgeWorkerCleanupManager(graph_client=mock_graph, run_id="test-run-123")
 
         result = await manager._delete_entra_user("user-123")
 
@@ -531,9 +513,7 @@ class TestKnowledgeWorkerCleanupManager:
             side_effect=Exception("Permission denied")
         )
 
-        manager = KnowledgeWorkerCleanupManager(
-            graph_client=mock_graph, run_id="test-run-123"
-        )
+        manager = KnowledgeWorkerCleanupManager(graph_client=mock_graph, run_id="test-run-123")
 
         result = await manager._delete_entra_user("user-123")
 
@@ -545,9 +525,7 @@ class TestKnowledgeWorkerCleanupManager:
         mock_graph = MagicMock()
         mock_graph.groups.by_group_id.return_value.delete = AsyncMock()
 
-        manager = KnowledgeWorkerCleanupManager(
-            graph_client=mock_graph, run_id="test-run-123"
-        )
+        manager = KnowledgeWorkerCleanupManager(graph_client=mock_graph, run_id="test-run-123")
 
         result = await manager._delete_security_group("group-123")
 
@@ -560,9 +538,7 @@ class TestKnowledgeWorkerCleanupManager:
         mock_graph = MagicMock()
         mock_graph.groups.by_group_id.return_value.delete = AsyncMock()
 
-        manager = KnowledgeWorkerCleanupManager(
-            graph_client=mock_graph, run_id="test-run-123"
-        )
+        manager = KnowledgeWorkerCleanupManager(graph_client=mock_graph, run_id="test-run-123")
 
         result = await manager._delete_m365_group("m365-123")
 
@@ -574,9 +550,7 @@ class TestKnowledgeWorkerCleanupManager:
         mock_graph = MagicMock()
         mock_graph.groups.by_group_id.return_value.delete = AsyncMock()
 
-        manager = KnowledgeWorkerCleanupManager(
-            graph_client=mock_graph, run_id="test-run-123"
-        )
+        manager = KnowledgeWorkerCleanupManager(graph_client=mock_graph, run_id="test-run-123")
 
         result = await manager._delete_teams_team("team-123")
 
@@ -588,9 +562,7 @@ class TestKnowledgeWorkerCleanupManager:
         mock_graph = MagicMock()
         mock_graph.device_management.virtual_endpoint.cloud_p_cs.by_cloud_pc_id.return_value.delete = AsyncMock()
 
-        manager = KnowledgeWorkerCleanupManager(
-            graph_client=mock_graph, run_id="test-run-123"
-        )
+        manager = KnowledgeWorkerCleanupManager(graph_client=mock_graph, run_id="test-run-123")
 
         result = await manager._delete_cloud_pc("cloudpc-123")
 
@@ -627,9 +599,7 @@ class TestKnowledgeWorkerCleanupManager:
     @pytest.mark.asyncio
     async def test_delete_transport_rule_not_implemented(self):
         """Test transport rule deletion returns False (not implemented)."""
-        manager = KnowledgeWorkerCleanupManager(
-            graph_client=MagicMock(), run_id="test-run-123"
-        )
+        manager = KnowledgeWorkerCleanupManager(graph_client=MagicMock(), run_id="test-run-123")
 
         result = await manager._delete_transport_rule("rule-123")
 
@@ -641,9 +611,7 @@ class TestKnowledgeWorkerCleanupManager:
         mock_graph = MagicMock()
         mock_graph.sites.by_site_id.return_value.delete = AsyncMock()
 
-        manager = KnowledgeWorkerCleanupManager(
-            graph_client=mock_graph, run_id="test-run-123"
-        )
+        manager = KnowledgeWorkerCleanupManager(graph_client=mock_graph, run_id="test-run-123")
 
         result = await manager._delete_sharepoint_site("site-123")
 
@@ -651,9 +619,7 @@ class TestKnowledgeWorkerCleanupManager:
 
     def test_extract_resource_group(self):
         """Test extracting resource group name from Azure resource ID."""
-        manager = KnowledgeWorkerCleanupManager(
-            graph_client=MagicMock(), run_id="test-run-123"
-        )
+        manager = KnowledgeWorkerCleanupManager(graph_client=MagicMock(), run_id="test-run-123")
 
         resource_id = "/subscriptions/sub-123/resourceGroups/rg-test/providers/Microsoft.App/containerApps/app-test"
         rg = manager._extract_resource_group(resource_id)
@@ -662,9 +628,7 @@ class TestKnowledgeWorkerCleanupManager:
 
     def test_extract_resource_group_invalid_format(self):
         """Test extracting resource group from invalid format returns empty."""
-        manager = KnowledgeWorkerCleanupManager(
-            graph_client=MagicMock(), run_id="test-run-123"
-        )
+        manager = KnowledgeWorkerCleanupManager(graph_client=MagicMock(), run_id="test-run-123")
 
         rg = manager._extract_resource_group("invalid-resource-id")
 
@@ -672,9 +636,7 @@ class TestKnowledgeWorkerCleanupManager:
 
     def test_extract_container_name(self):
         """Test extracting container name from Azure resource ID."""
-        manager = KnowledgeWorkerCleanupManager(
-            graph_client=MagicMock(), run_id="test-run-123"
-        )
+        manager = KnowledgeWorkerCleanupManager(graph_client=MagicMock(), run_id="test-run-123")
 
         resource_id = "/subscriptions/sub-123/resourceGroups/rg-test/providers/Microsoft.App/containerApps/app-test"
         name = manager._extract_container_name(resource_id)
@@ -683,9 +645,7 @@ class TestKnowledgeWorkerCleanupManager:
 
     def test_extract_container_name_empty_id(self):
         """Test extracting container name from empty ID returns empty."""
-        manager = KnowledgeWorkerCleanupManager(
-            graph_client=MagicMock(), run_id="test-run-123"
-        )
+        manager = KnowledgeWorkerCleanupManager(graph_client=MagicMock(), run_id="test-run-123")
 
         name = manager._extract_container_name("")
 
@@ -702,9 +662,7 @@ class TestKnowledgeWorkerCleanupManager:
             side_effect=Exception("API error")
         )
 
-        manager = KnowledgeWorkerCleanupManager(
-            graph_client=mock_graph, run_id="test-run-123"
-        )
+        manager = KnowledgeWorkerCleanupManager(graph_client=mock_graph, run_id="test-run-123")
         inventory = KnowledgeWorkerResourceInventory(run_id="test-run-123")
         inventory.register("entra_users", "user-123")
         inventory.register("security_groups", "group-456")
@@ -733,9 +691,7 @@ class TestKnowledgeWorkerCleanupManager:
         mock_graph.users.by_user_id.return_value.delete = track_user_delete
         mock_graph.groups.by_group_id.return_value.delete = track_group_delete
 
-        manager = KnowledgeWorkerCleanupManager(
-            graph_client=mock_graph, run_id="test-run-123"
-        )
+        manager = KnowledgeWorkerCleanupManager(graph_client=mock_graph, run_id="test-run-123")
         inventory = KnowledgeWorkerResourceInventory(run_id="test-run-123")
         inventory.register("entra_users", "user-123")
         inventory.register("security_groups", "group-456")
@@ -743,6 +699,4 @@ class TestKnowledgeWorkerCleanupManager:
         await manager.cleanup_all(inventory)
 
         # Security groups should be deleted before entra users
-        assert deletion_order.index("security_groups") < deletion_order.index(
-            "entra_users"
-        )
+        assert deletion_order.index("security_groups") < deletion_order.index("entra_users")

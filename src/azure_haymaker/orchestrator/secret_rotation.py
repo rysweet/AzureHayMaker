@@ -181,20 +181,13 @@ async def rotate_service_principal_secret(
             for old_cred in app.password_credentials:
                 if old_cred.key_id:
                     try:
-                        await remove_application_password(
-                            graph_client,
-                            app.id,
-                            old_cred.key_id
-                        )
+                        await remove_application_password(graph_client, app.id, old_cred.key_id)
                     except Exception as e:
                         logger.warning(f"Failed to remove old credential: {e}")
 
         # Create new password credential with expiration
         password_result = await add_application_password(
-            graph_client,
-            app.id,
-            f"{sp_name}-secret-rotated",
-            secret_validity_days
+            graph_client, app.id, f"{sp_name}-secret-rotated", secret_validity_days
         )
 
         # Store new secret in Key Vault (overwrites existing)

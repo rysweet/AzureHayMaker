@@ -162,9 +162,7 @@ class DeploymentPhaseManager:
         # Create worker tasks
         tasks = []
         for worker in context.workers:
-            task = asyncio.create_task(
-                execution_service.run_worker(worker, context.duration_hours)
-            )
+            task = asyncio.create_task(execution_service.run_worker(worker, context.duration_hours))
             tasks.append(task)
 
         self._worker_tasks[context.run_id] = tasks
@@ -188,9 +186,7 @@ class DeploymentPhaseManager:
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
-    async def _ensure_mail_permission_granted(
-        self, context: DeploymentPhaseContext
-    ) -> None:
+    async def _ensure_mail_permission_granted(self, context: DeploymentPhaseContext) -> None:
         """Ensure Mail.ReadWrite permission is granted to the KW app.
 
         Idempotent - safe to call multiple times. Logs warning on failure
@@ -209,9 +205,7 @@ class DeploymentPhaseManager:
                 )
                 return
 
-            logger.info(
-                f"[{context.run_id}] Ensuring Mail.ReadWrite permission for app {app_id}"
-            )
+            logger.info(f"[{context.run_id}] Ensuring Mail.ReadWrite permission for app {app_id}")
 
             granter = PermissionGranter(self._graph_client, app_id)
             success = await granter.ensure_mail_permission()
@@ -241,15 +235,11 @@ class DeploymentPhaseManager:
                 description="All workers for deployment"
             )
 
-            logger.info(
-                f"[{context.run_id}] Created all-workers security group: {group_id}"
-            )
+            logger.info(f"[{context.run_id}] Created all-workers security group: {group_id}")
 
         except Exception as e:
             logger.warning(f"[{context.run_id}] Failed to create security group: {e}")
-            logger.warning(
-                "Continuing without security group - not critical for functionality"
-            )
+            logger.warning("Continuing without security group - not critical for functionality")
 
 
 __all__ = ["DeploymentPhaseContext", "DeploymentPhaseManager"]

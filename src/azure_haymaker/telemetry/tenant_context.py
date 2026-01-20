@@ -301,6 +301,7 @@ def iter_tenant_spans(
         "See function docstring for Azure Application Insights KQL example."
     )
 
+
 __all__ = [
     "EXECUTION_ID_ATTRIBUTE",
     "SCENARIO_NAME_ATTRIBUTE",

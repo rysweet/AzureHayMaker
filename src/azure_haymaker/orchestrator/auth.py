@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 # Security scheme
 security = HTTPBearer(auto_error=False)
 
+
 # Cache for JWKS keys with TTL
 @dataclass
 class JWKSCacheEntry:
@@ -39,6 +40,7 @@ class JWKSCacheEntry:
 
 
 _jwks_cache: dict[str, JWKSCacheEntry] = {}
+
 
 # JTI (JWT ID) tracking for replay protection
 @dataclass
@@ -289,9 +291,7 @@ async def validate_jwt_signature(
         # This handles key rotation scenarios
         if not force_jwks_refresh:
             logger.info("Signature validation failed - refreshing JWKS and retrying")
-            return await validate_jwt_signature(
-                token, tenant_id, config, force_jwks_refresh=True
-            )
+            return await validate_jwt_signature(token, tenant_id, config, force_jwks_refresh=True)
 
         logger.error(f"JWT validation error after JWKS refresh: {e}")
         raise HTTPException(

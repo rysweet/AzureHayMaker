@@ -152,9 +152,7 @@ class ActivityExecutionService:
             department=worker.worker_config.department,
         )
 
-        await worker.send_email(
-            to=to, subject=email_content.subject, body=email_content.body
-        )
+        await worker.send_email(to=to, subject=email_content.subject, body=email_content.body)
         logger.info(f"Worker {worker_id} sent email to {to[0]}")
 
     async def _execute_calendar_activity(

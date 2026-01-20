@@ -104,9 +104,7 @@ async def create_application(
         app = await graph_client.applications.post(app_request_body)
     except Exception as e:
         logger.error(f"Graph API application creation failed: {type(e).__name__}: {str(e)}")
-        raise ServicePrincipalError(
-            f"Graph API create app failed: {type(e).__name__}: {e}"
-        ) from e
+        raise ServicePrincipalError(f"Graph API create app failed: {type(e).__name__}: {e}") from e
 
     if not app or not app.app_id or not app.id:
         raise ServicePrincipalError("Failed to create application registration")
@@ -128,16 +126,14 @@ async def verify_application_exists(
     Raises:
         ServicePrincipalError: If application verification fails
     """
+
     async def verify_op():
         verify_app = await graph_client.applications.by_application_id(app.id).get()
         if verify_app and verify_app.app_id == app.app_id:
             return True
         raise Exception("Application not yet propagated")
 
-    await retry_with_backoff(
-        verify_op,
-        operation_name=f"Application verification (id={app.id})"
-    )
+    await retry_with_backoff(verify_op, operation_name=f"Application verification (id={app.id})")
 
 
 async def create_service_principal_for_app(
@@ -168,8 +164,7 @@ async def create_service_principal_for_app(
         return sp
 
     sp = await retry_with_backoff(
-        create_sp_op,
-        operation_name=f"Service principal creation (appId={app_id})"
+        create_sp_op, operation_name=f"Service principal creation (appId={app_id})"
     )
 
     logger.info(f"Service principal created: id={sp.id}")
@@ -213,8 +208,7 @@ async def add_application_password(
         return password_result
 
     password_result = await retry_with_backoff(
-        add_password_op,
-        operation_name=f"Password addition (app_id={application_id})"
+        add_password_op, operation_name=f"Password addition (app_id={application_id})"
     )
 
     logger.info(f"Password added successfully, expires {secret_expiration}")
@@ -355,9 +349,9 @@ async def remove_application_password(
         remove_body = RemovePasswordPostRequestBody()
         remove_body.key_id = key_id
 
-        await graph_client.applications.by_application_id(
-            application_id
-        ).remove_password.post(remove_body)
+        await graph_client.applications.by_application_id(application_id).remove_password.post(
+            remove_body
+        )
 
         logger.info(f"Removed credential {key_id} from application {application_id}")
 

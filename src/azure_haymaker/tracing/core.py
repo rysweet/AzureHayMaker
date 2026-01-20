@@ -149,6 +149,7 @@ def is_tracing_enabled() -> bool:
     """
     return _initialized
 
+
 __all__ = [
     "get_tracer",
     "init_tracing",

@@ -64,9 +64,7 @@ class TestImageSignatureVerification:
     """Tests for container image signature verification."""
 
     @pytest.mark.anyio
-    async def test_verify_signature_with_valid_digest(
-        self, image_verifier, approved_acr_image
-    ):
+    async def test_verify_signature_with_valid_digest(self, image_verifier, approved_acr_image):
         """Test that valid ACR image with digest passes verification."""
         result = await image_verifier.verify_signature(approved_acr_image)
 
@@ -147,9 +145,7 @@ class TestApprovedRegistryEnforcement:
         assert result is True
 
     @pytest.mark.anyio
-    async def test_unapproved_registry_rejected(
-        self, image_verifier, unapproved_registry_image
-    ):
+    async def test_unapproved_registry_rejected(self, image_verifier, unapproved_registry_image):
         """Test that unapproved registry is rejected."""
         with pytest.raises(ImageSigningError, match="not from an approved container registry"):
             await image_verifier.verify_signature(unapproved_registry_image)
@@ -170,7 +166,9 @@ class TestApprovedRegistryEnforcement:
     async def test_ecr_rejected(self, image_verifier):
         """Test that AWS ECR images are rejected."""
         with pytest.raises(ImageSigningError, match="not from an approved container registry"):
-            await image_verifier.verify_signature("123456789.dkr.ecr.us-east-1.amazonaws.com/app:v1")
+            await image_verifier.verify_signature(
+                "123456789.dkr.ecr.us-east-1.amazonaws.com/app:v1"
+            )
 
     @pytest.mark.anyio
     async def test_github_registry_rejected(self, image_verifier):
@@ -472,7 +470,10 @@ class TestVerificationLogging:
             )
 
             # Should log digest verification with truncation
-            assert any("Image signature verified with digest" in record.message for record in caplog.records)
+            assert any(
+                "Image signature verified with digest" in record.message
+                for record in caplog.records
+            )
 
 
 # ============================================================================
@@ -572,16 +573,12 @@ class TestSecurityBoundaryValidation:
     @pytest.mark.anyio
     async def test_concurrent_verification_requests(self, image_verifier):
         """Test handling of concurrent verification requests."""
-        images = [
-            f"registry{i}.azurecr.io/app{i}:v1"
-            for i in range(10)
-        ]
+        images = [f"registry{i}.azurecr.io/app{i}:v1" for i in range(10)]
 
         # Verify all images concurrently (simulating multiple requests)
         import asyncio
-        results = await asyncio.gather(
-            *[image_verifier.verify_signature(img) for img in images]
-        )
+
+        results = await asyncio.gather(*[image_verifier.verify_signature(img) for img in images])
 
         assert all(results)
         assert len(results) == 10
