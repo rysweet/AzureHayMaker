@@ -5,6 +5,14 @@ When optimal approaches fail or timeout, system automatically falls back
 to simpler, more reliable alternatives.
 
 Based on: .claude/workflow/CASCADE_WORKFLOW.md
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
+- Fault tolerance through redundancy
+- Systematic error handling
 """
 
 from pathlib import Path
@@ -397,3 +405,11 @@ Execute the task now with the {level_name} approach.
         "session_id": session.session_id,
         "success": False,
     }
+
+
+__all__ = [
+    "create_custom_cascade",
+    "run_cascade",
+    "FALLBACK_TEMPLATES",
+    "TIMEOUT_STRATEGIES",
+]

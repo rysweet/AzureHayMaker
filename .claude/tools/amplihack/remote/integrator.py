@@ -2,6 +2,14 @@
 
 This module handles integrating remote execution results back into
 the local repository, including git branches, commits, and logs.
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
+- Resilient: Handle network failures gracefully
+- Async-first: Non-blocking operations
 """
 
 import shutil
@@ -403,3 +411,12 @@ class Integrator:
         lines.append("=" * 60)
 
         return "\n".join(lines)
+
+
+__all__ = [
+    "BranchInfo",
+    "IntegrationSummary",
+    "Integrator",
+    "create_summary_report",
+    "integrate",
+]

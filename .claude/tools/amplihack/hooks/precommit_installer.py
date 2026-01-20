@@ -345,5 +345,12 @@ def main():
     hook.run()
 
 
+__all__ = [
+    "PrecommitInstallerHook",
+    "main",
+    "process",
+]
+
+
 if __name__ == "__main__":
     main()

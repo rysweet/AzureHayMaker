@@ -6,6 +6,14 @@ aggregated for a final decision. Provides Byzantine robustness through quorum-ba
 decision-making.
 
 Based on: Specs/expert-panel-pattern.md
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
+- Fault tolerance through redundancy
+- Systematic error handling
 """
 
 import re
@@ -694,3 +702,20 @@ def _extract_scores(text: str, section_name: str) -> Dict[str, float]:
             continue
 
     return scores
+
+
+__all__ = [
+    "AggregatedDecision",
+    "DissentReport",
+    "ExpertReview",
+    "VoteChoice",
+    "aggregate_simple_majority",
+    "aggregate_unanimous",
+    "aggregate_weighted",
+    "generate_dissent_report",
+    "run_expert_panel",
+    "ABSTAIN",
+    "APPROVE",
+    "DEFAULT_EXPERTS",
+    "REJECT",
+]

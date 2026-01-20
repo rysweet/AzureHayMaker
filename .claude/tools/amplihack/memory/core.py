@@ -1,6 +1,14 @@
 """
 Core SQLite backend for agent memory system.
 Lightweight, fast, and secure implementation following amplihack principles.
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
+- State isolation: Clean session boundaries
+- Data integrity: Consistent state management
 """
 
 import json
@@ -374,3 +382,15 @@ class MemoryBackend:
             if self._connection:
                 self._connection.close()
                 self._connection = None
+
+
+__all__ = [
+    "MemoryBackend",
+    "clear_session",
+    "close",
+    "delete",
+    "ensure_session",
+    "list_keys",
+    "retrieve",
+    "store",
+]

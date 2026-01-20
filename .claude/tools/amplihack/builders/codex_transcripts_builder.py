@@ -2,6 +2,12 @@
 """
 Codex Transcripts Builder - Microsoft Amplifier Style
 Builds structured knowledge extraction and codex from multiple session transcripts.
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
 """
 
 import json
@@ -766,3 +772,13 @@ workflows and tool usage based on session analysis.
             self.output_dir / f"insights_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
         )
         report_file.write_text(report_content)
+
+
+__all__ = [
+    "CodexTranscriptsBuilder",
+    "build_comprehensive_codex",
+    "build_focused_codex",
+    "extract_learning_corpus",
+    "generate_insights_report",
+    "get_project_root",
+]

@@ -10,6 +10,14 @@ Response Protocol:
 - Return {} for default behavior (no intervention)
 - Return {"decision": "block", "reason": "..."} to intervene (Stop hooks)
 - Return {"permissionDecision": "allow"/"deny"/"ask"} for permission (PreToolUse hooks)
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
+- Fail-safe: Never block operations due to hook failures
+- Zero-BS: Every function works or doesn't exist
 """
 
 import json
@@ -368,3 +376,17 @@ class HookProcessor(ABC):
             self.log(f"Saved session data to {filename}")
         except Exception as e:
             self.log(f"Failed to save session data: {e}", "WARNING")
+
+
+__all__ = [
+    "HookProcessor",
+    "get_session_id",
+    "log",
+    "process",
+    "read_input",
+    "run",
+    "save_metric",
+    "save_session_data",
+    "validate_path_containment",
+    "write_output",
+]

@@ -1,6 +1,12 @@
 """Command-line interface for MCP manager.
 
 Provides commands to list, enable, disable, and validate MCP servers.
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
 """
 
 import argparse
@@ -640,6 +646,22 @@ def main(argv: Optional[list[str]] = None) -> int:
     else:
         parser.print_help()
         return 1
+
+
+__all__ = [
+    "cmd_add",
+    "cmd_disable",
+    "cmd_enable",
+    "cmd_export",
+    "cmd_import",
+    "cmd_list",
+    "cmd_remove",
+    "cmd_show",
+    "cmd_validate",
+    "format_table",
+    "get_config_path",
+    "main",
+]
 
 
 if __name__ == "__main__":

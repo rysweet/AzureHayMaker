@@ -9,6 +9,14 @@ SECURITY FEATURES:
 - Input sanitization using whitelist approach
 - Memory usage limits to prevent DoS
 - Comprehensive error handling for malformed input
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
+- Security-first: Never compromise on security fundamentals
+- Defense in depth: Multiple layers of protection
 """
 
 import html
@@ -849,6 +857,39 @@ def create_context_preserver(session_id: Optional[str] = None) -> ContextPreserv
 
 
 # Example usage for testing
+
+
+__all__ = [
+    "ContextPreserver",
+    "InputValidationError",
+    "RegexTimeoutError",
+    "SecurityConfig",
+    "SecurityValidator",
+    "create_context_preserver",
+    "export_conversation_transcript",
+    "extract_original_request",
+    "format_agent_context",
+    "get_latest_session_id",
+    "get_original_request",
+    "safe_regex_findall",
+    "safe_regex_finditer",
+    "safe_regex_search",
+    "safe_split",
+    "sanitize_input",
+    "timeout_handler",
+    "validate_input_size",
+    "ALLOWED_CHARS",
+    "MAX_BULLETS",
+    "MAX_CONSTRAINTS",
+    "MAX_CRITERIA",
+    "MAX_INPUT_SIZE",
+    "MAX_LINE_LENGTH",
+    "MAX_REQUIREMENTS",
+    "MAX_SENTENCES",
+    "REGEX_TIMEOUT",
+]
+
+
 if __name__ == "__main__":
     # Test with sample prompt
     sample_prompt = """

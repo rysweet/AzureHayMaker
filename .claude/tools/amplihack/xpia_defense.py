@@ -21,6 +21,14 @@ Architecture:
 
 Author: XPIA Defense Team
 Version: 1.0.0
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
+- Security-first: Never compromise on security fundamentals
+- Defense in depth: Multiple layers of protection
 """
 
 import asyncio
@@ -1302,6 +1310,70 @@ def get_xpia_metrics() -> Dict[str, Any]:
         "threat_detections": metrics.threat_detections,
         "pattern_count": len(xpia_defense_validator.engine.pattern_library.patterns),
     }
+
+
+__all__ = [
+    "ConfigurationError",
+    "ContentType",
+    "HookError",
+    "HookRegistration",
+    "HookType",
+    "LegacyValidationResult",
+    "PatternDefinition",
+    "PerformanceMetrics",
+    "RiskLevel",
+    "SecurityConfiguration",
+    "SecurityLevel",
+    "SecurityValidator",
+    "ThreatDetection",
+    "ThreatLevel",
+    "ThreatPatternLibrary",
+    "ThreatType",
+    "ValidationContext",
+    "ValidationError",
+    "ValidationResult",
+    "XPIADefense",
+    "XPIADefenseEngine",
+    "XPIADefenseError",
+    "create_default_configuration",
+    "create_validation_context",
+    "get_configuration",
+    "get_xpia_metrics",
+    "is_development_context",
+    "pre_validate_user_input",
+    "register_hook",
+    "scan_content",
+    "should_alert",
+    "should_block",
+    "unregister_hook",
+    "validate_agent_message_hook",
+    "validate_bash_command_hook",
+    "validate_content",
+    "CODE",
+    "COMMAND",
+    "CONFIG_CHANGED",
+    "CRITICAL",
+    "DATA",
+    "DATA_EXFILTRATION",
+    "HIGH",
+    "INJECTION",
+    "LOW",
+    "MALICIOUS",
+    "MALICIOUS_CODE",
+    "MEDIUM",
+    "NONE",
+    "POST_VALIDATION",
+    "PRE_VALIDATION",
+    "PRIVILEGE_ESCALATION",
+    "RESOURCE_ABUSE",
+    "SAFE",
+    "SOCIAL_ENGINEERING",
+    "STRICT",
+    "SUSPICIOUS",
+    "TEXT",
+    "THREAT_DETECTED",
+    "USER_INPUT",
+]
 
 
 if __name__ == "__main__":

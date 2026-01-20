@@ -2,6 +2,14 @@
 
 Replaces simple regex-based pattern matching with LLM-powered contextual understanding
 that can identify root causes, dynamic error categories, and specific actionable suggestions.
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
+- Introspection-driven: Self-aware error analysis
+- Continuous improvement through feedback
 """
 
 import asyncio
@@ -498,3 +506,15 @@ def analyze_session_patterns(
         "sdk_used": analyzer.sdk_available,
         "analysis_method": "llm" if analyzer.sdk_available else "keyword_fallback",
     }
+
+
+__all__ = [
+    "ContextualErrorAnalyzer",
+    "ErrorAnalysis",
+    "analyze_error_context",
+    "analyze_session_patterns",
+    "filter_pattern_suggestion",
+    "get_top_suggestion",
+    "sanitize_content",
+    "SDK_AVAILABLE",
+]

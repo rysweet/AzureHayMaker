@@ -2,6 +2,14 @@
 
 Analyzes session logs and creates GitHub issues for improvements.
 Shows the user what's happening during reflection analysis.
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
+- Introspection-driven: Self-aware error analysis
+- Continuous improvement through feedback
 """
 
 import json
@@ -466,6 +474,25 @@ def main():
     except Exception as e:
         print(f"Error processing analysis file: {e}")
         sys.exit(1)
+
+
+__all__ = [
+    "FakeResult",
+    "analyze_session_patterns",
+    "create_github_issue",
+    "create_safe_preview",
+    "delegate_to_ultrathink",
+    "fallback_check_duplicate_issue",
+    "fallback_store_new_issue",
+    "filter_pattern_suggestion",
+    "is_reflection_enabled",
+    "main",
+    "process_reflection_analysis",
+    "sanitize_content",
+    "sanitize_messages",
+    "CONTEXTUAL_ANALYSIS_AVAILABLE",
+    "DUPLICATE_DETECTION_AVAILABLE",
+]
 
 
 if __name__ == "__main__":

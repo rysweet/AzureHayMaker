@@ -1,4 +1,13 @@
-"""ToolkitLogger for structured logging with session integration."""
+"""ToolkitLogger for structured logging with session integration.
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
+- State isolation: Clean session boundaries
+- Data integrity: Consistent state management
+"""
 
 import json
 import logging
@@ -410,3 +419,25 @@ class OperationContext:
         else:
             message = None
         self.logger.end_operation(success=success, message=message)
+
+
+__all__ = [
+    "FileRotatingHandler",
+    "LogEntry",
+    "OperationContext",
+    "StructuredFormatter",
+    "ToolkitLogger",
+    "create_child_logger",
+    "critical",
+    "debug",
+    "emit",
+    "end_operation",
+    "error",
+    "format",
+    "get_session_logs",
+    "info",
+    "operation",
+    "start_operation",
+    "success",
+    "warning",
+]
