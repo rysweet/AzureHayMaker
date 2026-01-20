@@ -1,19 +1,37 @@
-"""Endpoint manager for Knowledge Worker Activity Framework.
+"""Endpoint manager facade for Knowledge Worker Activity Framework.
 
 Provides unified management of Cloud PC, Windows VM, and CLI container
 endpoints for knowledge workers with cascade fallback support.
+
+This module provides a facade that composes lifecycle, providers, and fallback
+modules while maintaining 100% backward compatibility with the original API.
+
+Philosophy:
+- Facade pattern: Composes other modules
+- Backward compatibility: Preserves original API exactly
+- No business logic: Just delegation
+- Self-contained brick with clear public API
+
+Public API (the "studs"):
+    EndpointManager: Unified endpoint management facade
+    ProvisioningError: Re-exported from providers
+    AllEndpointsFailedError: Re-exported from fallback
 """
 
 import logging
 from typing import Any
 
-from azure_haymaker.knowledge_worker.endpoints.cli_container import (
-    M365CLIContainerManager,
+from azure_haymaker.knowledge_worker.endpoints.fallback import (
+    AllEndpointsFailedError,
+    EndpointFallbackCoordinator,
 )
-from azure_haymaker.knowledge_worker.endpoints.cloud_pc import (
-    Windows365CloudPCManager,
+from azure_haymaker.knowledge_worker.endpoints.lifecycle import (
+    EndpointLifecycleManager,
 )
-from azure_haymaker.knowledge_worker.endpoints.windows_vm import WindowsVMManager
+from azure_haymaker.knowledge_worker.endpoints.providers import (
+    EndpointProviderManager,
+    ProvisioningError,
+)
 from azure_haymaker.knowledge_worker.models.worker import (
     EndpointType,
     WorkerConfig,
@@ -22,21 +40,11 @@ from azure_haymaker.knowledge_worker.models.worker import (
 
 logger = logging.getLogger(__name__)
 
-
-class ProvisioningError(Exception):
-    """Raised when endpoint provisioning fails."""
-
-    pass
-
-
-class AllEndpointsFailedError(Exception):
-    """Raised when all endpoint types fail to provision.
-
-    This error indicates that the cascade fallback exhausted all options:
-    Cloud PC → Windows VM → Container, and none succeeded.
-    """
-
-    pass
+__all__ = [
+    "EndpointManager",
+    "ProvisioningError",
+    "AllEndpointsFailedError",
+]
 
 
 class EndpointManager:
@@ -48,20 +56,25 @@ class EndpointManager:
     - Azure Windows VMs (fallback for Computer Use Agents)
     - M365 CLI Containers (for cost-effective scale)
 
+    This is a facade that composes lifecycle, providers, and fallback modules.
+
     Attributes:
-        cloud_pc_manager: Manager for Cloud PC endpoints
-        windows_vm_manager: Manager for Windows VM endpoints
-        container_manager: Manager for CLI container endpoints
+        _lifecycle: Lifecycle manager for endpoint tracking
+        _providers: Provider manager for endpoint operations
+        _fallback: Fallback coordinator for cascade logic
         run_id: HayMaker run ID for this deployment
+        cloud_pc_manager: Reference to Cloud PC manager (for compatibility)
+        windows_vm_manager: Reference to Windows VM manager (for compatibility)
+        container_manager: Reference to container manager (for compatibility)
     """
 
     def __init__(
         self,
-        cloud_pc_manager: Windows365CloudPCManager | None = None,
-        windows_vm_manager: WindowsVMManager | None = None,
-        container_manager: M365CLIContainerManager | None = None,
-        graph_client: Any = None,
-        config: Any = None,
+        cloud_pc_manager=None,
+        windows_vm_manager=None,
+        container_manager=None,
+        graph_client=None,
+        config=None,
         run_id: str = "",
     ):
         """Initialize EndpointManager.
@@ -76,24 +89,25 @@ class EndpointManager:
         """
         self.run_id = run_id
 
-        # Use provided managers or create defaults
-        if cloud_pc_manager:
-            self.cloud_pc_manager = cloud_pc_manager
-        elif graph_client:
-            self.cloud_pc_manager = Windows365CloudPCManager(graph_client, run_id)
-        else:
-            self.cloud_pc_manager = None
+        # Initialize components
+        self._providers = EndpointProviderManager(
+            cloud_pc_manager,
+            windows_vm_manager,
+            container_manager,
+            graph_client,
+            config,
+            run_id,
+        )
+        self._lifecycle = EndpointLifecycleManager(run_id)
+        self._fallback = EndpointFallbackCoordinator(self._providers)
 
-        self.windows_vm_manager = windows_vm_manager
+        # Keep references for backward compatibility
+        self.cloud_pc_manager = self._providers.cloud_pc_manager
+        self.windows_vm_manager = self._providers.windows_vm_manager
+        self.container_manager = self._providers.container_manager
 
-        if container_manager:
-            self.container_manager = container_manager
-        elif config:
-            self.container_manager = M365CLIContainerManager(config, run_id)
-        else:
-            self.container_manager = None
-
-        self._provisioned_endpoints: dict[str, dict[str, Any]] = {}
+        # For backward compatibility with internal access
+        self._provisioned_endpoints = self._lifecycle._provisioned_endpoints
 
     async def provision_endpoint(
         self,
@@ -117,11 +131,9 @@ class EndpointManager:
             endpoint_id = await self._provision_container(worker, activity_config)
 
         # Track provisioned endpoint
-        self._provisioned_endpoints[worker.worker_id] = {
-            "endpoint_id": endpoint_id,
-            "endpoint_type": endpoint_type.value,
-            "worker_id": worker.worker_id,
-        }
+        self._lifecycle.track_endpoint(
+            worker.worker_id, endpoint_id, endpoint_type
+        )
 
         return endpoint_id
 
@@ -154,197 +166,17 @@ class EndpointManager:
         Raises:
             AllEndpointsFailedError: If all endpoint types fail
         """
-        failures: list[tuple[str, str]] = []  # (endpoint_type, reason)
+        result = await self._fallback.provision_with_fallback(worker)
 
-        # Try Cloud PC first
-        if self.cloud_pc_manager:
-            try:
-                logger.info(f"Attempting Cloud PC provisioning for {worker.worker_id}")
-                cloud_pc_id = await self._provision_cloud_pc_with_fallback(worker)
+        # Track the successfully provisioned endpoint
+        self._lifecycle.track_endpoint(
+            worker.worker_id,
+            result["endpoint_id"],
+            result["endpoint_type"],
+            result.get("details"),
+        )
 
-                if cloud_pc_id:
-                    # Update worker
-                    worker.endpoint_type = EndpointType.CLOUD_PC
-                    worker.endpoint_id = cloud_pc_id
-
-                    # Track provisioned endpoint
-                    self._provisioned_endpoints[worker.worker_id] = {
-                        "endpoint_id": cloud_pc_id,
-                        "endpoint_type": EndpointType.CLOUD_PC.value,
-                        "worker_id": worker.worker_id,
-                    }
-
-                    logger.info(
-                        f"Cloud PC provisioned successfully for {worker.worker_id}: {cloud_pc_id}"
-                    )
-                    return {
-                        "endpoint_type": EndpointType.CLOUD_PC,
-                        "endpoint_id": cloud_pc_id,
-                        "success": True,
-                        "details": {},
-                    }
-                else:
-                    reason = "Cloud PC provisioning timeout"
-                    failures.append(("Cloud PC", reason))
-                    logger.warning(f"Cloud PC failed for {worker.worker_id}: {reason}")
-
-            except Exception as e:
-                reason = type(e).__name__
-                failures.append(("Cloud PC", reason))
-                logger.warning(f"Cloud PC failed for {worker.worker_id}: {e}")
-
-        # Try Windows VM fallback
-        if self.windows_vm_manager:
-            try:
-                logger.info(f"Attempting Windows VM fallback provisioning for {worker.worker_id}")
-                vm_details = await self._provision_windows_vm(worker)
-
-                if vm_details:
-                    vm_name = vm_details["vm_name"]
-
-                    # Update worker
-                    worker.endpoint_type = EndpointType.WINDOWS_VM
-                    worker.endpoint_id = vm_name
-
-                    # Track provisioned endpoint
-                    self._provisioned_endpoints[worker.worker_id] = {
-                        "endpoint_id": vm_name,
-                        "endpoint_type": EndpointType.WINDOWS_VM.value,
-                        "worker_id": worker.worker_id,
-                        "details": vm_details,
-                    }
-
-                    logger.info(
-                        f"Windows VM provisioned successfully for {worker.worker_id}: {vm_name}"
-                    )
-                    return {
-                        "endpoint_type": EndpointType.WINDOWS_VM,
-                        "endpoint_id": vm_name,
-                        "success": True,
-                        "details": vm_details,
-                    }
-
-            except Exception as e:
-                reason = type(e).__name__
-                failures.append(("Windows VM", reason))
-                logger.warning(f"Windows VM failed for {worker.worker_id}: {e}")
-
-        # Try Container fallback
-        if self.container_manager:
-            try:
-                logger.info(f"Attempting Container fallback provisioning for {worker.worker_id}")
-                container_result = await self._provision_container_with_fallback(worker)
-
-                if container_result:
-                    container_id = container_result.get("container_id")
-                    if not container_id:
-                        raise ProvisioningError(f"No container_id in result for {worker.worker_id}")
-
-                    # Update worker
-                    worker.endpoint_type = EndpointType.CLI_CONTAINER
-                    worker.endpoint_id = container_id
-
-                    # Track provisioned endpoint
-                    self._provisioned_endpoints[worker.worker_id] = {
-                        "endpoint_id": container_id,
-                        "endpoint_type": EndpointType.CLI_CONTAINER.value,
-                        "worker_id": worker.worker_id,
-                        "details": container_result,
-                    }
-
-                    logger.info(
-                        f"Container provisioned successfully for {worker.worker_id}: {container_id}"
-                    )
-                    return {
-                        "endpoint_type": EndpointType.CLI_CONTAINER,
-                        "endpoint_id": container_id,
-                        "success": True,
-                        "details": container_result,
-                    }
-
-            except Exception as e:
-                reason = type(e).__name__
-                failures.append(("Container", reason))
-                logger.error(f"Container failed for {worker.worker_id}: {e}")
-
-        # All endpoints failed
-        failure_summary = "; ".join([f"{ep}: {reason}" for ep, reason in failures])
-        error_msg = f"All endpoint types failed for worker {worker.worker_id}: {failure_summary}"
-        logger.error(error_msg)
-        raise AllEndpointsFailedError(error_msg)
-
-    async def _provision_cloud_pc_with_fallback(self, worker: WorkerIdentity) -> str | None:
-        """Provision Cloud PC with timeout handling.
-
-        Args:
-            worker: Worker identity
-
-        Returns:
-            Cloud PC ID if successful, None if timeout
-        """
-        if not self.cloud_pc_manager:
-            raise ProvisioningError("Cloud PC manager not configured")
-
-        policy_id = await self.cloud_pc_manager.ensure_provisioning_policy()
-        cloud_pc_id = await self.cloud_pc_manager.provision_cloud_pc(worker, policy_id)
-
-        # Wait for provisioning with timeout
-        success = await self.cloud_pc_manager.wait_for_provisioning(worker)
-
-        return cloud_pc_id if success else None
-
-    async def _provision_windows_vm(self, worker: WorkerIdentity) -> dict[str, Any]:
-        """Provision Windows VM with wait for ready.
-
-        Args:
-            worker: Worker identity
-
-        Returns:
-            VM details dictionary
-
-        Raises:
-            Exception: If VM provisioning fails
-        """
-        if not self.windows_vm_manager:
-            raise ProvisioningError("Windows VM manager not configured")
-
-        vm_details = await self.windows_vm_manager.provision_vm(worker)
-        vm_name = vm_details["vm_name"]
-
-        # Wait for VM to be ready
-        success = await self.windows_vm_manager.wait_for_provisioning(vm_name)
-
-        if not success:
-            raise Exception(f"Windows VM provisioning timeout for {vm_name}")
-
-        return vm_details
-
-    async def _provision_container_with_fallback(self, worker: WorkerIdentity) -> dict[str, Any]:
-        """Provision CLI container.
-
-        Args:
-            worker: Worker identity
-
-        Returns:
-            Container details dictionary
-
-        Raises:
-            Exception: If container provisioning fails
-        """
-        if not self.container_manager:
-            raise ProvisioningError("Container manager not configured")
-
-        # For containers, we use a simple approach - just provision
-        # The actual WorkerConfig doesn't matter much for fallback scenarios
-        from azure_haymaker.knowledge_worker.models.worker import WorkerConfig
-
-        default_config = WorkerConfig()
-        container_id = await self.container_manager.deploy_worker_container(worker, default_config)
-
-        return {
-            "container_id": container_id,
-            "status": "running",
-        }
+        return result
 
     async def provision_batch(
         self,
@@ -379,17 +211,20 @@ class EndpointManager:
                 try:
                     endpoint_id = await self._provision_cloud_pc(worker)
                     results[worker.worker_id] = endpoint_id
-                    self._provisioned_endpoints[worker.worker_id] = {
-                        "endpoint_id": endpoint_id,
-                        "endpoint_type": EndpointType.CLOUD_PC.value,
-                    }
+                    self._lifecycle.track_endpoint(
+                        worker.worker_id, endpoint_id, EndpointType.CLOUD_PC
+                    )
                 except Exception as e:
-                    logger.error(f"Failed to provision Cloud PC for {worker.worker_id}: {e}")
+                    logger.error(
+                        f"Failed to provision Cloud PC for {worker.worker_id}: {e}"
+                    )
 
         # Provision containers
         if container_workers:
             if not self.container_manager:
-                raise ProvisioningError("Container manager not configured but containers requested")
+                raise ProvisioningError(
+                    "Container manager not configured but containers requested"
+                )
             logger.info(f"Provisioning {len(container_workers)} CLI containers")
             endpoint_ids = await self.container_manager.deploy_batch(container_workers)
 
@@ -397,10 +232,9 @@ class EndpointManager:
                 container_workers, endpoint_ids, strict=False
             ):
                 results[worker.worker_id] = endpoint_id
-                self._provisioned_endpoints[worker.worker_id] = {
-                    "endpoint_id": endpoint_id,
-                    "endpoint_type": EndpointType.CLI_CONTAINER.value,
-                }
+                self._lifecycle.track_endpoint(
+                    worker.worker_id, endpoint_id, EndpointType.CLI_CONTAINER
+                )
 
         logger.info(f"Provisioned {len(results)} endpoints")
         return results
@@ -417,7 +251,7 @@ class EndpointManager:
         Returns:
             True if deleted successfully
         """
-        endpoint_info = self._provisioned_endpoints.get(worker_id)
+        endpoint_info = self._lifecycle.get_endpoint_info(worker_id)
         if not endpoint_info:
             logger.warning(f"No endpoint found for worker {worker_id}")
             return False
@@ -425,21 +259,16 @@ class EndpointManager:
         endpoint_id = endpoint_info["endpoint_id"]
         endpoint_type = endpoint_info["endpoint_type"]
 
+        # Delegate deletion to providers
         if endpoint_type == EndpointType.CLOUD_PC.value:
-            if not self.cloud_pc_manager:
-                raise ProvisioningError("Cloud PC manager not configured")
-            success = await self.cloud_pc_manager.delete_cloud_pc(endpoint_id)
+            success = await self._providers.delete_cloud_pc(endpoint_id)
         elif endpoint_type == EndpointType.WINDOWS_VM.value:
-            if not self.windows_vm_manager:
-                raise ProvisioningError("Windows VM manager not configured")
-            success = await self.windows_vm_manager.delete_vm(endpoint_id)
+            success = await self._providers.delete_windows_vm(endpoint_id)
         else:
-            if not self.container_manager:
-                raise ProvisioningError("Container manager not configured")
-            success = await self.container_manager.delete_container(endpoint_id)
+            success = await self._providers.delete_container(endpoint_id)
 
         if success:
-            del self._provisioned_endpoints[worker_id]
+            self._lifecycle.untrack_endpoint(worker_id)
 
         return success
 
@@ -450,7 +279,8 @@ class EndpointManager:
             Number of successfully deleted endpoints
         """
         deleted = 0
-        worker_ids = list(self._provisioned_endpoints.keys())
+        all_endpoints = self._lifecycle.get_all_endpoints()
+        worker_ids = list(all_endpoints.keys())
 
         for worker_id in worker_ids:
             if await self.delete_endpoint(worker_id):
@@ -471,7 +301,7 @@ class EndpointManager:
         Returns:
             Status dictionary or None if not found
         """
-        endpoint_info = self._provisioned_endpoints.get(worker_id)
+        endpoint_info = self._lifecycle.get_endpoint_info(worker_id)
         if not endpoint_info:
             return None
 
@@ -484,7 +314,9 @@ class EndpointManager:
         else:
             if not self.container_manager:
                 raise ProvisioningError("Container manager not configured")
-            status = await self.container_manager.get_container_status(endpoint_id.split("/")[-1])
+            status = await self._providers.get_container_status(
+                endpoint_id.split("/")[-1]
+            )
             return status
 
     def get_all_endpoints(self) -> dict[str, dict[str, Any]]:
@@ -493,7 +325,7 @@ class EndpointManager:
         Returns:
             Dictionary mapping worker_id to endpoint info
         """
-        return self._provisioned_endpoints.copy()
+        return self._lifecycle.get_all_endpoints()
 
     def get_endpoint_counts(self) -> dict[str, int]:
         """Get count of endpoints by type.
@@ -501,17 +333,7 @@ class EndpointManager:
         Returns:
             Dictionary with counts by endpoint type
         """
-        counts = {
-            EndpointType.CLOUD_PC.value: 0,
-            EndpointType.WINDOWS_VM.value: 0,
-            EndpointType.CLI_CONTAINER.value: 0,
-        }
-
-        for info in self._provisioned_endpoints.values():
-            endpoint_type = info.get("endpoint_type", EndpointType.CLI_CONTAINER.value)
-            counts[endpoint_type] = counts.get(endpoint_type, 0) + 1
-
-        return counts
+        return self._lifecycle.get_endpoint_counts()
 
     async def _provision_cloud_pc(
         self,
@@ -525,14 +347,7 @@ class EndpointManager:
         Returns:
             Cloud PC ID
         """
-        if not self.cloud_pc_manager:
-            raise ProvisioningError("Cloud PC manager not configured")
-
-        # Ensure provisioning policy exists
-        policy_id = await self.cloud_pc_manager.ensure_provisioning_policy()
-
-        # Provision Cloud PC
-        return await self.cloud_pc_manager.provision_cloud_pc(worker, policy_id)
+        return await self._providers.provision_cloud_pc(worker)
 
     async def _provision_container(
         self,
@@ -548,6 +363,4 @@ class EndpointManager:
         Returns:
             Container resource ID
         """
-        if not self.container_manager:
-            raise ProvisioningError("Container manager not configured")
-        return await self.container_manager.deploy_worker_container(worker, activity_config)
+        return await self._providers.provision_container(worker, activity_config)
