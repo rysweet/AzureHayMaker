@@ -20,7 +20,6 @@ from azure.core.exceptions import HttpResponseError
 from azure.mgmt.costmanagement import CostManagementClient
 from azure.mgmt.costmanagement.models import (
     ExportType,
-    GranularityType,
     QueryAggregation,
     QueryDataset,
     QueryDefinition,
@@ -144,7 +143,7 @@ async def _query_costs_by_tenant_grouped_by(
             to=period_end,
         ),
         dataset=QueryDataset(
-            granularity=GranularityType.NONE,
+            granularity=None,
             aggregation={
                 "totalCost": QueryAggregation(name="Cost", function="Sum"),
             },
@@ -231,7 +230,7 @@ async def _query_costs_grouped_by(
             to=period_end,
         ),
         dataset=QueryDataset(
-            granularity=GranularityType.NONE,
+            granularity=None,
             aggregation={
                 "totalCost": QueryAggregation(name="Cost", function="Sum"),
             },
