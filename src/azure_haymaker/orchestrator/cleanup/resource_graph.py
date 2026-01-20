@@ -73,6 +73,21 @@ class CleanupReport(BaseModel):
         )
 
 
+# Rebuild model after all definitions are complete to resolve forward references
+# This is safe because we use TYPE_CHECKING to prevent circular imports
+def _rebuild_models():
+    """Rebuild Pydantic models to resolve forward references."""
+    try:
+        from azure_haymaker.orchestrator.cleanup.resource_deletion import ResourceDeletion  # noqa: F401
+        CleanupReport.model_rebuild()
+    except ImportError:
+        pass  # ResourceDeletion not yet available, will rebuild later
+
+
+# Call rebuild function at module load time
+_rebuild_models()
+
+
 def _query_azure_resources(
     run_id: str,
     subscription_ids: list[str] | None = None,
