@@ -2,6 +2,14 @@
 
 This module demonstrates common integration patterns and best practices
 for using the Agent Memory System in Claude workflows.
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
+- State isolation: Clean session boundaries
+- Data integrity: Consistent state management
 """
 
 import json
@@ -444,6 +452,20 @@ def run_all_examples():
     print("✓ Error handling and graceful degradation")
     print()
     print("The Agent Memory System is ready for production use!")
+
+
+__all__ = [
+    "example_agent_collaboration",
+    "example_agent_memory_integration",
+    "example_context_preservation",
+    "example_error_handling",
+    "example_performance_optimization",
+    "get_project_root",
+    "run_all_examples",
+    "safe_retrieve",
+    "safe_store",
+    "validate_memory_content",
+]
 
 
 if __name__ == "__main__":

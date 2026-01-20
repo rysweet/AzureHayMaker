@@ -6,6 +6,14 @@ Checks lock flag and blocks stop if continuous work mode is enabled.
 Stop Hook Protocol (https://docs.claude.com/en/docs/claude-code/hooks):
 - Return {"decision": "approve"} to allow normal stop
 - Return {"decision": "block", "reason": "..."} to prevent stop and continue working
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
+- Fail-safe: Never block operations due to hook failures
+- Zero-BS: Every function works or doesn't exist
 """
 
 import json
@@ -876,6 +884,16 @@ def stop():
 def main():
     """Legacy entry point for the stop hook."""
     stop()
+
+
+__all__ = [
+    "StopHook",
+    "main",
+    "process",
+    "read_continuation_prompt",
+    "stop",
+    "DEFAULT_CONTINUATION_PROMPT",
+]
 
 
 if __name__ == "__main__":

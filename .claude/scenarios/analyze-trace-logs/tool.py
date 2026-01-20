@@ -3,6 +3,12 @@
 Analyze Trace Logs
 
 Analyze claude-trace JSONL logs to extract user prompt and response patterns.
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
 """
 
 import argparse
@@ -571,6 +577,21 @@ def main():
     print()
 
     return 0
+
+
+__all__ = [
+    "TraceLogAnalyzer",
+    "analyze",
+    "categorize_request",
+    "extract_key_phrases",
+    "extract_task_verbs",
+    "extract_user_messages",
+    "generate_report",
+    "identify_decision_patterns",
+    "is_system_generated",
+    "main",
+    "parse_jsonl_file",
+]
 
 
 if __name__ == "__main__":

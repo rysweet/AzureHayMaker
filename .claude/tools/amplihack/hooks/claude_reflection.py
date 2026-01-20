@@ -5,6 +5,14 @@ Claude SDK-based session reflection.
 Uses Claude Agent SDK to intelligently analyze sessions and fill out
 the FEEDBACK_SUMMARY template, replacing simple pattern matching with
 AI-powered reflection.
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
+- Fail-safe: Never block operations due to hook failures
+- Zero-BS: Every function works or doesn't exist
 """
 
 import asyncio
@@ -438,6 +446,25 @@ def run_claude_reflection(
 
 
 # For testing
+
+
+__all__ = [
+    "format_redirects_context",
+    "format_reflection_prompt",
+    "get_repository_context",
+    "load_feedback_template",
+    "load_power_steering_redirects",
+    "load_prompt_template",
+    "load_session_conversation",
+    "normalize_url",
+    "run_claude_reflection",
+    "AMPLIHACK_REPO_URI",
+    "CLAUDE_SDK_AVAILABLE",
+    "REFLECTION_PROMPT_TEMPLATE",
+    "TEMPLATE_DIR",
+]
+
+
 if __name__ == "__main__":
     import argparse
 

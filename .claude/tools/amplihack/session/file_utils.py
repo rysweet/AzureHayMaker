@@ -1,4 +1,13 @@
-"""Defensive file I/O utilities with retry logic and error handling."""
+"""Defensive file I/O utilities with retry logic and error handling.
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
+- State isolation: Clean session boundaries
+- Data integrity: Consistent state management
+"""
 
 import hashlib
 import json
@@ -566,3 +575,28 @@ class BatchFileOperations:
         if self.operations and not self.results:
             # Auto-execute if not already done
             self.execute()
+
+
+__all__ = [
+    "BatchFileOperations",
+    "FileCorruptionError",
+    "FileOperationError",
+    "RetryExhaustedError",
+    "add_copy",
+    "add_move",
+    "add_write",
+    "cleanup_temp_files",
+    "decorator",
+    "execute",
+    "file_lock",
+    "get_file_checksum",
+    "retry_file_operation",
+    "safe_copy_file",
+    "safe_move_file",
+    "safe_read_file",
+    "safe_read_json",
+    "safe_write_file",
+    "safe_write_json",
+    "wrapper",
+    "T",
+]

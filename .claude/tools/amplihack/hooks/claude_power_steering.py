@@ -478,6 +478,20 @@ def analyze_consideration_sync(
 
 
 # For testing
+
+
+__all__ = [
+    "analyze_claims_sync",
+    "analyze_consideration_sync",
+    "analyze_if_addressed_sync",
+    "format_prompt",
+    "load_prompt_template",
+    "CLAUDE_SDK_AVAILABLE",
+    "POWER_STEERING_PROMPT_TEMPLATE",
+    "TEMPLATE_DIR",
+]
+
+
 if __name__ == "__main__":
     import argparse
     import json

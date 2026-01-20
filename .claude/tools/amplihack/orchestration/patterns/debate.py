@@ -4,6 +4,14 @@ Implements structured multi-perspective debate for important architectural decis
 design trade-offs, and complex problems where multiple valid approaches exist.
 
 Based on: .claude/workflow/DEBATE_WORKFLOW.md
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
+- Fault tolerance through redundancy
+- Systematic error handling
 """
 
 from pathlib import Path
@@ -407,3 +415,9 @@ Format your response as:
         "session_id": session.session_id,
         "success": synthesis_result.exit_code == 0,
     }
+
+
+__all__ = [
+    "run_debate",
+    "DEFAULT_PERSPECTIVES",
+]

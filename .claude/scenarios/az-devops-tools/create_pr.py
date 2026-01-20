@@ -342,5 +342,12 @@ Note:
         )
 
 
+__all__ = [
+    "create_pull_request",
+    "main",
+    "validate_branch_exists",
+]
+
+
 if __name__ == "__main__":
     main()

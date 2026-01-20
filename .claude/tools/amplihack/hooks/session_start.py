@@ -2,6 +2,14 @@
 """
 Claude Code hook for session start.
 Uses unified HookProcessor for common functionality.
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
+- Fail-safe: Never block operations due to hook failures
+- Zero-BS: Every function works or doesn't exist
 """
 
 # Import the base processor
@@ -477,6 +485,13 @@ def main():
     """Entry point for the session start hook."""
     hook = SessionStartHook()
     hook.run()
+
+
+__all__ = [
+    "SessionStartHook",
+    "main",
+    "process",
+]
 
 
 if __name__ == "__main__":

@@ -1,6 +1,14 @@
 """VM lifecycle orchestration via azlin.
 
 This module manages Azure VM provisioning, reuse, and cleanup using the azlin CLI.
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
+- Resilient: Handle network failures gracefully
+- Async-first: Non-blocking operations
 """
 
 import json
@@ -402,3 +410,13 @@ class Orchestrator:
             return None
         except Exception:
             return None
+
+
+__all__ = [
+    "Orchestrator",
+    "VM",
+    "VMOptions",
+    "age_hours",
+    "cleanup",
+    "provision_or_reuse",
+]

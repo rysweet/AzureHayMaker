@@ -1,4 +1,13 @@
-"""SessionManager for persistence and resume capabilities."""
+"""SessionManager for persistence and resume capabilities.
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
+- State isolation: Clean session boundaries
+- Data integrity: Consistent state management
+"""
 
 import hashlib
 import json
@@ -411,3 +420,16 @@ class SessionManager:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
         self.stop()
+
+
+__all__ = [
+    "SessionManager",
+    "archive_session",
+    "cleanup_old_sessions",
+    "create_session",
+    "get_session",
+    "list_sessions",
+    "resume_session",
+    "save_session",
+    "stop",
+]

@@ -3,6 +3,14 @@
 This module provides the command-line interface for executing
 amplihack commands on remote Azure VMs. Supports both synchronous
 execution and detached session management.
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
+- Resilient: Handle network failures gracefully
+- Async-first: Non-blocking operations
 """
 
 import json
@@ -759,6 +767,20 @@ def cmd_status(output_json: bool):
 def main():
     """Entry point for CLI."""
     remote_cli()
+
+
+__all__ = [
+    "capture_and_display",
+    "cmd_kill",
+    "cmd_list",
+    "cmd_output",
+    "cmd_start",
+    "cmd_status",
+    "execute_remote_workflow",
+    "main",
+    "remote_cli",
+    "remote_execute",
+]
 
 
 if __name__ == "__main__":

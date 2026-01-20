@@ -2,6 +2,14 @@
 
 This module handles transferring context to VMs and executing
 amplihack commands remotely.
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
+- Resilient: Handle network failures gracefully
+- Async-first: Non-blocking operations
 """
 
 import base64
@@ -613,3 +621,15 @@ echo "Tmux session {safe_session_id} started successfully"
                 f"Failed to check tmux status: {e!s}",
                 context={"session_id": session_id, "error": str(e)},
             )
+
+
+__all__ = [
+    "ExecutionResult",
+    "Executor",
+    "check_tmux_status",
+    "execute_remote",
+    "execute_remote_tmux",
+    "retrieve_git_state",
+    "retrieve_logs",
+    "transfer_context",
+]

@@ -3,6 +3,12 @@
 This module provides immutable operations on MCP server configurations.
 All operations return new configuration dictionaries rather than modifying
 the input.
+
+Philosophy:
+- Single responsibility principle
+- Self-contained and regeneratable
+- Clear public API via __all__ exports
+- Standard library when possible
 """
 
 import copy
@@ -419,3 +425,20 @@ def import_servers(
         servers.append(server)
 
     return servers
+
+
+__all__ = [
+    "MCPServer",
+    "add_server",
+    "disable_server",
+    "enable_server",
+    "export_servers",
+    "from_dict",
+    "get_server",
+    "import_servers",
+    "list_servers",
+    "remove_server",
+    "to_dict",
+    "validate",
+    "validate_config",
+]
