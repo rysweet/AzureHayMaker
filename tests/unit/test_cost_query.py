@@ -92,13 +92,17 @@ class TestGetCostSummary:
         }
 
         with (
-            patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential"),
-            patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient"),
+            patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
+            patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
                 "azure_haymaker.orchestrator.cost_query.aggregation._query_costs_grouped_by",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
+            # Mock credential and client constructors
+            mock_cred.return_value = MagicMock()
+            mock_client.return_value = MagicMock()
+
             # First call returns cost_by_type, second returns cost_by_scenario
             mock_query.side_effect = [cost_by_type, cost_by_scenario]
 
@@ -117,13 +121,17 @@ class TestGetCostSummary:
     async def test_get_cost_summary_empty_results(self):
         """Test cost query with no results (new run with no cost data yet)."""
         with (
-            patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential"),
-            patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient"),
+            patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
+            patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
                 "azure_haymaker.orchestrator.cost_query.aggregation._query_costs_grouped_by",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
+            # Mock credential and client constructors
+            mock_cred.return_value = MagicMock()
+            mock_client.return_value = MagicMock()
+            
             mock_query.return_value = {}  # Empty results
 
             result = await get_cost_summary(
@@ -144,13 +152,17 @@ class TestGetCostSummary:
         custom_end = now - timedelta(days=1)
 
         with (
-            patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential"),
-            patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient"),
+            patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
+            patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
                 "azure_haymaker.orchestrator.cost_query.aggregation._query_costs_grouped_by",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
+            # Mock credential and client constructors
+            mock_cred.return_value = MagicMock()
+            mock_client.return_value = MagicMock()
+            
             mock_query.return_value = {"Microsoft.Compute/virtualMachines": 10.0}
 
             result = await get_cost_summary(
@@ -187,13 +199,17 @@ class TestGetCostSummary:
     async def test_get_cost_summary_resource_not_found(self):
         """Test cost query handles resource not found (returns empty summary)."""
         with (
-            patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential"),
-            patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient"),
+            patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
+            patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
                 "azure_haymaker.orchestrator.cost_query.aggregation._query_costs_grouped_by",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
+            # Mock credential and client constructors
+            mock_cred.return_value = MagicMock()
+            mock_client.return_value = MagicMock()
+            
             mock_query.side_effect = ResourceNotFoundError("No data found")
 
             result = await get_cost_summary(
@@ -210,13 +226,17 @@ class TestGetCostSummary:
     async def test_get_cost_summary_http_error(self):
         """Test cost query handles HTTP errors."""
         with (
-            patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential"),
-            patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient"),
+            patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
+            patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
                 "azure_haymaker.orchestrator.cost_query.aggregation._query_costs_grouped_by",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
+            # Mock credential and client constructors
+            mock_cred.return_value = MagicMock()
+            mock_client.return_value = MagicMock()
+
             mock_response = MagicMock()
             mock_response.status_code = 500
             mock_query.side_effect = HttpResponseError(
@@ -252,13 +272,17 @@ class TestGetCostSummary:
     async def test_get_cost_summary_default_period(self):
         """Test cost query uses 30-day default period when not specified."""
         with (
-            patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential"),
-            patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient"),
+            patch("azure_haymaker.orchestrator.cost_query.queries.DefaultAzureCredential") as mock_cred,
+            patch("azure_haymaker.orchestrator.cost_query.queries.CostManagementClient") as mock_client,
             patch(
                 "azure_haymaker.orchestrator.cost_query.aggregation._query_costs_grouped_by",
                 new_callable=AsyncMock,
             ) as mock_query,
         ):
+            # Mock credential and client constructors
+            mock_cred.return_value = MagicMock()
+            mock_client.return_value = MagicMock()
+            
             mock_query.return_value = {}
 
             result = await get_cost_summary(
