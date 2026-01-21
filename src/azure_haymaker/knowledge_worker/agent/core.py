@@ -248,7 +248,7 @@ class KnowledgeWorkerAgent(AgentBase):
         return await send_email(
             worker_identity=self.worker_identity,
             m365_client=self._m365_client,
-            validator=self.validator,
+            validator=self._validator,  # Use private attr to avoid property check
             to=to,
             subject=subject,
             body=body,
@@ -275,7 +275,7 @@ class KnowledgeWorkerAgent(AgentBase):
         return await create_calendar_event(
             worker_identity=self.worker_identity,
             m365_client=self._m365_client,
-            validator=self.validator,
+            validator=self._validator,  # Use private attr to avoid property check
             subject=subject,
             start_time=start_time,
             end_time=end_time,
