@@ -18,6 +18,9 @@ from azure_haymaker.knowledge_worker.agent import (
     KnowledgeWorkerAgent,
     KnowledgeWorkerConfig,
 )
+# Expose submodules for direct import (e.g., from azure_haymaker.knowledge_worker import config)
+from azure_haymaker.knowledge_worker import agent
+from azure_haymaker.knowledge_worker.agent import config, core, m365_integration
 from azure_haymaker.knowledge_worker.m365_client import (
     M365Client,
     M365ClientConfig,
