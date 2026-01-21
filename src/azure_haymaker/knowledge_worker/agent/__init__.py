@@ -2,7 +2,7 @@
 
 This module re-exports all public APIs from the refactored modules to maintain
 backward compatibility with existing code. It serves as a facade that preserves
-the original import paths while delegatin' to the new modular structure.
+the original import paths while delegating to the new modular structure.
 
 Public API (the "studs"):
     KnowledgeWorkerConfig: Configuration dataclass (from config.py)
@@ -19,14 +19,14 @@ Backward Compatibility:
     ... )
 
 New Module-Specific Imports (Recommended):
-    Fer better code clarity and faster imports, use module-specific imports:
+    For better code clarity and faster imports, use module-specific imports:
     >>> from azure_haymaker.knowledge_worker.agent.config import KnowledgeWorkerConfig
     >>> from azure_haymaker.knowledge_worker.agent.core import KnowledgeWorkerAgent
     >>> from azure_haymaker.knowledge_worker.agent.m365_integration import M365ClientFactory
 
 Migration:
-    No changes be required to existing code. The facade maintains full backward
-    compatibility. New code should prefer module-specific imports fer clarity.
+    No changes are required to existing code. The facade maintains full backward
+    compatibility. New code should prefer module-specific imports for clarity.
 
 Module Structure:
     agent/

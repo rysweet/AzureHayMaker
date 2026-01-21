@@ -1,6 +1,6 @@
 # Knowledge Worker Agent Modules
 
-Self-contained modules fer knowledge worker agent functionality followin' the Bricks & Studs pattern.
+Self-contained modules for knowledge worker agent functionality following the Bricks & Studs pattern.
 
 ## Architecture
 
@@ -22,11 +22,11 @@ agent/
 
 **Key classes:**
 - `KnowledgeWorkerConfig`: Configuration dataclass
-- `build_worker_identity()`: Factory function fer identity creation
+- `build_worker_identity()`: Factory function for identity creation
 
 **Dependencies:** Standard library only (dataclasses, logging)
 
-**Use when:** Ye need to create or configure a knowledge worker agent
+**Use when:** You need to create or configure a knowledge worker agent
 
 ```python
 from azure_haymaker.knowledge_worker.agent.config import (
@@ -52,7 +52,7 @@ config = KnowledgeWorkerConfig(
 
 **Dependencies:** config.py, operations modules, validators
 
-**Use when:** Ye be runnin' a knowledge worker agent
+**Use when:** You are running a knowledge worker agent
 
 ```python
 from azure_haymaker.knowledge_worker.agent.core import KnowledgeWorkerAgent
@@ -67,12 +67,12 @@ exit_code = agent.run()
 **What it does:** M365 Graph API client initialization and factory.
 
 **Key classes:**
-- `M365ClientFactory`: Factory fer creatin' Graph clients
-- `initialize_m365_client()`: Helper with error handlin'
+- `M365ClientFactory`: Factory for creating Graph clients
+- `initialize_m365_client()`: Helper with error handling
 
 **Dependencies:** azure-identity, msgraph-sdk (optional)
 
-**Use when:** Ye need direct access to M365 Graph client
+**Use when:** You need direct access to M365 Graph client
 
 ```python
 from azure_haymaker.knowledge_worker.agent.m365_integration import (
@@ -92,7 +92,7 @@ core.py (uses config)
 m365_integration.py (uses config, called by core)
 ```
 
-Each module be independent and can be regenerated from its specification without breakin' the others.
+Each module is independent and can be regenerated from its specification without breaking the others.
 
 ## Quick Start
 
@@ -122,7 +122,7 @@ exit_code = agent.run()
 ### Module-Specific Imports (Recommended)
 
 ```python
-# Import from specific modules fer better clarity
+# Import from specific modules for better clarity
 from azure_haymaker.knowledge_worker.agent.config import KnowledgeWorkerConfig
 from azure_haymaker.knowledge_worker.agent.core import KnowledgeWorkerAgent
 from azure_haymaker.knowledge_worker.agent.m365_integration import M365ClientFactory
@@ -149,7 +149,7 @@ Each module exports specific public APIs via `__all__`:
 
 ## Backward Compatibility
 
-The `__init__.py` file re-exports all public APIs, maintainin' full backward compatibility:
+The `__init__.py` file re-exports all public APIs, maintaining full backward compatibility:
 
 ```python
 # Old imports still work
@@ -181,7 +181,7 @@ These modules follow the **Bricks & Studs** pattern:
 
 - **Brick**: Self-contained module with ONE responsibility
 - **Stud**: Public contract (`__all__` exports) others connect to
-- **Regeneratable**: Can be rebuilt from spec without breakin' connections
+- **Regeneratable**: Can be rebuilt from spec without breaking connections
 
 Key principles:
 - Single responsibility per module

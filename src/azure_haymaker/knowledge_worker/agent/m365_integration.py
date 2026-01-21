@@ -108,7 +108,7 @@ def initialize_m365_client(
     and logging appropriate for agent initialization.
 
     Args:
-        worker_id: Worker ID fer logging context
+        worker_id: Worker ID for logging context
         app_id: Optional M365 application client ID
         client_secret: Optional client secret
         tenant_id: Optional Azure tenant ID
