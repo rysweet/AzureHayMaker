@@ -174,6 +174,11 @@ Simulate 50-300 knowledge workers performing realistic M365 activities (email, T
 | [Architecture](https://github.com/rysweet/AzureHayMaker/blob/main/docs/knowledge-worker-framework/ARCHITECTURE.md) | Framework design and component overview |
 | [Windows 365 E2E Demo](https://github.com/rysweet/AzureHayMaker/blob/main/docs/knowledge-worker-framework/WINDOWS365_E2E_DEMO.md) | Full Windows 365 Cloud PC demonstration |
 
+**Agent Module Documentation:**
+- [Agent Module Refactoring](./knowledge_worker/agent_module_refactoring.md) - Complete refactorin' guide fer the new module structure
+- [API Quick Reference](./knowledge_worker/api_quick_reference.md) - Quick reference fer all public APIs
+- [Module Docstrings](./knowledge_worker/MODULE_DOCSTRINGS.md) - Module-level documentation templates
+
 **Getting Started**:
 ```bash
 # Install CLI

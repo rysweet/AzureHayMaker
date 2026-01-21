@@ -14,9 +14,14 @@ Key Components:
 - Cleanup: Resource tracking and cleanup management
 """
 
+# Expose submodules for direct import (e.g., from azure_haymaker.knowledge_worker import config)
+from azure_haymaker.knowledge_worker import agent
 from azure_haymaker.knowledge_worker.agent import (
     KnowledgeWorkerAgent,
     KnowledgeWorkerConfig,
+    config,
+    core,
+    m365_integration,
 )
 from azure_haymaker.knowledge_worker.m365_client import (
     M365Client,
@@ -52,6 +57,11 @@ from azure_haymaker.knowledge_worker.telemetry import (
 )
 
 __all__ = [
+    # Agent modules (for direct import)
+    "agent",
+    "config",
+    "core",
+    "m365_integration",
     # Agent
     "KnowledgeWorkerAgent",
     "KnowledgeWorkerConfig",
