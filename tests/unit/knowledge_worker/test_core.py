@@ -194,8 +194,8 @@ class TestKnowledgeWorkerAgentLifecycle:
 
         assert agent._m365_client == mock_client
 
-    def test_on_start_with_empty_tenant_domain_raises_value_error(self):
-        """Test on_start with missing tenant domain raises ValueError."""
+    def test_on_start_with_empty_tenant_domain_uses_fallback(self):
+        """Test on_start with missing tenant domain uses 'invalid.domain' fallback."""
         config = KnowledgeWorkerConfig(
             worker_id="kw-test",
             display_name="Test",
@@ -205,9 +205,11 @@ class TestKnowledgeWorkerAgentLifecycle:
         )
         agent = KnowledgeWorkerAgent(config)
 
-        with patch("azure_haymaker.knowledge_worker.agent.core.initialize_m365_client"), \
-             pytest.raises(ValueError, match="tenant_domain is required"):
+        with patch("azure_haymaker.knowledge_worker.agent.core.initialize_m365_client"):
             agent.on_start()
+
+        # Should use fallback domain
+        assert agent._validator.tenant_domain == "invalid.domain"
 
     def test_on_cleanup_disconnects_m365_client(self, basic_config):
         """Test that on_cleanup clears M365 client."""
