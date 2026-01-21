@@ -145,10 +145,10 @@ class KnowledgeWorkerAgent(AgentBase):
         """Initialize communication validator with tenant domain."""
         tenant_domain = self.worker_config.tenant_domain
         if not tenant_domain:
-            raise ValueError(
-                "tenant_domain is required for validator initialization. "
-                "Set tenant_domain in KnowledgeWorkerConfig."
+            logger.warning(
+                "No tenant domain configured. Validator will reject all recipients."
             )
+            tenant_domain = "invalid.domain"
 
         self._validator = CommunicationValidator(
             tenant_domain=tenant_domain,
