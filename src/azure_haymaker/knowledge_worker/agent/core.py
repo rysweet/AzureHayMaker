@@ -237,7 +237,14 @@ class KnowledgeWorkerAgent(AgentBase):
         body: str,
         cc: list[str] | None = None,
     ) -> str | None:
-        """Send email to internal recipients. Returns message ID or None."""
+        """Send email to internal recipients. Returns message ID or None.
+
+        Raises:
+            RuntimeError: If M365 client not initialized
+        """
+        if self._m365_client is None:
+            raise RuntimeError("M365 client not initialized. Call on_start() first.")
+
         return await send_email(
             worker_identity=self.worker_identity,
             m365_client=self._m365_client,
@@ -257,7 +264,14 @@ class KnowledgeWorkerAgent(AgentBase):
         body: str = "",
         is_online_meeting: bool = False,
     ) -> str | None:
-        """Create calendar event. Returns event ID or None."""
+        """Create calendar event. Returns event ID or None.
+
+        Raises:
+            RuntimeError: If M365 client not initialized
+        """
+        if self._m365_client is None:
+            raise RuntimeError("M365 client not initialized. Call on_start() first.")
+
         return await create_calendar_event(
             worker_identity=self.worker_identity,
             m365_client=self._m365_client,
