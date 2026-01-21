@@ -14,7 +14,7 @@ The refactoring splits `agent.py` (529 LOC) into 3 modules:
 
 ## Test Files Created
 
-### 1. test_config.py (297 lines)
+### 1. test_knowledge_worker_config.py (297 lines)
 
 **Purpose**: Tests for the config.py module
 
@@ -268,7 +268,7 @@ python -c "from azure_haymaker.knowledge_worker.config import KnowledgeWorkerCon
 All tests should PASS:
 
 ```bash
-pytest tests/unit/knowledge_worker/test_config.py -v
+pytest tests/unit/knowledge_worker/test_knowledge_worker_config.py -v
 pytest tests/unit/knowledge_worker/test_core.py -v
 pytest tests/unit/knowledge_worker/test_m365_integration.py -v
 ```
@@ -279,7 +279,7 @@ pytest tests/unit/knowledge_worker/test_m365_integration.py -v
 
 | Module | Tests | Lines | Unit | Integration | E2E |
 |--------|-------|-------|------|-------------|-----|
-| test_config.py | 27 | 297 | 15 (56%) | 6 (22%) | 6 (22%) |
+| test_knowledge_worker_config.py | 27 | 297 | 15 (56%) | 6 (22%) | 6 (22%) |
 | test_core.py | 37 | 470 | 26 (70%) | 4 (11%) | 7 (19%) |
 | test_m365_integration.py | 37 | 627 | 27 (73%) | 3 (8%) | 7 (19%) |
 | **Total** | **101** | **1,394** | **68 (67%)** | **13 (13%)** | **20 (20%)** |
@@ -307,7 +307,7 @@ The existing `test_agent.py` (756 lines) will serve as backward compatibility te
 ## Implementation Guidance
 
 ### Step 1: Create config.py
-1. Run `test_config.py` to see failures
+1. Run `test_knowledge_worker_config.py` to see failures
 2. Implement `KnowledgeWorkerConfig` dataclass
 3. Implement `build_worker_identity()` function
 4. Define `__all__` exports
