@@ -156,18 +156,14 @@ class KnowledgeWorkerAgent(AgentBase):
         )
 
     def _initialize_m365_client(self) -> None:
-        """Initialize M365 client (credentials from environment variables)."""
+        """Initialize M365 client (credentials from environment variables).
+
+        Gracefully handles failures - leaves _m365_client as None if initialization
+        fails. The initialize_m365_client() function logs appropriate warnings.
+        """
         self._m365_client = initialize_m365_client(
             worker_id=self.worker_config.worker_id
         )
-
-        # Ensure client was initialized successfully
-        if self._m365_client is None:
-            raise RuntimeError(
-                f"Failed to initialize M365 client for {self.worker_config.worker_id}. "
-                "Ensure M365 credentials are set in environment variables "
-                "(KW_APP_ID, KW_CLIENT_SECRET, KW_TENANT_ID) and msgraph-sdk is installed."
-            )
 
     def _load_allowed_recipients(self) -> None:
         """Load allowed recipients (orchestrator typically populates before start)."""
