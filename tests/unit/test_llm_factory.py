@@ -41,8 +41,9 @@ class TestCreateLLMClient:
             deployment="gpt-4",
         )
 
-        with patch("azure_haymaker.llm.providers.azure_openai.AzureOpenAI"), patch(
-            "azure_haymaker.llm.providers.azure_openai.DefaultAzureCredential"
+        with (
+            patch("azure_haymaker.llm.providers.azure_openai.AzureOpenAI"),
+            patch("azure_haymaker.llm.providers.azure_openai.DefaultAzureCredential"),
         ):
             client = create_llm_client(config)
             assert isinstance(client, AzureOpenAIProvider)
@@ -133,11 +134,14 @@ class TestFactoryWithCredentials:
             model="Llama-3",
         )
 
-        with patch(
-            "azure_haymaker.llm.providers.azure_ai_foundry.ChatCompletionsClient"
-        ) as mock_client, patch(
-            "azure_haymaker.llm.providers.azure_ai_foundry.DefaultAzureCredential"
-        ) as mock_cred:
+        with (
+            patch(
+                "azure_haymaker.llm.providers.azure_ai_foundry.ChatCompletionsClient"
+            ) as mock_client,
+            patch(
+                "azure_haymaker.llm.providers.azure_ai_foundry.DefaultAzureCredential"
+            ) as mock_cred,
+        ):
             create_llm_client(config)
             # Should be called with credential
             assert mock_cred.called

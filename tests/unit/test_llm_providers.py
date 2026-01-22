@@ -165,9 +165,10 @@ class TestAzureOpenAIProvider:
             api_key="test-key",
         )
 
-        with patch("azure_haymaker.llm.providers.azure_openai.AzureOpenAI"), patch(
-            "azure_haymaker.llm.providers.azure_openai.AsyncAzureOpenAI"
-        ) as mock_async:
+        with (
+            patch("azure_haymaker.llm.providers.azure_openai.AzureOpenAI"),
+            patch("azure_haymaker.llm.providers.azure_openai.AsyncAzureOpenAI") as mock_async,
+        ):
             mock_async_client = AsyncMock()
             mock_async.return_value = mock_async_client
 
@@ -204,10 +205,11 @@ class TestAzureAIFoundryProvider:
             model="Meta-Llama-3-70B-Instruct",
         )
 
-        with patch(
-            "azure_haymaker.llm.providers.azure_ai_foundry.ChatCompletionsClient"
-        ) as mock_foundry, patch(
-            "azure_haymaker.llm.providers.azure_ai_foundry.DefaultAzureCredential"
+        with (
+            patch(
+                "azure_haymaker.llm.providers.azure_ai_foundry.ChatCompletionsClient"
+            ) as mock_foundry,
+            patch("azure_haymaker.llm.providers.azure_ai_foundry.DefaultAzureCredential"),
         ):
             mock_client = MagicMock()
             mock_foundry.return_value = mock_client
@@ -231,6 +233,45 @@ class TestAzureAIFoundryProvider:
 
             assert response.content == "Foundry response"
             mock_client.complete.assert_called_once()
+
+    @pytest.mark.anyio
+    async def test_create_message_async(self):
+        """Test asynchronous message creation with Azure AI Foundry."""
+        from azure_haymaker.llm import LLMConfig, LLMMessage, create_llm_client
+
+        config = LLMConfig(
+            provider="azure_ai_foundry",
+            endpoint="https://test.inference.ml.azure.com",
+            model="Meta-Llama-3-70B-Instruct",
+        )
+
+        with (
+            patch(
+                "azure_haymaker.llm.providers.azure_ai_foundry.ChatCompletionsClient"
+            ) as mock_foundry,
+            patch("azure_haymaker.llm.providers.azure_ai_foundry.DefaultAzureCredential"),
+        ):
+            mock_client = MagicMock()
+            mock_foundry.return_value = mock_client
+
+            # Mock Foundry response structure
+            mock_choice = MagicMock()
+            mock_choice.message.content = "Async Foundry response"
+            mock_choice.finish_reason = "stop"
+
+            mock_response = MagicMock()
+            mock_response.choices = [mock_choice]
+            mock_response.model = "Meta-Llama-3-70B-Instruct"
+            mock_response.usage.prompt_tokens = 15
+            mock_response.usage.completion_tokens = 25
+            mock_client.complete.return_value = mock_response
+
+            provider = create_llm_client(config)
+            messages = [LLMMessage(role="user", content="Hello")]
+
+            response = await provider.create_message_async(messages, max_tokens=100)
+
+            assert response.content == "Async Foundry response"
 
 
 class TestProviderExceptionHandling:

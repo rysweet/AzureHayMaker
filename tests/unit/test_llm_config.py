@@ -13,10 +13,6 @@ from unittest.mock import patch
 
 import pytest
 
-# These imports will fail until implementation (TDD)
-# from azure_haymaker.llm import LLMConfig
-# from azure_haymaker.llm.config import LLMConfig
-
 
 class TestLLMConfigValidation:
     """Unit tests for LLMConfig validation."""

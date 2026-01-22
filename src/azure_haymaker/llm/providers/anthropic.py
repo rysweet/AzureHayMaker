@@ -74,9 +74,7 @@ class AnthropicProvider(BaseLLMProvider):
             LLMProviderError: Other Anthropic errors
         """
         try:
-            formatted_messages = [
-                {"role": msg.role, "content": msg.content} for msg in messages
-            ]
+            formatted_messages = [{"role": msg.role, "content": msg.content} for msg in messages]
 
             kwargs = {
                 "model": self._model,
@@ -130,9 +128,7 @@ class AnthropicProvider(BaseLLMProvider):
             LLMProviderError: Other Anthropic errors
         """
         try:
-            formatted_messages = [
-                {"role": msg.role, "content": msg.content} for msg in messages
-            ]
+            formatted_messages = [{"role": msg.role, "content": msg.content} for msg in messages]
 
             kwargs = {
                 "model": self._model,

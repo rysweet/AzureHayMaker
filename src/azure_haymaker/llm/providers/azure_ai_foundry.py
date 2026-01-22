@@ -12,7 +12,7 @@ Public API (the "studs"):
 """
 
 from azure.ai.inference import ChatCompletionsClient
-from azure.ai.inference.models import SystemMessage, UserMessage
+from azure.ai.inference.models import AssistantMessage, SystemMessage, UserMessage
 from azure.core.credentials import AzureKeyCredential
 from azure.core.exceptions import ClientAuthenticationError, HttpResponseError
 from azure.identity import DefaultAzureCredential
@@ -60,9 +60,7 @@ class AzureAIFoundryProvider(BaseLLMProvider):
                 credential=credential,
             )
 
-    def _format_messages(
-        self, messages: list[LLMMessage], system: str | None = None
-    ) -> list:
+    def _format_messages(self, messages: list[LLMMessage], system: str | None = None) -> list:
         """Format messages for Azure AI Foundry API.
 
         Args:
@@ -80,9 +78,10 @@ class AzureAIFoundryProvider(BaseLLMProvider):
         for msg in messages:
             if msg.role == "user":
                 formatted.append(UserMessage(content=msg.content))
+            elif msg.role == "assistant":
+                formatted.append(AssistantMessage(content=msg.content))
             elif msg.role == "system":
                 formatted.append(SystemMessage(content=msg.content))
-            # Note: Azure AI Foundry uses different message types
 
         return formatted
 
@@ -131,14 +130,10 @@ class AzureAIFoundryProvider(BaseLLMProvider):
             )
 
         except ClientAuthenticationError as e:
-            raise LLMAuthenticationError(
-                f"Azure AI Foundry authentication failed: {e}"
-            ) from e
+            raise LLMAuthenticationError(f"Azure AI Foundry authentication failed: {e}") from e
         except HttpResponseError as e:
             if e.status_code == 429:
-                raise LLMRateLimitError(
-                    f"Azure AI Foundry rate limit exceeded: {e}"
-                ) from e
+                raise LLMRateLimitError(f"Azure AI Foundry rate limit exceeded: {e}") from e
             raise LLMProviderError(f"Azure AI Foundry error: {e}") from e
         except Exception as e:
             raise LLMProviderError(f"Azure AI Foundry error: {e}") from e
@@ -172,10 +167,8 @@ class AzureAIFoundryProvider(BaseLLMProvider):
         import asyncio
 
         # Run sync method in thread pool for async compatibility
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            None,
-            lambda: self.create_message(messages, system, max_tokens, temperature),
+        return await asyncio.to_thread(
+            self.create_message, messages, system, max_tokens, temperature
         )
 
 

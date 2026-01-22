@@ -40,9 +40,7 @@ class LLMConfig(BaseModel):
     api_key: SecretStr | None = Field(None, description="API key")
     endpoint: str | None = Field(None, description="Azure endpoint URL")
     deployment: str | None = Field(None, description="Azure OpenAI deployment name")
-    api_version: str = Field(
-        "2024-02-15-preview", description="Azure OpenAI API version"
-    )
+    api_version: str = Field("2024-02-15-preview", description="Azure OpenAI API version")
     timeout_seconds: int = Field(120, description="Request timeout in seconds")
     max_retries: int = Field(3, description="Maximum retry attempts")
 
@@ -100,9 +98,7 @@ class LLMConfig(BaseModel):
                 provider="azure_openai",
                 endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT"),
                 deployment=os.environ.get("AZURE_OPENAI_DEPLOYMENT"),
-                api_version=os.environ.get(
-                    "AZURE_OPENAI_API_VERSION", "2024-02-15-preview"
-                ),
+                api_version=os.environ.get("AZURE_OPENAI_API_VERSION", "2024-02-15-preview"),
                 api_key=api_key if api_key else None,
             )
 

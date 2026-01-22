@@ -41,9 +41,7 @@ class LLMResponse(BaseModel):
 
     content: str = Field(..., description="Generated text content")
     model: str = Field(..., description="Model that generated the response")
-    usage: dict[str, Any] = Field(
-        default_factory=dict, description="Token usage statistics"
-    )
+    usage: dict[str, Any] = Field(default_factory=dict, description="Token usage statistics")
     stop_reason: str | None = Field(None, description="Why generation stopped")
 
 

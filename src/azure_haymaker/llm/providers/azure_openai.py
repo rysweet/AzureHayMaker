@@ -136,9 +136,7 @@ class AzureOpenAIProvider(BaseLLMProvider):
             )
 
         except AuthenticationError as e:
-            raise LLMAuthenticationError(
-                f"Azure OpenAI authentication failed: {e}"
-            ) from e
+            raise LLMAuthenticationError(f"Azure OpenAI authentication failed: {e}") from e
         except RateLimitError as e:
             raise LLMRateLimitError(f"Azure OpenAI rate limit exceeded: {e}") from e
         except Exception as e:
@@ -198,9 +196,7 @@ class AzureOpenAIProvider(BaseLLMProvider):
             )
 
         except AuthenticationError as e:
-            raise LLMAuthenticationError(
-                f"Azure OpenAI authentication failed: {e}"
-            ) from e
+            raise LLMAuthenticationError(f"Azure OpenAI authentication failed: {e}") from e
         except RateLimitError as e:
             raise LLMRateLimitError(f"Azure OpenAI rate limit exceeded: {e}") from e
         except Exception as e:
