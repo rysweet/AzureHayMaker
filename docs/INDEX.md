@@ -73,6 +73,14 @@ Documentation for the Knowledge Worker Activity Framework.
 - [Windows 365 Cloud PC Provisioning](knowledge-worker-framework/WINDOWS365_CLOUD_PC.md) - Cloud PC management and graceful degradation
 - [Knowledge Worker Architecture](knowledge-worker-framework/ARCHITECTURE.md) - Framework design and components
 
+## 🤖 LLM Provider Configuration
+
+Multi-provider LLM support for content generation.
+
+- [Configure LLM Providers](howto/configure-llm-providers.md) - How to configure Anthropic, Azure OpenAI, or Azure AI Foundry
+- [LLM Provider API Reference](reference/llm-providers.md) - Full API documentation for the LLM abstraction layer
+- [Configure Anthropic Model](howto/configure-anthropic-model.md) - Anthropic-specific configuration
+
 ## 📖 Reference
 
 Quick reference guides and supporting documentation.
@@ -80,6 +88,7 @@ Quick reference guides and supporting documentation.
 - [Best Practices](reference/BEST_PRACTICES.md) - Recommended practices
 - [FAQ](reference/FAQ.md) - Frequently asked questions
 - [Glossary](reference/GLOSSARY.md) - Terms and definitions
+- [LLM Provider API](reference/llm-providers.md) - LLM abstraction layer API
 - [Troubleshooting](reference/TROUBLESHOOTING.md) - Common issues and solutions
 - [Vision](reference/VISION.md) - Project vision and goals
 
