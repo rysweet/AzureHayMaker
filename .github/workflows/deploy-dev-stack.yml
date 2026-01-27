@@ -1,0 +1,393 @@
+name: Deploy Developer Stack
+
+# Developer-specific deployment workflow using OIDC authentication
+# Triggered via CLI with credentials from local .env file
+# Each developer gets their own isolated HayMaker stack
+#
+# OIDC: No secrets needed! Azure trusts GitHub Actions tokens directly.
+# Just provide tenant/subscription/client IDs from your .env file.
+#
+# Usage:
+#   ./scripts/trigger_deploy.sh --name myprefix --watch
+
+on:
+  workflow_dispatch:
+    inputs:
+      naming_prefix:
+        description: 'Naming prefix for resources (e.g., your username)'
+        required: true
+        type: string
+      environment:
+        description: 'Environment (dev/staging/prod)'
+        required: false
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      location:
+        description: 'Azure region'
+        required: false
+        default: 'westus2'
+        type: string
+      simulation_size:
+        description: 'Simulation size'
+        required: false
+        default: 'small'
+        type: choice
+        options:
+          - small
+          - medium
+          - large
+      skip_image_build:
+        description: 'Skip Docker image build'
+        required: false
+        default: false
+        type: boolean
+      # Azure credentials - uses OIDC, no secrets needed!
+      azure_tenant_id:
+        description: 'Azure Tenant ID (from .env)'
+        required: false
+        type: string
+      azure_subscription_id:
+        description: 'Azure Subscription ID (from .env)'
+        required: false
+        type: string
+      azure_client_id:
+        description: 'Azure Client ID - SP with OIDC federated credential (from .env)'
+        required: false
+        type: string
+
+env:
+  NAMING_PREFIX: ${{ inputs.naming_prefix }}
+  ENVIRONMENT: ${{ inputs.environment }}
+  LOCATION: ${{ inputs.location }}
+  SIMULATION_SIZE: ${{ inputs.simulation_size }}
+  # Use inputs if provided, otherwise fall back to repository secrets
+  AZURE_TENANT_ID: ${{ inputs.azure_tenant_id || secrets.AZURE_TENANT_ID }}
+  AZURE_SUBSCRIPTION_ID: ${{ inputs.azure_subscription_id || secrets.AZURE_SUBSCRIPTION_ID }}
+  AZURE_CLIENT_ID: ${{ inputs.azure_client_id || secrets.AZURE_CLIENT_ID }}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  setup:
+    name: Setup and Validate
+    runs-on: ubuntu-latest
+    outputs:
+      resource_group: ${{ steps.names.outputs.resource_group }}
+      acr_name: ${{ steps.names.outputs.acr_name }}
+      cae_name: ${{ steps.names.outputs.cae_name }}
+      orchestrator_name: ${{ steps.names.outputs.orchestrator_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate Resource Names
+        id: names
+        run: |
+          PREFIX="${{ inputs.naming_prefix }}"
+          ENV="${{ inputs.environment }}"
+          
+          # Generate consistent resource names
+          RG="haymaker-${PREFIX}-${ENV}-rg"
+          ACR="haymaker${PREFIX}${ENV}acr"
+          # ACR must be alphanumeric, 5-50 chars
+          ACR=$(echo "$ACR" | tr -cd '[:alnum:]' | cut -c1-50 | tr '[:upper:]' '[:lower:]')
+          CAE="haymaker-${PREFIX}-${ENV}-cae"
+          ORCH="haymaker-${PREFIX}-orch"
+          # Container app names max 32 chars
+          ORCH=$(echo "$ORCH" | cut -c1-32)
+          
+          echo "resource_group=$RG" >> $GITHUB_OUTPUT
+          echo "acr_name=$ACR" >> $GITHUB_OUTPUT
+          echo "cae_name=$CAE" >> $GITHUB_OUTPUT
+          echo "orchestrator_name=$ORCH" >> $GITHUB_OUTPUT
+          
+          echo "📦 Resource Names:"
+          echo "  Resource Group: $RG"
+          echo "  ACR: $ACR"
+          echo "  Container App Env: $CAE"
+          echo "  Orchestrator: $ORCH"
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Validate Bicep Templates
+        run: |
+          az bicep build --file infra/bicep/main-containerapps.bicep
+          echo "✅ Bicep templates validated"
+
+  create-acr:
+    name: Create Container Registry
+    runs-on: ubuntu-latest
+    needs: setup
+    outputs:
+      acr_login_server: ${{ steps.acr.outputs.login_server }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Create Resource Group
+        run: |
+          RG="${{ needs.setup.outputs.resource_group }}"
+          az group create --name "$RG" --location "${{ inputs.location }}" \
+            --tags Environment="${{ inputs.environment }}" \
+                   Owner="${{ inputs.naming_prefix }}" \
+                   ManagedBy="deploy-dev-stack" \
+            || true
+          echo "✅ Resource group ready: $RG"
+
+      - name: Create ACR
+        id: acr
+        run: |
+          ACR="${{ needs.setup.outputs.acr_name }}"
+          RG="${{ needs.setup.outputs.resource_group }}"
+          
+          if az acr show --name "$ACR" --resource-group "$RG" &> /dev/null; then
+            echo "✅ ACR already exists: $ACR"
+          else
+            echo "Creating ACR: $ACR..."
+            az acr create \
+              --name "$ACR" \
+              --resource-group "$RG" \
+              --sku Basic \
+              --admin-enabled true
+            echo "✅ ACR created: $ACR"
+          fi
+          
+          LOGIN_SERVER=$(az acr show --name "$ACR" --resource-group "$RG" --query loginServer -o tsv)
+          echo "login_server=$LOGIN_SERVER" >> $GITHUB_OUTPUT
+          echo "ACR Login Server: $LOGIN_SERVER"
+
+  build-image:
+    name: Build and Push Image
+    runs-on: ubuntu-latest
+    needs: [setup, create-acr]
+    if: ${{ inputs.skip_image_build != true }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: |
+          az acr login --name "${{ needs.setup.outputs.acr_name }}"
+
+      - name: Build and Push Image
+        run: |
+          ACR_SERVER="${{ needs.create-acr.outputs.acr_login_server }}"
+          IMAGE_TAG="${{ github.sha }}"
+          
+          cd src
+          docker build -f Dockerfile.orchestrator \
+            -t "${ACR_SERVER}/haymaker-orchestrator:latest" \
+            -t "${ACR_SERVER}/haymaker-orchestrator:${IMAGE_TAG}" \
+            .
+          
+          docker push "${ACR_SERVER}/haymaker-orchestrator:latest"
+          docker push "${ACR_SERVER}/haymaker-orchestrator:${IMAGE_TAG}"
+          
+          echo "✅ Image pushed: ${ACR_SERVER}/haymaker-orchestrator:latest"
+
+  deploy-infrastructure:
+    name: Deploy Infrastructure
+    runs-on: ubuntu-latest
+    needs: [setup, create-acr, build-image]
+    if: always() && needs.setup.result == 'success' && needs.create-acr.result == 'success'
+    outputs:
+      orchestrator_fqdn: ${{ steps.deploy.outputs.fqdn }}
+      key_vault_name: ${{ steps.deploy.outputs.keyvault }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get SP Object ID
+        id: sp
+        run: |
+          SP_OID=$(az ad sp show --id "${{ inputs.azure_client_id }}" --query id -o tsv)
+          echo "object_id=$SP_OID" >> $GITHUB_OUTPUT
+
+      - name: Get ACR Password
+        id: acr_creds
+        run: |
+          ACR="${{ needs.setup.outputs.acr_name }}"
+          RG="${{ needs.setup.outputs.resource_group }}"
+          PASSWORD=$(az acr credential show --name "$ACR" --resource-group "$RG" --query "passwords[0].value" -o tsv)
+          echo "::add-mask::$PASSWORD"
+          echo "password=$PASSWORD" >> $GITHUB_OUTPUT
+
+      - name: Deploy Bicep
+        id: deploy
+        run: |
+          RG="${{ needs.setup.outputs.resource_group }}"
+          ACR_SERVER="${{ needs.create-acr.outputs.acr_login_server }}"
+          DEPLOYMENT_NAME="dev-stack-$(date +%s)"
+          
+          echo "🚀 Deploying infrastructure to $RG..."
+          
+          OUTPUTS=$(az deployment group create \
+            --resource-group "$RG" \
+            --template-file infra/bicep/main-containerapps.bicep \
+            --parameters environment="${{ inputs.environment }}" \
+                         adminObjectIds="['${{ steps.sp.outputs.object_id }}']" \
+                         githubOidcClientId="${{ inputs.azure_client_id }}" \
+                         simulationSize="${{ inputs.simulation_size }}" \
+                         orchestratorImage="${ACR_SERVER}/haymaker-orchestrator:latest" \
+                         acrPassword="${{ steps.acr_creds.outputs.password }}" \
+            --name "$DEPLOYMENT_NAME" \
+            --query properties.outputs -o json)
+          
+          FQDN=$(echo "$OUTPUTS" | jq -r '.orchestratorFqdn.value // ""')
+          KV=$(echo "$OUTPUTS" | jq -r '.keyVaultName.value // ""')
+          
+          echo "fqdn=$FQDN" >> $GITHUB_OUTPUT
+          echo "keyvault=$KV" >> $GITHUB_OUTPUT
+          
+          echo "✅ Infrastructure deployed!"
+          echo "  FQDN: $FQDN"
+          echo "  Key Vault: $KV"
+
+  configure-permissions:
+    name: Configure Permissions
+    runs-on: ubuntu-latest
+    needs: [setup, create-acr, deploy-infrastructure]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Grant ACR Pull Permission
+        run: |
+          RG="${{ needs.setup.outputs.resource_group }}"
+          ORCH="${{ needs.setup.outputs.orchestrator_name }}"
+          ACR="${{ needs.setup.outputs.acr_name }}"
+          
+          PRINCIPAL_ID=$(az containerapp show --name "$ORCH" --resource-group "$RG" \
+            --query "identity.principalId" -o tsv 2>/dev/null || echo "")
+          
+          if [ -n "$PRINCIPAL_ID" ]; then
+            ACR_ID=$(az acr show --name "$ACR" --resource-group "$RG" --query id -o tsv)
+            az role assignment create \
+              --assignee "$PRINCIPAL_ID" \
+              --role AcrPull \
+              --scope "$ACR_ID" || echo "Role may already exist"
+            echo "✅ ACR pull permission granted"
+          fi
+
+      - name: Grant Key Vault Permission
+        run: |
+          RG="${{ needs.setup.outputs.resource_group }}"
+          ORCH="${{ needs.setup.outputs.orchestrator_name }}"
+          KV="${{ needs.deploy-infrastructure.outputs.key_vault_name }}"
+          
+          PRINCIPAL_ID=$(az containerapp show --name "$ORCH" --resource-group "$RG" \
+            --query "identity.principalId" -o tsv 2>/dev/null || echo "")
+          
+          if [ -n "$PRINCIPAL_ID" ] && [ -n "$KV" ]; then
+            KV_ID=$(az keyvault show --name "$KV" --resource-group "$RG" --query id -o tsv)
+            az role assignment create \
+              --assignee "$PRINCIPAL_ID" \
+              --role "Key Vault Secrets User" \
+              --scope "$KV_ID" || echo "Role may already exist"
+            echo "✅ Key Vault permission granted"
+          fi
+
+      - name: Restart Container App
+        run: |
+          RG="${{ needs.setup.outputs.resource_group }}"
+          ORCH="${{ needs.setup.outputs.orchestrator_name }}"
+          
+          echo "Waiting 30s for RBAC propagation..."
+          sleep 30
+          
+          REVISION=$(az containerapp revision list --name "$ORCH" --resource-group "$RG" \
+            --query "[0].name" -o tsv 2>/dev/null || echo "")
+          
+          if [ -n "$REVISION" ]; then
+            az containerapp revision restart --name "$ORCH" --resource-group "$RG" \
+              --revision "$REVISION" || echo "Restart not needed"
+          fi
+
+  verify:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: [setup, deploy-infrastructure, configure-permissions]
+    steps:
+      - name: Wait for Container Startup
+        run: |
+          echo "Waiting 60s for container to start..."
+          sleep 60
+
+      - name: Health Check
+        run: |
+          FQDN="${{ needs.deploy-infrastructure.outputs.orchestrator_fqdn }}"
+          URL="https://${FQDN}"
+          
+          echo "Testing: $URL"
+          
+          for i in {1..5}; do
+            if curl -sf "$URL/" > /dev/null 2>&1; then
+              echo "✅ Health check passed!"
+              curl -s "$URL/" | jq . || curl -s "$URL/"
+              exit 0
+            fi
+            echo "Attempt $i/5 failed, retrying in 15s..."
+            sleep 15
+          done
+          
+          echo "⚠️ Health check did not pass within timeout"
+          echo "Container may still be starting - check Azure Portal"
+
+      - name: Deployment Summary
+        run: |
+          echo "========================================="
+          echo "🏴‍☠️ Developer Stack Deployment Complete!"
+          echo "========================================="
+          echo ""
+          echo "Owner: ${{ inputs.naming_prefix }}"
+          echo "Environment: ${{ inputs.environment }}"
+          echo "Region: ${{ inputs.location }}"
+          echo ""
+          echo "Resources:"
+          echo "  Resource Group: ${{ needs.setup.outputs.resource_group }}"
+          echo "  ACR: ${{ needs.setup.outputs.acr_name }}"
+          echo "  Orchestrator: ${{ needs.setup.outputs.orchestrator_name }}"
+          echo ""
+          echo "URLs:"
+          echo "  Orchestrator: https://${{ needs.deploy-infrastructure.outputs.orchestrator_fqdn }}"
+          echo ""
+          echo "Test Commands:"
+          echo "  curl https://${{ needs.deploy-infrastructure.outputs.orchestrator_fqdn }}/"
+          echo "  curl https://${{ needs.deploy-infrastructure.outputs.orchestrator_fqdn }}/api/scenarios"
+          echo ""
+          echo "Cleanup:"
+          echo "  az group delete --name ${{ needs.setup.outputs.resource_group }} --yes"
