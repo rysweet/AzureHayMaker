@@ -2,9 +2,11 @@
 
 import os
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, SecretStr, computed_field
+
+from azure_haymaker.llm import LLMConfig
 
 
 class TenantConfig(BaseModel):
@@ -127,8 +129,23 @@ class OrchestratorConfig(BaseModel):
         default=None, description="Target tenant SP secret (for cross-tenant deployment, optional)"
     )
 
-    # External API keys
-    anthropic_api_key: SecretStr = Field(..., description="Anthropic API key for Claude")
+    # External API keys / LLM configuration
+    anthropic_api_key: SecretStr | None = Field(
+        default=None, description="Anthropic API key for Claude (optional if using Azure)"
+    )
+    llm_provider: Literal["anthropic", "azure_openai", "azure_ai_foundry"] = Field(
+        default="anthropic", description="LLM provider to use"
+    )
+    azure_openai_endpoint: str | None = Field(default=None, description="Azure OpenAI endpoint URL")
+    azure_openai_deployment: str | None = Field(
+        default=None, description="Azure OpenAI deployment name"
+    )
+    azure_ai_foundry_endpoint: str | None = Field(
+        default=None, description="Azure AI Foundry endpoint URL"
+    )
+    azure_ai_foundry_model: str | None = Field(
+        default=None, description="Azure AI Foundry model name"
+    )
 
     # Azure service configuration
     service_bus_namespace: str = Field(..., description="Service Bus namespace")
@@ -274,6 +291,36 @@ class OrchestratorConfig(BaseModel):
         """
         return len(self.tenants) > 0
 
+    def get_llm_config(self) -> LLMConfig:
+        """Build LLMConfig from orchestrator configuration.
+
+        Returns an LLMConfig configured for the selected provider.
+        Supports Anthropic (API key), Azure OpenAI, and Azure AI Foundry
+        (both with DefaultAzureCredential support).
+
+        Returns:
+            LLMConfig ready for use with create_llm_client()
+        """
+        if self.llm_provider == "anthropic":
+            return LLMConfig(
+                provider="anthropic",
+                api_key=self.anthropic_api_key,
+            )
+        elif self.llm_provider == "azure_openai":
+            return LLMConfig(
+                provider="azure_openai",
+                endpoint=self.azure_openai_endpoint,
+                deployment=self.azure_openai_deployment,
+            )
+        elif self.llm_provider == "azure_ai_foundry":
+            return LLMConfig(
+                provider="azure_ai_foundry",
+                endpoint=self.azure_ai_foundry_endpoint,
+                model=self.azure_ai_foundry_model,
+            )
+        else:
+            raise ValueError(f"Unknown LLM provider: {self.llm_provider}")
+
     def model_post_init(self, __context: Any) -> None:
         """Post-initialization validation."""
         # Validate VNet configuration if enabled
@@ -292,6 +339,7 @@ class OrchestratorConfig(BaseModel):
         use_enum_values = False
         # Validate on assignment
         validate_assignment = True
+
 
 __all__ = [
     "CosmosDBConfig",

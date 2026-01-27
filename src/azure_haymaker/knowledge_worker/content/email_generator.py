@@ -1,7 +1,8 @@
 """AI-powered email content generator for Knowledge Workers.
 
-Uses Anthropic Claude API to generate realistic email content with
-custom directives (e.g., include limericks in signature).
+Uses the LLM abstraction layer to generate realistic email content with
+custom directives (e.g., include limericks in signature). Supports multiple
+LLM providers: Anthropic Claude, Azure OpenAI, and Azure AI Foundry.
 """
 
 import html
@@ -9,15 +10,20 @@ import logging
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
-from anthropic import Anthropic, AnthropicError, RateLimitError
-from anthropic.types import TextBlock
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr
 
 from azure_haymaker.knowledge_worker.content.prompts import (
     build_system_prompt,
     build_user_prompt,
+)
+from azure_haymaker.llm import (
+    BaseLLMProvider,
+    LLMConfig,
+    LLMMessage,
+    LLMRateLimitError,
+    create_llm_client,
 )
 
 logger = logging.getLogger(__name__)
@@ -90,10 +96,15 @@ class EmailContent:
 class EmailGenerationConfig(BaseModel):
     """Configuration for AI email generation.
 
+    Supports multiple LLM providers through the LLM abstraction layer.
+
     Attributes:
         enabled: Whether AI generation is enabled
-        api_key: Anthropic API key (optional, uses ANTHROPIC_API_KEY env var if not provided)
-        model: Claude model to use
+        provider: LLM provider to use (anthropic, azure_openai, azure_ai_foundry)
+        api_key: API key (optional, uses env var or managed identity if not provided)
+        endpoint: Azure endpoint URL (required for Azure providers)
+        deployment: Azure OpenAI deployment name (required for azure_openai)
+        model: Model name to use
         directive: Custom directive for email generation (e.g., "Include a limerick")
         max_tokens: Maximum tokens for generation
         temperature: Temperature for generation (0.0-1.0)
@@ -101,8 +112,11 @@ class EmailGenerationConfig(BaseModel):
     """
 
     enabled: bool = False
-    api_key: str | None = None
-    model: str | None = None  # Use Anthropic SDK default if not specified
+    provider: Literal["anthropic", "azure_openai", "azure_ai_foundry"] = "anthropic"
+    api_key: SecretStr | None = None
+    endpoint: str | None = None
+    deployment: str | None = None
+    model: str | None = None
     directive: str | None = None
     max_tokens: int = 1024
     temperature: float = 0.7
@@ -110,14 +124,31 @@ class EmailGenerationConfig(BaseModel):
 
     model_config = {"frozen": False}
 
+    def to_llm_config(self) -> LLMConfig:
+        """Convert to LLMConfig for the LLM abstraction layer.
+
+        Returns:
+            LLMConfig configured for the selected provider
+        """
+        return LLMConfig(
+            provider=self.provider,
+            api_key=self.api_key,
+            endpoint=self.endpoint,
+            deployment=self.deployment,
+            model=self.model,
+            timeout_seconds=self.timeout_seconds,
+        )
+
 
 class EmailContentGenerator:
-    """AI-powered email content generator using Anthropic Claude.
+    """AI-powered email content generator using the LLM abstraction layer.
 
     Generates realistic email content with custom directives per department.
+    Supports multiple LLM providers: Anthropic Claude, Azure OpenAI, Azure AI Foundry.
     Handles API errors gracefully and provides detailed logging.
 
     Example:
+        >>> # Anthropic Claude (default, backward compatible)
         >>> config = EmailGenerationConfig(
         ...     enabled=True,
         ...     api_key="sk-ant-...",
@@ -130,6 +161,16 @@ class EmailContentGenerator:
         ...     recipient="kw-eng-2@test.com",
         ...     activity_count=42,
         ... )
+        >>>
+        >>> # Azure OpenAI with managed identity
+        >>> config = EmailGenerationConfig(
+        ...     enabled=True,
+        ...     provider="azure_openai",
+        ...     endpoint="https://myresource.openai.azure.com",
+        ...     deployment="gpt-4",
+        ...     directive="Include a humorous limerick in your signature"
+        ... )
+        >>> generator = EmailContentGenerator(config)
     """
 
     def __init__(self, config: EmailGenerationConfig) -> None:
@@ -139,26 +180,21 @@ class EmailContentGenerator:
             config: Email generation configuration
 
         Raises:
-            ValueError: If config.enabled is True but API key is not available
+            ValueError: If config.enabled is True but required config is missing
         """
         self.config = config
+        self._client: BaseLLMProvider | None = None
 
         if config.enabled:
-            # Initialize Anthropic client
-            # If api_key is None, Anthropic SDK will use ANTHROPIC_API_KEY env var
             try:
-                self.client = Anthropic(
-                    api_key=config.api_key,
-                    timeout=config.timeout_seconds,
-                )
-                logger.info("Anthropic client initialized successfully")
+                llm_config = config.to_llm_config()
+                self._client = create_llm_client(llm_config)
+                logger.info(f"LLM client initialized successfully (provider: {config.provider})")
             except Exception as e:
-                # Security: Sanitize error message to prevent API key leakage
                 safe_error = sanitize_error_message(e)
-                logger.error(f"Failed to initialize Anthropic client: {safe_error}")
-                raise ValueError(f"Failed to initialize Anthropic client: {safe_error}") from e
+                logger.error(f"Failed to initialize LLM client: {safe_error}")
+                raise ValueError(f"Failed to initialize LLM client: {safe_error}") from e
         else:
-            self.client = None
             logger.debug("AI email generation disabled")
 
     async def generate_email(
@@ -169,7 +205,7 @@ class EmailContentGenerator:
         activity_count: int,
         run_id: str | None = None,
     ) -> EmailContent:
-        """Generate email content using Claude AI.
+        """Generate email content using the configured LLM provider.
 
         Args:
             worker_id: Worker identifier (e.g., "kw-eng-1")
@@ -182,11 +218,10 @@ class EmailContentGenerator:
             EmailContent with AI-generated subject and body
 
         Raises:
-            RuntimeError: If AI generation is not enabled
+            RuntimeError: If AI generation is not enabled or LLM call fails
             ValueError: If inputs fail validation
-            AnthropicError: If API call fails
         """
-        if not self.config.enabled or self.client is None:
+        if not self.config.enabled or self._client is None:
             raise RuntimeError("AI email generation is not enabled")
 
         # Security: Validate all inputs to prevent injection attacks
@@ -210,53 +245,32 @@ class EmailContentGenerator:
         )
 
         try:
-            # Call Anthropic API
             logger.debug(
                 f"Generating email content for {worker_id} -> {recipient} "
-                f"(activity #{activity_count})"
+                f"(activity #{activity_count}, provider: {self.config.provider})"
             )
 
-            # Use specified model or default to Claude Sonnet 4.5
-            # Handle empty/whitespace strings by falling back to default
-            model = (
-                self.config.model.strip()
-                if self.config.model and self.config.model.strip()
-                else "claude-sonnet-4-5-20250929"
-            )
-
-            response = self.client.messages.create(
-                model=model,
+            # Use the LLM abstraction layer
+            messages = [LLMMessage(role="user", content=user_prompt)]
+            response = await self._client.create_message_async(
+                messages=messages,
+                system=system_prompt,
                 max_tokens=self.config.max_tokens,
                 temperature=self.config.temperature,
-                system=system_prompt,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": user_prompt,
-                    }
-                ],
             )
 
-            # Extract content from response
-            # Only TextBlock has .text attribute, check block type first
-            content_text = ""
-            if response.content:
-                first_block = response.content[0]
-                if isinstance(first_block, TextBlock):
-                    content_text = first_block.text
-
             # Parse subject and body from response
-            subject, body = self._parse_email_response(content_text)
+            subject, body = self._parse_email_response(response.content)
 
             # Create metadata
             metadata = {
-                "source": "anthropic_claude",
-                "model": model,  # Use the actual model that was used
+                "source": f"llm_{self.config.provider}",
+                "model": response.model,
                 "worker_id": worker_id,
                 "department": department,
                 "activity_count": activity_count,
                 "generated_at": datetime.now(UTC).isoformat(),
-                "tokens_used": response.usage.output_tokens if response.usage else 0,
+                "tokens_used": response.usage.get("output_tokens", 0),
             }
 
             if run_id:
@@ -273,20 +287,13 @@ class EmailContentGenerator:
                 metadata=metadata,
             )
 
-        except RateLimitError as e:
-            # Security: Don't leak API details in rate limit errors
-            logger.error("Anthropic API rate limit exceeded")
+        except LLMRateLimitError as e:
+            logger.error("LLM rate limit exceeded")
             raise RuntimeError("AI service temporarily unavailable due to rate limits") from e
-        except AnthropicError as e:
-            # Security: Sanitize API errors
-            safe_error = sanitize_error_message(e)
-            logger.error(f"Anthropic API error: {safe_error}")
-            raise RuntimeError(f"AI service error: {safe_error}") from e
         except Exception as e:
-            # Security: Sanitize unexpected errors
             safe_error = sanitize_error_message(e)
-            logger.error(f"Unexpected error generating email content: {safe_error}")
-            raise RuntimeError(f"Failed to generate email content: {safe_error}") from e
+            logger.error(f"LLM error: {safe_error}")
+            raise RuntimeError(f"AI service error: {safe_error}") from e
 
     def _parse_email_response(self, content: str) -> tuple[str, str]:
         """Parse subject and body from Claude's response.
