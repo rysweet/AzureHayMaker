@@ -12,7 +12,7 @@ import html
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from anthropic.types import TextBlock
+from pydantic import SecretStr
 
 from azure_haymaker.knowledge_worker.content.email_generator import (
     DEPARTMENT_PATTERN,
@@ -29,6 +29,7 @@ from azure_haymaker.knowledge_worker.content.prompts import (
     validate_directive,
 )
 from azure_haymaker.knowledge_worker.orchestrator import KnowledgeWorkerOrchestrator
+from azure_haymaker.llm import LLMResponse
 
 
 class TestXSSPrevention:
@@ -271,18 +272,19 @@ class TestAPIKeyExposurePrevention:
         """Test that API errors are sanitized in generate_email."""
         config = EmailGenerationConfig(
             enabled=True,
-            api_key="sk-ant-test-key-12345",
+            provider="anthropic",
+            api_key=SecretStr("sk-ant-test-key-12345"),
         )
 
         with patch(
-            "azure_haymaker.knowledge_worker.content.email_generator.Anthropic"
-        ) as mock_anthropic:
+            "azure_haymaker.knowledge_worker.content.email_generator.create_llm_client"
+        ) as mock_create:
             # Simulate an error that might leak the API key
             mock_client = MagicMock()
-            mock_client.messages.create = AsyncMock(
+            mock_client.create_message_async = AsyncMock(
                 side_effect=Exception("Auth failed with key: sk-ant-test-key-12345")
             )
-            mock_anthropic.return_value = mock_client
+            mock_create.return_value = mock_client
 
             generator = EmailContentGenerator(config)
 
@@ -363,9 +365,13 @@ class TestInputValidation:
     @pytest.mark.asyncio
     async def test_generate_email_validates_inputs(self):
         """Test that generate_email validates all inputs."""
-        config = EmailGenerationConfig(enabled=True, api_key="test")
+        config = EmailGenerationConfig(
+            enabled=True,
+            provider="anthropic",
+            api_key=SecretStr("test"),
+        )
 
-        with patch("azure_haymaker.knowledge_worker.content.email_generator.Anthropic"):
+        with patch("azure_haymaker.knowledge_worker.content.email_generator.create_llm_client"):
             generator = EmailContentGenerator(config)
 
             # Test invalid worker_id
@@ -413,25 +419,24 @@ class TestIntegrationSecurity:
         """Test XSS prevention in full email generation flow."""
         config = EmailGenerationConfig(
             enabled=True,
-            api_key="test",
+            provider="anthropic",
+            api_key=SecretStr("test"),
             directive="Include a fun fact",
         )
 
         with patch(
-            "azure_haymaker.knowledge_worker.content.email_generator.Anthropic"
-        ) as mock_anthropic:
+            "azure_haymaker.knowledge_worker.content.email_generator.create_llm_client"
+        ) as mock_create:
             # Simulate AI returning malicious content
-            mock_response = MagicMock()
-            # Use actual TextBlock instead of MagicMock to pass isinstance() check
-            mock_response.content = [
-                TextBlock(type="text", text="Subject: Test\n\n<script>alert('XSS')</script>")
-            ]
-            mock_response.usage = MagicMock(output_tokens=100)
+            mock_response = LLMResponse(
+                content="Subject: Test\n\n<script>alert('XSS')</script>",
+                model="claude-sonnet-4-5-20250929",
+                usage={"input_tokens": 10, "output_tokens": 100},
+            )
 
             mock_client = MagicMock()
-            # The Anthropic SDK's messages.create is synchronous, not async
-            mock_client.messages.create = MagicMock(return_value=mock_response)
-            mock_anthropic.return_value = mock_client
+            mock_client.create_message_async = AsyncMock(return_value=mock_response)
+            mock_create.return_value = mock_client
 
             generator = EmailContentGenerator(config)
             result = await generator.generate_email(
