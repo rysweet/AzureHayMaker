@@ -6,6 +6,7 @@ import pytest
 from azure.core.exceptions import ClientAuthenticationError
 from pydantic import SecretStr
 
+from azure_haymaker.llm import LLMResponse
 from azure_haymaker.models.config import (
     CosmosDBConfig,
     LogAnalyticsConfig,
@@ -20,6 +21,7 @@ from azure_haymaker.orchestrator.validation import (
     validate_anthropic_api,
     validate_azure_credentials,
     validate_environment,
+    validate_llm_provider,
 )
 
 
@@ -159,29 +161,69 @@ class TestValidateAzureCredentials:
             assert "Auth failed" in result.error
 
 
+class TestValidateLLMProvider:
+    """Tests for LLM provider validation."""
+
+    @pytest.mark.asyncio
+    async def test_validate_llm_provider_success(self, mock_config: OrchestratorConfig) -> None:
+        """Test successful LLM provider validation."""
+        with patch("azure_haymaker.orchestrator.validation.create_llm_client") as mock_create:
+            mock_response = LLMResponse(
+                content="Hello",
+                model="claude-sonnet-4-5-20250929",
+                usage={"input_tokens": 5, "output_tokens": 1},
+            )
+            mock_client = MagicMock()
+            mock_client.create_message_async = AsyncMock(return_value=mock_response)
+            mock_create.return_value = mock_client
+
+            result = await validate_llm_provider(mock_config)
+
+            assert result.passed
+            assert result.error is None
+            assert result.details["provider"] == "anthropic"
+
+    @pytest.mark.asyncio
+    async def test_validate_llm_provider_failure(self, mock_config: OrchestratorConfig) -> None:
+        """Test LLM provider validation failure."""
+        with patch("azure_haymaker.orchestrator.validation.create_llm_client") as mock_create:
+            mock_create.side_effect = Exception("API key invalid")
+
+            result = await validate_llm_provider(mock_config)
+
+            assert not result.passed
+            assert result.error is not None
+            assert "API key invalid" in result.error
+
+
 class TestValidateAnthropicAPI:
-    """Tests for Anthropic API validation."""
+    """Tests for Anthropic API validation (backward compatibility)."""
 
     @pytest.mark.asyncio
     async def test_validate_anthropic_api_success(self, mock_config: OrchestratorConfig) -> None:
-        """Test successful Anthropic API validation."""
-        with patch("azure_haymaker.orchestrator.validation.AsyncAnthropic") as mock_client:
-            mock_instance = AsyncMock()
-            mock_response = MagicMock()
-            mock_response.content = [MagicMock(text="test response")]
-            mock_instance.messages.create = AsyncMock(return_value=mock_response)
-            mock_client.return_value = mock_instance
+        """Test successful Anthropic API validation via backward compatibility alias."""
+        with patch("azure_haymaker.orchestrator.validation.create_llm_client") as mock_create:
+            mock_response = LLMResponse(
+                content="Hello",
+                model="claude-sonnet-4-5-20250929",
+                usage={"input_tokens": 5, "output_tokens": 1},
+            )
+            mock_client = MagicMock()
+            mock_client.create_message_async = AsyncMock(return_value=mock_response)
+            mock_create.return_value = mock_client
 
             result = await validate_anthropic_api(mock_config)
 
             assert result.passed
             assert result.error is None
+            # The backward compat alias uses 'anthropic_api' check_name
+            assert result.check_name == "anthropic_api"
 
     @pytest.mark.asyncio
     async def test_validate_anthropic_api_failure(self, mock_config: OrchestratorConfig) -> None:
-        """Test Anthropic API validation failure."""
-        with patch("azure_haymaker.orchestrator.validation.AsyncAnthropic") as mock_client:
-            mock_client.side_effect = Exception("API key invalid")
+        """Test Anthropic API validation failure via backward compatibility alias."""
+        with patch("azure_haymaker.orchestrator.validation.create_llm_client") as mock_create:
+            mock_create.side_effect = Exception("API key invalid")
 
             result = await validate_anthropic_api(mock_config)
 
@@ -199,19 +241,19 @@ class TestValidateEnvironment:
         with (
             patch(
                 "azure_haymaker.orchestrator.validation.validate_azure_credentials",
-                return_value=ValidationResult(check_name="azure", passed=True),
+                return_value=ValidationResult(check_name="azure_credentials", passed=True),
             ),
             patch(
-                "azure_haymaker.orchestrator.validation.validate_anthropic_api",
-                return_value=ValidationResult(check_name="anthropic", passed=True),
+                "azure_haymaker.orchestrator.validation.validate_llm_provider",
+                return_value=ValidationResult(check_name="llm_provider", passed=True),
             ),
             patch(
                 "azure_haymaker.orchestrator.validation.validate_container_image",
-                return_value=ValidationResult(check_name="container", passed=True),
+                return_value=ValidationResult(check_name="container_image", passed=True),
             ),
             patch(
                 "azure_haymaker.orchestrator.validation.validate_service_bus",
-                return_value=ValidationResult(check_name="servicebus", passed=True),
+                return_value=ValidationResult(check_name="service_bus", passed=True),
             ),
         ):
             report = await validate_environment(mock_config)
@@ -226,26 +268,27 @@ class TestValidateEnvironment:
         with (
             patch(
                 "azure_haymaker.orchestrator.validation.validate_azure_credentials",
-                return_value=ValidationResult(check_name="azure", passed=True),
+                return_value=ValidationResult(check_name="azure_credentials", passed=True),
             ),
             patch(
-                "azure_haymaker.orchestrator.validation.validate_anthropic_api",
+                "azure_haymaker.orchestrator.validation.validate_llm_provider",
                 return_value=ValidationResult(
-                    check_name="anthropic", passed=False, error="API failed"
+                    check_name="llm_provider", passed=False, error="LLM failed"
                 ),
             ),
             patch(
                 "azure_haymaker.orchestrator.validation.validate_container_image",
-                return_value=ValidationResult(check_name="container", passed=True),
+                return_value=ValidationResult(check_name="container_image", passed=True),
             ),
             patch(
                 "azure_haymaker.orchestrator.validation.validate_service_bus",
-                return_value=ValidationResult(check_name="servicebus", passed=True),
+                return_value=ValidationResult(check_name="service_bus", passed=True),
             ),
         ):
             report = await validate_environment(mock_config)
 
-            assert not report.overall_passed
+            # LLM provider is not critical, so overall should still pass
+            assert report.overall_passed
             failed = report.get_failed_checks()
             assert len(failed) == 1
-            assert failed[0].check_name == "anthropic"
+            assert failed[0].check_name == "llm_provider"

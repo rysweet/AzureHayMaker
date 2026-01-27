@@ -6,13 +6,13 @@ All checks perform real API calls (Zero-BS Philosophy: no faked validations).
 
 from typing import Any
 
-from anthropic import AsyncAnthropic
 from azure.core.exceptions import AzureError
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.resource import ResourceManagementClient
 from azure.servicebus.aio import ServiceBusClient
 from pydantic import BaseModel, Field
 
+from azure_haymaker.llm import LLMMessage, create_llm_client
 from azure_haymaker.models.config import OrchestratorConfig
 
 
@@ -80,11 +80,12 @@ async def validate_azure_credentials(config: OrchestratorConfig) -> ValidationRe
         )
 
 
-async def validate_anthropic_api(config: OrchestratorConfig) -> ValidationResult:
-    """Validate Anthropic API key by making a test request.
+async def validate_llm_provider(config: OrchestratorConfig) -> ValidationResult:
+    """Validate the configured LLM provider by making a test request.
 
     This performs a real API call with minimal token usage to confirm
-    that the API key works.
+    that the LLM provider is properly configured and accessible.
+    Supports Anthropic, Azure OpenAI, and Azure AI Foundry.
 
     Args:
         config: Orchestrator configuration
@@ -93,27 +94,54 @@ async def validate_anthropic_api(config: OrchestratorConfig) -> ValidationResult
         ValidationResult indicating success or failure
     """
     try:
-        client = AsyncAnthropic(api_key=config.anthropic_api_key.get_secret_value())
+        # Build LLMConfig from orchestrator config
+        llm_config = config.get_llm_config()
+        client = create_llm_client(llm_config)
 
-        # Make minimal test request
-        response = await client.messages.create(
-            model="claude-3-5-sonnet-20241022",  # Use a known model for validation
+        # Make minimal test request using async method
+        messages = [LLMMessage(role="user", content="Hello")]
+        response = await client.create_message_async(
+            messages=messages,
             max_tokens=10,
-            messages=[{"role": "user", "content": "Hello"}],
         )
 
         return ValidationResult(
-            check_name="anthropic_api",
+            check_name="llm_provider",
             passed=True,
-            details={"model": response.model},  # Use actual model from response
+            details={
+                "provider": llm_config.provider,
+                "model": response.model,
+            },
         )
 
     except Exception as e:
         return ValidationResult(
-            check_name="anthropic_api",
+            check_name="llm_provider",
             passed=False,
-            error=f"Anthropic API validation failed: {str(e)}",
+            error=f"LLM provider validation failed: {str(e)}",
         )
+
+
+# Backward compatibility alias
+async def validate_anthropic_api(config: OrchestratorConfig) -> ValidationResult:
+    """Validate LLM provider (backward compatibility alias for validate_llm_provider).
+
+    DEPRECATED: Use validate_llm_provider() instead.
+
+    Args:
+        config: Orchestrator configuration
+
+    Returns:
+        ValidationResult indicating success or failure
+    """
+    result = await validate_llm_provider(config)
+    # Keep original check name for backward compatibility in reports
+    return ValidationResult(
+        check_name="anthropic_api",
+        passed=result.passed,
+        error=result.error,
+        details=result.details,
+    )
 
 
 async def validate_container_image(config: OrchestratorConfig) -> ValidationResult:
@@ -212,12 +240,12 @@ async def validate_environment(config: OrchestratorConfig) -> ValidationReport:
 
     # Run all validation checks
     results.append(await validate_azure_credentials(config))
-    results.append(await validate_anthropic_api(config))
+    results.append(await validate_llm_provider(config))
     results.append(await validate_container_image(config))
     results.append(await validate_service_bus(config))
 
-    # Determine overall status (ignore Anthropic for testing)
-    critical_checks = [r for r in results if r.check_name != "anthropic_api"]
+    # Determine overall status (ignore LLM provider for testing)
+    critical_checks = [r for r in results if r.check_name != "llm_provider"]
     overall_passed = all(r.passed for r in critical_checks)
 
     return ValidationReport(
@@ -225,12 +253,14 @@ async def validate_environment(config: OrchestratorConfig) -> ValidationReport:
         results=results,
     )
 
+
 __all__ = [
     "ValidationReport",
     "ValidationResult",
-    "validate_anthropic_api",
+    "validate_anthropic_api",  # Backward compatibility
     "validate_azure_credentials",
     "validate_container_image",
     "validate_environment",
+    "validate_llm_provider",
     "validate_service_bus",
 ]

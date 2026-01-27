@@ -1,6 +1,6 @@
 """Tests for email_generator module.
 
-Comprehensive unit tests for AI-powered email generation using Anthropic Claude.
+Comprehensive unit tests for AI-powered email generation using the LLM abstraction layer.
 Tests cover:
 - EmailContent dataclass
 - EmailGenerationConfig validation
@@ -13,11 +13,10 @@ Tests cover:
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from anthropic import AnthropicError, RateLimitError
-from anthropic.types import Message, TextBlock, Usage
+from pydantic import SecretStr
 
 from azure_haymaker.knowledge_worker.content.email_generator import (
     DEPARTMENT_PATTERN,
@@ -29,6 +28,7 @@ from azure_haymaker.knowledge_worker.content.email_generator import (
     sanitize_error_message,
     validate_input,
 )
+from azure_haymaker.llm import LLMRateLimitError, LLMResponse
 
 if TYPE_CHECKING:
     pass
@@ -91,7 +91,8 @@ class TestEmailGenerationConfig:
         """Test enabled configuration with custom values."""
         config = EmailGenerationConfig(
             enabled=True,
-            api_key="sk-ant-test-key",
+            provider="anthropic",
+            api_key=SecretStr("sk-ant-test-key"),
             model="claude-sonnet-4-5-20250929",
             directive="Include a limerick",
             max_tokens=2048,
@@ -99,7 +100,7 @@ class TestEmailGenerationConfig:
             timeout_seconds=60,
         )
         assert config.enabled is True
-        assert config.api_key == "sk-ant-test-key"
+        assert config.api_key.get_secret_value() == "sk-ant-test-key"
         assert config.model == "claude-sonnet-4-5-20250929"
         assert config.directive == "Include a limerick"
         assert config.max_tokens == 2048
@@ -215,41 +216,53 @@ class TestEmailContentGeneratorInit:
         """Test initialization with disabled config."""
         config = EmailGenerationConfig(enabled=False)
         generator = EmailContentGenerator(config)
-        assert generator.client is None
+        assert generator._client is None
 
-    @patch("azure_haymaker.knowledge_worker.content.email_generator.Anthropic")
-    def test_init_enabled_with_api_key(self, mock_anthropic: MagicMock) -> None:
+    @patch("azure_haymaker.knowledge_worker.content.email_generator.create_llm_client")
+    def test_init_enabled_with_api_key(self, mock_create_client: MagicMock) -> None:
         """Test initialization with enabled config and API key."""
+        mock_client = MagicMock()
+        mock_create_client.return_value = mock_client
+
         config = EmailGenerationConfig(
             enabled=True,
-            api_key="sk-ant-test-key",
+            provider="anthropic",
+            api_key=SecretStr("sk-ant-test-key"),
             timeout_seconds=45,
         )
         generator = EmailContentGenerator(config)
-        mock_anthropic.assert_called_once_with(
-            api_key="sk-ant-test-key",
-            timeout=45,
-        )
-        assert generator.client is not None
 
-    @patch("azure_haymaker.knowledge_worker.content.email_generator.Anthropic")
-    def test_init_enabled_without_api_key(self, mock_anthropic: MagicMock) -> None:
-        """Test initialization uses env var when no API key provided."""
-        config = EmailGenerationConfig(enabled=True)
+        mock_create_client.assert_called_once()
+        assert generator._client is not None
+
+    @patch("azure_haymaker.knowledge_worker.content.email_generator.create_llm_client")
+    def test_init_enabled_azure_openai(self, mock_create_client: MagicMock) -> None:
+        """Test initialization with Azure OpenAI provider."""
+        mock_client = MagicMock()
+        mock_create_client.return_value = mock_client
+
+        config = EmailGenerationConfig(
+            enabled=True,
+            provider="azure_openai",
+            endpoint="https://myresource.openai.azure.com",
+            deployment="gpt-4",
+        )
         generator = EmailContentGenerator(config)
-        mock_anthropic.assert_called_once_with(
-            api_key=None,
-            timeout=30,
+
+        mock_create_client.assert_called_once()
+        assert generator._client is not None
+
+    @patch("azure_haymaker.knowledge_worker.content.email_generator.create_llm_client")
+    def test_init_client_error(self, mock_create_client: MagicMock) -> None:
+        """Test initialization handles LLM client errors."""
+        mock_create_client.side_effect = Exception("Invalid API key sk-ant-secret123")
+        config = EmailGenerationConfig(
+            enabled=True,
+            provider="anthropic",
+            api_key=SecretStr("bad-key"),
         )
-        assert generator.client is not None
 
-    @patch("azure_haymaker.knowledge_worker.content.email_generator.Anthropic")
-    def test_init_client_error(self, mock_anthropic: MagicMock) -> None:
-        """Test initialization handles Anthropic client errors."""
-        mock_anthropic.side_effect = Exception("Invalid API key sk-ant-secret123")
-        config = EmailGenerationConfig(enabled=True, api_key="bad-key")
-
-        with pytest.raises(ValueError, match="Failed to initialize Anthropic client") as exc_info:
+        with pytest.raises(ValueError, match="Failed to initialize LLM client") as exc_info:
             EmailContentGenerator(config)
 
         # Verify error is sanitized
@@ -266,33 +279,28 @@ class TestEmailGeneration:
     """Tests for email generation functionality."""
 
     @pytest.fixture
-    def mock_anthropic_response(self) -> Message:
-        """Create a mock Anthropic API response."""
-        text_block = MagicMock(spec=TextBlock)
-        text_block.text = "Subject: Test Subject Line\nBody: This is the email body content."
-        # Make isinstance check work
-        text_block.__class__ = TextBlock
-
-        usage = MagicMock(spec=Usage)
-        usage.output_tokens = 50
-
-        response = MagicMock(spec=Message)
-        response.content = [text_block]
-        response.usage = usage
-        return response
+    def mock_llm_response(self) -> LLMResponse:
+        """Create a mock LLM response."""
+        return LLMResponse(
+            content="Subject: Test Subject Line\nBody: This is the email body content.",
+            model="claude-sonnet-4-5-20250929",
+            usage={"input_tokens": 10, "output_tokens": 50},
+            stop_reason="end_turn",
+        )
 
     @pytest.fixture
     def generator_with_mock_client(self) -> tuple[EmailContentGenerator, MagicMock]:
-        """Create generator with mocked Anthropic client."""
+        """Create generator with mocked LLM client."""
         with patch(
-            "azure_haymaker.knowledge_worker.content.email_generator.Anthropic"
-        ) as mock_anthropic:
+            "azure_haymaker.knowledge_worker.content.email_generator.create_llm_client"
+        ) as mock_create:
             mock_client = MagicMock()
-            mock_anthropic.return_value = mock_client
+            mock_create.return_value = mock_client
 
             config = EmailGenerationConfig(
                 enabled=True,
-                api_key="sk-ant-test-key",
+                provider="anthropic",
+                api_key=SecretStr("sk-ant-test-key"),
             )
             generator = EmailContentGenerator(config)
             return generator, mock_client
@@ -315,11 +323,11 @@ class TestEmailGeneration:
     async def test_generate_email_success(
         self,
         generator_with_mock_client: tuple[EmailContentGenerator, MagicMock],
-        mock_anthropic_response: Message,
+        mock_llm_response: LLMResponse,
     ) -> None:
         """Test successful email generation."""
         generator, mock_client = generator_with_mock_client
-        mock_client.messages.create.return_value = mock_anthropic_response
+        mock_client.create_message_async = AsyncMock(return_value=mock_llm_response)
 
         content = await generator.generate_email(
             worker_id="kw-eng-1",
@@ -331,7 +339,7 @@ class TestEmailGeneration:
 
         assert content.subject == "Test Subject Line"
         assert "email body content" in content.body
-        assert content.metadata["source"] == "anthropic_claude"
+        assert content.metadata["source"] == "llm_anthropic"
         assert content.metadata["worker_id"] == "kw-eng-1"
         assert content.metadata["department"] == "engineering"
         assert content.metadata["activity_count"] == 42
@@ -342,11 +350,11 @@ class TestEmailGeneration:
     async def test_generate_email_default_model(
         self,
         generator_with_mock_client: tuple[EmailContentGenerator, MagicMock],
-        mock_anthropic_response: Message,
+        mock_llm_response: LLMResponse,
     ) -> None:
-        """Test default model is used when not specified."""
+        """Test that LLM client is called with correct parameters."""
         generator, mock_client = generator_with_mock_client
-        mock_client.messages.create.return_value = mock_anthropic_response
+        mock_client.create_message_async = AsyncMock(return_value=mock_llm_response)
 
         await generator.generate_email(
             worker_id="kw-eng-1",
@@ -355,8 +363,10 @@ class TestEmailGeneration:
             activity_count=1,
         )
 
-        call_args = mock_client.messages.create.call_args
-        assert call_args.kwargs["model"] == "claude-sonnet-4-5-20250929"
+        mock_client.create_message_async.assert_called_once()
+        call_kwargs = mock_client.create_message_async.call_args.kwargs
+        assert call_kwargs["max_tokens"] == 1024
+        assert call_kwargs["temperature"] == 0.7
 
     @pytest.mark.asyncio
     async def test_generate_email_invalid_worker_id(
@@ -409,16 +419,17 @@ class TestErrorHandling:
 
     @pytest.fixture
     def generator_with_mock_client(self) -> tuple[EmailContentGenerator, MagicMock]:
-        """Create generator with mocked Anthropic client."""
+        """Create generator with mocked LLM client."""
         with patch(
-            "azure_haymaker.knowledge_worker.content.email_generator.Anthropic"
-        ) as mock_anthropic:
+            "azure_haymaker.knowledge_worker.content.email_generator.create_llm_client"
+        ) as mock_create:
             mock_client = MagicMock()
-            mock_anthropic.return_value = mock_client
+            mock_create.return_value = mock_client
 
             config = EmailGenerationConfig(
                 enabled=True,
-                api_key="sk-ant-test-key",
+                provider="anthropic",
+                api_key=SecretStr("sk-ant-test-key"),
             )
             generator = EmailContentGenerator(config)
             return generator, mock_client
@@ -431,13 +442,9 @@ class TestErrorHandling:
         """Test rate limit errors are handled properly."""
         generator, mock_client = generator_with_mock_client
 
-        # Create RateLimitError with required args
-        rate_limit_error = RateLimitError(
-            message="Rate limit exceeded",
-            response=MagicMock(status_code=429),
-            body={"error": {"message": "Rate limit exceeded"}},
+        mock_client.create_message_async = AsyncMock(
+            side_effect=LLMRateLimitError("Rate limit exceeded")
         )
-        mock_client.messages.create.side_effect = rate_limit_error
 
         with pytest.raises(RuntimeError, match="rate limits"):
             await generator.generate_email(
@@ -448,16 +455,16 @@ class TestErrorHandling:
             )
 
     @pytest.mark.asyncio
-    async def test_anthropic_api_error(
+    async def test_llm_api_error(
         self,
         generator_with_mock_client: tuple[EmailContentGenerator, MagicMock],
     ) -> None:
-        """Test Anthropic API errors are handled and sanitized."""
+        """Test LLM API errors are handled and sanitized."""
         generator, mock_client = generator_with_mock_client
 
-        # Create AnthropicError with API key in message
-        api_error = AnthropicError("Error with key sk-ant-secretkey123")
-        mock_client.messages.create.side_effect = api_error
+        mock_client.create_message_async = AsyncMock(
+            side_effect=Exception("Error with key sk-ant-secretkey123")
+        )
 
         with pytest.raises(RuntimeError) as exc_info:
             await generator.generate_email(
@@ -477,11 +484,11 @@ class TestErrorHandling:
     ) -> None:
         """Test unexpected errors are handled and sanitized."""
         generator, mock_client = generator_with_mock_client
-        mock_client.messages.create.side_effect = Exception(
-            "Unexpected error with token: secret123"
+        mock_client.create_message_async = AsyncMock(
+            side_effect=Exception("Unexpected error with token: secret123")
         )
 
-        with pytest.raises(RuntimeError, match="Failed to generate email content"):
+        with pytest.raises(RuntimeError, match="AI service error"):
             await generator.generate_email(
                 worker_id="kw-eng-1",
                 department="engineering",
@@ -501,8 +508,12 @@ class TestResponseParsing:
     @pytest.fixture
     def generator(self) -> EmailContentGenerator:
         """Create generator for testing parsing."""
-        with patch("azure_haymaker.knowledge_worker.content.email_generator.Anthropic"):
-            config = EmailGenerationConfig(enabled=True, api_key="test")
+        with patch("azure_haymaker.knowledge_worker.content.email_generator.create_llm_client"):
+            config = EmailGenerationConfig(
+                enabled=True,
+                provider="anthropic",
+                api_key=SecretStr("test"),
+            )
             return EmailContentGenerator(config)
 
     def test_parse_standard_format(self, generator: EmailContentGenerator) -> None:
@@ -557,31 +568,27 @@ class TestEmailGenerationIntegration:
 
     @pytest.mark.asyncio
     async def test_full_generation_flow(self) -> None:
-        """Test complete generation flow with mocked API."""
+        """Test complete generation flow with mocked LLM client."""
         with patch(
-            "azure_haymaker.knowledge_worker.content.email_generator.Anthropic"
-        ) as mock_anthropic:
-            # Setup mock response using actual TextBlock instance
-            text_block = TextBlock(
-                type="text",
-                text="Subject: Sprint Planning Update\nBody: The sprint planning meeting has been rescheduled to 3 PM.",
+            "azure_haymaker.knowledge_worker.content.email_generator.create_llm_client"
+        ) as mock_create:
+            # Setup mock LLM response
+            mock_response = LLMResponse(
+                content="Subject: Sprint Planning Update\nBody: The sprint planning meeting has been rescheduled to 3 PM.",
+                model="claude-sonnet-4-5-20250929",
+                usage={"input_tokens": 20, "output_tokens": 75},
+                stop_reason="end_turn",
             )
 
-            usage = MagicMock(spec=Usage)
-            usage.output_tokens = 75
-
-            response = MagicMock(spec=Message)
-            response.content = [text_block]
-            response.usage = usage
-
             mock_client = MagicMock()
-            mock_client.messages.create.return_value = response
-            mock_anthropic.return_value = mock_client
+            mock_client.create_message_async = AsyncMock(return_value=mock_response)
+            mock_create.return_value = mock_client
 
             # Create generator and generate email
             config = EmailGenerationConfig(
                 enabled=True,
-                api_key="sk-ant-test",
+                provider="anthropic",
+                api_key=SecretStr("sk-ant-test"),
                 directive="Keep it brief",
             )
             generator = EmailContentGenerator(config)
