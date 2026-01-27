@@ -332,6 +332,28 @@ class OrchestratorConfig(BaseModel):
                 "or subnet_name not provided"
             )
 
+        # Validate LLM provider configuration
+        if self.llm_provider == "anthropic" and not self.anthropic_api_key:
+            raise ValueError("anthropic_api_key is required when llm_provider is 'anthropic'")
+        elif self.llm_provider == "azure_openai":
+            if not self.azure_openai_endpoint:
+                raise ValueError(
+                    "azure_openai_endpoint is required when llm_provider is 'azure_openai'"
+                )
+            if not self.azure_openai_deployment:
+                raise ValueError(
+                    "azure_openai_deployment is required when llm_provider is 'azure_openai'"
+                )
+        elif self.llm_provider == "azure_ai_foundry":
+            if not self.azure_ai_foundry_endpoint:
+                raise ValueError(
+                    "azure_ai_foundry_endpoint is required when llm_provider is 'azure_ai_foundry'"
+                )
+            if not self.azure_ai_foundry_model:
+                raise ValueError(
+                    "azure_ai_foundry_model is required when llm_provider is 'azure_ai_foundry'"
+                )
+
     class Config:
         """Pydantic configuration."""
 
