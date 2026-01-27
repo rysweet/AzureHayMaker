@@ -339,8 +339,7 @@ class TestEmailGeneration:
 
         assert content.subject == "Test Subject Line"
         assert "email body content" in content.body
-        # Backward compatible source name for Anthropic
-        assert content.metadata["source"] == "anthropic_claude"
+        assert content.metadata["source"] == "llm_anthropic"
         assert content.metadata["worker_id"] == "kw-eng-1"
         assert content.metadata["department"] == "engineering"
         assert content.metadata["activity_count"] == 42
