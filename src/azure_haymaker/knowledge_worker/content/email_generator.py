@@ -262,9 +262,14 @@ class EmailContentGenerator:
             # Parse subject and body from response
             subject, body = self._parse_email_response(response.content)
 
-            # Create metadata
+            # Create metadata (preserve backward-compatible source name for Anthropic)
+            source_name = (
+                "anthropic_claude"
+                if self.config.provider == "anthropic"
+                else f"llm_{self.config.provider}"
+            )
             metadata = {
-                "source": f"llm_{self.config.provider}",
+                "source": source_name,
                 "model": response.model,
                 "worker_id": worker_id,
                 "department": department,
