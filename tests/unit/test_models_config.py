@@ -172,7 +172,7 @@ class TestOrchestratorConfig:
             "target_subscription_id",
             "main_sp_client_id",
             "main_sp_client_secret",
-            "anthropic_api_key",
+            # anthropic_api_key is now optional (can use Azure providers instead)
             "service_bus_namespace",
             "container_registry",
             "container_image",
