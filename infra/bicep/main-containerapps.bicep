@@ -134,7 +134,8 @@ module orchestrator 'modules/orchestrator-containerapp.bicep' = {
     tags: commonTags
     environmentId: containerAppsEnv.outputs.environmentId
     containerImage: orchestratorImage
-    containerRegistry: 'haymakerorchacr.azurecr.io' // ACR created by workflow
+    // Extract registry from image URL (e.g., 'myacr.azurecr.io/image:tag' -> 'myacr.azurecr.io')
+    containerRegistry: split(orchestratorImage, '/')[0]
     environment: environment
     acrPassword: acrPassword // ACR password for username/password auth
     keyVaultUri: keyVault.outputs.keyVaultUri
