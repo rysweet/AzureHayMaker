@@ -1,7 +1,0 @@
-❌ kw-kw-25056-engi-000: No emails in sent items
-❌ kw-kw-25056-engi-001: No emails in sent items
-❌ kw-kw-25056-engi-002: Mailbox not enabled for REST API yet
-❌ kw-kw-25056-sale-000: Mailbox not enabled for REST API yet
-❌ kw-kw-25056-sale-001: Mailbox not enabled for REST API yet
-
-📊 Total emails found: 0

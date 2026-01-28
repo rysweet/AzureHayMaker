@@ -1,6 +1,6 @@
 # Azure HayMaker - Utility Scripts
 
-**Helpful automation scripts for common operations**
+**Essential automation scripts for infrastructure management and operations**
 
 ---
 
@@ -26,21 +26,29 @@ Create tagged releases with semantic versioning
 ## 🧹 Cleanup & Maintenance
 
 ### cleanup-old-function-apps.sh
-Remove orphaned Function Apps to save ~$437/month
+Remove orphaned Function Apps to save costs
 
 ```bash
 ./scripts/cleanup-old-function-apps.sh
 ```
 
-**What it does**:
-- Lists all Function Apps except the latest
-- Prompts for confirmation
-- Deletes old apps
-- Saves significant monthly costs
+### complete-cleanup.sh
+Full cleanup of all resources
+
+```bash
+./scripts/complete-cleanup.sh
+```
+
+### resource-cleanup.py
+Python-based resource cleanup utility
+
+```bash
+./scripts/resource-cleanup.py
+```
 
 ---
 
-## 🔒 Security Verification
+## 🔒 Security & Configuration
 
 ### verify-security-fix.sh
 Verify secrets are stored in Key Vault (not visible in Portal)
@@ -54,66 +62,108 @@ Verify secrets are stored in Key Vault (not visible in Portal)
 - Secrets are NOT stored directly
 - Security fix is working correctly
 
-**Expected Output**:
+### backup-key-vault-secrets.sh
+Backup Key Vault secret names for disaster recovery
+
+```bash
+./scripts/backup-key-vault-secrets.sh
 ```
-✅ SUCCESS! Secrets are using Key Vault references
-✅ Secrets are NOT visible in Azure Portal
-✅ Security fix is WORKING!
+
+### setup-oidc.sh
+Configure OIDC authentication
+
+```bash
+./scripts/setup-oidc.sh
 ```
 
 ---
 
-## 🚀 Deployment Guides
+## 🚀 Deployment & Infrastructure
 
-### deploy-vm-portal-guide.sh
-Step-by-step instructions for deploying 64GB VM via Azure Portal
+### deploy_vm_orchestrator.sh
+Deploy VM orchestrator infrastructure
 
 ```bash
-./deploy-vm-portal-guide.sh
+./scripts/deploy_vm_orchestrator.sh
 ```
 
-**Provides**:
-- Complete Portal configuration steps
-- SSH public key to use
-- Post-deployment instructions
+### setup_vm_orchestrator.sh
+Setup VM orchestrator environment
+
+```bash
+./scripts/setup_vm_orchestrator.sh
+```
+
+### trigger_deploy.sh
+Trigger deployment workflows
+
+```bash
+./scripts/trigger_deploy.sh
+```
+
+---
+
+## 📊 Monitoring & Diagnostics
+
+### health-check.sh
+Infrastructure health check
+
+```bash
+./scripts/health-check.sh
+```
+
+### check-infrastructure.sh
+List infrastructure resources
+
+```bash
+./scripts/check-infrastructure.sh
+```
+
+### list-all-resources.sh
+Complete inventory of all resources
+
+```bash
+./scripts/list-all-resources.sh
+```
+
+### estimate-costs.sh
+Calculate monthly infrastructure costs
+
+```bash
+./scripts/estimate-costs.sh
+```
+
+---
+
+## 🛠️ Development Tools
+
+### generate-readme-badges.sh
+Generate badges for README
+
+```bash
+./scripts/generate-readme-badges.sh
+```
 
 ---
 
 ## 📊 All Scripts
 
-| Script | Purpose | Time | Impact |
-|--------|---------|------|--------|
-| release.sh | Create tagged releases | 1 min | Repeatable release process |
-| open-powerpoint.sh | Launch presentation | 10 sec | Instant PowerPoint access |
-| show-session-summary.sh | Display session results | 10 sec | Quick value overview |
-| verify-security-fix.sh | Security validation | 1 min | Confirms fix working |
-| health-check.sh | Infrastructure health | 1 min | Shows all statuses |
-| check-infrastructure.sh | List infrastructure | 1 min | See all resources |
-| list-all-resources.sh | Complete inventory | 1 min | Full resource list |
-| estimate-costs.sh | Calculate monthly costs | 1 min | **$2,164/month found!** |
-| backup-key-vault-secrets.sh | Backup secret names | 1 min | Disaster recovery |
-| cleanup-old-function-apps.sh | Cost savings (partial) | 5 min | $1,533/month saved |
-| complete-cleanup.sh | Full cleanup | 10 min | **$1,666/month saved!** |
-| ../deploy-vm-portal-guide.sh | VM deployment help | - | Prints instructions |
+| Script | Purpose | Category |
+|--------|---------|----------|
+| release.sh | Create tagged releases | Release Management |
+| cleanup-old-function-apps.sh | Remove orphaned Function Apps | Cleanup |
+| complete-cleanup.sh | Full resource cleanup | Cleanup |
+| resource-cleanup.py | Python cleanup utility | Cleanup |
+| verify-security-fix.sh | Security validation | Security |
+| backup-key-vault-secrets.sh | Backup secret names | Security |
+| setup-oidc.sh | Configure OIDC | Security |
+| deploy_vm_orchestrator.sh | Deploy VM orchestrator | Deployment |
+| setup_vm_orchestrator.sh | Setup VM environment | Deployment |
+| trigger_deploy.sh | Trigger deployments | Deployment |
+| health-check.sh | Infrastructure health | Monitoring |
+| check-infrastructure.sh | List infrastructure | Monitoring |
+| list-all-resources.sh | Complete inventory | Monitoring |
+| estimate-costs.sh | Calculate costs | Monitoring |
+| generate-readme-badges.sh | Generate badges | Development |
 
-**Total**: 12 automation scripts!
-
-## 🚀 Quick Start Scripts
-
-### open-powerpoint.sh
-Open the PowerPoint presentation instantly
-
-```bash
-./scripts/open-powerpoint.sh
-```
-
-### show-session-summary.sh
-See what was accomplished in 12-hour session
-
-```bash
-./scripts/show-session-summary.sh
-```
-
----
-
-**Created during epic 12-hour Ultra-Think session (2025-11-17/18)**
+**Total**: 15 operational scripts

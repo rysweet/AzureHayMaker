@@ -1,6 +1,0 @@
-Checking inbox for rysweet...
-❌ Error:
-        APIError
-        Code: 404
-        message: None
-        error: MainError(additional_data={}, code='MailboxNotEnabledForRESTAPI', details=None, inner_error=None, message='The mailbox is either inactive, soft-deleted, or is hosted on-premise.', target=None)
