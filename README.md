@@ -6,6 +6,8 @@
 
 Generate benign service telemetry for Azure Tenant simulation with realistic Azure infrastructure scenarios and Microsoft 365 knowledge worker activity.
 
+> **🚀 New Developer?** Start with the [Developer Quick Start Guide](docs/DEVELOPER_QUICK_START.md) for step-by-step setup instructions.
+
 ## What is it?
 
 Azure HayMaker is an orchestration service that simulates realistic Azure tenant activity through two complementary capabilities:

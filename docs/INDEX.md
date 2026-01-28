@@ -4,6 +4,7 @@ Complete documentation for the Azure HayMaker orchestration service.
 
 ## 📚 Quick Links
 
+- **[Developer Quick Start](DEVELOPER_QUICK_START.md)** - **Start here!** Full setup guide for new developers
 - [Getting Started](GETTING_STARTED.md) - New user guide
 - [Architecture Overview](architecture/ARCHITECTURE_DIAGRAM.md) - System design
 - [Deployment Guide](DEPLOYMENT.md) - How to deploy
