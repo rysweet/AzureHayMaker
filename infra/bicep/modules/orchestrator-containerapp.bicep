@@ -81,7 +81,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2023-05-01' = {
       registries: containerRegistry != '' && acrPassword != '' ? [
         {
           server: containerRegistry
-          username: 'haymakerorchacr'
+          username: split(containerRegistry, '.')[0]  // Extract ACR name from server URL
           passwordSecretRef: 'acr-password'
         }
       ] : []
