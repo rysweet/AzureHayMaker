@@ -82,6 +82,7 @@ jobs:
       acr_name: ${{ steps.names.outputs.acr_name }}
       cae_name: ${{ steps.names.outputs.cae_name }}
       orchestrator_name: ${{ steps.names.outputs.orchestrator_name }}
+      unique_suffix: ${{ steps.names.outputs.unique_suffix }}
     steps:
       - uses: actions/checkout@v4
 
@@ -91,13 +92,18 @@ jobs:
           PREFIX="${{ inputs.naming_prefix }}"
           ENV="${{ inputs.environment }}"
           
-          # Generate consistent resource names
+          # Generate a short unique suffix from subscription ID for global uniqueness
+          # This ensures ACR names are globally unique while still being predictable per-subscription
+          SUB_HASH=$(echo "${{ env.AZURE_SUBSCRIPTION_ID }}" | md5sum | cut -c1-6)
+          
+          # Generate consistent resource names with unique suffix
           RG="haymaker-${PREFIX}-${ENV}-rg"
-          ACR="haymaker${PREFIX}${ENV}acr"
-          # ACR must be alphanumeric, 5-50 chars
+          # ACR must be globally unique - include subscription hash
+          ACR="hm${PREFIX}${ENV}${SUB_HASH}"
+          # ACR must be alphanumeric, 5-50 chars, lowercase
           ACR=$(echo "$ACR" | tr -cd '[:alnum:]' | cut -c1-50 | tr '[:upper:]' '[:lower:]')
           CAE="haymaker-${PREFIX}-${ENV}-cae"
-          ORCH="haymaker-${PREFIX}-orch"
+          ORCH="hm-${PREFIX}-orch"
           # Container app names max 32 chars
           ORCH=$(echo "$ORCH" | cut -c1-32)
           
@@ -105,12 +111,14 @@ jobs:
           echo "acr_name=$ACR" >> $GITHUB_OUTPUT
           echo "cae_name=$CAE" >> $GITHUB_OUTPUT
           echo "orchestrator_name=$ORCH" >> $GITHUB_OUTPUT
+          echo "unique_suffix=$SUB_HASH" >> $GITHUB_OUTPUT
           
           echo "📦 Resource Names:"
           echo "  Resource Group: $RG"
-          echo "  ACR: $ACR"
+          echo "  ACR: $ACR (globally unique)"
           echo "  Container App Env: $CAE"
           echo "  Orchestrator: $ORCH"
+          echo "  Unique Suffix: $SUB_HASH"
 
       - name: Azure Login
         uses: azure/login@v2
@@ -143,11 +151,38 @@ jobs:
       - name: Create Resource Group
         run: |
           RG="${{ needs.setup.outputs.resource_group }}"
+          
+          # Check if RG is being deleted and wait
+          for i in {1..30}; do
+            RG_STATE=$(az group show --name "$RG" --query "properties.provisioningState" -o tsv 2>/dev/null || echo "NotFound")
+            
+            if [ "$RG_STATE" = "Deleting" ]; then
+              echo "⏳ Resource group is being deleted, waiting... (attempt $i/30)"
+              sleep 10
+            elif [ "$RG_STATE" = "Succeeded" ]; then
+              echo "✅ Resource group already exists and ready: $RG"
+              exit 0
+            else
+              # RG doesn't exist or in other state, try to create
+              break
+            fi
+          done
+          
+          # Create the resource group
+          echo "Creating resource group: $RG"
           az group create --name "$RG" --location "${{ inputs.location }}" \
             --tags Environment="${{ inputs.environment }}" \
                    Owner="${{ inputs.naming_prefix }}" \
                    ManagedBy="deploy-dev-stack" \
-            || true
+            || {
+              # If create fails, it might have just finished deleting - retry once
+              echo "First attempt failed, retrying in 10s..."
+              sleep 10
+              az group create --name "$RG" --location "${{ inputs.location }}" \
+                --tags Environment="${{ inputs.environment }}" \
+                       Owner="${{ inputs.naming_prefix }}" \
+                       ManagedBy="deploy-dev-stack"
+            }
           echo "✅ Resource group ready: $RG"
 
       - name: Create ACR
@@ -156,8 +191,17 @@ jobs:
           ACR="${{ needs.setup.outputs.acr_name }}"
           RG="${{ needs.setup.outputs.resource_group }}"
           
-          if az acr show --name "$ACR" --resource-group "$RG" &> /dev/null; then
-            echo "✅ ACR already exists: $ACR"
+          # Check if ACR exists (could be in this RG or globally)
+          if az acr show --name "$ACR" &> /dev/null; then
+            # ACR exists - check if it's in our RG
+            ACR_RG=$(az acr show --name "$ACR" --query "resourceGroup" -o tsv 2>/dev/null || echo "")
+            if [ "$ACR_RG" = "$RG" ]; then
+              echo "✅ ACR already exists in this resource group: $ACR"
+            else
+              echo "⚠️ ACR $ACR exists in different resource group: $ACR_RG"
+              echo "This is a naming conflict - each developer should use a unique prefix"
+              exit 1
+            fi
           else
             echo "Creating ACR: $ACR..."
             az acr create \
@@ -168,7 +212,7 @@ jobs:
             echo "✅ ACR created: $ACR"
           fi
           
-          LOGIN_SERVER=$(az acr show --name "$ACR" --resource-group "$RG" --query loginServer -o tsv)
+          LOGIN_SERVER=$(az acr show --name "$ACR" --query loginServer -o tsv)
           echo "login_server=$LOGIN_SERVER" >> $GITHUB_OUTPUT
           echo "ACR Login Server: $LOGIN_SERVER"
 
