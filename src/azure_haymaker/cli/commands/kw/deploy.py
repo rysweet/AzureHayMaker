@@ -18,6 +18,8 @@ from ...constants import DEFAULT_OUTPUT_FORMAT, EXIT_ERROR
 from ...utils.output import format_json
 from ...utils.state import get_state_manager
 
+__all__ = ["deploy"]
+
 
 @click.command()
 @click.option(

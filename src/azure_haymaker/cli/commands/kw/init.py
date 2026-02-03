@@ -11,6 +11,8 @@ import click
 
 from ...constants import EXIT_ERROR
 
+__all__ = ["init"]
+
 
 @click.command()
 @click.option(
@@ -80,10 +82,10 @@ def init(
 
     # Save config if requested - with secure file permissions
     if save_config:
-        with open(save_config, "w") as f:
+        # Create file with secure permissions atomically (0o600 = owner read/write only)
+        fd = os.open(save_config, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
             f.write(config.to_env_string())
-        # Set restrictive permissions (owner read/write only)
-        os.chmod(save_config, 0o600)
         click.echo(f"✅ Configuration saved to: {save_config}")
         click.echo(f"   Run: source {save_config}")
     else:
