@@ -443,3 +443,223 @@ class TestOutputFormatting:
         output = format_json(data)
         parsed = json.loads(output)
         assert parsed[0]["run_id"] == "kw-abc"
+
+
+class TestInitCommand:
+    """Test the kw init command."""
+
+    def test_init_help(self, runner: CliRunner) -> None:
+        """Test init command help."""
+        result = runner.invoke(kw, ["init", "--help"])
+        assert result.exit_code == 0
+        assert "Initialize Knowledge Worker app registration" in result.output
+        assert "--tenant-id" in result.output
+        assert "--save-config" in result.output
+
+    @patch("azure_haymaker.knowledge_worker.infrastructure.app_setup.setup_kw_app")
+    def test_init_success(self, mock_setup: Any, runner: CliRunner) -> None:
+        """Test successful init."""
+        from azure_haymaker.knowledge_worker.infrastructure.app_setup import KWAppConfig
+
+        mock_setup.return_value = KWAppConfig(
+            app_id="test-app-id",
+            client_secret="test-secret",
+            tenant_id="test-tenant-id",
+            sp_id="test-sp-id",
+        )
+
+        result = runner.invoke(kw, ["init", "--tenant-id", "test-tenant-id"])
+        assert result.exit_code == 0
+        assert "App registration created successfully" in result.output
+        assert "test-app-id" in result.output
+
+    @patch("azure_haymaker.knowledge_worker.infrastructure.app_setup.setup_kw_app")
+    def test_init_save_config(
+        self, mock_setup: Any, runner: CliRunner, tmp_path: Path
+    ) -> None:
+        """Test init with --save-config."""
+        from azure_haymaker.knowledge_worker.infrastructure.app_setup import KWAppConfig
+
+        mock_setup.return_value = KWAppConfig(
+            app_id="test-app-id",
+            client_secret="test-secret",
+            tenant_id="test-tenant-id",
+            sp_id="test-sp-id",
+        )
+
+        config_file = tmp_path / "kw_config.env"
+        result = runner.invoke(
+            kw, ["init", "--tenant-id", "test-tenant-id", "--save-config", str(config_file)]
+        )
+        assert result.exit_code == 0
+        assert "Configuration saved to" in result.output
+        assert config_file.exists()
+        content = config_file.read_text()
+        assert "KW_APP_ID=test-app-id" in content
+
+
+class TestDeployCommand:
+    """Test the kw deploy command."""
+
+    def test_deploy_help(self, runner: CliRunner) -> None:
+        """Test deploy command help."""
+        result = runner.invoke(kw, ["deploy", "--help"])
+        assert result.exit_code == 0
+        assert "Create a new Knowledge Worker deployment" in result.output
+        assert "--workers" in result.output
+        assert "--config-file" in result.output
+        assert "--enable-ai-generation" in result.output
+
+    def test_deploy_requires_tenant_domain(self, runner: CliRunner) -> None:
+        """Test deploy fails without tenant domain."""
+        result = runner.invoke(kw, ["deploy", "--workers", "5", "--no-start"])
+        assert result.exit_code != 0
+        assert "tenant_domain is required" in result.output
+
+    def test_deploy_success(
+        self, runner: CliRunner, temp_state_dir: Path, monkeypatch: Any
+    ) -> None:
+        """Test successful deploy."""
+        monkeypatch.setenv("HAYMAKER_STATE_DIR", str(temp_state_dir))
+
+        result = runner.invoke(
+            kw,
+            [
+                "deploy",
+                "--workers",
+                "5",
+                "--tenant-domain",
+                "test.onmicrosoft.com",
+                "--no-start",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "Created deployment" in result.output
+        assert "Workers: 5" in result.output
+
+    def test_deploy_with_name(
+        self, runner: CliRunner, temp_state_dir: Path, monkeypatch: Any
+    ) -> None:
+        """Test deploy with custom name."""
+        monkeypatch.setenv("HAYMAKER_STATE_DIR", str(temp_state_dir))
+
+        result = runner.invoke(
+            kw,
+            [
+                "deploy",
+                "--name",
+                "my-test-deployment",
+                "--workers",
+                "10",
+                "--tenant-domain",
+                "test.onmicrosoft.com",
+                "--no-start",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "my-test-deployment" in result.output
+
+    def test_deploy_json_output(
+        self, runner: CliRunner, temp_state_dir: Path, monkeypatch: Any
+    ) -> None:
+        """Test deploy with JSON output."""
+        monkeypatch.setenv("HAYMAKER_STATE_DIR", str(temp_state_dir))
+
+        result = runner.invoke(
+            kw,
+            [
+                "deploy",
+                "--workers",
+                "5",
+                "--tenant-domain",
+                "test.onmicrosoft.com",
+                "--no-start",
+                "--format",
+                "json",
+            ],
+        )
+        assert result.exit_code == 0
+        # Parse the JSON output - it may be multi-line formatted
+        output = json.loads(result.output.strip())
+        assert "run_id" in output
+        assert "config" in output
+
+    def test_deploy_from_config_file(
+        self, runner: CliRunner, temp_state_dir: Path, tmp_path: Path, monkeypatch: Any
+    ) -> None:
+        """Test deploy from YAML config file."""
+        monkeypatch.setenv("HAYMAKER_STATE_DIR", str(temp_state_dir))
+
+        config_file = tmp_path / "deployment.yaml"
+        config_file.write_text(
+            """
+name: config-file-deployment
+total_workers: 15
+duration_hours: 4
+tenant_domain: config.onmicrosoft.com
+departments:
+  engineering:
+    count: 15
+    endpoint_type: cli_container
+"""
+        )
+
+        result = runner.invoke(
+            kw,
+            ["deploy", "--config-file", str(config_file), "--no-start"],
+        )
+        assert result.exit_code == 0
+        assert "config-file-deployment" in result.output
+        assert "Workers: 15" in result.output
+
+    def test_deploy_from_json_config(
+        self, runner: CliRunner, temp_state_dir: Path, tmp_path: Path, monkeypatch: Any
+    ) -> None:
+        """Test deploy from JSON config file."""
+        monkeypatch.setenv("HAYMAKER_STATE_DIR", str(temp_state_dir))
+
+        config_file = tmp_path / "deployment.json"
+        config_file.write_text(
+            json.dumps(
+                {
+                    "name": "json-deployment",
+                    "total_workers": 8,
+                    "duration_hours": 2,
+                    "tenant_domain": "json.onmicrosoft.com",
+                }
+            )
+        )
+
+        result = runner.invoke(
+            kw,
+            ["deploy", "--config-file", str(config_file), "--no-start"],
+        )
+        assert result.exit_code == 0
+        assert "json-deployment" in result.output
+
+    def test_deploy_with_ai_generation(
+        self, runner: CliRunner, temp_state_dir: Path, monkeypatch: Any
+    ) -> None:
+        """Test deploy with AI generation enabled."""
+        monkeypatch.setenv("HAYMAKER_STATE_DIR", str(temp_state_dir))
+
+        result = runner.invoke(
+            kw,
+            [
+                "deploy",
+                "--workers",
+                "5",
+                "--tenant-domain",
+                "test.onmicrosoft.com",
+                "--enable-ai-generation",
+                "--email-directive",
+                "Write as limericks",
+                "--no-start",
+                "--format",
+                "json",
+            ],
+        )
+        assert result.exit_code == 0
+        output = json.loads(result.output.strip())
+        assert output["config"]["email_generation"]["enabled"] is True
+        assert "limericks" in output["config"]["email_generation"]["directive"]
