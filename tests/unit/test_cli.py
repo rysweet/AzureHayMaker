@@ -217,7 +217,7 @@ class TestKwStopCommand:
         with (
             patch.dict("os.environ", {"HAYMAKER_STATE_DIR": str(temp_state_dir)}),
             patch(
-                "azure_haymaker.cli.commands.kw._stop_deployment", new_callable=AsyncMock
+                "azure_haymaker.cli.commands.kw.stop._stop_deployment", new_callable=AsyncMock
             ) as mock_stop,
         ):
             mock_stop.return_value = True
@@ -302,7 +302,7 @@ class TestKwDeleteWorkerCommand:
         with (
             patch.dict("os.environ", {"HAYMAKER_STATE_DIR": str(temp_state_dir)}),
             patch(
-                "azure_haymaker.cli.commands.kw._delete_worker", new_callable=AsyncMock
+                "azure_haymaker.cli.commands.kw.delete_worker._delete_worker", new_callable=AsyncMock
             ) as mock_delete,
         ):
             mock_delete.return_value = True
@@ -332,7 +332,7 @@ class TestKwStartCommand:
         with (
             patch.dict("os.environ", {"HAYMAKER_STATE_DIR": str(temp_state_dir)}),
             patch(
-                "azure_haymaker.cli.commands.kw._start_deployment", new_callable=AsyncMock
+                "azure_haymaker.cli.commands.kw.start._start_deployment", new_callable=AsyncMock
             ) as mock_start,
         ):
             mock_start.return_value = True
@@ -359,10 +359,10 @@ class TestKwRestartCommand:
         with (
             patch.dict("os.environ", {"HAYMAKER_STATE_DIR": str(temp_state_dir)}),
             patch(
-                "azure_haymaker.cli.commands.kw._stop_deployment", new_callable=AsyncMock
+                "azure_haymaker.cli.commands.kw.restart._stop_deployment", new_callable=AsyncMock
             ) as mock_stop,
             patch(
-                "azure_haymaker.cli.commands.kw._start_deployment", new_callable=AsyncMock
+                "azure_haymaker.cli.commands.kw.restart._start_deployment", new_callable=AsyncMock
             ) as mock_start,
         ):
             mock_stop.return_value = True
