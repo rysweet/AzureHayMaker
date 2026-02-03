@@ -239,14 +239,15 @@ async def validate_jwt_signature(
         ]
 
         # Decode and validate token with full verification
+        # NOTE: python-jose expects audience as a single string. We validate audiences manually
+        # to support tokens where "aud" can be either a string or a list.
         claims = jwt.decode(
             token,
             jwks,
             algorithms=["RS256"],
-            audience=valid_audiences,
             options={
                 "verify_signature": True,
-                "verify_aud": True,
+                "verify_aud": False,  # Manual audience check below
                 "verify_iat": True,
                 "verify_exp": True,
                 "verify_nbf": True,
@@ -258,6 +259,20 @@ async def validate_jwt_signature(
         if claims.get("iss") not in expected_issuers:
             logger.warning(f"Invalid issuer: {claims.get('iss')}")
             raise JWTClaimsError("Invalid token issuer")
+
+        # Validate audience (aud can be string or list)
+        token_aud = claims.get("aud")
+        if isinstance(token_aud, list):
+            if not any(aud in valid_audiences for aud in token_aud):
+                logger.warning(f"Invalid audience list: {token_aud}")
+                raise JWTClaimsError("Invalid token audience")
+        elif isinstance(token_aud, str):
+            if token_aud not in valid_audiences:
+                logger.warning(f"Invalid audience: {token_aud}")
+                raise JWTClaimsError("Invalid token audience")
+        else:
+            logger.warning(f"Invalid audience type: {type(token_aud)}")
+            raise JWTClaimsError("Invalid token audience")
 
         # Validate client ID (appid or azp claim)
         token_client_id = claims.get("appid") or claims.get("azp")
