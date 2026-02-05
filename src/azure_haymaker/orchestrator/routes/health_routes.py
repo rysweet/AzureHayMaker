@@ -16,12 +16,12 @@ from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from azure.data.tables import TableServiceClient
-from azure.identity import DefaultAzureCredential
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from azure_haymaker.orchestrator.auth import require_auth
 from azure_haymaker.orchestrator.cleanup import query_managed_resources
 from azure_haymaker.orchestrator.config import load_config
+from azure_haymaker.utils.credentials import get_credential
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +167,7 @@ async def list_agents(
                 detail="Agents storage not configured. Set TABLE_STORAGE_ACCOUNT_NAME.",
             )
 
-        credential = DefaultAzureCredential()
+        credential = get_credential()
         table_service_client = TableServiceClient(
             endpoint=f"https://{table_account_name}.table.core.windows.net",
             credential=credential,

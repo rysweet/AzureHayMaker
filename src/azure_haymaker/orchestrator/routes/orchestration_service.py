@@ -16,7 +16,6 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
-from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 
 from azure_haymaker.orchestrator.cleanup import (
@@ -235,7 +234,9 @@ async def run_orchestration(
         # ========================================================================
         logger.info(f"[{run_id}] Phase 3: Provisioning")
 
-        credential = DefaultAzureCredential()
+        from azure_haymaker.utils.credentials import get_credential
+
+        credential = get_credential()
         key_vault_client = SecretClient(vault_url=config.key_vault_url, credential=credential)
 
         sp_tasks = [
@@ -244,6 +245,7 @@ async def run_orchestration(
                 subscription_id=config.target_subscription_id,
                 roles=["Contributor", "Reader"],
                 key_vault_client=key_vault_client,
+                config=config,
             )
             for scenario in scenarios
         ]

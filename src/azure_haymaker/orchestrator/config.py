@@ -27,6 +27,7 @@ from azure_haymaker.models.config import (
     TenantConfig,
 )
 from azure_haymaker.orchestrator.config_env_loader import load_dotenv_with_warnings
+from azure_haymaker.utils.credentials import get_credential
 
 logger = logging.getLogger(__name__)
 
@@ -164,20 +165,28 @@ async def load_config_from_env_and_keyvault() -> OrchestratorConfig:
         main_sp_secret = os.getenv("MAIN_SP_CLIENT_SECRET")
         anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
         log_analytics_key = os.getenv("LOG_ANALYTICS_WORKSPACE_KEY")
+        llm_provider = os.getenv("LLM_PROVIDER", "anthropic")
 
         # Cross-tenant credentials (optional - for deploying to different tenant)
         target_tenant_sp_id = os.getenv("TARGET_TENANT_SP_CLIENT_ID")
         target_tenant_sp_secret = os.getenv("TARGET_TENANT_SP_CLIENT_SECRET")
 
+        # Anthropic key only required if using anthropic provider
+        anthropic_required = llm_provider == "anthropic"
+
         # Only try Key Vault if env vars not set
-        if not main_sp_secret or not anthropic_api_key or not log_analytics_key:
+        if (
+            not main_sp_secret
+            or (anthropic_required and not anthropic_api_key)
+            or not log_analytics_key
+        ):
             try:
-                credential = DefaultAzureCredential()
+                credential = get_credential()
                 kv_client = SecretClient(vault_url=key_vault_url, credential=credential)
 
                 if not main_sp_secret:
                     main_sp_secret = kv_client.get_secret("main-sp-client-secret").value
-                if not anthropic_api_key:
+                if anthropic_required and not anthropic_api_key:
                     anthropic_api_key = kv_client.get_secret("anthropic-api-key").value
                 if not log_analytics_key:
                     log_analytics_key = kv_client.get_secret("log-analytics-workspace-key").value
@@ -201,7 +210,12 @@ async def load_config_from_env_and_keyvault() -> OrchestratorConfig:
             except Exception as e:
                 raise ConfigurationError(
                     f"Secrets not in env vars and Key Vault failed ({key_vault_url}): {e}. "
-                    f"Set MAIN_SP_CLIENT_SECRET, ANTHROPIC_API_KEY, LOG_ANALYTICS_WORKSPACE_KEY as env vars."
+                    f"Set MAIN_SP_CLIENT_SECRET, LOG_ANALYTICS_WORKSPACE_KEY as env vars."
+                    + (
+                        " Also set ANTHROPIC_API_KEY if using anthropic provider."
+                        if anthropic_required
+                        else ""
+                    )
                 ) from e
 
         # Build configuration object
@@ -215,7 +229,7 @@ async def load_config_from_env_and_keyvault() -> OrchestratorConfig:
                 target_tenant_sp_client_secret=SecretStr(target_tenant_sp_secret)
                 if target_tenant_sp_secret
                 else None,
-                anthropic_api_key=SecretStr(anthropic_api_key),
+                anthropic_api_key=SecretStr(anthropic_api_key) if anthropic_api_key else None,
                 service_bus_namespace=service_bus_namespace,
                 service_bus_topic=service_bus_topic,
                 container_registry=container_registry,

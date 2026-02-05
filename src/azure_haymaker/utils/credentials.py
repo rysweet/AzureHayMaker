@@ -26,11 +26,13 @@ Usage:
 """
 
 import logging
+import os
 import threading
 from typing import TYPE_CHECKING
 
-from azure.identity import ClientSecretCredential, DefaultAzureCredential
+from azure.identity import ClientSecretCredential, DefaultAzureCredential, ManagedIdentityCredential
 from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCredential
+from azure.identity.aio import ManagedIdentityCredential as AsyncManagedIdentityCredential
 
 if TYPE_CHECKING:
     from azure_haymaker.models.config import OrchestratorConfig, TenantConfig
@@ -56,12 +58,14 @@ class AzureCredentialFactory:
         >>> async_client = AsyncBlobServiceClient(account_url, credential=async_credential)
     """
 
-    _credential: DefaultAzureCredential | None = None
-    _async_credential: AsyncDefaultAzureCredential | None = None
+    _credential: DefaultAzureCredential | ManagedIdentityCredential | None = None
+    _async_credential: AsyncDefaultAzureCredential | AsyncManagedIdentityCredential | None = None
     _credential_lock: threading.Lock = threading.Lock()
 
     @classmethod
-    def get_credential(cls, force_refresh: bool = False) -> DefaultAzureCredential:
+    def get_credential(
+        cls, force_refresh: bool = False
+    ) -> DefaultAzureCredential | ManagedIdentityCredential:
         """Get cached DefaultAzureCredential instance.
 
         This method returns a cached credential instance. The credential
@@ -81,12 +85,20 @@ class AzureCredentialFactory:
         """
         with cls._credential_lock:
             if cls._credential is None or force_refresh:
-                logger.debug("Creating new DefaultAzureCredential instance")
-                cls._credential = DefaultAzureCredential()
+                # In Container Apps (or any environment with CONTAINER_APP_NAME),
+                # use ManagedIdentityCredential to avoid AZURE_CLIENT_ID interference
+                if os.getenv("CONTAINER_APP_NAME"):
+                    logger.debug("Container Apps detected - using ManagedIdentityCredential")
+                    cls._credential = ManagedIdentityCredential()
+                else:
+                    logger.debug("Creating new DefaultAzureCredential instance")
+                    cls._credential = DefaultAzureCredential()
             return cls._credential
 
     @classmethod
-    def get_async_credential(cls, force_refresh: bool = False) -> AsyncDefaultAzureCredential:
+    def get_async_credential(
+        cls, force_refresh: bool = False
+    ) -> AsyncDefaultAzureCredential | AsyncManagedIdentityCredential:
         """Get cached async DefaultAzureCredential instance.
 
         This method returns a cached async credential instance for use
@@ -106,8 +118,13 @@ class AzureCredentialFactory:
         """
         with cls._credential_lock:
             if cls._async_credential is None or force_refresh:
-                logger.debug("Creating new AsyncDefaultAzureCredential instance")
-                cls._async_credential = AsyncDefaultAzureCredential()
+                # In Container Apps, use ManagedIdentityCredential to avoid AZURE_CLIENT_ID interference
+                if os.getenv("CONTAINER_APP_NAME"):
+                    logger.debug("Container Apps detected - using AsyncManagedIdentityCredential")
+                    cls._async_credential = AsyncManagedIdentityCredential()
+                else:
+                    logger.debug("Creating new AsyncDefaultAzureCredential instance")
+                    cls._async_credential = AsyncDefaultAzureCredential()
             return cls._async_credential
 
     @classmethod
@@ -213,7 +230,9 @@ class MultiTenantCredentialFactory:
             return list(cls._credentials.keys())
 
 
-def get_credential(force_refresh: bool = False) -> DefaultAzureCredential:
+def get_credential(
+    force_refresh: bool = False,
+) -> DefaultAzureCredential | ManagedIdentityCredential:
     """Convenience function to get cached Azure credential.
 
     This is the recommended way to obtain Azure credentials throughout
@@ -235,7 +254,7 @@ def get_credential(force_refresh: bool = False) -> DefaultAzureCredential:
 
 def get_async_credential(
     force_refresh: bool = False,
-) -> AsyncDefaultAzureCredential:
+) -> AsyncDefaultAzureCredential | AsyncManagedIdentityCredential:
     """Convenience function to get cached async Azure credential.
 
     This is the recommended way to obtain async Azure credentials.
@@ -257,7 +276,7 @@ def get_async_credential(
 
 def get_tenant_credential(
     config: "OrchestratorConfig", tenant_id: str | None = None
-) -> DefaultAzureCredential | ClientSecretCredential:
+) -> DefaultAzureCredential | ClientSecretCredential | ManagedIdentityCredential:
     """Get credential for target tenant operations (multi-tenant aware).
 
     Priority order for credential selection:

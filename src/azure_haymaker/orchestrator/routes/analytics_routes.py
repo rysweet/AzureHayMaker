@@ -16,7 +16,6 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal
 
 from azure.data.tables import TableServiceClient
-from azure.identity import DefaultAzureCredential
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from azure_haymaker.models.execution import (
@@ -25,6 +24,7 @@ from azure_haymaker.models.execution import (
     ScenarioStats,
 )
 from azure_haymaker.orchestrator.auth import require_auth
+from azure_haymaker.utils.credentials import get_credential
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +93,7 @@ async def get_analytics(
                 top_scenarios=[],
             )
 
-        credential = DefaultAzureCredential()
+        credential = get_credential()
         table_service = TableServiceClient(
             endpoint=f"https://{table_storage_account}.table.core.windows.net",
             credential=credential,

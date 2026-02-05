@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 # Security scheme
 security = HTTPBearer(auto_error=False)
 
+
 # Cache for JWKS keys with TTL
 @dataclass
 class JWKSCacheEntry:
@@ -39,6 +40,7 @@ class JWKSCacheEntry:
 
 
 _jwks_cache: dict[str, JWKSCacheEntry] = {}
+
 
 # JTI (JWT ID) tracking for replay protection
 @dataclass
@@ -239,20 +241,27 @@ async def validate_jwt_signature(
         ]
 
         # Decode and validate token with full verification
+        # Note: python-jose requires audience as string, so we disable aud verification
+        # and manually check below (similar to issuer handling)
         claims = jwt.decode(
             token,
             jwks,
             algorithms=["RS256"],
-            audience=valid_audiences,
             options={
                 "verify_signature": True,
-                "verify_aud": True,
+                "verify_aud": False,  # Manual audience check below for multi-audience
                 "verify_iat": True,
                 "verify_exp": True,
                 "verify_nbf": True,
                 "verify_iss": False,  # Manual issuer check below for multi-issuer
             },
         )
+
+        # Manually validate audience (python-jose doesn't support list of audiences)
+        token_audience = claims.get("aud")
+        if token_audience not in valid_audiences:
+            logger.warning(f"Invalid audience: {token_audience}, expected one of {valid_audiences}")
+            raise JWTClaimsError("Invalid token audience")
 
         # Manually validate issuer (multi-value check)
         if claims.get("iss") not in expected_issuers:
@@ -289,9 +298,7 @@ async def validate_jwt_signature(
         # This handles key rotation scenarios
         if not force_jwks_refresh:
             logger.info("Signature validation failed - refreshing JWKS and retrying")
-            return await validate_jwt_signature(
-                token, tenant_id, config, force_jwks_refresh=True
-            )
+            return await validate_jwt_signature(token, tenant_id, config, force_jwks_refresh=True)
 
         logger.error(f"JWT validation error after JWKS refresh: {e}")
         raise HTTPException(

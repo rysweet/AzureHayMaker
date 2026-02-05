@@ -27,7 +27,6 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from azure.core.exceptions import ResourceNotFoundError
 from azure.data.tables import TableServiceClient, UpdateMode
-from azure.identity import DefaultAzureCredential
 from croniter import croniter
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -38,6 +37,7 @@ from azure_haymaker.models.schedule import (
     ScheduleUpdate,
 )
 from azure_haymaker.orchestrator.auth import require_auth
+from azure_haymaker.utils.credentials import get_credential
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +90,7 @@ def _get_schedule_table_client():
                 "Schedule storage requires Azure Table Storage configuration."
             )
         account_url = f"https://{table_storage_account}.table.core.windows.net"
-        credential = DefaultAzureCredential()
+        credential = get_credential()
         table_service = TableServiceClient(endpoint=account_url, credential=credential)
         try:
             table_service.create_table_if_not_exists(SCHEDULE_TABLE_NAME)
