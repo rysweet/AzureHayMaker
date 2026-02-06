@@ -1,0 +1,61 @@
+# Knowledge Worker Deployment Configuration
+#
+# Use with: haymaker kw deploy --config-file deployment.yaml
+#
+# This file defines a complete deployment configuration.
+# CLI options override values in this file.
+
+# Deployment name (auto-generated if not provided)
+name: my-kw-deployment
+
+# Number of workers to deploy
+total_workers: 25
+
+# Duration in hours for worker activities
+duration_hours: 8
+
+# M365 tenant domain (required)
+tenant_domain: contoso.onmicrosoft.com
+
+# Department configurations
+# Each department can have different worker counts and activity patterns
+departments:
+  engineering:
+    count: 10
+    endpoint_type: cli_container
+    activity:
+      email_per_hour: 4
+      teams_messages_per_hour: 15
+      documents_per_day: 5
+      meetings_per_day: 4
+  
+  operations:
+    count: 10
+    endpoint_type: cli_container
+    activity:
+      email_per_hour: 6
+      teams_messages_per_hour: 20
+      documents_per_day: 3
+      meetings_per_day: 6
+  
+  sales:
+    count: 5
+    endpoint_type: cli_container
+    activity:
+      email_per_hour: 8
+      teams_messages_per_hour: 10
+      documents_per_day: 2
+      meetings_per_day: 8
+
+# Email marker configuration
+email_markers_enabled: true
+marker_format: MARKER
+marker_style: subject  # "subject", "hidden", or "both"
+
+# AI email generation configuration (optional)
+email_generation:
+  enabled: true
+  # Directive for AI to follow when generating emails
+  directive: "Write professional work emails about daily tasks and projects"
+  # Provider: anthropic, openai, or azure_openai
+  provider: anthropic
