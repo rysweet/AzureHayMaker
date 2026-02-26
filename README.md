@@ -1,12 +1,43 @@
 # Azure HayMaker
 
-[![Tests](https://img.shields.io/badge/tests-99%25%20passing-brightgreen)](.) [![Code Quality](https://img.shields.io/badge/code%20review-9.2%2F10-brightgreen)](.) [![Security](https://img.shields.io/badge/security-verified-brightgreen)](.) [![Docs](https://img.shields.io/badge/docs-55+%20files-blue)](.) [![Scripts](https://img.shields.io/badge/automation-14%20scripts-blue)](.) [![Commits](https://img.shields.io/badge/commits-101+-blue)](.) [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE) [![Cost Savings](https://img.shields.io/badge/savings-$20K%2Fyear-gold)](.)
+> **This repository has been deprecated.** AzureHayMaker has been split into three focused repositories with a cleaner plugin architecture. Please use the new repos for all future development.
 
-[![Session](https://img.shields.io/badge/session-12+%20hours-purple)](.) [![PowerPoint](https://img.shields.io/badge/PowerPoint-ready-success)](.) [![Requirements](https://img.shields.io/badge/requirements-5%2F5-success)](.)
+## Successor Repositories
+
+| Repository | Purpose | Docs |
+|------------|---------|------|
+| [**agent-haymaker**](https://github.com/rysweet/agent-haymaker) | Orchestration platform with universal CLI, WorkloadBase interface, and multi-provider LLM abstraction | [Docs](https://rysweet.github.io/agent-haymaker/) |
+| [**haymaker-azure-workloads**](https://github.com/rysweet/haymaker-azure-workloads) | Azure infrastructure workloads with goal-seeking agents and 50+ scenarios | [Docs](https://rysweet.github.io/haymaker-azure-workloads/) |
+| [**haymaker-m365-workloads**](https://github.com/rysweet/haymaker-m365-workloads) | M365 knowledge worker simulation with AI-powered email generation | [Docs](https://rysweet.github.io/haymaker-m365-workloads/) |
+
+### Migration Guide
+
+The new architecture uses a plugin model where workloads register with the platform via Python entry points:
+
+```bash
+# Install the platform
+pip install agent-haymaker[llm]
+
+# Install workloads
+haymaker workload install https://github.com/rysweet/haymaker-m365-workloads
+haymaker workload install https://github.com/rysweet/haymaker-azure-workloads
+
+# Deploy (same CLI, any workload)
+haymaker deploy m365-knowledge-worker --config workers=25 --config department=sales
+haymaker deploy azure-infrastructure --config scenario=linux-vm-web-server
+```
+
+All features from this monorepo have been ported to the new repos, including the LLM abstraction layer (Anthropic, Azure OpenAI, Azure AI Foundry), pre-commit hooks, and documentation sites.
+
+---
+
+## Original README (Archived)
+
+[![Tests](https://img.shields.io/badge/tests-99%25%20passing-brightgreen)](.) [![Code Quality](https://img.shields.io/badge/code%20review-9.2%2F10-brightgreen)](.) [![Security](https://img.shields.io/badge/security-verified-brightgreen)](.) [![Docs](https://img.shields.io/badge/docs-55+%20files-blue)](.) [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
 Generate benign service telemetry for Azure Tenant simulation with realistic Azure infrastructure scenarios and Microsoft 365 knowledge worker activity.
 
-> **🚀 New Developer?** Start with the [Developer Quick Start Guide](docs/DEVELOPER_QUICK_START.md) for step-by-step setup instructions.
+> **🚀 New Developer?** See the successor repos above. The content below is preserved for reference.
 
 ## What is it?
 
@@ -293,6 +324,6 @@ MIT License - Open Source
 
 ## Status
 
-🚧 **Under Active Development** - See [Issue #1](https://github.com/rysweet/AzureHayMaker/issues/1) for progress
+**Deprecated** - This repository is archived. See the successor repositories at the top of this README.
 
 ---
