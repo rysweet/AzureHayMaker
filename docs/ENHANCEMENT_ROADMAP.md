@@ -225,7 +225,7 @@ az network nsg rule create \
 - Zero plaintext credentials in logs or Azure Activity Log
 - All Windows VMs deployed without public IPs
 - NSG rules scoped to minimum required sources
-- Security scan (Bandit, Trivy) passes with no critical findings
+- Security scan (Bandit) passes with no critical findings
 
 ---
 
@@ -1655,7 +1655,7 @@ jobs:
 **Success Metrics**:
 - Zero plaintext credentials in logs or Azure Activity Log
 - All telemetry exported to SIEM within 30 seconds
-- Security scan (Bandit, Trivy) passes with no critical findings
+- Security scan (Bandit) passes with no critical findings
 
 **Risk Mitigation**:
 - **Risk**: SIEM integration complexity varies by platform
