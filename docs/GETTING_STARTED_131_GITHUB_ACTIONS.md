@@ -524,16 +524,9 @@ jobs:
         run: docker build -t haymaker:scan .
 
       - name: Scan image
-        uses: aquasecurity/trivy-action@master
-        with:
           image-ref: 'haymaker:scan'
           format: 'sarif'
-          output: 'trivy-results.sarif'
 
-      - name: Upload Trivy results
-        uses: github/codeql-action/upload-sarif@v2
-        with:
-          sarif_file: 'trivy-results.sarif'
 ```
 
 ---
