@@ -268,7 +268,7 @@ opentelemetry-sdk==1.38.0
     #   microsoft-kiota-abstractions
     #   microsoft-kiota-authentication-azure
     #   microsoft-kiota-http
-opentelemetry-semantic-conventions==0.59b0
+opentelemetry-semantic-conventions==0.60b1
     # via
     #   opentelemetry-instrumentation
     #   opentelemetry-instrumentation-asgi
