@@ -19,7 +19,7 @@ from typing import Any
 from azure.identity import DefaultAzureCredential
 from msgraph.graph_service_client import GraphServiceClient
 
-from azure_haymaker.knowledge_worker.teams_integration import (
+from azure_haymaker.shared.teams import (
     TeamsIntegration,
     TeamsIntegrationError,
 )
