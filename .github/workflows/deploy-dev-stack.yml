@@ -84,7 +84,7 @@ jobs:
       orchestrator_name: ${{ steps.names.outputs.orchestrator_name }}
       unique_suffix: ${{ steps.names.outputs.unique_suffix }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Generate Resource Names
         id: names
@@ -139,7 +139,7 @@ jobs:
     outputs:
       acr_login_server: ${{ steps.acr.outputs.login_server }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Azure Login
         uses: azure/login@v2
@@ -222,7 +222,7 @@ jobs:
     needs: [setup, create-acr]
     if: ${{ inputs.skip_image_build != true }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Azure Login
         uses: azure/login@v2
@@ -260,7 +260,7 @@ jobs:
       orchestrator_fqdn: ${{ steps.deploy.outputs.fqdn }}
       key_vault_name: ${{ steps.deploy.outputs.keyvault }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Azure Login
         uses: azure/login@v2
@@ -342,7 +342,7 @@ jobs:
     needs: [setup, create-acr, deploy-infrastructure]
     if: always() && needs.setup.result == 'success' && needs.create-acr.result == 'success'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Azure Login
         uses: azure/login@v2
