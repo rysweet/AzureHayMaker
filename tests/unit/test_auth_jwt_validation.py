@@ -240,12 +240,8 @@ class TestJWKSCaching:
         """Test that JWKS is cached after first fetch."""
         tenant_id = "test-tenant"
 
-        with patch(
-            "azure_haymaker.orchestrator.auth.get_tenant_metadata"
-        ) as mock_metadata:
-            mock_metadata.return_value = {
-                "jwks_uri": "https://login.microsoftonline.com/keys"
-            }
+        with patch("azure_haymaker.orchestrator.auth.get_tenant_metadata") as mock_metadata:
+            mock_metadata.return_value = {"jwks_uri": "https://login.microsoftonline.com/keys"}
 
             with patch("httpx.AsyncClient.get") as mock_get:
                 mock_response = MagicMock()
@@ -264,12 +260,8 @@ class TestJWKSCaching:
         with patch("time.time") as mock_time:
             mock_time.return_value = 1000.0
 
-            with patch(
-                "azure_haymaker.orchestrator.auth.get_tenant_metadata"
-            ) as mock_metadata:
-                mock_metadata.return_value = {
-                    "jwks_uri": "https://login.microsoftonline.com/keys"
-                }
+            with patch("azure_haymaker.orchestrator.auth.get_tenant_metadata") as mock_metadata:
+                mock_metadata.return_value = {"jwks_uri": "https://login.microsoftonline.com/keys"}
 
                 with patch("httpx.AsyncClient.get") as mock_get:
                     mock_response = MagicMock()

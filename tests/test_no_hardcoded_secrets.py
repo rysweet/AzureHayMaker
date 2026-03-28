@@ -23,16 +23,15 @@ class TestHardcodedSecrets:
         r'--value\s+"[^$][^"]*"',  # --value "hardcoded" (not --value "$VAR")
         r'sharedKey:\s+"[^$][^"]*"',  # sharedKey: "hardcoded"
         r'shared-key\s+"[^$][^"]*"',  # shared-key "hardcoded"
-
         # Common test credentials patterns
         r'(password|secret|key).*[:=]\s*"[^$][A-Za-z0-9]{8,}"',  # Generic secrets
     ]
 
     # Allowed patterns (these are OK to have)
     ALLOWED_PATTERNS = [
-        r'\$\{.*\}',  # Variable interpolation ${VAR}
-        r'\$\(.*\)',  # Command substitution $(cmd)
-        r'<.*>',     # Placeholders <your-key>
+        r"\$\{.*\}",  # Variable interpolation ${VAR}
+        r"\$\(.*\)",  # Command substitution $(cmd)
+        r"<.*>",  # Placeholders <your-key>
         r'"\*{3,}"',  # Masked values "***"
     ]
 
@@ -59,7 +58,7 @@ class TestHardcodedSecrets:
         violations = []
         for match in matches:
             # Skip if it's a placeholder
-            if not (match.startswith('<') and match.endswith('>')):
+            if not (match.startswith("<") and match.endswith(">")):
                 violations.append(f'--value "{match}"')
 
         assert len(violations) == 0, (
@@ -75,15 +74,14 @@ class TestHardcodedSecrets:
 
         # Verify Key Vault pattern is documented
         keyvault_patterns = [
-            r'az keyvault secret show',
-            r'KEY_VAULT_NAME',
+            r"az keyvault secret show",
+            r"KEY_VAULT_NAME",
             r'--query "value"',
         ]
 
         for pattern in keyvault_patterns:
             assert re.search(pattern, content), (
-                f"VPN documentation should demonstrate Key Vault pattern. "
-                f"Missing: {pattern}"
+                f"VPN documentation should demonstrate Key Vault pattern. " f"Missing: {pattern}"
             )
 
     def test_all_docs_no_obvious_secrets(self, docs_directory: Path):

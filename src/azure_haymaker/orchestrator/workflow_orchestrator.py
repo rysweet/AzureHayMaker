@@ -170,13 +170,18 @@ def _create_service_principals(context: Any, run_id: str, selected_scenarios: li
         logger.warning(f"[{run_id}] {len(failed_sps)} SPs failed to create (will attempt cleanup)")
 
     successful_sps = [sp for sp in sp_results if sp["status"] == "success"]
-    logger.info(f"[{run_id}] Created {len(successful_sps)}/{len(selected_scenarios)} service principals")
+    logger.info(
+        f"[{run_id}] Created {len(successful_sps)}/{len(selected_scenarios)} service principals"
+    )
 
     return sp_results
 
 
 def _deploy_containers(
-    context: Any, run_id: str, selected_scenarios: list[dict[str, Any]], sp_results: list[dict[str, Any]]
+    context: Any,
+    run_id: str,
+    selected_scenarios: list[dict[str, Any]],
+    sp_results: list[dict[str, Any]],
 ):
     """Deploy Container Apps in parallel for successful SPs.
 
@@ -209,13 +214,18 @@ def _deploy_containers(
     container_results = yield context.task_all(container_tasks) if container_tasks else []
 
     successful_containers = [c for c in container_results if c["status"] == "success"]
-    logger.info(f"[{run_id}] Deployed {len(successful_containers)}/{len(container_tasks)} container apps")
+    logger.info(
+        f"[{run_id}] Deployed {len(successful_containers)}/{len(container_tasks)} container apps"
+    )
 
     return container_results
 
 
 def _execute_provisioning_phase(
-    context: Any, run_id: str, selected_scenarios: list[dict[str, Any]], execution_report: dict[str, Any]
+    context: Any,
+    run_id: str,
+    selected_scenarios: list[dict[str, Any]],
+    execution_report: dict[str, Any],
 ):
     """Execute Phase 3: Provisioning (SPs + Containers in parallel).
 
@@ -234,7 +244,9 @@ def _execute_provisioning_phase(
     logger.info(f"[{run_id}] Starting Phase 3: Provisioning ({len(selected_scenarios)} scenarios)")
 
     sp_results = yield from _create_service_principals(context, run_id, selected_scenarios)
-    container_results = yield from _deploy_containers(context, run_id, selected_scenarios, sp_results)
+    container_results = yield from _deploy_containers(
+        context, run_id, selected_scenarios, sp_results
+    )
 
     failed_sps = [sp for sp in sp_results if sp["status"] == "failed"]
     successful_sps = [sp for sp in sp_results if sp["status"] == "success"]
@@ -268,7 +280,10 @@ def _execute_provisioning_phase(
 
 
 def _execute_monitoring_phase(
-    context: Any, run_id: str, successful_containers: list[dict[str, Any]], execution_report: dict[str, Any]
+    context: Any,
+    run_id: str,
+    successful_containers: list[dict[str, Any]],
+    execution_report: dict[str, Any],
 ):
     """Execute Phase 4: 8-hour monitoring with periodic checks.
 
@@ -375,7 +390,12 @@ def _execute_cleanup_phases(
         )
     else:
         logger.info(f"[{run_id}] No remaining resources found. Cleanup verified.")
-        phases["cleanup"] = {"status": "verified", "verification_found": 0, "deleted": 0, "failed": 0}
+        phases["cleanup"] = {
+            "status": "verified",
+            "verification_found": 0,
+            "deleted": 0,
+            "failed": 0,
+        }
 
 
 def _execute_reporting_phase(
@@ -478,7 +498,9 @@ def orchestrate_haymaker_run(context: Any) -> Any:
 
     try:
         # Phase 1: Validation
-        _validation_result, passed = yield from _execute_validation_phase(context, run_id, execution_report)
+        _validation_result, passed = yield from _execute_validation_phase(
+            context, run_id, execution_report
+        )
         if not passed:
             return execution_report
 
@@ -501,7 +523,11 @@ def orchestrate_haymaker_run(context: Any) -> Any:
 
         # Phase 5-6: Cleanup
         yield from _execute_cleanup_phases(
-            context, run_id, selected_scenarios, provisioning_result["successful_sps"], execution_report
+            context,
+            run_id,
+            selected_scenarios,
+            provisioning_result["successful_sps"],
+            execution_report,
         )
 
         # Phase 7: Reporting

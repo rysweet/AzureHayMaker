@@ -86,7 +86,9 @@ def auth_config():
 def mock_jwt_validation(valid_token_claims):
     """Mock JWT signature validation to bypass real cryptographic checks."""
 
-    async def mock_validate(token: str, tenant_id: str, config: dict, force_jwks_refresh: bool = False):
+    async def mock_validate(
+        token: str, tenant_id: str, config: dict, force_jwks_refresh: bool = False
+    ):
         """Mock validation that decodes token and checks expiration."""
         import base64
         import json
@@ -152,7 +154,9 @@ def mock_jwt_validation(valid_token_claims):
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-    with patch("azure_haymaker.orchestrator.auth.validate_jwt_signature", side_effect=mock_validate):
+    with patch(
+        "azure_haymaker.orchestrator.auth.validate_jwt_signature", side_effect=mock_validate
+    ):
         yield
 
 
@@ -273,9 +277,7 @@ class TestValidateToken:
         pass
 
     @pytest.mark.anyio
-    async def test_valid_token_returns_claims(
-        self, valid_token_claims, auth_config
-    ):
+    async def test_valid_token_returns_claims(self, valid_token_claims, auth_config):
         """Test that a valid token returns the decoded claims."""
         token = create_jwt_token(valid_token_claims)
 
@@ -306,9 +308,7 @@ class TestValidateToken:
         assert "Invalid authentication token" in exc_info.value.detail
 
     @pytest.mark.anyio
-    async def test_expired_token_raises_401(
-        self, expired_token_claims, auth_config
-    ):
+    async def test_expired_token_raises_401(self, expired_token_claims, auth_config):
         """Test that expired token raises 401 HTTPException."""
         token = create_jwt_token(expired_token_claims)
 
@@ -319,9 +319,7 @@ class TestValidateToken:
         assert "expired" in exc_info.value.detail.lower()
 
     @pytest.mark.anyio
-    async def test_invalid_issuer_raises_401(
-        self, valid_token_claims, auth_config
-    ):
+    async def test_invalid_issuer_raises_401(self, valid_token_claims, auth_config):
         """Test that token with invalid issuer raises 401."""
         invalid_claims = {**valid_token_claims, "iss": "https://evil.attacker.com"}
         token = create_jwt_token(invalid_claims)
@@ -1477,8 +1475,16 @@ class TestConcurrentAuthentication:
         # Mock the network calls
         mock_jwks = {"keys": [{"kid": "test-key", "kty": "RSA"}]}
 
-        with patch("azure_haymaker.orchestrator.auth.get_tenant_metadata", new=AsyncMock(return_value={"jwks_uri": "https://test.com/jwks"})):
-            with patch("httpx.AsyncClient.get", new=AsyncMock(return_value=AsyncMock(json=lambda: mock_jwks, raise_for_status=lambda: None))):
+        with patch(
+            "azure_haymaker.orchestrator.auth.get_tenant_metadata",
+            new=AsyncMock(return_value={"jwks_uri": "https://test.com/jwks"}),
+        ):
+            with patch(
+                "httpx.AsyncClient.get",
+                new=AsyncMock(
+                    return_value=AsyncMock(json=lambda: mock_jwks, raise_for_status=lambda: None)
+                ),
+            ):
                 tasks = [get_jwks_with_ttl("test-tenant") for _ in range(10)]
 
                 # All should complete without errors

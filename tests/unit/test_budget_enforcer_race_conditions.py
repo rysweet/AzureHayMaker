@@ -415,16 +415,19 @@ class TestMultiTenantIsolation:
         enforcer_b = BudgetEnforcer(subscription_id="sub-b", config=config)
 
         # Mock different spend for each subscription
-        with patch.object(
-            enforcer_a,
-            "get_current_spend",
-            new_callable=AsyncMock,
-            return_value=SpendSummary(daily=80.0),
-        ), patch.object(
-            enforcer_b,
-            "get_current_spend",
-            new_callable=AsyncMock,
-            return_value=SpendSummary(daily=20.0),
+        with (
+            patch.object(
+                enforcer_a,
+                "get_current_spend",
+                new_callable=AsyncMock,
+                return_value=SpendSummary(daily=80.0),
+            ),
+            patch.object(
+                enforcer_b,
+                "get_current_spend",
+                new_callable=AsyncMock,
+                return_value=SpendSummary(daily=20.0),
+            ),
         ):
             # Concurrent checks
             decision_a = await enforcer_a.can_deploy(estimated_cost=30.0)
@@ -451,16 +454,19 @@ class TestMultiTenantIsolation:
         )
 
         # Mock different spend for each resource group
-        with patch.object(
-            enforcer_rg1,
-            "get_current_spend",
-            new_callable=AsyncMock,
-            return_value=SpendSummary(daily=90.0),
-        ), patch.object(
-            enforcer_rg2,
-            "get_current_spend",
-            new_callable=AsyncMock,
-            return_value=SpendSummary(daily=10.0),
+        with (
+            patch.object(
+                enforcer_rg1,
+                "get_current_spend",
+                new_callable=AsyncMock,
+                return_value=SpendSummary(daily=90.0),
+            ),
+            patch.object(
+                enforcer_rg2,
+                "get_current_spend",
+                new_callable=AsyncMock,
+                return_value=SpendSummary(daily=10.0),
+            ),
         ):
             decision_rg1 = await enforcer_rg1.can_deploy(estimated_cost=20.0)
             decision_rg2 = await enforcer_rg2.can_deploy(estimated_cost=20.0)

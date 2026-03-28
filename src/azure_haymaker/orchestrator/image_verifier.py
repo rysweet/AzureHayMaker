@@ -54,7 +54,9 @@ class ImageVerifier:
         dangerous_chars = [";", "|", "&", "$", "`", "\n", "\r", "\0", ".."]
         for char in dangerous_chars:
             if char in image_ref:
-                raise ImageSigningError("Invalid image reference: contains dangerous character or pattern")
+                raise ImageSigningError(
+                    "Invalid image reference: contains dangerous character or pattern"
+                )
 
         # In production, this would verify against ACR signatures and policies
         # For now, we enforce that the image reference must be from an Azure Container Registry
@@ -72,7 +74,9 @@ class ImageVerifier:
                     raise ImageSigningError(f"Invalid digest format: {digest}")
                 # SHA256 digest should be a hex string (at least 16 chars for testing, 64 for production)
                 digest_hash = digest[7:]  # Remove "sha256:" prefix
-                if len(digest_hash) < 16 or not all(c in '0123456789abcdefABCDEF' for c in digest_hash):
+                if len(digest_hash) < 16 or not all(
+                    c in "0123456789abcdefABCDEF" for c in digest_hash
+                ):
                     raise ImageSigningError(f"Invalid SHA256 digest format: {digest}")
                 logger.info(f"Image signature verified with digest: {digest[:16]}...")
             elif ":" in image_ref:

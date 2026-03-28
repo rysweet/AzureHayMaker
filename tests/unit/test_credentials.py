@@ -109,9 +109,7 @@ class TestAzureCredentialFactory:
 
     def test_get_async_credential_creates_instance_once(self):
         """Test that get_async_credential returns same instance on multiple calls."""
-        with patch(
-            "azure_haymaker.utils.credentials.AsyncDefaultAzureCredential"
-        ) as mock_cred:
+        with patch("azure_haymaker.utils.credentials.AsyncDefaultAzureCredential") as mock_cred:
             mock_instance = Mock()
             mock_cred.return_value = mock_instance
 
@@ -123,9 +121,7 @@ class TestAzureCredentialFactory:
 
     def test_get_async_credential_force_refresh_creates_new(self):
         """Test that force_refresh creates new async credential."""
-        with patch(
-            "azure_haymaker.utils.credentials.AsyncDefaultAzureCredential"
-        ) as mock_cred:
+        with patch("azure_haymaker.utils.credentials.AsyncDefaultAzureCredential") as mock_cred:
             mock_cred.side_effect = [Mock(), Mock()]
 
             cred1 = AzureCredentialFactory.get_async_credential()
@@ -173,15 +169,11 @@ class TestMultiTenantCredentialFactory:
 
     def test_get_credential_for_tenant_creates_credential(self, mock_tenant_config):
         """Test that get_credential_for_tenant creates credential for tenant."""
-        with patch(
-            "azure_haymaker.utils.credentials.ClientSecretCredential"
-        ) as mock_cred:
+        with patch("azure_haymaker.utils.credentials.ClientSecretCredential") as mock_cred:
             mock_instance = Mock()
             mock_cred.return_value = mock_instance
 
-            credential = MultiTenantCredentialFactory.get_credential_for_tenant(
-                mock_tenant_config
-            )
+            credential = MultiTenantCredentialFactory.get_credential_for_tenant(mock_tenant_config)
 
             assert credential is mock_instance
             mock_cred.assert_called_once_with(
@@ -192,18 +184,12 @@ class TestMultiTenantCredentialFactory:
 
     def test_get_credential_for_tenant_caches_per_tenant(self, mock_tenant_config):
         """Test that credentials are cached per tenant."""
-        with patch(
-            "azure_haymaker.utils.credentials.ClientSecretCredential"
-        ) as mock_cred:
+        with patch("azure_haymaker.utils.credentials.ClientSecretCredential") as mock_cred:
             mock_instance = Mock()
             mock_cred.return_value = mock_instance
 
-            cred1 = MultiTenantCredentialFactory.get_credential_for_tenant(
-                mock_tenant_config
-            )
-            cred2 = MultiTenantCredentialFactory.get_credential_for_tenant(
-                mock_tenant_config
-            )
+            cred1 = MultiTenantCredentialFactory.get_credential_for_tenant(mock_tenant_config)
+            cred2 = MultiTenantCredentialFactory.get_credential_for_tenant(mock_tenant_config)
 
             assert cred1 is cred2
             assert mock_cred.call_count == 1
@@ -222,9 +208,7 @@ class TestMultiTenantCredentialFactory:
         tenant2.sp_client_secret = SecretStr("secret-2")
         tenant2.enabled = True
 
-        with patch(
-            "azure_haymaker.utils.credentials.ClientSecretCredential"
-        ) as mock_cred:
+        with patch("azure_haymaker.utils.credentials.ClientSecretCredential") as mock_cred:
             mock_cred.side_effect = [Mock(), Mock()]
 
             cred1 = MultiTenantCredentialFactory.get_credential_for_tenant(tenant1)
@@ -244,18 +228,12 @@ class TestMultiTenantCredentialFactory:
 
     def test_clear_cache_specific_tenant(self, mock_tenant_config):
         """Test that clear_cache can remove specific tenant credential."""
-        with patch(
-            "azure_haymaker.utils.credentials.ClientSecretCredential"
-        ) as mock_cred:
+        with patch("azure_haymaker.utils.credentials.ClientSecretCredential") as mock_cred:
             mock_cred.side_effect = [Mock(), Mock()]
 
-            cred1 = MultiTenantCredentialFactory.get_credential_for_tenant(
-                mock_tenant_config
-            )
+            cred1 = MultiTenantCredentialFactory.get_credential_for_tenant(mock_tenant_config)
             MultiTenantCredentialFactory.clear_cache(mock_tenant_config.tenant_id)
-            cred2 = MultiTenantCredentialFactory.get_credential_for_tenant(
-                mock_tenant_config
-            )
+            cred2 = MultiTenantCredentialFactory.get_credential_for_tenant(mock_tenant_config)
 
             assert cred1 is not cred2
             assert mock_cred.call_count == 2
@@ -268,9 +246,7 @@ class TestMultiTenantCredentialFactory:
         tenant1.sp_client_secret = SecretStr("secret-1")
         tenant1.enabled = True
 
-        with patch(
-            "azure_haymaker.utils.credentials.ClientSecretCredential"
-        ) as mock_cred:
+        with patch("azure_haymaker.utils.credentials.ClientSecretCredential") as mock_cred:
             mock_cred.return_value = Mock()
 
             MultiTenantCredentialFactory.get_credential_for_tenant(tenant1)
@@ -343,9 +319,7 @@ class TestCredentialThreadSafety:
         tenant_config.sp_client_secret = SecretStr("secret")
         tenant_config.enabled = True
 
-        with patch(
-            "azure_haymaker.utils.credentials.ClientSecretCredential"
-        ) as mock_cred:
+        with patch("azure_haymaker.utils.credentials.ClientSecretCredential") as mock_cred:
             mock_instance = Mock()
             mock_cred.return_value = mock_instance
 
@@ -420,15 +394,11 @@ class TestCredentialSecurity:
         assert "test-secret-value" not in secret_repr
         assert "***" in secret_repr or "SecretStr" in secret_repr
 
-    def test_get_tenant_credential_does_not_log_secrets(
-        self, mock_orchestrator_config, caplog
-    ):
+    def test_get_tenant_credential_does_not_log_secrets(self, mock_orchestrator_config, caplog):
         """Test that get_tenant_credential never logs secrets."""
         mock_orchestrator_config.is_cross_tenant = True
         mock_orchestrator_config.target_tenant_sp_client_id = "client-id"
-        mock_orchestrator_config.target_tenant_sp_client_secret = SecretStr(
-            "super-secret-value"
-        )
+        mock_orchestrator_config.target_tenant_sp_client_secret = SecretStr("super-secret-value")
 
         with caplog.at_level(logging.DEBUG):
             with patch("azure_haymaker.utils.credentials.ClientSecretCredential"):
@@ -500,9 +470,7 @@ class TestGetTenantCredentialIntegration:
         tenant_config.enabled = True
         tenant_config.display = "Registry Tenant"
 
-        mock_orchestrator_config.get_tenant_config = MagicMock(
-            return_value=tenant_config
-        )
+        mock_orchestrator_config.get_tenant_config = MagicMock(return_value=tenant_config)
 
         with patch(
             "azure_haymaker.utils.credentials.MultiTenantCredentialFactory.get_credential_for_tenant"
@@ -522,13 +490,9 @@ class TestGetTenantCredentialIntegration:
         mock_orchestrator_config.is_cross_tenant = True
         mock_orchestrator_config.target_tenant_id = "target-tenant"
         mock_orchestrator_config.target_tenant_sp_client_id = "target-client"
-        mock_orchestrator_config.target_tenant_sp_client_secret = SecretStr(
-            "target-secret"
-        )
+        mock_orchestrator_config.target_tenant_sp_client_secret = SecretStr("target-secret")
 
-        with patch(
-            "azure_haymaker.utils.credentials.ClientSecretCredential"
-        ) as mock_cred:
+        with patch("azure_haymaker.utils.credentials.ClientSecretCredential") as mock_cred:
             mock_instance = Mock()
             mock_cred.return_value = mock_instance
 
@@ -615,9 +579,7 @@ class TestCredentialRotation:
         tenant_config.sp_client_secret = SecretStr("secret")
         tenant_config.enabled = True
 
-        with patch(
-            "azure_haymaker.utils.credentials.ClientSecretCredential"
-        ) as mock_cred:
+        with patch("azure_haymaker.utils.credentials.ClientSecretCredential") as mock_cred:
             old_cred = Mock()
             new_cred = Mock()
             mock_cred.side_effect = [old_cred, new_cred]
@@ -658,9 +620,7 @@ class TestCompleteWorkflows:
         tenant2.sp_client_secret = SecretStr("secret-2")
         tenant2.enabled = True
 
-        with patch(
-            "azure_haymaker.utils.credentials.ClientSecretCredential"
-        ) as mock_cred:
+        with patch("azure_haymaker.utils.credentials.ClientSecretCredential") as mock_cred:
             mock_cred.side_effect = [Mock(), Mock()]
 
             # Get credentials for both tenants
@@ -690,13 +650,9 @@ class TestCompleteWorkflows:
         # Start with Phase 1 (cross-tenant mode)
         mock_orchestrator_config.is_cross_tenant = True
         mock_orchestrator_config.target_tenant_sp_client_id = "phase1-client"
-        mock_orchestrator_config.target_tenant_sp_client_secret = SecretStr(
-            "phase1-secret"
-        )
+        mock_orchestrator_config.target_tenant_sp_client_secret = SecretStr("phase1-secret")
 
-        with patch(
-            "azure_haymaker.utils.credentials.ClientSecretCredential"
-        ) as mock_cred:
+        with patch("azure_haymaker.utils.credentials.ClientSecretCredential") as mock_cred:
             phase1_cred = Mock()
             phase2_cred = Mock()
             mock_cred.side_effect = [phase1_cred, phase2_cred]
@@ -713,9 +669,7 @@ class TestCompleteWorkflows:
             tenant_config.enabled = True
             tenant_config.display = "Phase 2 Tenant"
 
-            mock_orchestrator_config.get_tenant_config = MagicMock(
-                return_value=tenant_config
-            )
+            mock_orchestrator_config.get_tenant_config = MagicMock(return_value=tenant_config)
 
             # Phase 2: Get credential with tenant registry
             with patch(
@@ -723,9 +677,7 @@ class TestCompleteWorkflows:
             ) as mock_multi:
                 mock_multi.return_value = phase2_cred
 
-                cred2 = get_tenant_credential(
-                    mock_orchestrator_config, tenant_id="registry-tenant"
-                )
+                cred2 = get_tenant_credential(mock_orchestrator_config, tenant_id="registry-tenant")
 
                 # Should use Phase 2 credential from registry
                 assert cred2 is phase2_cred
